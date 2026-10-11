@@ -316,7 +316,9 @@ MCP tool returns, as one JSON line; `code-atlas query --batch <file.jsonl>` (`-`
 Exit `0` for any answer, an empty one included; `2` for a usage error; `1` with no readable index.
 Every line is checked before any is asked, but a call a tool rejects stops the batch there, after
 the answers before it. The two index writers are refused, and shell calls are not counted in
-`fit_counts` or `est_tokens_vs_grep_read`.
+`fit_counts` or `est_tokens_vs_grep_read`. `--snapshot-symbols <out>` plus a later `--changed-since
+<out> --qname …` asks whether a method's body changed since that revision — comments and layout
+ignored ([design](docs/design/impact-and-claims.md#has-this-symbol-changed-since-revision-x-384)).
 
 ### Three properties worth knowing before you install
 

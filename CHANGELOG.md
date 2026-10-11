@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `code-atlas query --snapshot-symbols <out>` writes every symbol's signature and body fingerprint;
+  `--changed-since <snapshot> --qname Q --path P` answers per symbol `unchanged`, `body_changed`,
+  `signature_changed`, `moved`, `removed`, `unknown_at_base` or `unknown`, exiting `3` unless all are
+  unchanged. Every adapter stamps `extra.body_hash`; **update the adapter checkout and run
+  `code-atlas-build --full`** to fingerprint every symbol — until then one answers `unknown` (384).
 - A signed claim is format `code-atlas/2` and ends with `call=`, the tool's arguments;
   `code-atlas query --verify-claim '<line>'` / `--verify-claims <file>` re-run claims at the current
   index as `holds`, `changed` (naming the keys that moved) or `unverifiable`, exiting `3` when one did

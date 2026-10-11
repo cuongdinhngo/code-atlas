@@ -5,6 +5,7 @@
 
 const fs = require("node:fs");
 const ddl = require("./ddl.js");
+const { lineFingerprints } = require("./bodyHash.js");
 
 const CHUNK = 64 * 1024;
 // A statement larger than this is degraded to a table-level write rather than accumulated, so peak
@@ -329,6 +330,7 @@ function parseFile(qpath) {
   let paramScan = null;
   let lineNo = 0;
   let lastLine = 0;
+  const fingerprints = lineFingerprints();
   /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean}|null} */
   let pending = null;
   /** @type {Map<string, Node>} */
@@ -750,6 +752,7 @@ function parseFile(qpath) {
     lineNo += 1;
     lastLine = lineNo;
     state.line = lineNo;
+    fingerprints.line(lineNo, line);
     const opensAssignment = state.string ? null : ASSIGN_RE.exec(line.split("'")[0] ?? "");
     if (opensAssignment) assigning = opensAssignment[1].toLowerCase();
     else if (!state.string && !/^\s*\+/.test(line)) assigning = null;
@@ -980,6 +983,7 @@ function parseFile(qpath) {
     }
   }
 
+  fingerprints.stamp(nodes);
   return { path: qpath, ok: true, nodes, edges };
 }
 

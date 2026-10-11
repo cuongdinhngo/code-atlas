@@ -67,7 +67,7 @@ final class Parser
         return [
             'path' => $path,
             'ok' => true,
-            'nodes' => $visitor->nodes,
+            'nodes' => BodyHash::stamp($source, $visitor->nodes),
             'edges' => $visitor->edges,
         ];
     }

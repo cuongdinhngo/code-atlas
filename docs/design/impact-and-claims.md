@@ -112,3 +112,36 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `diff_architecture` | a drift report is a shape across sections — a one-line change count erases which revision and which field moved (139) |
 | `class_diagram` | a diagram is a shape; a count of types without the mermaid body is not checkable (144) |
 | `trace_capability` | a traced path is only meaningful hop by hop: a one-line claim would assert *"this request touches N files"* while dropping the order, the layers and the tier of each hop — the parts that make it checkable at all (199) |
+
+## Has this symbol changed since revision X (384)
+
+A record anchored to a method — a test doc, a verified behaviour, a signed claim — goes stale
+when the method changes, and a file diff flags every record in a long file. So each adapter stamps
+every symbol with `extra.body_hash`: a digest of the tokens on its lines from the language's own
+tokenizer, comments and layout dropped (a Python docstring and a decorator count; SQL hashes per
+line). A symbol covers its lines, so a class's fingerprint moves with any member's; a qname declared
+twice in a file (an overload) covers every declaration. The core never reads source for it, and an
+unstamped symbol answers `unknown`.
+
+`code-atlas query --snapshot-symbols <out>` writes every symbol's qname, file, kind, signature
+(params, modifiers, declared type) and fingerprint at the index's revision; the consumer keeps the
+file. `--changed-since <out>` with `--qname` / `--path` (repeatable) answers one line per symbol:
+
+| status | when |
+|---|---|
+| `unchanged` | same file, signature and fingerprint |
+| `signature_changed` | params, modifiers or declared type moved — checked before the body |
+| `body_changed` | same signature, another fingerprint |
+| `moved` | the same fingerprint in another file — the same qname, or the same name and kind (`qname_now`) |
+| `removed` | none of the above |
+| `unknown_at_base` | the snapshot never held it — never `unchanged` |
+| `unknown` | no fingerprint (`no_body_hash`), its file changed since the build (`file_changed_since_index` — git decides, so outside a checkout nothing is), the snapshot's own index had drifted there (`snapshot_file_drifted`), or the body sits in two places (`ambiguous_move`) |
+
+A `--path` names every symbol the snapshot held in that file, plus any it gained (`unknown_at_base`).
+A rename changes the tokens, so it reads `removed`; a body changed while moving keeps its qname or
+reads `removed`. Each line carries `rev_base` and `rev_now`. A fingerprint is 64 bits and its
+algorithm is the adapter's: after an adapter changes how it tokenizes (CHANGELOG says so), take a
+new snapshot, or every body reads `body_changed` — never the reverse. Exit `3` unless every line is
+`unchanged`. A claim (383) can hold on its count while the body under
+it changed; this is the question that catches that. Build cost: see task 384.
+

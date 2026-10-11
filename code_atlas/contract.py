@@ -276,6 +276,9 @@ RULE_FLAG = "rule"
 # Method.extra key: the language spec makes this method its class's constructor, so a `new` of
 # the class calls it (362). Advertised, never required — no flag, no constructor. Not a bump.
 CONSTRUCTOR_FLAG = "constructor"
+# Node.extra key: a fingerprint of the symbol's tokens, comments and layout dropped (384). Opaque,
+# compared only for equality; advertised, never required — no key answers `unknown`. Not a bump.
+BODY_HASH = "body_hash"
 # File.extra key: resolution strategies the graph does not model (279). Not a contract bump.
 UNMODELLED_RESOLUTION = "unmodelled_resolution"
 # Strategy token under UNMODELLED_RESOLUTION — registered class autoload (language-standard API).
