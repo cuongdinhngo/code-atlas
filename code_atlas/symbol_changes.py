@@ -140,15 +140,18 @@ def _judge(
     here = next((symbol for symbol in now if symbol.file == base.file), None)
     if here is None and base.body_hash is not None:
         # A move keeps the body: the same qname in another file, or the same name and kind.
-        moved = next((symbol for symbol in now if symbol.body_hash == base.body_hash), None)
-        if moved is None:
+        moved = [symbol for symbol in now if symbol.body_hash == base.body_hash]
+        if not moved:
             rows = store.nodes_by_names([base.name], kind=base.kind, limit=_LOOKUP_LIMIT)
             candidates = (symbol_of(row) for row in rows.get(base.name, []))
-            moved = next(
-                (s for s in candidates if s is not None and s.body_hash == base.body_hash), None
-            )
-        if moved is not None:
-            return _checked(subject, base, MOVED, moved, drifted)
+            moved = [s for s in candidates if s is not None and s.body_hash == base.body_hash]
+        if len(moved) > 1:
+            # Two identical bodies elsewhere: which one is this symbol is a guess (R5.2).
+            verdict = _verdict(subject, base.qname, UNKNOWN, base, None)
+            verdict["reason"] = "ambiguous_move"
+            return verdict
+        if moved:
+            return _checked(subject, base, MOVED, moved[0], drifted)
     if here is None and now:
         here = now[0]
     if here is None:

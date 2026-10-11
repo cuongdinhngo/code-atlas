@@ -133,8 +133,13 @@ file. `--changed-since <out>` with `--qname` / `--path` (repeatable) answers one
 | `moved` | the same fingerprint in another file — the same qname, or the same name and kind (`qname_now`) |
 | `removed` | none of the above |
 | `unknown_at_base` | the snapshot never held it — never `unchanged` |
-| `unknown` | no fingerprint (`no_body_hash`), or its file changed since the build (`file_changed_since_index`) |
+| `unknown` | no fingerprint (`no_body_hash`), its file changed since the build (`file_changed_since_index`), or the body sits in two places (`ambiguous_move`) |
 
-Exit `3` unless every line is `unchanged`. A claim (383) can hold on its count while the body under
+A `--path` names every symbol the snapshot held in that file, plus any it gained (`unknown_at_base`).
+A rename changes the tokens, so it reads `removed`; a body changed while moving keeps its qname or
+reads `removed`. Each line carries `rev_base` and `rev_now`. A fingerprint is 64 bits and its
+algorithm is the adapter's: after an adapter changes how it tokenizes (CHANGELOG says so), take a
+new snapshot, or every body reads `body_changed` — never the reverse. Exit `3` unless every line is
+`unchanged`. A claim (383) can hold on its count while the body under
 it changed; this is the question that catches that. Build cost: see task 384.
 

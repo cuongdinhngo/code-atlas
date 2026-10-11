@@ -74,7 +74,8 @@ EDITS: dict[str, Edits] = {
         "CREATE PROCEDURE dbo.Save @a INT AS\nBEGIN\n  /* reworded */\n\n"
         "      SELECT   @a + 1;   -- trailing\nEND\nGO\n",
         "CREATE PROCEDURE dbo.Save @a INT AS\nBEGIN\n  -- keep\n  SELECT @a + 2;\nEND\nGO\n",
-        "CREATE PROCEDURE dbo.Save @a INT, @b INT AS\nBEGIN\n  -- keep\n  SELECT @a + 1;\nEND\nGO\n",
+        "CREATE PROCEDURE dbo.Save @a INT, @b INT AS\nBEGIN\n  -- keep\n"
+        "  SELECT @a + 1;\nEND\nGO\n",
     ),
 }
 
@@ -204,6 +205,21 @@ def test_a_body_moved_to_another_file_is_moved_not_removed(
     _, [gone] = repo.changed(capsys, snapshot, "--qname", qname)
     if "qname_now" in verdict:  # a new qname with a new body is not the same symbol
         assert gone["status"] == symbol_changes.REMOVED
+
+
+def test_a_body_copied_to_two_files_is_an_ambiguous_move(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exposure-checker item 1: two identical bodies elsewhere are not one move."""
+    edits = EDITS["python"]
+    repo = Repo(tmp_path / "py", REGISTRY["python"].cli, monkeypatch)
+    repo.write({edits.path: edits.base})
+    snapshot = repo.snapshot(capsys)
+    qname = qname_named(snapshot, edits.name)
+    repo.write({edits.path: None, "lib/a.py": edits.base, "lib/b.py": edits.base})
+    _, [verdict] = repo.changed(capsys, snapshot, "--qname", qname)
+
+    assert (verdict["status"], verdict["reason"]) == (symbol_changes.UNKNOWN, "ambiguous_move")
 
 
 def test_a_symbol_absent_from_the_base_is_unknown_at_base(
