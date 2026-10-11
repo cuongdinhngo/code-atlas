@@ -336,8 +336,9 @@ Inbound answers are **ordered by that tier before the page is cut**, so page 1 l
 resolved rather than with whatever sorts first alphabetically.
 
 **An answer can be signed.** Pass `sign: true` to five tools and the payload gains a one-line
-`claim` you can paste into a PR body — a claim a text search cannot make, in a form a reviewer can
-re-run. Off by default, +51 tokens when on.
+`claim` you can paste into a PR body or a doc — a claim a text search cannot make, which
+`code-atlas query --verify-claims <file>` re-runs as `holds` / `changed` / `unverifiable`. Off by
+default, +75 tokens when on.
 
 Full detail: [`docs/design/payload.md`](docs/design/payload.md) ·
 [`docs/design/impact-and-claims.md`](docs/design/impact-and-claims.md).

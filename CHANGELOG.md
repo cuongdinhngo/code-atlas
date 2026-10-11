@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A signed claim is format `code-atlas/2` and ends with `call=`, the tool's arguments;
+  `code-atlas query --verify-claim '<line>'` / `--verify-claims <file>` re-run claims at the current
+  index as `holds`, `changed` (naming the keys that moved) or `unverifiable`, exiting `3` when one did
+  not hold. A `code-atlas/1` line is always `unverifiable` (383).
 - `code-atlas query <tool> --args '<json>'` and `code-atlas query --batch <file.jsonl>` answer the
   read tools from a shell with the MCP payload, one JSON line each, from one process (382).
 - A PHP, TS or Python string that runs `EXEC Proc @p` with no schema calls `dbo.Proc`, T-SQL's
