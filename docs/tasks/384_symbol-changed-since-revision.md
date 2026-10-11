@@ -219,7 +219,7 @@ $ scripts/gate.sh
   PASS pytest -q
 21 passed · 0 failed · 0 skipped
 GATE GREEN — all 21 checks passed
-Ran at 3a3167b2
+Ran at bc2d4bed
 ```
 
 The first gate run (`05aa87ce`) went red on one pytest item: the test repo's git identity (an `example.invalid` address) tripped
