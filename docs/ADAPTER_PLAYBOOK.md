@@ -91,6 +91,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 | `capabilities` | declare what you capture | honesty channel (R1.6). `semantic_types` means *a file-at-a-time local type table backs member-call receivers* (`contract.py` / task 311) — PHP · TS · Python declare it; SQL does not. The other known flags (`params`, `args`, `modifiers`, `declared_types`, `inheritance`) name optional field capture |
 | `symbol_shapes` (handshake) | declare the grep shapes of your symbols — `declaration` · `reference` · `call` · `name`, optionally `scoped` (v13, 345) | the grep-time nudge stays silent for your language |
 | `is_test` | emit only when decided | omit when undecided so 130's path convention fills via `symbol_role`; a constant `false` opts out of the fallback by accident (262/298) |
+| `extra.body_hash` | every symbol node but File/Namespace: a 16-hex digest of the tokens on its lines, comments and layout dropped, from your language's own tokenizer (384) — SQL hashes per line, so a statement re-wrapped across lines reads changed | `code-atlas query --changed-since` — an unstamped symbol answers `unknown` |
 | `File.extra.unmodelled_resolution` | stamp every idiom your language resolves at runtime | `find_orphans` — unstamped, unmeasured silence is reported as dead code. All four adapters stamp one: autoload (279), non-literal `import()`/`require()` (294), `importlib`/`__import__` (295), dynamic `EXEC`/`sp_executesql` (296) |
 
 **Do not answer any row of this table from memory or from reading another adapter — measure it.**
