@@ -205,7 +205,11 @@ Commits `cea5067c` (core, tools, tests), `fa3b31ad` (docs), `18b8521d` (File tar
 384 the file fails at collection — `code_atlas.routes` does not exist. While writing AC2's test, impact listed a route
 whose target only shared a file with a reached symbol; `routes.reaching` now matches a symbol target by qname.
 
-**Verification sweep.** File axis: the diff is the change list; `ruff`, `mypy` (101 files) clean; 583 neighbouring
+**Deviation D1 (file axis).** The first gate run went red on `tests/test_agent_brief_usage_completeness.py`: it
+lists every shipped tool parameter as taught or waived, and `routes` was neither. A listed-subset pin of the surface
+this change extends, missed at Gate 2 — P5's own class. Both new parameters are waived as subject selectors.
+
+**Verification sweep.** File axis: the diff is the change list plus D1; `ruff`, `mypy` (101 files) clean; 583 neighbouring
 tests pass (trace_capability, impact, search_symbol, indirection, build report, query, claims, MCP server). Behaviour
 axis: Approach 1–4 implemented as approved; Scope 2 deviates as W1 records.
 
