@@ -4,11 +4,11 @@ slug: symbol-changed-since-revision
 title: 'Nothing answers "has this method''s body changed since revision X" — a file diff is the finest grain'
 phase: 2
 milestone: Trust
-status: deferred
+status: todo
 depends_on: []
 ---
 
-**Deferred 2026-10-10 — evidence gate:** the baseline to beat is `impact` on `git diff <rev>..HEAD` intersected with the anchored symbols (transitive, already shipped), plus `git log -L :<func>:<file>` for one symbol. Reopen only if a consumer measures that baseline as too noisy or too slow, with the numbers in this file.
+**Reopened 2026-10-11 by the maintainer:** the anchor project runs this as soon as it ships; that consumer is the evidence the 2026-10-10 deferral waited for.
 
 ## Why this exists
 

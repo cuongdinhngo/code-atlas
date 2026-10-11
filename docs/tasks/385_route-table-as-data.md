@@ -4,11 +4,11 @@ slug: route-table-as-data
 title: 'A URL a tester reports cannot be asked about: a dispatcher route resolved at runtime has no subject in the graph'
 phase: 2
 milestone: Coverage
-status: deferred
+status: todo
 depends_on: []
 ---
 
-**Deferred 2026-10-10 — evidence gate:** the motivating consumer already resolves URLs with its own measured route table, outside the graph, at no measured cost. Reopen when a consumer shows that a route subject is needed *inside* a graph answer (`impact` or `trace_capability`), not only as a lookup.
+**Reopened 2026-10-11 by the maintainer:** the anchor project runs this as soon as it ships; that consumer is the evidence the 2026-10-10 deferral waited for.
 
 ## Why this exists
 
