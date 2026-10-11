@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import csv
 import difflib
-import fnmatch
 import io
 import json
+import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -204,11 +204,14 @@ def match(routes: Sequence[Route], url: str) -> Route | None:
         if canonical(url, route.significant) == route.key and _WILDCARD not in route.key:
             return route
     for route in routes:
-        if _WILDCARD in route.key and fnmatch.fnmatchcase(
-            canonical(url, route.significant), route.key
-        ):
+        if _WILDCARD in route.key and _glob(route.key).fullmatch(canonical(url, route.significant)):
             return route
     return None
+
+
+def _glob(key: str) -> re.Pattern[str]:
+    # Only ``*`` is a wildcard: a key's ``?`` separator and any ``[`` are literal, unlike fnmatch.
+    return re.compile(".*".join(re.escape(part) for part in key.split(_WILDCARD)), re.DOTALL)
 
 
 def nearest(routes: Sequence[Route], url: str) -> list[str]:
