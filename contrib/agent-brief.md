@@ -75,11 +75,11 @@ The index holds what the adapters parsed, so a question whose answer is an **abs
 - **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when a language stamped `dynamic_sql` (296).
 - **A runtime-loaded module is not an edge either.** A computed `import()` / `require()` / `importlib` load stamps `dynamic_import` (one built from `__dirname`/`__file__` and literals, or a literal `import_module`, is linked — 370/373), a registered class autoloader stamps `autoload`: the target is never linked, so a missing importer is not proof of none — Grep the loader call. `find_orphans` answers `status=resolution_unmodelled` for either (279/294/295).
 - **`find_orphans` has no path scope** — it walks the whole index from `CA_ENTRY_POINTS`. Do not expect a directory filter.
-- **A URL, route or CLI command someone reports** is a subject once a `routes` block is declared in a `CA_INDIRECTION_RULES` file: `trace_capability(route=…)` traces from its handler, `impact(routes=[…])` lists the routes a change reaches, `search_symbol` finds a route by key. An unmatched URL answers `no_such_symbol` with `nearest_routes` (385).
+- **A URL or route someone reports** is a subject once a `routes` block is declared in a `CA_INDIRECTION_RULES` file: `trace_capability(route=…)` traces from its handler, `impact(routes=[…])` lists the routes a change reaches, `search_symbol` finds a route by key. An unmatched URL answers `no_such_symbol` with `nearest_routes` (385).
 
 ### From a shell — no agent turn per answer
 
-- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint.
+- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.
 - **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:** `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and answer `holds`, `changed` or `unverifiable`.
 - **"Has this method changed since revision X?"** `--snapshot-symbols <out>` at X, then `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`, `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.
 

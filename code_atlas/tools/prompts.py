@@ -64,7 +64,7 @@ RECOGNITION_MAP: tuple[tuple[str, str, str, bool], ...] = (
     ),
     # Last of the three: the agent brief selects a tool's first row (387).
     (
-        "A URL, route or command a user or test reports — which handler serves it",
+        "A URL or route a user or test reports — which handler serves it",
         "trace_capability",
         " (route=…)",
         False,

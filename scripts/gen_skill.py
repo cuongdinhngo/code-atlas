@@ -336,7 +336,7 @@ SHELL_ROUTE: tuple[str, ...] = (
     "- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the"
     " payload the MCP tool returns; `--batch <file.jsonl>` answers one"
     " `{\"tool\": …, \"args\": {…}}` per line over one opened index."
-    " Use it for a script, a CI check or a lint.",
+    " Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.",
     "- **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:**"
     " `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and"
     " answer `holds`, `changed` or `unverifiable`.",
@@ -413,7 +413,7 @@ USAGE_RULES: tuple[str, ...] = (
     " `status=resolution_unmodelled` for either (279/294/295).",
     "- **`find_orphans` has no path scope** — it walks the whole index from"
     " `CA_ENTRY_POINTS`. Do not expect a directory filter.",
-    "- **A URL, route or CLI command someone reports** is a subject once a `routes` block is"
+    "- **A URL or route someone reports** is a subject once a `routes` block is"
     " declared in a `CA_INDIRECTION_RULES` file: `trace_capability(route=…)` traces from its"
     " handler, `impact(routes=[…])` lists the routes a change reaches, `search_symbol` finds a"
     " route by key. An unmatched URL answers `no_such_symbol` with `nearest_routes` (385).",
