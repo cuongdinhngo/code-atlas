@@ -137,12 +137,13 @@ def compare(
             verdicts.append(_verdict(qname, qname, UNKNOWN_AT_BASE, None, now[0] if now else None))
             continue
         verdicts.extend(
-            _judge(store, qname, symbol, drifted, base_drifted) for symbol in by_qname[qname]
+            _judge(store, qname, symbol, by_qname, drifted, base_drifted)
+            for symbol in by_qname[qname]
         )
     for path in paths:
         held = {symbol.qname for symbol in by_file.get(path, [])}
         verdicts.extend(
-            _judge(store, path, symbol, drifted, base_drifted)
+            _judge(store, path, symbol, by_qname, drifted, base_drifted)
             for symbol in by_file.get(path, [])
         )
         for row in store.nodes_by_file_all(path):
@@ -161,6 +162,7 @@ def _judge(
     store: GraphStore,
     subject: str,
     base: Symbol,
+    held: Collection[str],
     drifted: Collection[str],
     base_drifted: Collection[str],
 ) -> dict[str, object]:
@@ -176,7 +178,11 @@ def _judge(
         if not moved:
             rows = store.nodes_by_names([base.name], kind=base.kind, limit=_LOOKUP_LIMIT)
             candidates = (symbol_of(row) for row in rows.get(base.name, []))
-            moved = [s for s in candidates if s is not None and s.body_hash == base.body_hash]
+            # A qname the snapshot already held was there at base — a twin, not this symbol moved.
+            moved = [
+                s for s in candidates
+                if s is not None and s.qname not in held and s.body_hash == base.body_hash
+            ]
         if len(moved) > 1:
             # Two identical bodies elsewhere: which one is this symbol is a guess (R5.2).
             verdict = _verdict(subject, base.qname, UNKNOWN, base, None)

@@ -274,6 +274,23 @@ def test_a_body_copied_to_two_files_is_an_ambiguous_move(
     assert (verdict["status"], verdict["reason"]) == (symbol_changes.UNKNOWN, "ambiguous_move")
 
 
+def test_a_twin_that_was_already_there_is_no_move(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A same-named, same-bodied symbol the base already held is a twin: the deletion is removed."""
+    edits = EDITS["python"]
+    twin = edits.base.replace("class Repo", "class Other")
+    repo = Repo(tmp_path / "py", REGISTRY["python"].cli, monkeypatch)
+    repo.write({edits.path: edits.base, "lib/other.py": twin})
+    snapshot = repo.snapshot(capsys)
+    symbols = json.loads(snapshot.read_text(encoding="utf-8"))["symbols"]
+    [qname] = {s["qname"] for s in symbols if s["name"] == edits.name and s["file"] == edits.path}
+    repo.write({edits.path: None})
+    _, [verdict] = repo.changed(capsys, snapshot, "--qname", qname)
+
+    assert verdict["status"] == symbol_changes.REMOVED
+
+
 def test_a_symbol_absent_from_the_base_is_unknown_at_base(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
