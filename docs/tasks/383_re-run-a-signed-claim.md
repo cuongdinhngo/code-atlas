@@ -4,11 +4,11 @@ slug: re-run-a-signed-claim
 title: 'A signed claim says a reviewer can re-run it, but nothing re-runs one'
 phase: 2
 milestone: Trust
-status: deferred
+status: todo
 depends_on: [382]
 ---
 
-**Deferred 2026-10-10 — evidence gate:** the first consumer that motivated this (knowledge pages citing code) anchors to symbols and checks them with `impact`, not with pasted claims. Reopen when a consumer actually pastes signed claims and needs them re-checked.
+**Reopened 2026-10-11 by the maintainer:** the anchor project runs this as soon as it ships; that consumer is the evidence the 2026-10-10 deferral waited for.
 
 ## Why this exists
 
