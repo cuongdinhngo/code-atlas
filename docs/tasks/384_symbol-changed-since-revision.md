@@ -214,12 +214,27 @@ controls (`base` re-run, the stamped snapshot) pin each negative.
 
 Noise exceeds the effect on the two larger samples; the worst measured slowdown is +4.5 % (SQL), inside W2.
 
+```
+$ scripts/gate.sh
+  PASS pytest -q
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at bc2d4bed
+```
+
+The first gate run (`05aa87ce`) went red on one pytest item: the test repo's git identity (an `example.invalid` address) tripped
+`test_no_email_outside_the_allowed_domains`; `3a3167b2` uses `t@t`, as the other tests do.
+
+**The maintainer pushed `92d5be9b`** during the run: a deleted method whose name and body match a symbol the
+snapshot already held (two identical getters) read `moved`; a name-search candidate must now be a qname the base
+never held, so it reads `removed`, with a test. Inside the reviewed files; the gate below re-ran on top of it.
+
 **Verification sweep.** File axis: the diff is the change list; `ruff`, `mypy` (100 files), PHPStan max, `tsc` (TS,
 SQL) clean. Behaviour axis: Approach 1–5 implemented as approved; H11 landed after the exposure-checker.
 
 ## Phase 4 — review
 
-`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`. Reviewed at 5e8c3912 — files: the four adapters' stamp and entry
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`. Reviewed at 5e8c3912 (`3a3167b2` after it changes one test line, the git identity) — files: the four adapters' stamp and entry
 files, `code_atlas/{contract,store,symbol_changes,query}.py`, `tests/test_symbol_changed_since.py`, the two module pins,
 `docs/design/impact-and-claims.md`, `docs/ADAPTER_PLAYBOOK.md`, `README.md`, `CHANGELOG.md`; working doc: this file.
 

@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A `routes` block in a `CA_INDIRECTION_RULES` file declares URL → handler (inline or a TSV census,
+  `significant` query keys); `trace_capability(route=…)` traces from the handler, `impact` takes
+  `routes` and lists the routes into its radius, `search_symbol` finds them by key, and the build
+  counts `routes_unresolved`. A lookup, not graph rows: no contract change (385).
 - `code-atlas query --snapshot-symbols <out>` writes every symbol's signature and body fingerprint;
   `--changed-since <snapshot> --qname Q --path P` answers per symbol `unchanged`, `body_changed`,
   `signature_changed`, `moved`, `removed`, `unknown_at_base` or `unknown`, exiting `3` unless all are

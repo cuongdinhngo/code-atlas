@@ -19,6 +19,8 @@ PARAM_WAIVERS: dict[str, str] = {
     "paths": "subject selector (impact batch)",
     "path": "subject selector (trace_capability)",
     "module": "subject selector (trace_capability)",
+    "route": "subject selector (trace_capability); TOOLS.md teaches the routes rule (385)",
+    "routes": "subject selector (impact batch), as paths (385)",
     "limit": "paging; total_count/truncated prose covers the page contract",
     "offset": "paging; same as limit",
     "detail_level": "envelope shape; unconfigured_adapters prose covers minimal",

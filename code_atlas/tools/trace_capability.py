@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Literal
 
+from code_atlas import routes
 from code_atlas.config import Config
 from code_atlas.onboarding.capabilities import ENTRY_POINTS_KNOB
 from code_atlas.onboarding.flows import FLOW_KINDS, Flow, FlowSet, flows_from_graph
@@ -41,6 +42,11 @@ DetailLevel = Literal["minimal", "standard"]
 SUBJECT_QNAME = "qname"
 SUBJECT_PATH = "path"
 SUBJECT_MODULE = "module"
+SUBJECT_ROUTE = "route"
+# No routes table was declared, and no registered tool can declare one: a hint, no route (R5.4).
+ROUTES_HINT = (
+    "no route table is declared — add a `routes` block to a CA_INDIRECTION_RULES file and rebuild"
+)
 
 # A subject that IS indexed but joins no traced flow. `architecture_overview` names the flows that
 # exist, so the route makes progress rather than pointing back here (R5.4).
@@ -58,6 +64,7 @@ __all__ = [
     "SUBJECT_MODULE",
     "SUBJECT_PATH",
     "SUBJECT_QNAME",
+    "SUBJECT_ROUTE",
     "create",
 ]
 
@@ -161,18 +168,23 @@ def _flow_row(flow: Flow, detail_level: DetailLevel) -> dict[str, object]:
     return row
 
 
-def _subject_of(qname: str | None, path: str | None, module: str | None) -> tuple[str, str] | None:
+def _subject_of(
+    qname: str | None, path: str | None, module: str | None, route: str | None
+) -> tuple[str, str] | None:
     """Exactly one subject, or None when the caller named none or several."""
     named = [
         (SUBJECT_QNAME, qname),
         (SUBJECT_PATH, path),
         (SUBJECT_MODULE, module),
+        (SUBJECT_ROUTE, route),
     ]
     given = [(kind, value) for kind, value in named if value]
     return (given[0][0], str(given[0][1])) if len(given) == 1 else None
 
 
-def _build(store: GraphStore, config: Config) -> FlowSet:
+def _build(
+    store: GraphStore, config: Config, seeds: list[tuple[str, str]] | None = None
+) -> FlowSet:
     """The same derivation the map runs, through the one assembly both callers share (199)."""
     nodes = store.node_universe()
     edge_tiers = store.dependency_edges_with_tier()
@@ -196,6 +208,42 @@ def _build(store: GraphStore, config: Config) -> FlowSet:
         declared_stub_roots=config.stub_roots or (),
         max_flows=config.page_limit,
         max_nodes=config.impact_max_nodes,
+        seeds=seeds,
+    )
+
+
+def _traced_route(
+    config: Config, store: GraphStore, url: str, detail_level: DetailLevel
+) -> dict[str, object]:
+    """A URL through the declared table: flows from its target, the first hop HEURISTIC (385)."""
+    table = routes.load(store.get_meta(routes.ROUTES_META_KEY))
+    if table is None:
+        payload = _envelope(
+            config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
+            reason=REASON_CAPABILITY_NOT_CONFIGURED,
+        )
+        payload["try_instead_hint"] = ROUTES_HINT
+        return payload
+    route = routes.match(table, url)
+    if route is None:
+        payload = _envelope(
+            config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
+            reason=REASON_NO_SUCH_SYMBOL,
+        )
+        payload["nearest_routes"] = routes.nearest(table, url)
+        return payload
+    built = _build(store, config, seeds=[(route.target, SUBJECT_ROUTE)])
+    rows = [_flow_row(flow, detail_level) for flow in built.flows]
+    for row in rows:
+        row[SUBJECT_ROUTE] = route.as_row()
+        steps = row["steps"]
+        if isinstance(steps, list) and steps:
+            # The hop INTO the target is the declaration, so it carries the route's tier.
+            steps[0].update(tier=routes.ROUTE_TIER, rule=True)
+    return _envelope(
+        config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
+        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
+        truncated=_incomplete(built),
     )
 
 
@@ -217,13 +265,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         path: str | None = None,
         module: str | None = None,
         detail_level: DetailLevel = "standard",
+        route: str | None = None,
     ) -> dict[str, object]:
         """How this codebase routes an incoming request — the capability flows one subject is in.
 
         Prefer this over Grep/Glob when the question is *"how does a request reach the code that
         produces the response?"* or *"what happens when a user does X?"*. Answers for **one**
-        subject: an entry symbol (``qname``), a file (``path``), or a business module (``module``).
-        Supply exactly one; naming none or several answers ``reason: name_not_qualified``. Each
+        subject: an entry symbol (``qname``), a file (``path``), a business module (``module``), or
+        a URL a front controller dispatches at run time (``route``, read through a declared
+        ``routes`` table: its flows start at the route's target, whose hop is ``HEURISTIC`` with
+        ``rule: true``; an unmatched URL answers ``no_such_symbol`` with ``nearest_routes``; no
+        table answers ``capability_not_configured``). Supply exactly one; naming none or several
+        answers ``reason: name_not_qualified``. Each
         result is one flow — its seed, its ordered ``steps`` (``qname`` · ``file`` · ``layer`` ·
         ``kind`` · ``tier``), how it ``ended`` and its ``sink``. A subject the index does not hold
         answers ``no_such_symbol``; one it holds that joins no traced flow answers ``no_matches``
@@ -234,7 +287,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Carries no layer table, matrix, hub list or capability table: for the whole picture call
         ``architecture_overview`` instead.
         """
-        chosen = _subject_of(qname, path, module)
+        chosen = _subject_of(qname, path, module, route)
         if chosen is None:
             return _envelope(
                 config=config,
@@ -253,6 +306,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 reason=REASON_NOT_INDEXED,
             )
         with GraphStore(config.db_path) as store:
+            if kind == SUBJECT_ROUTE:
+                return _traced_route(config, store, subject, detail_level)
             if not _known(store, kind, subject, config.page_limit):
                 payload = _envelope(
                     config=config,
