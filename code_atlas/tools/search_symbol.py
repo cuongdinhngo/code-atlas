@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Literal, NamedTuple
 
-from code_atlas import contract
+from code_atlas import contract, routes
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefix_match
@@ -159,6 +159,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind, edit_distance}``, nearest first, never in ``results`` (378).
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
+        A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
+        file, tier, rule}`` — beside ``results``; pass one to ``trace_capability(route=…)``.
         """
         subjects = _require_subjects(query, queries)
         batched = queries is not None
@@ -198,6 +200,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # unbounded fan-out the batch bound exists to prevent (101).
             guard = FreshnessGuard(config, store)
             mirrors = _mirror_context(store)
+            table = routes.load(store.get_meta(routes.ROUTES_META_KEY))
             found = [
                 _search_one(
                     store,
@@ -215,6 +218,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 for subject in kept
             ]
         if not batched:
+            routed = routes.containing(table or [], str(kept[0]), limit=cap)
             single = attach_coverage_note(
                 _single_payload(
                     found[0],
@@ -235,6 +239,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 has_coverage_gap=bool(coverage_gap(config)),
                 detail_level=detail_level,
             )
+            if routed:
+                # Declared routes whose key holds the query: beside the symbols, not in them (385).
+                single["routes"] = [route.as_row() for route in routed]
             return attach_unindexed_same_basename(
                 single,
                 root=config.root,

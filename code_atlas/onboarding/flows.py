@@ -439,8 +439,11 @@ def flows_from_graph(
     working_roots: Sequence[str] | None = None,
     max_flows: int,
     max_nodes: int,
+    seeds: Sequence[tuple[str, str]] | None = None,
 ) -> FlowSet:
     """Seeds, layer lookup and module ownership, assembled once for every caller (task 199).
+
+    ``seeds`` replaces the entry-point seeds — a declared route starts its flow at its target (385).
 
     199 added a per-subject query tool beside the dataset. Two copies of this assembly would be two
     paths to one derivation, and two paths drift — the tool would eventually attribute a file to a
@@ -448,16 +451,17 @@ def flows_from_graph(
     """
     file_of = dict(nodes)
     layer_of = {module.module: module.layer for module in assignment.modules}
-    seeds = seed_symbols(
-        metrics.entry_points,
-        seed_files(
-            sorted({path for _qname, path in nodes if path}),
-            declared_entry_points,
-            declared_stub_roots,
-            working_roots,
-        ),
-        file_of,
-    )
+    if seeds is None:
+        seeds = seed_symbols(
+            metrics.entry_points,
+            seed_files(
+                sorted({path for _qname, path in nodes if path}),
+                declared_entry_points,
+                declared_stub_roots,
+                working_roots,
+            ),
+            file_of,
+        )
     return build_flows(
         seeds,
         flow_edges,

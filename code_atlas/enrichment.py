@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from code_atlas import contract
+from code_atlas import contract, routes
 from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.store import GraphStore
@@ -65,6 +65,8 @@ class RulesPayload:
     view_data: tuple[tuple[str, int, str], ...]
     keyed_calls: tuple[KeyedCall, ...]
     digest: str
+    # Declared route tables (385): a lookup the build resolves into meta, never edges.
+    routes: tuple[routes.RouteBlock, ...] = ()
 
 
 def load_indirection_rules(config: Config) -> RulesPayload | None:
@@ -81,6 +83,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     calls: list[tuple[str, str, int]] = []
     view_data: list[tuple[str, int, str]] = []
     keyed_calls: list[KeyedCall] = []
+    route_blocks: list[routes.RouteBlock] = []
     digester = hashlib.sha256()
     for relative in sorted(paths):
         full = config.root / relative
@@ -103,6 +106,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         calls.extend(parsed[1])
         view_data.extend(parsed[2])
         keyed_calls.extend(parsed[3])
+        route_blocks.extend(routes.read_blocks(parsed[4], relative, config.root, digester.update))
 
     return RulesPayload(
         aliases=tuple(aliases),
@@ -110,6 +114,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         view_data=tuple(view_data),
         keyed_calls=tuple(keyed_calls),
         digest=digester.hexdigest(),
+        routes=tuple(route_blocks),
     )
 
 
@@ -178,6 +183,27 @@ def apply_indirection_rules(
         keyed_call_groups=keyed_groups,
         keyed_call_sites=keyed_sites,
     )
+
+
+def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
+    """Store the resolved route table in meta (or drop it); return ``routes_unresolved`` (385).
+
+    A target is a stored qname or an indexed file; a row naming neither is counted, not linked.
+    """
+    if payload is None or not payload.routes:
+        store.delete_meta(routes.ROUTES_META_KEY)
+        return 0
+    files = set(store.file_paths())
+
+    def locate(target: str) -> str | None:
+        if target in files:
+            return target
+        rows = store.nodes_by_qualified_name(target, limit=1)
+        return str(rows[0]["file_path"]) if rows else None
+
+    table, unresolved = routes.resolve(payload.routes, locate)
+    store.set_meta(routes.ROUTES_META_KEY, routes.dump(table))
+    return unresolved
 
 
 def is_rule_edge_path(path: object) -> bool:
@@ -635,6 +661,7 @@ def _load_rules(
     list[tuple[str, str, int]],
     list[tuple[str, int, str]],
     list[KeyedCall],
+    object,
 ]:
     try:
         raw = json.loads(raw_bytes.decode("utf-8"))
@@ -684,7 +711,7 @@ def _load_rules(
             raise ConfigError(f"indirection_rules: {label!r} keyed_calls entries must be objects")
         keyed_calls.append(_keyed_call(item, label))
 
-    return aliases, calls, view_data, keyed_calls
+    return aliases, calls, view_data, keyed_calls, raw.get("routes")
 
 
 def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:

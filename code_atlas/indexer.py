@@ -43,6 +43,7 @@ from code_atlas.enrichment import (
     count_unresolved_keyed_calls,
     count_unresolved_keyed_sites,
     load_indirection_rules,
+    publish_routes,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
 from code_atlas.resolver import delta_scope, resolve_edges
@@ -200,6 +201,8 @@ class BuildReport:
     rules_unresolved: int = 0
     # keyed_calls call sites whose string key linked under no rule (task 352).
     rule_keys_unresolved: int = 0
+    # Declared route rows whose target names no indexed symbol or file (task 385).
+    routes_unresolved: int = 0
 
 
 def full_build(
@@ -324,6 +327,7 @@ def _fill(
         removed=removed,
         rules_unresolved=counts.pop("rules_unresolved", 0),
         rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
+        routes_unresolved=counts.pop("routes_unresolved", 0),
         **counts,
     )
 
@@ -636,6 +640,7 @@ def incremental_update(
         fingerprint_skipped=fingerprint_skipped,
         rules_unresolved=counts.pop("rules_unresolved", 0),
         rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
+        routes_unresolved=counts.pop("routes_unresolved", 0),
         **counts,
     )
 
@@ -707,6 +712,7 @@ def _count_late_writes(
     counts["rule_keys_unresolved"] = count_unresolved_keyed_sites(
         store, enriched.keyed_call_sites
     )
+    counts["routes_unresolved"] = publish_routes(store, rules)
 
 
 def parse_file(config: Config, path: str) -> tuple[str, ParseResult] | None:

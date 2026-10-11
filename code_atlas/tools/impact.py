@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Literal, NamedTuple
 
+from code_atlas import routes as route_table
 from code_atlas.config import Config
 from code_atlas.contract import CALLER_KINDS
 from code_atlas.mirror_search import label_mirror_rows, load_mirror_search_stamp
@@ -162,6 +163,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         sign: bool = False,
         exclude_tests: bool = False,
+        routes: list[str] | None = None,
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
@@ -196,6 +198,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``exclude_tests`` drops test sources inside the walk, before the node budget and the page,
         so page one holds production rows rather than those a page of tests left over.
 
+        ``routes`` names URLs a declared ``routes`` table maps to a handler (385): each seeds its
+        target, and one that matches no route counts in ``seeds_dropped``. Whenever a table is
+        declared, ``routes`` in the answer lists each route whose target is a seed or in the radius
+        (``HEURISTIC``, ``rule: true``) — omitted when none reaches it.
+
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line naming subject, question, answer and the revision the index describes,
         with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
@@ -207,7 +214,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
             raise ValueError(f"depth must be >= 0, got {hops}")
-        parts = subject_parts(paths, qnames)
+        parts = [*subject_parts(paths, qnames), *(routes or [])]
         subject = ",".join(parts)
         if not config.db_path.is_file():
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path),
@@ -215,8 +222,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             answered_about_ref=None)
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
+            table = route_table.load(store.get_meta(route_table.ROUTES_META_KEY))
+            matched = [route_table.match(table or [], url) for url in routes or []]
+            routed = [route for route in matched if route is not None]
             plan = plan_seeds(
-                store, paths=paths or [], qnames=qnames or [], max_results=config.page_limit
+                store,
+                paths=[*(paths or []), *(r.target for r in routed if r.target == r.file)],
+                qnames=[*(qnames or []), *(r.target for r in routed if r.target != r.file)],
+                max_results=config.page_limit,
             )
             outcome = store.impact_radius(
                 plan.walk_seeds,
@@ -241,8 +254,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
-            seeds_dropped=outcome.seeds_dropped + plan.refused,
+            seeds_dropped=outcome.seeds_dropped + plan.refused + len(matched) - len(routed),
             answered_about_ref=about_ref)
+        if table:
+            reached = route_table.reaching(
+                table,
+                [*plan.walk_seeds, *(str(row["qname"]) for row in results)],
+                paths or [],
+                [str(row["file"]) for row in results],
+            )
+            if reached:
+                result["routes"] = [route.as_row() for route in reached]
         _attach_freshness(result, staleness)
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)
