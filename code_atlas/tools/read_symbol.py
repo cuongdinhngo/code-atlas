@@ -189,7 +189,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
             overlay = active_overlay(config, store)
             built_file = str(rows[0]["file_path"]) if len(rows) == 1 else None
-            if overlay is not None and (built_file in overlay.changed or not rows):
+            if overlay is not None and (not rows or overlay.changes(built_file or "")):
                 # The worktree changed or added the subject's file: read the worktree's own parse.
                 worktree_node = overlay.find(qname, first=built_file)
                 if worktree_node is not None:
@@ -337,6 +337,24 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 node = rows[0]
                 rel = str(node["file_path"])
+            if overlay is not None and overlay.changes(rel):
+                # A path_prefix-chosen row in a file the worktree changed: its span, not ours.
+                worktree_row = overlay.find(str(node["qualified_name"]), first=rel)
+                if worktree_row is None:
+                    return overlay.label(
+                        stamped_result(
+                            qname,
+                            "",
+                            detail_level=detail_level,
+                            db_path=str(config.db_path),
+                            index_root=config.index_root,
+                            found=False,
+                            stale=True,
+                            reason=REASON_INDEX_STALE,
+                            file=rel,
+                        )
+                    )
+                node = worktree_row
             # An unchanged file's bytes are the built commit's in the worktree too: read them there.
             body_root = config.root if overlay is None else overlay.root
             path = body_root / rel

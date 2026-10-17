@@ -163,3 +163,36 @@ def test_a_file_the_worktree_cannot_parse_is_never_read_as_an_absence(tmp_path: 
     assert gone["reason"] == "no_such_symbol", gone
     hits = search_symbol.create(_in(main, worktree))(query="Service", detail_level="minimal")
     assert all(row["file"] != "src/Service.php" for row in hits["results"])
+
+
+@needs_php
+def test_challenger_renamed_file_hides_the_old_paths_built_rows(tmp_path: Path) -> None:
+    """F1 — a rename is a deletion plus an addition, so the old path's built rows never leak."""
+    main, worktree = _main_and_worktree(tmp_path)
+    _git(worktree, "mv", "src/Caller.php", "src/Renamed.php")
+    _commit(worktree)
+    hits = search_symbol.create(_in(main, worktree))(query="Caller", detail_level="minimal")
+    assert {row["file"] for row in hits["results"]} == {"src/Renamed.php"}, hits
+
+
+@needs_php
+def test_challenger_an_unparseable_file_keeps_its_rows_flagged_in_search(tmp_path: Path) -> None:
+    """F2 — search never reads a worktree file it could not parse as an absence."""
+    main, worktree = _main_and_worktree(tmp_path)
+    _write(worktree, "src/Caller.php", "<?php\nclass Caller { public function go( \n")
+    hits = search_symbol.create(_in(main, worktree))(query="Caller", detail_level="minimal")
+    rows = [row for row in hits["results"] if row["file"] == "src/Caller.php"]
+    assert rows and all(row.get("source_stale") for row in rows), hits
+
+
+@needs_php
+def test_challenger_main_repairing_its_own_drift_does_not_move_the_worktree(
+    tmp_path: Path,
+) -> None:
+    """F5 — main's read-through rewrites a file the worktree never changed; the worktree wins."""
+    main, worktree = _main_and_worktree(tmp_path)
+    _write(main, "src/Caller.php", "<?php\n\n\n\n" + CALLER.removeprefix("<?php\n"))
+    find_callers.create(_in(main, None))("\\App\\Caller::go")  # main repairs its own file
+    read = read_symbol.create(_in(main, worktree))("\\App\\Caller::go", detail_level="minimal")
+    assert read["line_start"] == 3, read
+    assert read["overlay"] == "worktree"

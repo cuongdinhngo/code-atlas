@@ -67,7 +67,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             overlay = active_overlay(config, store)
             if overlay is not None:
                 rel = _repo_relative(overlay.root, rel)
-                if rel in overlay.changed:
+                if overlay.changes(rel):
                     return _overlay_outline(overlay, rel, cap, offset, limit_clamped, detail_level)
             guard = FreshnessGuard(config, store, trust_built=overlay is not None)
             # A path committed since the indexed commit is a named miss subject: repair it (360).

@@ -543,11 +543,18 @@ def _overlay_hits(
 
     Direct matches lead, the 180 band, and ``total_count`` moves by what this page swapped (389).
     """
-    kept = [row for row in hits.results if str(row.get("file")) not in overlay.changed]
+    kept: list[dict[str, object]] = []
+    for row in hits.results:
+        rel = str(row.get("file") or "")
+        if not overlay.changes(rel):
+            kept.append(row)
+        elif overlay.unread(rel):
+            # The worktree's copy would not parse: keep the built row, flagged, never an absence.
+            kept.append({**row, "source_stale": True})
     swapped = len(hits.results) - len(kept)
     needle = query.lower()
     added: list[tuple[bool, dict[str, object]]] = []
-    for rel in sorted(overlay.changed):
+    for rel in overlay.differing:
         if path_prefix is not None and not is_under_path_prefix(rel, path_prefix):
             continue
         for node in overlay.nodes(rel):
@@ -559,7 +566,7 @@ def _overlay_hits(
             direct = is_direct_match(query, name, qname)
             if direct or needle in qname.lower():
                 added.append((not direct, _hit(node, detail_level=detail_level)))
-    if not added and not swapped:
+    if not added and not swapped and kept == hits.results:
         return hits
     added.sort(key=lambda pair: pair[0])  # stable: direct matches first, file order within
     results = ([hit for _, hit in added] + kept)[:cap]

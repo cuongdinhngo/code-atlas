@@ -17,7 +17,7 @@ from pathlib import Path
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.contract import CONFIDENCE_TIERS, MEMBER_SEPARATOR, UNLINKED_EVIDENCE_KINDS
-from code_atlas.indexer import indexable, parse_file
+from code_atlas.indexer import file_is_current, indexable, parse_file
 from code_atlas.ref_check import OVERLAY_FIELD, OVERLAY_WORKTREE, caller_checkout
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore, stored
 from code_atlas.tools.nav_result import (
@@ -31,6 +31,7 @@ from code_atlas.tools.nav_result import (
 OVERLAY_ROOT_FIELD = "overlay_root"
 OVERLAY_TRUNCATED_FIELD = "overlay_truncated"
 OVERLAY_UNLINKED_FIELD = "overlay_unlinked_same_name"
+OVERLAY_FIRST_HOP_FIELD = "overlay_first_hop_only"
 # Files one call may parse through an adapter; past it the answer says it stopped looking.
 OVERLAY_PARSE_CAP = 25
 
@@ -45,6 +46,9 @@ class Overlay:
     changed: frozenset[str]
     truncated: bool = False
     _parsed: dict[str, Parsed | None] = field(default_factory=dict)
+    # Unchanged in the worktree, yet its built rows were since re-read from another checkout.
+    _drifted: set[str] = field(default_factory=set)
+    _same: set[str] = field(default_factory=set)
 
     @property
     def root(self) -> Path:
@@ -72,6 +76,33 @@ class Overlay:
         self._parsed[rel] = result
         return result
 
+    def changes(self, rel: str) -> bool:
+        """Do this worktree's bytes for ``rel`` differ from the rows the store holds for it?
+
+        A file the worktree did not change can still differ: read-through repair in another
+        checkout rewrites the shared store's rows for it (389 challenger F5).
+        """
+        if rel in self.changed or rel in self._drifted:
+            return True
+        if not rel or rel in self._same:
+            return False
+        # Its own read: an answer is often finished after the tool's connection closed.
+        with GraphStore(self.config.db_path) as store:
+            drifted = store.file_hash(rel) is not None and not file_is_current(
+                store, self.root, rel
+            )
+        (self._drifted if drifted else self._same).add(rel)
+        return drifted
+
+    @property
+    def differing(self) -> list[str]:
+        """Every file known to differ so far, sorted (R4.2)."""
+        return sorted(self.changed | self._drifted)
+
+    def unread(self, rel: str) -> bool:
+        """A differing file whose worktree parse could not be had (adapter failure or the cap)."""
+        return self.parsed(rel) is None
+
     def nodes(self, rel: str) -> list[dict[str, object]]:
         found = self.parsed(rel)
         return [] if found is None else found[0]
@@ -82,7 +113,8 @@ class Overlay:
 
     def find(self, qname: str, first: str | None = None) -> dict[str, object] | None:
         """The one worktree node named ``qname``: ``first``'s file, then every changed file."""
-        order = ([first] if first in self.changed else []) + sorted(self.changed - {first})
+        differing = self.differing
+        order = ([first] if first in differing else []) + [r for r in differing if r != first]
         for rel in order:
             hits = [n for n in self.nodes(rel) if n.get("qualified_name") == qname]
             if len(hits) == 1:
@@ -94,7 +126,7 @@ class Overlay:
 
         A worktree identical to the built commit changes no answer, so it labels none (366).
         """
-        if not self.changed:
+        if not self.changed and not self._drifted:
             return payload
         payload[OVERLAY_FIELD] = OVERLAY_WORKTREE
         payload[OVERLAY_ROOT_FIELD] = str(self.root)
@@ -114,7 +146,7 @@ def active_overlay(config: Config, store: GraphStore) -> Overlay | None:
     suffixes = store.get_meta(INDEXED_SUFFIXES_KEY)
     if not built or not suffixes:
         return None
-    diffs = gitutil.changed_paths(root, built)
+    diffs = gitutil.changed_paths(root, built, renames=False)
     if diffs is None:
         return None
     paths = sorted(set(diffs) | set(gitutil.ls_untracked(root) or ()))
@@ -143,12 +175,25 @@ def overlay_inbound(
     answer is labelled ``worktree_overlay``, never ``ok``.
     """
     rows = payload.get("results")
-    if not overlay.changed or not isinstance(rows, list):
+    if not isinstance(rows, list):
         return overlay.label(payload)
     kinds = UNLINKED_EVIDENCE_KINDS if kinds is None else kinds
-    kept = [r for r in rows if not (isinstance(r, dict) and r.get("file") in overlay.changed)]
+    # A deeper hop is the built graph's (the walk ran there); only first-hop rows swap.
+    kept = [
+        r
+        for r in rows
+        if not (
+            isinstance(r, dict)
+            and r.get("depth", 1) == 1
+            and overlay.changes(str(r.get("file") or ""))
+        )
+    ]
+    if not overlay.differing:
+        return payload
+    if depth > 1:
+        payload[OVERLAY_FIRST_HOP_FIELD] = True
     added: list[dict[str, object]] = []
-    for rel in sorted(overlay.changed):
+    for rel in overlay.differing:
         for edge in overlay.edges(rel):
             if edge.get("kind") in kinds and edge.get("target_raw") == subject:
                 tiered = {**edge, "confidence_tier": _HEURISTIC}
@@ -156,7 +201,7 @@ def overlay_inbound(
     bare = subject.rsplit(MEMBER_SEPARATOR, 1)[-1]
     unlinked = sum(
         1
-        for rel in sorted(overlay.changed)
+        for rel in overlay.differing
         for edge in overlay.edges(rel)
         if edge.get("kind") in kinds and edge.get("target_raw") == bare
     )
