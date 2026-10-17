@@ -329,6 +329,8 @@ ENGINEERING_RULES R5.5's neighbourhood; `/mango:promote` is the cross-ticket pas
 Stale-review guard: everything after 38924705 is this file, `docs/LESSONS.md`, `docs/BACKLOG.md` and
 `docs/TOKEN_LEDGER.md` — bookkeeping. Not stale.
 
+PR #73 review fixes: inbound worktree edges only on `offset=0`, ahead of the whole built page (no built row skipped); one adapter start per call (`parse_files`); deletions spend no parse; drifted paths contained — three `test_review_…` tests.
+
 ### Outward actions
 
 Under the handover: push `feat/389-worktree-overlay`; open the PR against `main` (stacked on #72).

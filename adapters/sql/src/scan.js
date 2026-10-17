@@ -627,9 +627,11 @@ function parseFile(qpath) {
    */
   const reads = (buf, line, written) => {
     const source = current ? current.qname : qpath;
+    const emitted = new Set(); // `dbo.T` and `[dbo].[t]` are one table, read once
     for (const { name, at } of ddl.readSources(buf)) {
       const target = splitName(name);
-      if (!target || target === written) continue;
+      if (!target || target === written || emitted.has(target.toLowerCase())) continue;
+      emitted.add(target.toLowerCase());
       // The buffer keeps its newlines (254), so the keyword's own line is countable.
       const own = line + (buf.slice(0, at).match(/\n/g) ?? []).length;
       edges.push({

@@ -239,7 +239,7 @@ final class MemberTypes extends NodeVisitorAbstract
 
     /**
      * The one class a `@return` docblock names, resolved like code (393). A union other than
-     * `X|null`, a generic, or a PHP type reads as nothing — a docblock is a claim, read narrowly.
+     * `X|null` / `null|X`, a generic, or a PHP type reads as nothing — a docblock is a claim.
      */
     private function docClass(Node\Stmt\ClassMethod $node): ?string
     {
@@ -248,7 +248,7 @@ final class MemberTypes extends NodeVisitorAbstract
             return null;
         }
         // The tag opens its docblock line; `@return` inside prose is not one.
-        $pattern = '/^[\s\/*]*@return\s+\??(\\\\?[A-Za-z_][\w\\\\]*)(?:\|null)?(?=\s|\*|$)/m';
+        $pattern = '/^[\s\/*]*@return\s+(?:null\|)?\??(\\\\?[A-Za-z_][\w\\\\]*)(?:\|null)?(?=\s|\*|$)/m';
         if (preg_match($pattern, $comment->getText(), $match) !== 1) {
             return null;
         }

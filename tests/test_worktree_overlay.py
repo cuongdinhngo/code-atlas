@@ -9,8 +9,11 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas import overlay as overlay_module
+from code_atlas.adapter import ParseResult
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
+from code_atlas.overlay import OVERLAY_PARSE_CAP, Overlay
 from code_atlas.store import GraphStore
 from code_atlas.tools import file_outline, find_callers, read_symbol, search_symbol
 from code_atlas.tools.nav_result import REASON_OK, REASON_WORKTREE_OVERLAY
@@ -196,3 +199,64 @@ def test_challenger_main_repairing_its_own_drift_does_not_move_the_worktree(
     read = read_symbol.create(_in(main, worktree))("\\App\\Caller::go", detail_level="minimal")
     assert read["line_start"] == 3, read
     assert read["overlay"] == "worktree"
+
+
+@needs_php
+def test_review_worktree_edges_head_only_the_first_page_and_skip_no_built_row(
+    tmp_path: Path,
+) -> None:
+    """PR #73 review — a later page never repeats the worktree's edges; no built row is lost."""
+    main, worktree = _main_and_worktree(tmp_path)
+    _write(
+        worktree,
+        "src/Extra.php",
+        "<?php\nnamespace App;\nclass Extra { public function also(Service $s) { $s->run(); } }\n",
+    )
+    tool = find_callers.create(_in(main, worktree))
+    first = tool("\\App\\Service::run", detail_level="minimal", limit=1)
+    rows = first["results"]
+    assert isinstance(rows, list) and rows[0]["qname"] == "\\App\\Extra::also", first
+    assert len(rows) == 2, first  # the built page's one row rides behind the worktree's
+    later = tool("\\App\\Service::run", detail_level="minimal", limit=1, offset=1)
+    rows = later["results"]
+    assert isinstance(rows, list) and len(rows) <= 1, later
+    assert "\\App\\Extra::also" not in [r["qname"] for r in rows], later
+
+
+def test_review_one_adapter_start_and_deletions_spend_no_parse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR #73 review — changed files parse in one batch; a deleted file is not a parse."""
+    calls: list[list[str]] = []
+
+    def fake(_config: Config, paths: list[str]) -> dict[str, tuple[str, ParseResult]]:
+        calls.append(list(paths))
+        return {p: ("php", ParseResult(path=p, ok=True)) for p in paths}
+
+    monkeypatch.setattr(overlay_module, "parse_files", fake)
+    for rel in ("a.php", "b.php"):
+        _write(tmp_path, rel, "<?php\n")
+    gone = [f"gone{i}.php" for i in range(OVERLAY_PARSE_CAP + 5)]
+    seen = Overlay(load_config(tmp_path, {}), frozenset(["a.php", "b.php", *gone]))
+    assert all(seen.parsed(rel) == ([], []) for rel in gone)
+    assert seen.parsed("b.php") == ([], []) and seen.parsed("a.php") == ([], [])
+    assert calls == [["b.php", "a.php"]] and not seen.truncated
+
+
+def test_review_a_drifted_path_outside_the_worktree_is_never_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR #73 review — a symlink escaping the worktree never reaches the store or an adapter."""
+    root = tmp_path / "wt"
+    _write(tmp_path, "outside.php", "<?php\n")
+    root.mkdir()
+    try:
+        (root / "link.php").symlink_to(tmp_path / "outside.php")
+    except OSError:
+        pytest.skip("this host cannot create symlinks")
+
+    def boom(*_: object) -> None:
+        raise AssertionError("the store was opened for a path outside the worktree")
+
+    monkeypatch.setattr(overlay_module, "GraphStore", boom)
+    assert not Overlay(load_config(root, {}), frozenset()).changes("link.php")

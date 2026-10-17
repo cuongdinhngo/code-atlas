@@ -237,7 +237,14 @@ final class TypeTable
                 ? $this->members->property($owner, $member)
                 : $this->members->method($owner, $member);
             if ($found !== null) {
-                return $this->resolve($found['type'], $found['declaredBy'], $owner);
+                // Untyped but docblocked: defer, so the core applies the docblock's HEURISTIC tier.
+                $doc = $found['type'] === null && !str_starts_with($member, '$')
+                    ? $this->members->docReturn(Qname::member($found['declaredBy'], $member))
+                    : null;
+
+                return $doc !== null
+                    ? $this->typeOf($qname)
+                    : $this->resolve($found['type'], $found['declaredBy'], $owner);
             }
             if (!$this->members->inherits($owner)) {
                 return null;

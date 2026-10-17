@@ -76,7 +76,7 @@ def _built(root: Path, extra: dict[str, str] | None = None) -> Config:
             "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"]),
             **(
                 {"CA_TYPESCRIPT_CMD": shlex.join([str(NODE), str(TS_ENTRY), "--server"])}
-                if extra
+                if any(rel.endswith(".ts") for rel in extra or {})
                 else {}
             ),
         },
@@ -137,4 +137,40 @@ def test_ac3_a_subject_with_no_such_site_carries_no_count(tmp_path: Path) -> Non
 def test_challenger_another_languages_same_name_call_is_not_counted(tmp_path: Path) -> None:
     config = _built(tmp_path, {"web/app.ts": "export function go(x: any) { x.send(); }\n"})
     payload = find_callers.create(config)("\\App\\Mailer::send", detail_level="minimal")
+    assert payload["unresolved_receivers"] == 1, payload
+
+
+# Review fixes: the factory declared in the caller's own file, and `null|X` read as `X|null`.
+BUILDER = {
+    "src/Builder.php": (
+        "<?php\nnamespace App;\nclass Builder {\n"
+        "    /** @return Mailer */\n"
+        "    private function buildMailer() { return new Mailer(); }\n"
+        "    /** @return null|Pager */\n"
+        "    public static function maybePager() { return null; }\n"
+        "    public function run() { $m = $this->buildMailer(); $m->attach(); }\n"
+        "    public function stat() { $p = self::maybePager(); $p->attach(); }\n"
+        "}\n"
+    ),
+}
+
+
+@needs_php
+def test_review_a_same_file_docblock_factory_types_the_local(tmp_path: Path) -> None:
+    config = _built(tmp_path, BUILDER)
+    mailer = _rows(find_callers.create(config)("\\App\\Mailer::attach", detail_level="minimal"))
+    assert ("\\App\\Builder::run", "HEURISTIC") in mailer
+    assert ("\\App\\Builder::stat", "HEURISTIC") not in mailer
+    pager = _rows(find_callers.create(config)("\\App\\Pager::attach", detail_level="minimal"))
+    assert ("\\App\\Builder::stat", "HEURISTIC") in pager
+
+
+@needs_php
+def test_review_the_count_is_unlinked_only_and_honours_exclude_tests(tmp_path: Path) -> None:
+    test_file = "<?php\nclass UserTest {\n    function t($y) { $y->send(); }\n}\n"
+    extra = {"tests/UserTest.php": test_file}
+    config = _built(tmp_path, extra)
+    tool = find_callers.create(config)
+    assert tool("\\App\\Mailer::send", detail_level="minimal")["unresolved_receivers"] == 2
+    payload = tool("\\App\\Mailer::send", detail_level="minimal", exclude_tests=True)
     assert payload["unresolved_receivers"] == 1, payload

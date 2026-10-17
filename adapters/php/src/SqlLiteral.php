@@ -95,21 +95,56 @@ final class SqlLiteral
         string $name,
         int $offset,
     ): ?array {
-        if (preg_match('/\bfrom\s+/i', $text, $from, PREG_OFFSET_CAPTURE, $start) !== 1) {
-            return null;
+        $at = null;
+        preg_match_all('/\bfrom\s+/i', $text, $froms, PREG_OFFSET_CAPTURE, $start);
+        foreach ($froms[0] as [$word, $pos]) {
+            if (self::topLevel($text, $start, $pos)) {
+                $at = $pos + strlen($word);
+                break;
+            }
         }
-        $at = $from[0][1] + strlen($from[0][0]);
-        if (preg_match($name, $text, $n, 0, $at) !== 1) {
+        if ($at === null || preg_match($name, $text, $n, 0, $at) !== 1) {
             return null;
         }
         $parts = self::parts($n[0]);
-        $rest = substr($text, $at + strlen($n[0]));
-        $ends = preg_match(self::AFTER_SOURCE, $rest) === 1 || ($closed && trim($rest) === '');
-        if (count($parts) === 1 && !$ends) {
+        if (count($parts) === 1 && !self::sourceEnds($text, $at + strlen($n[0]), $closed)) {
             return null;
         }
 
         return ['kind' => self::KINDS['select'], 'target' => implode('.', $parts), 'offset' => $offset];
+    }
+
+    /** A clause follows the unqualified source, after an optional alias, or a closed literal ends. */
+    private static function sourceEnds(string $text, int $at, bool $closed): bool
+    {
+        $rest = substr($text, $at);
+        if (preg_match(self::AFTER_SOURCE, $rest) === 1 || ($closed && trim($rest) === '')) {
+            return true;
+        }
+        // `FROM users u WHERE` / `FROM users AS u WHERE`: an alias still needs the clause after it.
+        if (preg_match('/\G\s+(?:as\s+)?' . self::NAME_PART . '/i', $text, $alias, 0, $at) !== 1) {
+            return false;
+        }
+
+        return preg_match(self::AFTER_SOURCE, substr($text, $at + strlen($alias[0]))) === 1;
+    }
+
+    /** Is ``$end`` outside every parenthesis and quoted string opened since ``$start``? */
+    private static function topLevel(string $text, int $start, int $end): bool
+    {
+        $depth = 0;
+        $quoted = false;
+        foreach (str_split(substr($text, $start, $end - $start)) as $char) {
+            if ($char === "'") {
+                $quoted = !$quoted;
+            } elseif (!$quoted && $char === '(') {
+                ++$depth;
+            } elseif (!$quoted && $char === ')') {
+                --$depth;
+            }
+        }
+
+        return $depth === 0 && !$quoted;
     }
 
     /** The clause T-SQL requires after the name, or — DELETE / EXEC on a qualified name — its end. */
