@@ -71,7 +71,7 @@ code-atlas/
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column ForeignKey`.
-- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES ALTERS DELETES`.
+- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES ALTERS DELETES READS`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
   so both ends are paths. `target_raw` is the literal as written (`'../helpers.php'`) or `(dynamic)`
@@ -87,7 +87,7 @@ code-atlas/
 - **`ALTERS`:** a file's DDL changes a `Table`/`Function` (v11, 321) — `RESOLVED` literal /
   `DYNAMIC` string-run name. Never a writer. Read as `altered_by` / `altered_by_dynamic` (R5.6).
 - **`DELETES`:** row-removal onto a `Table` (v12, 328) — `DELETE`/`TRUNCATE`/`MERGE…DELETE`;
-  never a Column or a writer (`find_references`).
+  never a Column, never a writer.
 - **`ForeignKey`:** a foreign-key constraint as its own node (v10, 236), never a second `Table`
   row for the table it sits on. qname joins the owning table (`dbo.T::FK_x`), `CONTAINS`-linked to it
   like a column. `ForeignKey.extra`: `parent_table`, `referenced_table`, `columns` (comma-joined).
