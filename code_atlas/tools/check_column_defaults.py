@@ -8,6 +8,7 @@ Tier 2 (022) put those facts in the graph; this reads them back in one call.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from typing import Literal
 
@@ -55,6 +56,8 @@ _CONTAINS = ("CONTAINS",)
 # One page of the graph's own edges, not of the answer: the arithmetic needs every writer, and the
 # caller's ``limit`` pages the COLUMNS it gets back.
 _WALK = 10_000
+# Columns read when a DEFAULT expression is the subject: a schema, not a page (391).
+_COLUMN_SCAN = 1_000_000
 
 __all__ = [
     "NAME",
@@ -149,6 +152,63 @@ def _row(
     return row
 
 
+def _measure(
+    store: GraphStore,
+    table: str,
+    all_columns: list[str],
+    columns: list[tuple[str, str]],
+    declarations: dict[str, int],
+    *,
+    detail_level: DetailLevel,
+) -> tuple[list[dict[str, object]], set[str]]:
+    """Each defaulted column's verdict against every writer of ``table``, and those writers.
+
+    One arithmetic for both subjects (R1.8): a ``table`` scan and a ``default_expr`` sweep.
+    """
+    # A writer reaching the table itself named no columns (022's discriminator), so it is
+    # unmeasured for every column rather than an omitter of each.
+    unmeasured = _sources(store, table)
+    by_column = {qname: _sources(store, qname) for qname in all_columns}
+    writers = unmeasured.union(*by_column.values()) if by_column else set(unmeasured)
+    rows = [
+        _row(
+            qname,
+            declared,
+            named=by_column.get(qname, set()),
+            unmeasured=unmeasured,
+            writers=writers,
+            detail_level=detail_level,
+            declarations=declarations.get(qname, 1),
+        )
+        for qname, declared in columns
+    ]
+    return rows, writers
+
+
+def normalise_default(expr: str) -> str:
+    """A DEFAULT as a comparable string: case, brackets, whitespace and outer parentheses dropped.
+
+    ``(user_name())``, ``[USER_NAME]()`` and ``user_name ( )`` are one expression (391). A
+    quoted literal is kept as written, so ``'N'`` and ``'n'`` stay two defaults.
+    """
+    parts = re.split(r"('(?:[^']|'')*')", expr)
+    text = "".join(
+        part if part.startswith("'") else re.sub(r"[\s\[\]]+", "", part).lower() for part in parts
+    )
+    while text.startswith("(") and text.endswith(")") and _balanced(text[1:-1]):
+        text = text[1:-1]
+    return text
+
+
+def _balanced(text: str) -> bool:
+    depth = 0
+    for char in text:
+        depth += {"(": 1, ")": -1}.get(char, 0)
+        if depth < 0:
+            return False
+    return depth == 0
+
+
 def _envelope(
     *,
     table: str,
@@ -174,11 +234,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def check_column_defaults(
-        table: str,
+        table: str | None = None,
         column: str | None = None,
         detail_level: DetailLevel = "standard",
         limit: int | None = None,
         offset: int = 0,
+        default_expr: str | None = None,
     ) -> dict[str, object]:
         """Which writers of this table omit a column that has a DEFAULT, and what is that DEFAULT?
 
@@ -199,17 +260,37 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``resolved_qname``; several (one per schema) answer ``reason: subject_ambiguous`` with no
         rows and each qualified candidate in ``ambiguous_definitions``; none answers
         ``no_such_symbol`` with ``try_instead: search_symbol`` (320).
+
+        ``default_expr`` replaces ``table`` as the subject (391): every column whose stored
+        ``DEFAULT`` is that expression — compared without case, brackets, whitespace or outer
+        parentheses — each row naming its ``table`` and measured against that table's writers,
+        with ``writers_partial`` per row. Pass exactly one of ``table`` and ``default_expr``;
+        ``column`` narrows a ``table`` only.
         """
+        if (table is None) == (default_expr is None):
+            raise ValueError("pass exactly one of table and default_expr")
+        if default_expr is not None and column is not None:
+            raise ValueError("column narrows a table; default_expr already names the columns")
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
-            return _envelope(
-                table=table, config=config, indexed=False, reason=REASON_NOT_INDEXED
+            unbuilt = _envelope(
+                table=table or "", config=config, indexed=False, reason=REASON_NOT_INDEXED
             )
+            if default_expr is not None:
+                del unbuilt["table"]
+                unbuilt["default_expr"] = default_expr
+            return unbuilt
 
+        if default_expr is not None:
+            return _by_expression(
+                config, default_expr, detail_level=detail_level, cap=cap, offset=offset,
+                limit_clamped=limit_clamped,
+            )
+        assert table is not None  # narrowed by the exactly-one check above
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             asked = table
@@ -237,24 +318,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     covered,
                     detail_level=detail_level,
                 )
-            # A writer reaching the table itself named no columns (022's discriminator), so it is
-            # unmeasured for every column rather than an omitter of each.
-            unmeasured = _sources(store, table)
-            by_column = {qname: _sources(store, qname) for qname in all_columns}
-            named_by_column = {qname: by_column[qname] for qname, _ in columns}
-            writers = unmeasured.union(*by_column.values()) if by_column else set(unmeasured)
-            rows = [
-                _row(
-                    qname,
-                    declared,
-                    named=named_by_column[qname],
-                    unmeasured=unmeasured,
-                    writers=writers,
-                    detail_level=detail_level,
-                    declarations=declarations.get(qname, 1),
-                )
-                for qname, declared in columns
-            ]
+            rows, writers = _measure(
+                store, table, all_columns, columns, declarations, detail_level=detail_level
+            )
             page = rows[offset : offset + cap]
             payload = _envelope(
                 table=asked,
@@ -275,6 +341,57 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return attach_coverage_note(payload, config, covered, detail_level=detail_level)
 
     return check_column_defaults
+
+
+def _by_expression(
+    config: Config,
+    expr: str,
+    *,
+    detail_level: DetailLevel,
+    cap: int,
+    offset: int,
+    limit_clamped: bool,
+) -> dict[str, object]:
+    """Every column defaulting to ``expr``, each measured against its own table's writers (391)."""
+    wanted = normalise_default(expr)
+    with GraphStore(config.db_path) as store:
+        covered = covered_languages(store)
+        by_table: dict[str, list[str]] = {}
+        scanned = store.nodes_by_kind("Column", limit=_COLUMN_SCAN)
+        for node in scanned:
+            declared = _declared_default(dict(node))
+            qname = str(node["qualified_name"])
+            if declared is None or normalise_default(declared) != wanted or "::" not in qname:
+                continue
+            by_table.setdefault(qname.rsplit("::", 1)[0], []).append(qname)
+        rows: list[dict[str, object]] = []
+        for table in sorted(by_table):
+            all_columns, defaulted, declarations = _columns_of(store, table)
+            matched = [pair for pair in defaulted if pair[0] in by_table[table]]
+            measured, writers = _measure(
+                store, table, all_columns, matched, declarations, detail_level=detail_level
+            )
+            partial = bool(writers) and store.has_unlinked_writes_relating_to(table)
+            for row in measured:
+                row["table"] = table
+                if partial:
+                    row[WRITERS_PARTIAL_KEY] = True
+            rows.extend(measured)
+    page = rows[offset : offset + cap]
+    payload: dict[str, object] = {
+        "default_expr": expr,
+        "default_expr_normalised": wanted,
+        "index_root": config.index_root,
+        "indexed": True,
+        "reason": REASON_OK if rows else REASON_NO_MATCHES,
+        "results": page,
+        "total_count": len(rows),
+        "truncated": offset + len(page) < len(rows),
+    }
+    if len(scanned) >= _COLUMN_SCAN:
+        payload["columns_scan_capped"] = _COLUMN_SCAN  # a schema larger than the scan (R5.6)
+    attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+    return attach_coverage_note(payload, config, covered, detail_level=detail_level)
 
 
 def _resolve_bare_table(
