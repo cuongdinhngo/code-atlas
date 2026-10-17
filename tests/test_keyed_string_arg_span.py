@@ -254,3 +254,15 @@ def test_challenger_ac5_an_edge_without_values_reads_the_line_as_before(tmp_path
     none = _keys_for_rule(config, unvalued, edge["args"], 1, "string", "a.php", 2, {})
 
     assert (keys, none) == (["Items"], [])  # a v16 null is never re-read from the line
+
+
+@needs_php
+def test_cross_repo_a_binary_literal_is_not_captured(tmp_path: Path) -> None:
+    """P8 (brick_math): a non-UTF-8 literal has no JSON value; the file must still parse."""
+    page = tmp_path / "b.php"
+    page.write_text("<?php\nf(\"\\xff\\xfe\", 'ok');\n", encoding="utf-8")
+    payload = PHP_CLI.parse_file(str(page))
+
+    assert payload["ok"] is True
+    [edge] = [e for e in payload["edges"] if e["target_raw"] == "\\f"]
+    assert edge[contract.ARG_STRINGS_FIELD] == [None, "ok"]

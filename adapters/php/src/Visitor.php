@@ -1275,7 +1275,12 @@ final class Visitor extends NodeVisitorAbstract
 
     private static function stringValue(Node\Expr $value): ?string
     {
-        if ($value instanceof Node\Scalar\String_ && strlen($value->value) <= 256) {
+        // Bytes that are not UTF-8 (a binary literal) have no JSON value, so none is captured.
+        if (
+            $value instanceof Node\Scalar\String_
+            && strlen($value->value) <= 256
+            && preg_match('//u', $value->value) === 1
+        ) {
             return $value->value;
         }
 
