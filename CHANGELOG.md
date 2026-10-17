@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A `routes` block reads a JSON census as is (`json`, `rows`, `columns`): a handler named by its
+  short class (`OrderController::listAction()`) links when one class holds that name, `prefer`
+  picks among same-named classes, and `get_index_status` lists the rows still ambiguous (397).
 - A rule file or routes TSV edited after the build no longer answers as current: `get_index_status`
   reports `rules_stale` with both digests, rule-fed answers say `rules_stale` instead of `ok`, and
   the next incremental (the refresh hook's included) re-applies the rules without `--full` (396).
