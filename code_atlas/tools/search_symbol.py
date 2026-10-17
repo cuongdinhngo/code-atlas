@@ -46,6 +46,7 @@ from code_atlas.tools.nav_result import (
     answered_about_ref_for,
     attach_coverage_edge_route,
     attach_limit_capped,
+    attach_rules_stale,
     attach_subjects_capped,
     attach_try_instead,
     batch_not_indexed,
@@ -272,6 +273,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if routed:
                 # Declared routes whose key holds the query: beside the symbols, not in them (385).
                 single["routes"] = [route.as_row() for route in routed]
+                attach_rules_stale(single, config, relabel=False)
             if overlay is not None:
                 overlay.label(single)
             return attach_unindexed_same_basename(

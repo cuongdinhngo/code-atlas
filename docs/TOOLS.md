@@ -352,9 +352,11 @@ python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 
 A call whose target is a **string argument** — `Widget::make('SaveButton')`, `$db->runProc('Insert_Order')`
 — has no edge to that target, so `find_callers` on it answers zero or `relation_unmodelled_for_language`.
-A `keyed_calls` rule models it: every call to `setter` whose argument `key_arg` is a one-line string
-literal gets a HEURISTIC `CALLS` edge (or the rule's `kind`) to `target_template` with `{key}` replaced by the literal. Hits
-carry `rule: true`.
+A `keyed_calls` rule models it: every call to `setter` whose argument `key_arg` is a string literal
+gets a HEURISTIC `CALLS` edge (or the rule's `kind`) to `target_template` with `{key}` replaced by
+the literal. Hits carry `rule: true`. The key is read from the edge (`arg_strings`, contract 16), so
+a wrapped call and two calls on a line each name theirs; where the field is absent (SQL, whose
+scanner masks literals, or an older index) the call's first line is read, as before (398).
 
 ```json
 {"keyed_calls": [
@@ -364,6 +366,9 @@ carry `rule: true`.
 ```
 
 - **`setter`** is an exact callee qname, or a bare method name matching any `::<name>`.
+- **A key passed by name (398).** `key_kw: "table"` reads the keyword argument `table` (PHP 8 named
+  arguments, Python keywords) before `key_arg`, which it makes optional; a call that passes the
+  keyword is never read positionally.
 - **A key inside a literal (361).** `key_pattern` is a Python regex searched in the string key: its
   named groups fill same-named placeholders (`"module=(?P<module>\\w+)&action=(?P<action>\\w+)"` →
   `"\\App\\{module}Controller::{action}Action"`), else group 1 fills `{key}`. A literal it does not
@@ -372,8 +377,8 @@ carry `rule: true`.
   `key_from: "object"` reads an object/array literal argument's top-level fields that are one
   string each (`{module: 'Items', action: 'x'}`); every placeholder, `{key}` included, names a field.
   A nested, concatenated, shorthand, template or double-quoted `$` value names nothing, as does a
-  repeated field; a spread voids the whole literal. A placeholder no field fills yields nothing, and,
-  like every key, only a one-line call is read.
+  repeated field; a spread voids the whole literal. A placeholder no field fills yields nothing, and
+  an object key is still read from the call's first line only.
 - **A table named by a string (364).** `kind: "WRITES"` or `"DELETES"` emits that edge instead of a
   `CALLS`, onto the `Table` the template spells (`"dbo.{key}"` — a `::` member is refused): a writer
   with no column list, so `check_column_defaults` reads it as unmeasured. A `WRITES` key links
@@ -385,9 +390,11 @@ carry `rule: true`.
   proc its schema — and may name a File (256). Several rules may share a setter; a literal links
   under whichever one names a real symbol.
 - **Nothing is invented:** only an argument that is one whole literal names a key — a variable or a
-  concatenation emits nothing, and a line calling the setter twice is skipped. A literal that names
-  no indexed symbol (an interpolated `"x$v"` included) stays unlinked. The build report counts both misses: `rule_keys_unresolved`
-  (call sites linked under no rule) and `rules_unresolved` (rules that linked nothing at all).
+  concatenation emits nothing. A literal that names no indexed symbol stays unlinked. The build
+  report counts three misses: `rule_keys_unresolved` (call sites linked under no rule),
+  `rules_unresolved` (rules that linked nothing at all) and, per rule, `keys_unread` (a string
+  literal where the key is, yet no key read — an interpolated `"x$v"`, or one over 256 characters);
+  `get_index_status` (standard) repeats `keys_unread`.
 - **A route a front controller dispatches at run time (385).** `routes` declares URL → handler as
   data — inline `table` rows `{key, target}`, or a `tsv` census used as is through `columns`
   (`{"key": "url", "target": "handler"}`). `significant` names the query keys that decide a route;
@@ -402,11 +409,30 @@ carry `rule: true`.
   not stored, so its URL answers `no_such_symbol`. Only those three tools read routes — the map,
   `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
   `HEURISTIC` + `rule: true`; later hops carry their own tiers.
+  **A JSON census (397).** `json` names a file, `rows` a dotted path to its list of objects (absent:
+  the file is the list) and `columns` the key and target fields, dotted for a nested one; a row
+  missing either is skipped, and the file is digested like a TSV (396). Its targets may name a
+  short class — `Class::method()` or `Class::method` — which links when exactly one stored class of
+  that last name declares the member. Several: `prefer` (qname segments, tried in order, each that
+  matches any candidate narrowing the set) picks the one left, else the row counts in
+  `routes_unresolved` and `get_index_status` lists it under `routes_ambiguous` with its candidates
+  (first 20, `routes_ambiguous_count` beside). TSV and inline rows resolve exactly as before.
 
   ```json
   {"routes": {"significant": ["module", "action"], "tsv": "docs/routes.tsv",
               "columns": {"key": "url", "target": "handler"}}}
+  {"routes": {"significant": ["module", "action"], "json": "docs/endpoints.json",
+              "rows": "endpoints", "columns": {"key": "url", "target": "handler"},
+              "prefer": ["Main"]}}
   ```
+- **Rules age with the index (396).** A build stores the digest of its rule files and any routes
+  TSV. When the files on disk differ — edited, removed, or the knob turned off — `get_index_status`
+  reports `rules_stale: true` with `rules_digest` (`built` / `current`; `rules_error` when a file no
+  longer loads) and its summary says so. `find_view_data`, the rule hits of `find_callers` /
+  `find_references`, `trace_capability(route=…)` and `impact(routes=[…])` then answer `rules_stale`
+  for `ok`, rows kept; a route side-field (`search_symbol`, `impact` on a path) only carries the flag.
+  The next incremental re-applies the rules without a parse (`wrote.rules_reapplied: true`); an index
+  built before 396 reads stale under rules until then.
 - `aliases`, `calls` and `view_data` entries share the file; PLAN §11 holds their limits.
 
 The adapter command is the **whole** command: the core appends nothing to it, not even `--server`, so

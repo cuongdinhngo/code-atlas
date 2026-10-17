@@ -18,13 +18,19 @@ from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.store import GraphStore
 
+# The digest of the rule files the index was built under; "" when the knob was off (396).
+RULES_DIGEST_KEY = "indirection_rules_digest"
+
+# Per keyed_calls rule, the last build's sites whose string key was not read (398).
+KEYS_UNREAD_KEY = "keyed_calls_keys_unread"
+
 # Synthetic path holding rule-emitted edges; replaced each build, dropped when rules are off.
 # Not a real on-disk file — no files row / File node (068); nav treats edges as rule-derived.
 INDIRECTION_FILE = ".code-atlas/indirection-rules"
 
 _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 
-# One-line call sites only (v1): Nth quoted string literal on the CALLS line.
+# A quoted string literal, as the line read (an index whose adapter captured no value) finds one.
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
 # What a keyed_calls rule may emit: a call, or a write / row removal of the table it names (364).
 _KEYED_KINDS: tuple[str, ...] = ("CALLS", contract.WRITES, contract.DELETES)
@@ -54,6 +60,8 @@ class KeyedCall(NamedTuple):
     pattern: re.Pattern[str] | None = None
     # The edge the rule emits: a call, or a write / row removal onto a `Table` it names (364).
     kind: str = "CALLS"
+    # A keyword argument naming the key, read before ``key_arg`` (0 = no positional key) — 398.
+    key_kw: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +126,35 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     )
 
 
+def rules_digest(payload: RulesPayload | None) -> str:
+    """The digest a build stores for ``payload``: ``""`` when no rules are configured (396)."""
+    return "" if payload is None else payload.digest
+
+
+class RulesDrift(NamedTuple):
+    """The build's rules digest against the files on disk; ``current`` is None when unreadable."""
+
+    built: str | None
+    current: str | None
+    error: str | None = None
+
+
+def rules_drift(config: Config, store: GraphStore) -> RulesDrift | None:
+    """Why rule-fed answers are stale, or ``None`` when the index holds today's rules (396).
+
+    The one predicate the status and every rule-fed tool ask (R1.8). An index with no stored
+    digest predates 396, so it is never attested current under configured rules (R5.6).
+    """
+    built = store.get_meta(RULES_DIGEST_KEY)
+    try:
+        current = rules_digest(load_indirection_rules(config))
+    except ConfigError as error:
+        return RulesDrift(built, None, str(error))
+    if (built or "") == current:
+        return None
+    return RulesDrift(built, current)
+
+
 class Enriched(NamedTuple):
     """Rows this run wrote from the rules, counted where they are built — no re-query (task 051)."""
 
@@ -127,6 +164,8 @@ class Enriched(NamedTuple):
     keyed_call_groups: tuple[tuple[Stamp, ...], ...] = ()
     # Per call site and string key: the stamps every keyed_calls rule emitted for it (352).
     keyed_call_sites: tuple[tuple[Stamp, ...], ...] = ()
+    # Per keyed_calls rule: sites with a string literal where its key is, yet no key read (398).
+    keys_unread: tuple[dict[str, object], ...] = ()
 
 
 NOTHING = Enriched(nodes=0, edges=0)
@@ -173,7 +212,9 @@ def apply_indirection_rules(
             }
         )
     edges.extend(_view_data_edges(config, store, loaded.view_data))
-    keyed_edges, keyed_groups, keyed_sites = _keyed_calls_edges(config, store, loaded.keyed_calls)
+    keyed_edges, keyed_groups, keyed_sites, unread = _keyed_calls_edges(
+        config, store, loaded.keyed_calls
+    )
     edges.extend(keyed_edges)
 
     store.replace_file_rows(INDIRECTION_FILE, [], edges)
@@ -182,6 +223,7 @@ def apply_indirection_rules(
         edges=len(edges),
         keyed_call_groups=keyed_groups,
         keyed_call_sites=keyed_sites,
+        keys_unread=unread,
     )
 
 
@@ -192,6 +234,7 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     """
     if payload is None or not payload.routes:
         store.delete_meta(routes.ROUTES_META_KEY)
+        store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
         return 0
     files = set(store.file_paths())
 
@@ -201,8 +244,28 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
         rows = store.nodes_by_qualified_name(target, limit=1)
         return str(rows[0]["file_path"]) if rows else None
 
-    table, unresolved = routes.resolve(payload.routes, locate)
+    def candidates(target: str) -> list[tuple[str, str]]:
+        """Members named ``method`` of a class whose last qname component is the short class."""
+        parts = routes.short_target(target)
+        if parts is None:
+            return []
+        suffix = f"{parts[0]}{contract.MEMBER_SEPARATOR}{parts[1]}"
+        found: dict[str, str] = {}
+        for row in store.nodes_by_qname_endswith(parts[1], suffix, limit=50):
+            qname = str(row["qualified_name"])
+            before = qname[: -len(suffix)]
+            # A whole component only: `Order` never names `AcmeOrder` (R5.2).
+            if not before or not re.match(r"[\w$]", before[-1]):
+                found.setdefault(qname, str(row["file_path"]))
+        return sorted(found.items())
+
+    ambiguous: list[dict[str, object]] = []
+    table, unresolved = routes.resolve(payload.routes, locate, candidates, ambiguous)
     store.set_meta(routes.ROUTES_META_KEY, routes.dump(table))
+    if ambiguous:
+        store.set_meta(routes.ROUTES_AMBIGUOUS_META_KEY, json.dumps(ambiguous, sort_keys=True))
+    else:
+        store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
     return unresolved
 
 
@@ -281,14 +344,17 @@ def _keyed_calls_edges(
     list[dict[str, object]],
     tuple[tuple[Stamp, ...], ...],
     tuple[tuple[Stamp, ...], ...],
+    tuple[dict[str, object], ...],
 ]:
     """CALLS edges whose target is a call's string key filled into ``target_template`` (222/361).
 
     Also returns, per (source, line, literal) site, the stamps every rule emitted for it (352): a
     literal two rules read differently is still one site, so it is counted once when neither links.
+    Last, per rule, the sites whose key position held a string literal yet named no key (398).
     """
     if not rules:
-        return [], (), ()
+        return [], (), (), ()
+    unread: list[dict[str, object]] = []
     out: list[dict[str, object]] = []
     groups: list[tuple[Stamp, ...]] = []
     sites: dict[tuple[str, int, str], list[Stamp]] = {}
@@ -296,6 +362,7 @@ def _keyed_calls_edges(
     line_cache: dict[tuple[str, int], str | None] = {}
     for rule in rules:
         group: list[Stamp] = []
+        missed = 0
         for edge in _calls_for_setter(store, rule.setter):
             if edge.get("file_path") == INDIRECTION_FILE:
                 continue
@@ -304,7 +371,10 @@ def _keyed_calls_edges(
             rel = edge.get("file_path")
             if not source or type(line) is not int or not isinstance(rel, str) or not rel:
                 continue
-            for literal, values in _keyed_values(config, edge, rule, rel, line, line_cache):
+            found = _keyed_values(config, edge, rule, rel, line, line_cache)
+            if not found and _key_unread(config, edge, rule, rel, line, line_cache):
+                missed += 1
+            for literal, values in found:
                 target = _fill(rule.template, values)
                 stamp = (source, target, line, rule.kind)
                 site = sites.setdefault((source, line, literal), [])
@@ -328,6 +398,7 @@ def _keyed_calls_edges(
                 )
         if group:
             groups.append(tuple(group))
+        unread.append(_rule_census(rule, missed))
     out.sort(
         key=lambda row: (
             str(row["source_qname"]),
@@ -336,7 +407,43 @@ def _keyed_calls_edges(
             str(row["kind"]),
         )
     )
-    return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
+    return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites)), tuple(unread)
+
+
+def _rule_census(rule: KeyedCall, missed: int) -> dict[str, object]:
+    """One rule's ``keys_unread`` row, named the way the rule file names it (398)."""
+    row: dict[str, object] = {"setter": rule.setter, "kind": rule.kind}
+    if rule.key_arg:
+        row["key_arg"] = rule.key_arg
+    if rule.key_kw is not None:
+        row["key_kw"] = rule.key_kw
+    row["keys_unread"] = missed
+    return row
+
+
+def _key_unread(
+    config: Config,
+    edge: dict[str, object],
+    rule: KeyedCall,
+    rel: str,
+    line: int,
+    line_cache: dict[tuple[str, int], str | None],
+) -> bool:
+    """A string literal sat where the rule's key is, yet no key was read from it (398).
+
+    A key read but refused by ``key_pattern`` is no route and is not counted (361).
+    """
+    if rule.key_from != "string":
+        return False
+    passed = _parse_mapping(edge.get(contract.KWARGS_FIELD))
+    if rule.key_kw is not None and passed is not None and rule.key_kw in passed:
+        literal = passed[rule.key_kw] == "string"
+    else:
+        literal = bool(rule.key_arg) and _arg_is_string(edge.get("args"), rule.key_arg)
+    args = edge.get("args")
+    return literal and not _keys_for_rule(
+        config, edge, args, rule.key_arg, "string", rel, line, line_cache, key_kw=rule.key_kw
+    )
 
 
 def _keyed_values(
@@ -372,7 +479,7 @@ def _keyed_values(
         return [(argument, {name: fields[name] for name in names})]
     found = []
     for key in _keys_for_rule(
-        config, edge, args, rule.key_arg, rule.key_from, rel, line, line_cache
+        config, edge, args, rule.key_arg, rule.key_from, rel, line, line_cache, key_kw=rule.key_kw
     ):
         if rule.pattern is None:
             found.append((key, {"key": key}))
@@ -503,13 +610,27 @@ def _keys_for_rule(
     rel: str,
     line: int,
     line_cache: dict[tuple[str, int], str | None],
+    *,
+    key_kw: str | None = None,
 ) -> list[str]:
     if key_from == "array_keys":
         return _keys_from_arg_keys(edge.get("arg_keys"), args, key_arg)
     if key_from != "string":
         return []
-    if not _arg_is_string(args, key_arg):
+    if key_kw is not None:
+        passed = _parse_mapping(edge.get(contract.KWARGS_FIELD))
+        if passed is not None and key_kw in passed:
+            # Passed by keyword, so the positional slot is another argument (398).
+            value = (_parse_mapping(edge.get(contract.KWARG_STRINGS_FIELD)) or {}).get(key_kw)
+            return [value] if isinstance(value, str) and value else []
+    if not key_arg or not _arg_is_string(args, key_arg):
         return []
+    captured = _parse_list(edge.get(contract.ARG_STRINGS_FIELD))
+    if captured is not None:
+        # The adapter read the literal, wrapped or not, one call of many on its line; a null is
+        # one it could not value (interpolated, too long), never re-read from the line (398).
+        held = captured[key_arg - 1] if key_arg <= len(captured) else None
+        return [held] if isinstance(held, str) and held else []
     text = _line_text(config.root, rel, line, line_cache)
     argument = _call_argument(text, edge.get("target_raw"), key_arg) if text is not None else None
     if argument is None or _STRING_LIT.fullmatch(argument) is None:
@@ -595,6 +716,21 @@ def _arg_is_string(args: object, key_arg: int) -> bool:
     if parsed is None or key_arg < 1 or key_arg > len(parsed):
         return False
     return parsed[key_arg - 1] == "string"
+
+
+def _parse_mapping(raw: object) -> dict[str, object] | None:
+    """A JSON-object edge column (``kwargs``, ``kwarg_strings``), as stored or as emitted."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+    return raw if isinstance(raw, dict) else None
+
+
+def _parse_list(raw: object) -> list[object] | None:
+    """A JSON-list edge column (``arg_strings``), as stored or as emitted."""
+    return _parse_args(raw)
 
 
 def _parse_args(args: object) -> list[object] | None:
@@ -718,12 +854,17 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
     """Validate one ``keyed_calls`` entry: every template placeholder must be fillable (R5.3)."""
     where = f"indirection_rules: {label!r} keyed_calls"
     setter = _as_qname(item.get("setter"), label, "keyed_calls.setter")
-    key_arg = item.get("key_arg")
-    if type(key_arg) is not int or key_arg < 1:
+    key_kw = item.get("key_kw")
+    if key_kw is not None and (not isinstance(key_kw, str) or not key_kw.isidentifier()):
+        raise ConfigError(f"{where}.key_kw must be an argument name")
+    key_arg = item.get("key_arg", 0 if key_kw is not None else None)
+    if type(key_arg) is not int or key_arg < (0 if key_kw is not None else 1):
         raise ConfigError(f"{where}.key_arg must be an int >= 1")
     key_from = item.get("key_from", "string")
     if key_from not in ("string", "array_keys", "object"):
         raise ConfigError(f"{where}.key_from must be 'string', 'array_keys' or 'object'")
+    if key_kw is not None and key_from != "string":
+        raise ConfigError(f"{where}.key_kw names a string key, so key_from must be 'string'")
     template = item.get("target_template")
     if not isinstance(template, str) or not template.strip():
         raise ConfigError(f"{where}.target_template must be a non-empty string")
@@ -760,7 +901,7 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
     if kind != "CALLS" and contract.MEMBER_SEPARATOR in template:
         # A rule names the table, never its columns: the write stays unmeasured (CONVENTION §3).
         raise ConfigError(f"{where}.target_template of a {kind} rule must name a Table, no member")
-    return KeyedCall(setter, key_arg, key_from, template, pattern, kind)
+    return KeyedCall(setter, key_arg, key_from, template, pattern, kind, key_kw)
 
 
 def _as_list(raw: object, label: str, field: str) -> list[Any]:

@@ -2,8 +2,9 @@
 
 A front controller maps a key it reads from the request to a handler at run time, so the graph
 holds no edge for it. A ``routes`` block in a ``CA_INDIRECTION_RULES`` file declares the mapping —
-inline, or a TSV the consuming repo already keeps — and the build resolves each target and stores
-the table in the index's meta, so a tool reads the table of the revision it answers about (R4.2).
+inline, or a TSV or JSON census the consuming repo already keeps (397) — and the build resolves
+each target and stores the table in the index's meta, so a tool reads the table of the revision it
+answers about (R4.2).
 
 A route is a declared lookup in front of an existing subject, never a node or an edge: it adds no
 vocabulary, so the contract does not move. Every answer it shapes says ``tier: HEURISTIC``,
@@ -27,6 +28,8 @@ from code_atlas.config import ConfigError
 from code_atlas.containment import resolves_inside
 
 ROUTES_META_KEY = "routes"
+# JSON-source rows whose short-class target named several classes and no `prefer` chose one (397).
+ROUTES_AMBIGUOUS_META_KEY = "routes_ambiguous"
 ROUTE_TIER = contract.CONFIDENCE_TIERS[1]  # HEURISTIC
 NEAREST = 5
 _WILDCARD = "*"
@@ -38,6 +41,9 @@ class RouteBlock:
 
     significant: tuple[str, ...] | None
     entries: tuple[tuple[str, str], ...]
+    # A JSON census names a handler by short class; `prefer` breaks a tie by qname segment (397).
+    short_names: bool = False
+    prefer: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -94,9 +100,17 @@ def read_blocks(
         entries = [_entry(row, label) for row in _list(item.get("table"), label)]
         if item.get("tsv") is not None:
             entries.extend(_tsv(item, label, root, digest))
-        blocks.append(
-            RouteBlock(tuple(significant) if significant is not None else None, tuple(entries))
-        )
+        prefer = item.get("prefer", [])
+        if not isinstance(prefer, list) or not all(isinstance(seg, str) and seg for seg in prefer):
+            raise ConfigError(f"indirection_rules: {label!r} routes.prefer must be a list of names")
+        if prefer and item.get("json") is None:
+            raise ConfigError(f"indirection_rules: {label!r} routes.prefer needs a json source")
+        keys = tuple(significant) if significant is not None else None
+        blocks.append(RouteBlock(keys, tuple(entries)))
+        if item.get("json") is not None:
+            # Its own block, after the inline and TSV rows: only census rows name a short class.
+            rows = tuple(_json(item, label, root, digest))
+            blocks.append(RouteBlock(keys, rows, short_names=True, prefer=tuple(prefer)))
     return blocks
 
 
@@ -155,26 +169,113 @@ def _tsv(
     ]
 
 
+def _json(
+    item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
+) -> list[tuple[str, str]]:
+    """A JSON route census: ``rows`` is a dotted path to its list of objects, ``columns`` names
+    the key and target fields (dotted for a nested one). A row missing either is skipped (397)."""
+    relative, columns = item.get("json"), item.get("columns") or {"key": "key", "target": "target"}
+    selector = item.get("rows", "")
+    if not (isinstance(relative, str) and isinstance(columns, dict) and isinstance(selector, str)):
+        raise ConfigError(f"indirection_rules: {label!r} routes.json needs a path and columns")
+    if not all(isinstance(columns.get(name), str) for name in ("key", "target")):
+        raise ConfigError(f"indirection_rules: {label!r} routes.json columns need key and target")
+    full = root / relative
+    if not full.is_file() or not resolves_inside(root, full):
+        raise ConfigError(
+            f"indirection_rules: {label!r} routes.json {relative!r} is not a file under {root}"
+        )
+    data = full.read_bytes()
+    digest(data)
+    try:
+        document: object = json.loads(data.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ConfigError(
+            f"indirection_rules: {label!r} routes.json {relative!r} is not UTF-8 JSON ({error})"
+        ) from None
+    rows = _dig(document, selector)
+    if not isinstance(rows, list):
+        raise ConfigError(
+            f"indirection_rules: {label!r} routes.json {relative!r} has no list at {selector!r}"
+        )
+    found: list[tuple[str, str]] = []
+    for row in rows:
+        key, target = _dig(row, str(columns.get("key"))), _dig(row, str(columns.get("target")))
+        if isinstance(key, str) and key.strip() and isinstance(target, str) and target.strip():
+            found.append((key.strip(), target.strip()))
+    return found
+
+
+def _dig(value: object, path: str) -> object:
+    """``value`` at a dotted object path; ``""`` is the value itself, a miss is ``None``."""
+    for part in path.split(".") if path else ():
+        if not isinstance(value, dict):
+            return None
+        value = value.get(part)
+    return value
+
+
 def resolve(
-    blocks: Iterable[RouteBlock], locate: Callable[[str], str | None]
+    blocks: Iterable[RouteBlock],
+    locate: Callable[[str], str | None],
+    candidates: Callable[[str], list[tuple[str, str]]] | None = None,
+    ambiguous: list[dict[str, object]] | None = None,
 ) -> tuple[list[Route], int]:
     """Routes whose target ``locate`` finds (its file), first declaration of a key winning; and
-    the count of rows naming no indexed symbol — counted, never linked (AC3)."""
+    the count of rows naming no indexed symbol — counted, never linked (AC3).
+
+    A short-names block whose target ``locate`` misses asks ``candidates`` for the ``(qname, file)``
+    pairs it may name; one, or one its ``prefer`` picks, links, and a tie lands in ``ambiguous``.
+    """
     routes: list[Route] = []
     seen: set[str] = set()
     unresolved = 0
+    tied: list[tuple[str, dict[str, object]]] = []
     for block in blocks:
         for declared, target in block.entries:
             key = canonical(declared, block.significant)
             if key in seen:
                 continue
             file = locate(target)
+            linked = target
+            if file is None and block.short_names and candidates is not None:
+                found = candidates(target)
+                picked = _prefer(found, block.prefer)
+                if picked is not None:
+                    linked, file = picked
+                elif len(found) > 1:
+                    names = [qname for qname, _ in found]
+                    tied.append((key, {"route": declared, "target": target, "candidates": names}))
             if file is None:
                 unresolved += 1
                 continue
             seen.add(key)
-            routes.append(Route(key, declared, target, file, block.significant))
+            routes.append(Route(key, declared, linked, file, block.significant))
+    if ambiguous is not None:
+        # A later row of the same key may have linked it; only a key left unrouted is named.
+        ambiguous.extend(row for key, row in tied if key not in seen)
     return routes, unresolved
+
+
+def short_target(target: str) -> tuple[str, str] | None:
+    """``Class::method()`` / ``Class::method`` as ``(class, method)``, or ``None`` (397)."""
+    head, separator, member = target.removesuffix("()").rpartition(contract.MEMBER_SEPARATOR)
+    if not separator or not head or not member:
+        return None
+    return head, member
+
+
+def _prefer(
+    found: list[tuple[str, str]], prefer: Sequence[str]
+) -> tuple[str, str] | None:
+    """The one candidate left once each ``prefer`` segment that matches any narrows the set."""
+    pool = found
+    for segment in prefer:
+        if len(pool) == 1:
+            break
+        narrowed = [pair for pair in pool if segment in re.split(r"[^\w$]+", pair[0])]
+        pool = narrowed or pool
+    return pool[0] if len(pool) == 1 else None
 
 
 def dump(routes: Sequence[Route]) -> str:

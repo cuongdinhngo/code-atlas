@@ -271,9 +271,10 @@ def test_the_php_adapter_records_argument_literal_categories(tmp_path: Path) -> 
     assert calls[4]["args"] == [None, "null"]
     assert calls[5]["args"] == [None]
     assert calls[6]["args"] == ["string", "number", "true", "false", "array"]
-    # A spread hides the count and a named argument frees its position — neither is recordable.
+    # A spread hides the count; a named argument has no position, so it rides `kwargs` (398).
     assert "args" not in calls[7]
-    assert "args" not in calls[8]
+    assert calls[8]["args"] == []
+    assert calls[8]["kwargs"] == {"sql": None, "params": "null"}
 
 
 @needs_php

@@ -18,9 +18,9 @@ from code_atlas.tools.nav_result import (
     REASON_OK,
     REASON_PATH_EXCLUDED,
     REASON_PROXIMITY_CANDIDATES,
-    REASON_REF_MISMATCH,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_RULE_MATCHED_NO_FILES,
+    REASON_RULES_STALE,
     REASON_SUBJECT_AMBIGUOUS,
     REASON_SUBSTRING_MATCH,
     TRY_INSTEAD_HINT_METHOD_QNAME,
@@ -222,4 +222,4 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_PROXIMITY_CANDIDATES in NAV_REASONS
     assert REASON_KIND_EXCLUDED in NAV_REASONS
     assert REASON_PATH_EXCLUDED in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_REF_MISMATCH
+    assert NAV_REASONS[-1] == REASON_RULES_STALE  # 396 appended rules_stale after ref_mismatch

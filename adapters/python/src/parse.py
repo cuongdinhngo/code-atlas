@@ -189,6 +189,17 @@ def _kwarg_literals(call: ast.Call) -> dict[str, str | None] | None:
     return {kw.arg: _literal_kind(kw.value) for kw in call.keywords if kw.arg is not None}
 
 
+# Contract v16 (398): a longer value is not captured, and the core reads the line as before.
+_ARG_STRING_MAX = 256
+
+
+def _string_value(node: ast.expr) -> str | None:
+    """A plain ``str`` literal's value, else null — an f-string or bytes has none (398)."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value if len(node.value) <= _ARG_STRING_MAX else None
+    return None
+
+
 def _dict_string_keys(node: ast.Dict) -> list[str]:
     keys: list[str] = []
     for key in node.keys:
@@ -689,9 +700,16 @@ def parse_file(
             if args is not None:
                 row["args"] = args
                 row["arg_keys"] = _arg_keys(call)
+                if "string" in args:
+                    # Present whenever a string is passed: a null then means "no value" (398).
+                    row["arg_strings"] = [_string_value(a) for a in call.args]
             kwargs = _kwarg_literals(call)
             if kwargs is not None:
                 row["kwargs"] = kwargs
+                named = {kw.arg: _string_value(kw.value) for kw in call.keywords if kw.arg}
+                strings = {name: value for name, value in named.items() if value is not None}
+                if strings:
+                    row["kwarg_strings"] = strings
         edges.append(row)
 
     def decorator_target_raw(deco: ast.expr) -> str | None:
