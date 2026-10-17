@@ -25,6 +25,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
+| 396 | [Rules stale, unlabelled](tasks/396_rules-stale.md) | Freshness | todo | 040, 080, 385 |
+| 397 | [Routes from a JSON census](tasks/397_routes-from-source.md) | Coverage | todo | 385, 396 |
+| 398 | [Wrapped keyed call unread](tasks/398_keyed-string-arg-span.md) | Coverage | todo | 222, 352, 364 |
 | 399 | [PHP view scripts and template refs — evidence-gated](tasks/399_php-view-script-regions.md) | Coverage | deferred | 395 |
 
 ## Open work — Pillar 2 · Onboarding
@@ -80,8 +83,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
   subclass's `new` sites — 362.
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
-- **Keywords stop at `find_callers`** — a `keyed_calls` rule's `key_arg` cannot name one, and PHP 8's
-  named arguments are not read into `kwargs` — 372.
 - **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
   misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
   match, and a procedure in another schema leaves an uncounted unresolved edge — 386.
