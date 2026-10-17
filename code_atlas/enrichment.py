@@ -18,6 +18,9 @@ from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.store import GraphStore
 
+# The digest of the rule files the index was built under; "" when the knob was off (396).
+RULES_DIGEST_KEY = "indirection_rules_digest"
+
 # Synthetic path holding rule-emitted edges; replaced each build, dropped when rules are off.
 # Not a real on-disk file — no files row / File node (068); nav treats edges as rule-derived.
 INDIRECTION_FILE = ".code-atlas/indirection-rules"
@@ -118,6 +121,35 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     )
 
 
+def rules_digest(payload: RulesPayload | None) -> str:
+    """The digest a build stores for ``payload``: ``""`` when no rules are configured (396)."""
+    return "" if payload is None else payload.digest
+
+
+class RulesDrift(NamedTuple):
+    """The build's rules digest against the files on disk; ``current`` is None when unreadable."""
+
+    built: str | None
+    current: str | None
+    error: str | None = None
+
+
+def rules_drift(config: Config, store: GraphStore) -> RulesDrift | None:
+    """Why rule-fed answers are stale, or ``None`` when the index holds today's rules (396).
+
+    The one predicate the status and every rule-fed tool ask (R1.8). An index with no stored
+    digest predates 396, so it is never attested current under configured rules (R5.6).
+    """
+    built = store.get_meta(RULES_DIGEST_KEY)
+    try:
+        current = rules_digest(load_indirection_rules(config))
+    except ConfigError as error:
+        return RulesDrift(built, None, str(error))
+    if (built or "") == current:
+        return None
+    return RulesDrift(built, current)
+
+
 class Enriched(NamedTuple):
     """Rows this run wrote from the rules, counted where they are built — no re-query (task 051)."""
 
@@ -192,6 +224,7 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     """
     if payload is None or not payload.routes:
         store.delete_meta(routes.ROUTES_META_KEY)
+        store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
         return 0
     files = set(store.file_paths())
 
@@ -201,8 +234,28 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
         rows = store.nodes_by_qualified_name(target, limit=1)
         return str(rows[0]["file_path"]) if rows else None
 
-    table, unresolved = routes.resolve(payload.routes, locate)
+    def candidates(target: str) -> list[tuple[str, str]]:
+        """Members named ``method`` of a class whose last qname component is the short class."""
+        parts = routes.short_target(target)
+        if parts is None:
+            return []
+        suffix = f"{parts[0]}{contract.MEMBER_SEPARATOR}{parts[1]}"
+        found: dict[str, str] = {}
+        for row in store.nodes_by_qname_endswith(parts[1], suffix, limit=50):
+            qname = str(row["qualified_name"])
+            before = qname[: -len(suffix)]
+            # A whole component only: `Order` never names `AcmeOrder` (R5.2).
+            if not before or not re.match(r"[\w$]", before[-1]):
+                found.setdefault(qname, str(row["file_path"]))
+        return sorted(found.items())
+
+    ambiguous: list[dict[str, object]] = []
+    table, unresolved = routes.resolve(payload.routes, locate, candidates, ambiguous)
     store.set_meta(routes.ROUTES_META_KEY, routes.dump(table))
+    if ambiguous:
+        store.set_meta(routes.ROUTES_AMBIGUOUS_META_KEY, json.dumps(ambiguous, sort_keys=True))
+    else:
+        store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
     return unresolved
 
 

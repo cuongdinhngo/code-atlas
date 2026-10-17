@@ -45,6 +45,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 396-C1 — a payload that omits `reason` reads as `ok`, so a relabel keyed on `"ok"` skips it
+
+- type: 2 (code) · handle: `an-absent-reason-is-ok`
+- status: proposed · seen: 396
+- evidence: `impact` builds its envelope with no `reason`, so `attach_rules_stale`'s `reason == "ok"` test never
+  fired on `impact(routes=)` and a stale route answered unlabelled. The challenger asked for the untested surface;
+  its test raised `KeyError: 'reason'`. The relabel now reads an absent reason as `ok`.
+- destination: first sighting.
+
 ### 389-C1 — a shared store's read-through repair rewrites rows another checkout reads as built
 
 - type: 5 (descriptive) · area: `freshness / shared index across checkouts`
@@ -57,7 +66,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 388-C1 — a status that names what a tool refuses must ask the tool's own predicate
 
 - type: 2 (code) · handle: `a-route-list-must-come-from-the-tools-verdict`
-- status: proposed · seen: 388
+- status: proposed · seen: 388, 396
 - evidence: `get_index_status` put `find_callers` / `find_references` under `behind_refuses` from a constant list
   whenever the index was behind, yet both answered `ok` for every unchanged subject (reproduced on `main` daa6baa0);
   six anchor PRs fell back to Grep. R1.8 covers two sites branching on one verdict; this site never consulted the
@@ -122,7 +131,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 374-C1 — a memo guarded by a change probe must seed the probe when it first computes
 
 - type: 2 (code) · handle: `seed-the-change-probe-with-the-first-answer`
-- status: proposed · seen: 374
+- status: proposed · seen: 374, 396
 - evidence: `server_identity()` read `_identity is None or _loaded_modules_changed()`, so the first
   call never stamped the loaded modules; the second took the swapped files as its baseline, and a
   `uv tool upgrade` between them left `server_stale_process: false` for good — the anchor's report.
@@ -161,7 +170,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 363-C1 — a zero from a text search must count the rows the search cannot match
 
 - type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
-- status: proposed · seen: 363
+- status: proposed · seen: 363, 397
 - evidence: `include_graph` attested an unused copy by searching unlinked include text for its
   basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
   includer yet never matches. The challenger found it; the zero now counts them and is not
@@ -171,7 +180,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389
+- status: proposed · seen: 362, 364, 367, 389, 396, 397
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.

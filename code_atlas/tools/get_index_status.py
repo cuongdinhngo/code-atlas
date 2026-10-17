@@ -19,13 +19,16 @@ Staleness counts only files the index covers (047): editing a README leaves the 
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 """
 
+import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
+from code_atlas import routes
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONTRACT_VERSION
+from code_atlas.enrichment import rules_drift
 from code_atlas.gitutil import dirty_paths
 from code_atlas.index_lock import build_in_progress
 from code_atlas.indexer import (
@@ -52,6 +55,7 @@ from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
 from code_atlas.tools.freshness import dirty_indexed_paths, live_index_held
+from code_atlas.tools.nav_result import RULES_STALE_FIELD
 from code_atlas.tools.nominate_roots import (
     entry_point_nominations,
     filesystem_paths,
@@ -117,6 +121,14 @@ COVERAGE_LOSS_PENDING = "coverage_loss_pending"
 # the live lock, which is why it is named here rather than left to be discovered (177, 203).
 BUILD_PROGRESS_ROUTE = "code-atlas-build --status"
 BUILD_PROGRESS_ROUTE_FIELD = "build_progress_route"
+# The rule files changed since the build: rule-fed answers are labelled until an incremental (396).
+# Unresolved route rows a `prefer` list could settle, first 20 named (397; the 388 cap).
+ROUTES_AMBIGUOUS_FIELD = "routes_ambiguous"
+ROUTES_AMBIGUOUS_COUNT_FIELD = "routes_ambiguous_count"
+ROUTES_AMBIGUOUS_CAP = 20
+RULES_DIGEST_FIELD = "rules_digest"
+RULES_ERROR_FIELD = "rules_error"
+RULES_STALE_LEAD = "rules changed since this build"
 
 
 def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str, object]]:
@@ -238,6 +250,29 @@ def _attach_rebuild_pending(status: dict[str, object], store: GraphStore) -> Non
         }
 
 
+def _attach_rules_stale(status: dict[str, object], config: Config, store: GraphStore) -> None:
+    """Name the rules digest the build used beside the one on disk, when they differ (396).
+
+    Same predicate as every rule-fed tool's label (R1.8); an unreadable rule file is reported.
+    """
+    drift = rules_drift(config, store)
+    if drift is None:
+        return
+    status[RULES_STALE_FIELD] = True
+    status[RULES_DIGEST_FIELD] = {"built": drift.built, "current": drift.current}
+    if drift.error is not None:
+        status[RULES_ERROR_FIELD] = drift.error
+
+
+def _attach_routes_ambiguous(status: dict[str, object], store: GraphStore) -> None:
+    """Route rows whose short class named several classes, each with its candidates (397)."""
+    raw = store.get_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
+    rows = json.loads(raw) if raw else []
+    if rows:
+        status[ROUTES_AMBIGUOUS_FIELD] = rows[:ROUTES_AMBIGUOUS_CAP]
+        status[ROUTES_AMBIGUOUS_COUNT_FIELD] = len(rows)
+
+
 def _attach_build_state(
     status: dict[str, object], config: Config, store: GraphStore | None
 ) -> None:
@@ -356,6 +391,8 @@ def _compose_summary(payload: dict[str, object]) -> str:
     rides on the end of any indexed sentence, because every refresh refuses until it is fixed (355).
     """
     sentence = _compose_state(payload)
+    if payload.get("indexed") and payload.get(RULES_STALE_FIELD):
+        sentence += f" — {RULES_STALE_LEAD} — run build_or_update_index"
     loss = payload.get(COVERAGE_LOSS_PENDING)
     if payload.get("indexed") and isinstance(loss, dict):
         lost = ", ".join(str(name) for name in loss.get("lost_languages") or ())
@@ -508,6 +545,7 @@ def _status(
         status[BUILD_IN_PROGRESS] = True
     held = staleness == BEHIND and live_index_held(config, store)
     _attach_suggestions(status, servable, staleness, indexed=indexed)
+    _attach_rules_stale(status, config, store)
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal", index_held=held)
         _attach_rebuild_pending(status, store)
@@ -537,6 +575,7 @@ def _status(
         "orphans_max_nodes": _orphans_max_nodes_field(config),
     }
     _attach_build_state(enriched, config, store)
+    _attach_routes_ambiguous(enriched, store)
     _attach_unconfigured_adapters(enriched, config)
     attach_config_provenance(enriched, config, store)
     hint = store.count_source_root_hint_imports()
