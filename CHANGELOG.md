@@ -19,6 +19,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 
 - `check_column_defaults(default_expr="user_name()")` lists every column whose `DEFAULT` is that
   expression, across tables, each with its omitters — no grep over the schema first (391).
+- `$m = Factory::legacy(); $m->attach();` links when `legacy()` documents `@return Mailer` (PHP,
+  `HEURISTIC`), and `find_callers` on a method counts `unresolved_receivers` (393). A file reads its
+  docblocks when it next re-parses; `code-atlas-build --full` reads them all now.
 
 ## 0.4.0 — 2026-10-17 · contract 15 · schema 7
 
