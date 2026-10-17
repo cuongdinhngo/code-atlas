@@ -107,7 +107,7 @@ def test_kinds_must_name_an_inbound_edge_kind(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="kinds"):
         find_references.create(config)("dbo.T", kinds=["READ"])
     other = find_references.create(config)("\\App\\Repo::all", kinds=["READS"])
-    assert other["kinds_ignored"] is True
+    assert other["kinds_ignored"] == ["READS"]
 
 
 @needs_both

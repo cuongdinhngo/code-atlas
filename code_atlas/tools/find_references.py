@@ -87,6 +87,7 @@ CLAIM_CARRY = ("authoritative",)
 _MEMBER_WALK = 10_000
 _UNION_SUBJECT_KINDS = frozenset({"Class"})
 UNLINKED_WRITES_COUNT = "unlinked_writes_count"
+UNLINKED_READS_COUNT = "unlinked_reads_count"
 # Table → Column CONTAINS walk for the writer-set union (248/278); same ballpark as read_symbol.
 _WRITES_CONTAINS_WALK = 10_000
 
@@ -122,6 +123,34 @@ def _table_kinds(kinds: list[str] | None) -> tuple[str, ...]:
     if unknown or not kinds:
         raise ValueError(f"kinds must name inbound edge kinds, got {kinds!r}")
     return tuple(dict.fromkeys(kinds))
+
+
+def _unlinked_counts(
+    store: GraphStore, lookup: str, subject_kind: str, kinds: tuple[str, ...]
+) -> dict[str, int]:
+    """Unlinked edges of each asked kind that still name the subject's table (215/278/390).
+
+    READS target a Table only, so a Column subject never counts them.
+    """
+    table_key = (
+        lookup.rsplit("::", 1)[0] if subject_kind == COLUMN_KIND and "::" in lookup else lookup
+    )
+    counts: dict[str, int] = {}
+    if WRITES in kinds:
+        counts[UNLINKED_WRITES_COUNT] = store.count_unlinked_relating_to(table_key, kind=WRITES)
+    if READS in kinds and subject_kind == TABLE_KIND:
+        counts[UNLINKED_READS_COUNT] = store.count_unlinked_relating_to(table_key, kind=READS)
+    return counts
+
+
+def _kinds_ignored(kinds: list[str] | None, subject_kind: str | None) -> list[str]:
+    """The asked kinds this subject cannot hold: all off a Table/Column, READS on a Column."""
+    if kinds is None:
+        return []
+    asked = list(dict.fromkeys(kinds))
+    if subject_kind is None:
+        return asked
+    return [kind for kind in asked if kind == READS and subject_kind == COLUMN_KIND]
 
 
 def _writes_targets(store: GraphStore, lookup: str, subject_kind: str) -> list[str]:
@@ -264,8 +293,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
         only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
         lists the routines a ``select`` reads the table from (RESOLVED) and host strings that
-        begin one (HEURISTIC) — 390; another subject carries ``kinds_ignored``. When the graph
-        still holds unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
+        begin one (HEURISTIC) — 390. ``kinds_ignored`` lists the asked kinds the subject cannot
+        hold: all of them off a Table/Column, ``READS`` on a Column (a read targets the Table).
+        Unlinked edges of an asked kind that still name the table are counted as
+        ``unlinked_writes_count`` / ``unlinked_reads_count``. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language
         emits no ``WRITES``. A host-language string that begins a write is read at
         ``HEURISTIC`` where its adapter reads one; SQL built at runtime is not
@@ -355,7 +386,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         production_count = 0
         test_count = 0
         test_role_label: str | None = None
-        unlinked_writes_count = 0
+        unlinked_counts: dict[str, int] = {}
+        table_subject_kind: str | None = None
         writes_subject = False
         writes_kinds: tuple[str, ...] | None = None
         writes_targets: list[str] | None = None
@@ -423,12 +455,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     production_count, test_count, test_role_label = _test_census_for(
                         store, writes_targets, kinds=writes_kinds
                     )
-                table_key = (
-                    lookup.rsplit("::", 1)[0]
-                    if subject_kind == COLUMN_KIND and "::" in lookup
-                    else lookup
-                )
-                unlinked_writes_count = store.count_unlinked_writes_relating_to(table_key)
+                table_subject_kind = subject_kind
+                unlinked_counts = _unlinked_counts(store, lookup, subject_kind, table_kinds)
             if total_count == 0 and not indexed and not read.removed:
                 # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
@@ -471,14 +499,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     subject_kind = str(nodes[0]["kind"])
                     writes_targets = _writes_targets(store, lookup, subject_kind)
                     group_table_writes = subject_kind == TABLE_KIND
-                    table_key = (
-                        lookup.rsplit("::", 1)[0]
-                        if subject_kind == COLUMN_KIND and "::" in lookup
-                        else lookup
-                    )
-                    unlinked_writes_count = store.count_unlinked_writes_relating_to(
-                        table_key
-                    )
+                    table_subject_kind = subject_kind
+                    unlinked_counts = _unlinked_counts(store, lookup, subject_kind, table_kinds)
                     production_count, test_count, test_role_label = _test_census_for(
                         store,
                         writes_targets,
@@ -651,9 +673,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
-        if writes_subject and unlinked_writes_count:
-            # Bounded incompleteness the graph can name (215/278) — a count, not a buried bool.
-            result["unlinked_writes_count"] = unlinked_writes_count
+        for key, count in unlinked_counts.items():
+            if count:
+                # Bounded incompleteness the graph can name (215/278/390) — a count, not a bool.
+                result[key] = count
         if production_count or test_count:
             # Nothing inbound: 0 + 0 would only restate `total_count` (061).
             result["production_count"] = production_count
@@ -687,13 +710,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ):
             # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
             caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
-        if writes_subject and READS in table_kinds and _writes_answer_is_partial(
+        if table_subject_kind == TABLE_KIND and READS in table_kinds and _writes_answer_is_partial(
             covered, emitted_kinds, READS
         ):
             caveats.append(CAVEAT_READS_EMITTERS_ONLY)
         attach_authoritative_caveats(result, caveats)
-        if kinds is not None and not writes_subject:
-            result["kinds_ignored"] = True  # kinds= picks a table's relations; others list all
+        ignored = _kinds_ignored(kinds, table_subject_kind)
+        if ignored:
+            result["kinds_ignored"] = ignored  # asked, but this subject cannot hold them (390)
         if overlay is not None:
             labelled = overlay_inbound(overlay, result, lookup, None, depth=1)
         else:
