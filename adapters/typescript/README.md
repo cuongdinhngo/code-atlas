@@ -45,6 +45,7 @@ CA_TYPESCRIPT_CMD="node /abs/path/adapters/typescript/index.js --server"
 | `enum`, `const enum` | `Enum` | `const enum` marked `extra.const`; members → `ClassConst` (`extra.enum_case`) |
 | `function`, name-bound `const f = () =>`/`function` | `Function` | anonymous inline callables get no node |
 | method / ctor / get / set | `Method` | constructor named `__construct`; a named class's carries `extra.constructor` (367) |
+| `this.x = function`, or `self.x = …` after `var self = this`, in a named plain function | `Method` of that function | members assigned inside the constructor only — `Ctor.prototype.x =` is not read (395, 399); not for an async, generator or `this`-typed function; the alias must be bound before use, never reassigned, redeclared or shadowed by an arrow parameter; a name a nested declaration owns stays its; `this` rebinds in any non-arrow function; a framework's `$scope.x` is not a member |
 | property / field | `Property` | |
 | module-scoped `const K = <value>` | `Const` | |
 | unnamed `export default …` | (its kind) | qnamed `::default` so a default-import resolves |

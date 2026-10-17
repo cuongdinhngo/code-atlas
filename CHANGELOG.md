@@ -22,6 +22,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - `$m = Factory::legacy(); $m->attach();` links when `legacy()` documents `@return Mailer` (PHP,
   `HEURISTIC`), and `find_callers` on a method counts `unresolved_receivers` (393). A file reads its
   docblocks when it next re-parses; `code-atlas-build --full` reads them all now.
+- `function EditCtrl() { var self = this; self.save = function () {}; }` declares `EditCtrl::save` as
+  a Method (TS/JS: members assigned on `this` or its alias inside the constructor;
+  `Ctor.prototype.x =` is not read) — `search_symbol save` finds it (395).
 
 ## 0.4.0 — 2026-10-17 · contract 15 · schema 7
 
