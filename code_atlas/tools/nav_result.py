@@ -325,7 +325,8 @@ def attach_rules_stale(
     if drift is None:
         return payload
     payload[RULES_STALE_FIELD] = True
-    if relabel and payload.get("reason") == REASON_OK:
+    # A payload with no reason (impact) answers as ok, so it gains one.
+    if relabel and payload.get("reason", REASON_OK) == REASON_OK:
         payload["reason"] = REASON_RULES_STALE
     return payload
 

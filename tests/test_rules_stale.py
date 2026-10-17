@@ -239,3 +239,43 @@ def test_an_unreadable_rule_file_is_reported_not_raised(repo: Config) -> None:
 
     assert status["rules_stale"] is True
     assert status["rules_digest"]["current"] is None and status["rules_error"]
+
+
+def _rule_rows(store: GraphStore) -> list[tuple[str, str, str]]:
+    rows = store.edges_matching_kind(contract.PROVIDES_VIEW_DATA, limit=50)
+    return sorted(
+        (str(e["source_qname"]), str(e["target_raw"]), str(e.get("target_qname"))) for e in rows
+    )
+
+
+def test_challenger_a_parse_and_a_rule_edit_in_one_delta_equal_a_full_build(
+    repo: Config,
+) -> None:
+    """Challenger M5: a delta that parses a file and moves the digest still equals a full build."""
+    (repo.root / "rules.json").write_text(_rules(SET_RULE, PUT_RULE), encoding="utf-8")
+    added = "bag.put('extra', 2)\n        bag.set('more', 3)"
+    edited = SOURCE.replace("bag.put('extra', 2)", added)
+    (repo.root / "handler.py").write_text(edited, encoding="utf-8")
+    _git(repo.root, "commit", "-qam", "edit")
+
+    report = _incremental(repo)
+    with GraphStore(repo.db_path) as store:
+        delta, table = _rule_rows(store), store.get_meta(routes.ROUTES_META_KEY)
+        full_build(repo, store)
+        rebuilt, fresh_table = _rule_rows(store), store.get_meta(routes.ROUTES_META_KEY)
+
+    assert report.parsed == 1 and report.rules_reapplied is True
+    assert delta == rebuilt and len(delta) == 3 and table == fresh_table
+
+
+def test_challenger_impact_on_a_route_is_labelled_until_the_incremental(repo: Config) -> None:
+    """Challenger (AC4 via impact): a route subject relabels; the incremental clears it."""
+    from code_atlas.tools import impact
+
+    (repo.root / "routes.tsv").write_text(f"url\thandler\n{URL}\t{OTHER}\n", encoding="utf-8")
+    stale = impact.create(repo)(routes=[URL])
+    _incremental(repo)
+    fresh = impact.create(repo)(routes=[URL])
+
+    assert stale["reason"] == REASON_RULES_STALE and stale["rules_stale"] is True
+    assert "reason" not in fresh and "rules_stale" not in fresh  # impact's ok carries no reason
