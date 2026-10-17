@@ -133,6 +133,8 @@ SUPERTYPE_SUBJECT_KINDS: tuple[str, ...] = ("Class", "Interface")
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
 CONTAINS = "CONTAINS"
+# A SELECT's FROM / JOIN source (390); opt-in on find_references(kinds=).
+READS = "READS"
 # The alias → real-class edge a literal `class_alias` emits (030); read by 394's pointers.
 ALIASES = "ALIASES"
 # find_references language-emits reader (186/232): the kinds "this language never emits that

@@ -12,6 +12,7 @@ from code_atlas.contract import (
     CONTAINS,
     DELETES,
     EDGE_KINDS,
+    READS,
     TABLE_KIND,
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
@@ -38,6 +39,7 @@ from code_atlas.tools.freshness import (
 from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
+    CAVEAT_READS_EMITTERS_ONLY,
     CAVEAT_SIBLING_DEFINITIONS,
     CAVEAT_WRITES_EMITTERS_ONLY,
     REASON_INDEX_STALE,
@@ -92,8 +94,9 @@ _WRITES_CONTAINS_WALK = 10_000
 def _writes_answer_is_partial(
     covered: str | None,
     emitted: dict[str, list[str]] | None,
+    kind: str = WRITES,
 ) -> bool:
-    """True when a covered language emits no WRITES — that half is unmeasured (281).
+    """True when a covered language emits no ``kind`` — that half is unmeasured (281 / 390).
 
     Keys on ``EMITTED_KINDS_BY_LANGUAGE``, never language count: every covered language
     emitting ``WRITES`` means the answer can hold every writer the index models.
@@ -107,8 +110,8 @@ def _writes_answer_is_partial(
         # Unstamped index (pre-186) never measured itself, which is not evidence that every
         # covered language emits WRITES — keep 278's conservative caveat (R5.6).
         return len(langs) >= 2
-    writers = [lang for lang in langs if "WRITES" in emitted.get(lang, [])]
-    return len(writers) < len(langs)
+    emitters = [lang for lang in langs if kind in emitted.get(lang, [])]
+    return len(emitters) < len(langs)
 
 
 def _table_kinds(kinds: list[str] | None) -> tuple[str, ...]:
@@ -679,9 +682,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # 238 hit-path caveat, narrowed by 276: empty census stays on status, not every hit.
             attach_cross_language_census(result, cross_lang_census)
             caveats.append(CAVEAT_CROSS_LANGUAGE_UNMODELLED)
-        if writes_subject and _writes_answer_is_partial(covered, emitted_kinds):
+        if writes_subject and WRITES in table_kinds and _writes_answer_is_partial(
+            covered, emitted_kinds
+        ):
             # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
             caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
+        if writes_subject and READS in table_kinds and _writes_answer_is_partial(
+            covered, emitted_kinds, READS
+        ):
+            caveats.append(CAVEAT_READS_EMITTERS_ONLY)
         attach_authoritative_caveats(result, caveats)
         if kinds is not None and not writes_subject:
             result["kinds_ignored"] = True  # kinds= picks a table's relations; others list all

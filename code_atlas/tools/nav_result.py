@@ -911,6 +911,8 @@ CAVEAT_TIER_PARTITION = "tier_partition"
 # Table/Column writer answer is only languages that emit WRITES (278/281) — covered
 # languages that emit none leave host-language writes unmeasured (§19).
 CAVEAT_WRITES_EMITTERS_ONLY = "writes_emitters_only"
+# The same for a reader answer: a covered language that emits no READS left its readers out (390).
+CAVEAT_READS_EMITTERS_ONLY = "reads_emitters_only"
 # Mirror twin on read_symbol — boundary, never a dispatch verdict (286).
 CAVEAT_MIRROR_TWIN = "mirror_twin"
 # Unlinked same-name inbound remain beside the answer: impact's method seed (330), a Function's
@@ -924,6 +926,10 @@ CAVEAT_LIMIT_WRITES_EMITTERS_ONLY = (
     "This answer lists WRITES from emitting adapters only; covered languages that "
     "do not emit WRITES leave host-language writes unmeasured and out of scope"
 )
+CAVEAT_LIMIT_READS_EMITTERS_ONLY = (
+    "This answer lists READS from emitting adapters only; covered languages that "
+    "do not emit READS leave their readers unmeasured and out of scope"
+)
 CAVEAT_LIMIT_MIRROR_TWIN = (
     "A mirrored counterpart is named (or honestly absent); this tool cannot say "
     "which side a request reaches."
@@ -935,6 +941,7 @@ CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES = (
 CAVEAT_LIMITS: dict[str, str] = {
     CAVEAT_CROSS_LANGUAGE_UNMODELLED: CAVEAT_LIMIT_CROSS_LANGUAGE,
     CAVEAT_WRITES_EMITTERS_ONLY: CAVEAT_LIMIT_WRITES_EMITTERS_ONLY,
+    CAVEAT_READS_EMITTERS_ONLY: CAVEAT_LIMIT_READS_EMITTERS_ONLY,
     CAVEAT_MIRROR_TWIN: CAVEAT_LIMIT_MIRROR_TWIN,
     CAVEAT_UNLINKED_SAME_NAME_SITES: CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES,
 }

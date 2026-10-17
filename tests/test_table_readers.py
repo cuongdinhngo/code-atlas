@@ -106,3 +106,19 @@ def test_kinds_must_name_an_inbound_edge_kind(tmp_path: Path) -> None:
         find_references.create(config)("dbo.T", kinds=["READ"])
     other = find_references.create(config)("\\App\\Repo::all", kinds=["READS"])
     assert other["kinds_ignored"] is True
+
+
+@needs_both
+def test_a_language_that_emits_no_reads_marks_the_answer_partial(tmp_path: Path) -> None:
+    """Exposure #2 — a covered language with no READS leaves readers unmeasured (R5.6)."""
+    config = _built(tmp_path)
+    (tmp_path / "src" / "Repo.php").write_text(
+        "<?php\nnamespace App;\nclass Repo { public function all() { return 1; } }\n",
+        encoding="utf-8",
+    )
+    with GraphStore(config.db_path) as store:
+        assert full_build(config, store).failed == 0
+    payload = find_references.create(config)("dbo.T", kinds=["READS"])
+    assert "reads_emitters_only" in payload["authoritative_caveats"], payload
+    writers = find_references.create(config)("dbo.T")
+    assert "reads_emitters_only" not in (writers.get("authoritative_caveats") or [])
