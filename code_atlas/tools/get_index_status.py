@@ -19,9 +19,11 @@ Staleness counts only files the index covers (047): editing a README leaves the 
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 """
 
+import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
+from code_atlas import routes
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
@@ -120,6 +122,10 @@ COVERAGE_LOSS_PENDING = "coverage_loss_pending"
 BUILD_PROGRESS_ROUTE = "code-atlas-build --status"
 BUILD_PROGRESS_ROUTE_FIELD = "build_progress_route"
 # The rule files changed since the build: rule-fed answers are labelled until an incremental (396).
+# Unresolved route rows a `prefer` list could settle, first 20 named (397; the 388 cap).
+ROUTES_AMBIGUOUS_FIELD = "routes_ambiguous"
+ROUTES_AMBIGUOUS_COUNT_FIELD = "routes_ambiguous_count"
+ROUTES_AMBIGUOUS_CAP = 20
 RULES_DIGEST_FIELD = "rules_digest"
 RULES_ERROR_FIELD = "rules_error"
 RULES_STALE_LEAD = "rules changed since this build"
@@ -256,6 +262,15 @@ def _attach_rules_stale(status: dict[str, object], config: Config, store: GraphS
     status[RULES_DIGEST_FIELD] = {"built": drift.built, "current": drift.current}
     if drift.error is not None:
         status[RULES_ERROR_FIELD] = drift.error
+
+
+def _attach_routes_ambiguous(status: dict[str, object], store: GraphStore) -> None:
+    """Route rows whose short class named several classes, each with its candidates (397)."""
+    raw = store.get_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
+    rows = json.loads(raw) if raw else []
+    if rows:
+        status[ROUTES_AMBIGUOUS_FIELD] = rows[:ROUTES_AMBIGUOUS_CAP]
+        status[ROUTES_AMBIGUOUS_COUNT_FIELD] = len(rows)
 
 
 def _attach_build_state(
@@ -560,6 +575,7 @@ def _status(
         "orphans_max_nodes": _orphans_max_nodes_field(config),
     }
     _attach_build_state(enriched, config, store)
+    _attach_routes_ambiguous(enriched, store)
     _attach_unconfigured_adapters(enriched, config)
     attach_config_provenance(enriched, config, store)
     hint = store.count_source_root_hint_imports()
