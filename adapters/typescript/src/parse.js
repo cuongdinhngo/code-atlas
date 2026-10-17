@@ -714,6 +714,7 @@ function parseFile(path, declarationsOnly) {
         addNode("Function", cls.name, qname, decl, extraOf(decl), opts);
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
         if (init && ts.isFunctionLike(init)) emitAnnotationRefs(qname, init, typeParams);
+        if (init && ts.isFunctionExpression(init)) emitConstructorMembers(init, qname);
         if (!declarationsOnly && init) walk(init, qname, qname, null, locals, selfProps, typeParams);
       } else if (cls && cls.kind === "Const") {
         const qname = member(container, cls.name);
@@ -726,12 +727,59 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
+  // The ES5 constructor pattern (395): in a named plain function, `this.x = function` — or `self.x`
+  // after `var self = this` — declares a Method of it. Spec only; registration is a framework's.
+  const memberSites = new Map();
+  const emitConstructorMembers = (fn, qname) => {
+    if (!fn.body || !ts.isBlock(fn.body)) return;
+    const selves = new Set();
+    for (const st of fn.body.statements) {
+      if (!ts.isVariableStatement(st)) continue;
+      for (const d of st.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && d.initializer && d.initializer.kind === ts.SyntaxKind.ThisKeyword) {
+          selves.add(d.name.text);
+        }
+      }
+    }
+    const seen = new Set();
+    const visit = (node) => {
+      // `this` rebinds in any function but an arrow; so does a class.
+      if ((ts.isFunctionLike(node) && !ts.isArrowFunction(node)) || ts.isClassLike(node)) return;
+      if (
+        ts.isBinaryExpression(node) &&
+        node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isPropertyAccessExpression(node.left) &&
+        ts.isIdentifier(node.left.name) &&
+        (ts.isFunctionExpression(node.right) || ts.isArrowFunction(node.right)) &&
+        (node.left.expression.kind === ts.SyntaxKind.ThisKeyword ||
+          (ts.isIdentifier(node.left.expression) && selves.has(node.left.expression.text)))
+      ) {
+        const name = node.left.name.text;
+        const memberQname = member(qname, name);
+        memberSites.set(node, memberQname);
+        if (!seen.has(name)) {
+          seen.add(name);
+          addNode("Method", name, memberQname, node, extraOf(node.right), { params: callableParams(node.right, sf) });
+          addEdge("CONTAINS", qname, memberQname, node.getStart(sf));
+        }
+      }
+      node.forEachChild(visit);
+    };
+    fn.body.statements.forEach(visit);
+  };
+
   // Main walk: nodes + CONTAINS, plus the edges each construct owns. `scope` is what a body edge is
   // sourced at, `enclosingClass` the qname a `this.method()` resolves against; body walking is
   // skipped for declarations_only. `typeParams` names type parameters in scope (skip REFERENCES).
   const walk = (node, container, scope, enclosingClass, locals, selfProps, typeParams) => {
     if (ts.isVariableStatement(node)) {
       walkVariables(node, container, scope, enclosingClass, locals, selfProps, typeParams);
+      return;
+    }
+    const memberQname = memberSites.get(node);
+    if (memberQname) {
+      walk(node.left, container, scope, enclosingClass, locals, selfProps, typeParams);
+      walk(node.right, memberQname, memberQname, null, locals, selfProps, typeParams);
       return;
     }
 
@@ -770,6 +818,7 @@ function parseFile(path, declarationsOnly) {
           childTypeParams = new Set([...typeParams, ...typeParamNames(node)]);
         }
         if (CALLABLE.has(node.kind)) emittedCallable = true;
+        if (ts.isFunctionDeclaration(node)) emitConstructorMembers(node, qname);
         emitHeritage(node, qname);
         emitDefaultAlias(node, name, qname);
       }

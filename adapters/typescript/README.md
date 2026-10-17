@@ -45,6 +45,7 @@ CA_TYPESCRIPT_CMD="node /abs/path/adapters/typescript/index.js --server"
 | `enum`, `const enum` | `Enum` | `const enum` marked `extra.const`; members → `ClassConst` (`extra.enum_case`) |
 | `function`, name-bound `const f = () =>`/`function` | `Function` | anonymous inline callables get no node |
 | method / ctor / get / set | `Method` | constructor named `__construct`; a named class's carries `extra.constructor` (367) |
+| `this.x = function`, or `self.x = …` after `var self = this`, in a named plain function | `Method` of that function | the ES5 constructor pattern (395); `this` rebinds in any non-arrow function, and a framework's `$scope.x` is not a member |
 | property / field | `Property` | |
 | module-scoped `const K = <value>` | `Const` | |
 | unnamed `export default …` | (its kind) | qnamed `::default` so a default-import resolves |
