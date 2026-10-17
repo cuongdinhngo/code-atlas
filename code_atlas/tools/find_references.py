@@ -476,7 +476,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         answered_about_ref=about_ref,
                     )
                     shaped = shape_exact_miss(miss, resolution)
-                    finalize_subject_checked_miss(shaped, guard)
+                    finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
                         stamped,
@@ -719,7 +719,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if ignored:
             result["kinds_ignored"] = ignored  # asked, but this subject cannot hold them (390)
         if overlay is not None:
-            labelled = overlay_inbound(overlay, result, lookup, None, depth=1)
+            labelled = overlay_inbound(
+                overlay, result, lookup, None, depth=1, offset=offset
+            )
         else:
             labelled = label_behind(
                 result,

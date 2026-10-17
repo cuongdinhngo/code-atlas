@@ -330,7 +330,7 @@ def _behind_because(config: Config, paths: Sequence[str]) -> list[dict[str, str]
     """Each path and how it differs from the build: ``deleted``, ``uncommitted``, ``committed``."""
     uncommitted = set(dirty_paths(config.root) or ())
     rows: list[dict[str, str]] = []
-    for path in paths:
+    for path in sorted(paths):
         if not (config.root / path).exists():
             change = "deleted"
         elif path in uncommitted:
@@ -391,7 +391,7 @@ def _compose_state(payload: dict[str, object]) -> str:
         if routes and SERVE_BEHIND_OPT_IN_FIELD not in payload:
             # 365: the guard labels instead of repairing; asking for another build would be busy.
             return f"behind{at} · {scale} — the last built graph answers until the build lands"
-        serves = " (the built graph answers, labelled index_behind)" if routes else ""
+        serves = " (callers/references answer labelled index_behind)" if routes else ""
         return f"behind{at} · {scale}{serves} — run build_or_update_index"
     if staleness == CURRENT:
         health = ""

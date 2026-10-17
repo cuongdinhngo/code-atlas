@@ -104,16 +104,21 @@ def aliases(store: GraphStore, qname: str) -> list[dict[str, object]]:
     entries: list[dict[str, object]] = []
     for edge in store.edges_by_source(qname, kinds=(contract.ALIASES,), limit=IMPLEMENTED_BY_CAP):
         entries.append(_alias(store, edge, str(edge["target_raw"]), "alias_of"))
-    for edge in store.edges_by_target_raw(qname, kinds=(contract.ALIASES,))[:IMPLEMENTED_BY_CAP]:
+    for edge in store.edges_by_target_raw(
+        qname, kinds=(contract.ALIASES,), limit=IMPLEMENTED_BY_CAP
+    ):
         entries.append(_alias(store, edge, str(edge["source_qname"]), "aliased_as"))
     return entries
 
 
-def test_copies_first(rows: Sequence[Row]) -> tuple[list[Row], bool]:
+def test_copies_first(rows: Sequence[Row], *, complete: bool = True) -> tuple[list[Row], bool]:
     """Production first when it is the one definition and every other is a test copy.
 
     Returns the rows in that order, and whether the case held; any other mix is left as it is.
+    ``complete=False`` (a fetch that hit its limit) never holds: an unseen row may be production.
     """
+    if not complete:
+        return list(rows), False
     production = [row for row in rows if not row.get("is_test")]
     copies = [row for row in rows if row.get("is_test")]
     if len(rows) > 1 and len(production) == 1 and copies:

@@ -21,6 +21,7 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND_SUBJECT_REMOVED,
     REASON_INDEX_STALE,
     REASON_OK,
+    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -154,6 +155,22 @@ def test_ac3_search_on_a_behind_index_never_answers_index_stale(tmp_path: Path) 
 
 
 @needs_php
+def test_an_unnameable_miss_amid_drift_says_index_behind_not_subject_checked(
+    tmp_path: Path,
+) -> None:
+    """Review — no subject file was checked, so ``subject_file_checked`` would overclaim."""
+    config, built = _built(tmp_path)
+    for n in ("", "2"):
+        _write(tmp_path, f"lib/other{n}.php", OTHER.format(n=n, body="return 2;"))
+
+    for tool in (find_callers, find_references):
+        miss = tool.create(config)("\\Nowhere\\Thing::x", detail_level="minimal")
+        assert miss["reason"] == REASON_INDEX_BEHIND, miss
+        assert miss["other_indexed_files_drifted"] == 2
+        assert miss["last_commit"] == built
+
+
+@needs_php
 def test_ac3_a_sweep_names_the_subjects_its_shared_budget_could_not_vouch_for(
     tmp_path: Path,
 ) -> None:
@@ -238,3 +255,16 @@ def test_a_removed_subject_keeps_its_label_with_no_revision_to_stamp() -> None:
     )
     assert payload["reason"] == REASON_INDEX_BEHIND_SUBJECT_REMOVED
     assert "last_commit" not in payload
+
+
+def test_a_removed_subject_never_hides_a_reason_that_already_says_why() -> None:
+    """Review — ``removed`` relabels a plain answer only; an unmodelled zero keeps its reason."""
+    payload = label_behind(
+        {"reason": REASON_RELATION_UNMODELLED_FOR_LANGUAGE, "results": []},
+        subject_path="src/drift.php",
+        revision={"staleness": "behind", "last_commit": "a" * 40},
+        dirty_paths=["src/drift.php"],
+        subject_removed=True,
+    )
+    assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+    assert payload["last_commit"] == "a" * 40
