@@ -155,6 +155,11 @@ final class Visitor extends NodeVisitorAbstract
             if ($isCtor) {
                 $extra['constructor'] = true;
             }
+            // No declared type, but a docblock names one: the resolver may follow it, HEURISTIC (393).
+            $docType = $this->members->docReturn($this->member($node->name->toString()));
+            if ($node->returnType === null && $docType !== null) {
+                $extra['doc_type'] = $docType;
+            }
             $this->open($node, 'Method', $node->name->toString(), $this->member($node->name->toString()), [
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),

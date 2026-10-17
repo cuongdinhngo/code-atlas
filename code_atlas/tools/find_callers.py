@@ -179,7 +179,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         subject with surviving test callers: ``reason`` is not ``ok``, and
         ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272). A Function
         answer with hits carries the same count, ``authoritative: false`` and the
-        ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334).
+        ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
+        answer at depth 1 counts ``unresolved_receivers``: calls by its bare name on a receiver no
+        type reached (an untyped parameter, say) — linked by name at ``HEURISTIC`` or not (393).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
@@ -248,6 +250,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unlinked_calls = 0
         unlinked_same_name_sites = 0
         unlinked_beside_hits = 0
+        unresolved_receivers = 0
         shared_unlinked: list[str] = []
         shared_honesty_reason = REASON_NO_MATCHES
         unlinked_edge_kinds: list[str] = []
@@ -514,6 +517,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_beside_hits = store.count_unlinked_by_target_raw(
                     (lookup, str(subject_nodes[0]["name"])), kinds=CALLER_KINDS
                 )
+            if depth == 1 and indexed and str(subject_nodes[0]["kind"]) == "Method":
+                # A call on an untyped receiver names only the member: linked by name at best, so
+                # count them all — "were untyped receivers in play?" then has an answer (393).
+                unresolved_receivers = len(
+                    store.edges_by_target_raw(str(subject_nodes[0]["name"]), kinds=CALLER_KINDS)
+                )
             if depth == 1 and production_count == 0 and indexed and subject_nodes:
                 subject_name = str(subject_nodes[0]["name"])
                 kinds = inbound_kinds_for(str(subject_nodes[0]["kind"]))
@@ -615,6 +624,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 result["test_role_source"] = test_role_label
         if unlinked_same_name_sites and test_count:
             result["unlinked_same_name_sites"] = unlinked_same_name_sites
+        if unresolved_receivers:
+            result["unresolved_receivers"] = unresolved_receivers
         if unlinked_beside_hits:
             result.setdefault("unlinked_same_name_sites", unlinked_beside_hits)
             attach_authoritative_caveats(result, [CAVEAT_UNLINKED_SAME_NAME_SITES])

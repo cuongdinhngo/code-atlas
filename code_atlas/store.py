@@ -2895,12 +2895,14 @@ class GraphStore:
         ).fetchall()
         return {str(source): str(target) for source, target in rows}
 
-    def declared_types(self, qnames: Sequence[str]) -> dict[str, str]:
+    def declared_types(self, qnames: Sequence[str], *, documented: bool = False) -> dict[str, str]:
         """Map member qname → its declared type from ``extra['type']``, for those that carry one.
 
         The store owns the JSON column, so it owns decoding it (R1.4). Absent, empty and
         unparseable all mean "this member declares no type" — never a guess at one.
+        ``documented`` reads ``extra['doc_type']`` instead: a docblock's claim, not a type (393).
         """
+        key = "doc_type" if documented else "type"
         found: dict[str, str] = {}
         for qname, rows in self.nodes_by_qualified_names(qnames, limit=1).items():
             if not rows:
@@ -2912,7 +2914,7 @@ class GraphStore:
                 extra = json.loads(raw)
             except json.JSONDecodeError:
                 continue
-            declared = extra.get("type") if isinstance(extra, dict) else None
+            declared = extra.get(key) if isinstance(extra, dict) else None
             if isinstance(declared, str) and declared:
                 found[qname] = declared
         return found
