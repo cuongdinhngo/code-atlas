@@ -105,16 +105,12 @@ def read_blocks(
             raise ConfigError(f"indirection_rules: {label!r} routes.prefer must be a list of names")
         if prefer and item.get("json") is None:
             raise ConfigError(f"indirection_rules: {label!r} routes.prefer needs a json source")
+        keys = tuple(significant) if significant is not None else None
+        blocks.append(RouteBlock(keys, tuple(entries)))
         if item.get("json") is not None:
-            entries.extend(_json(item, label, root, digest))
-        blocks.append(
-            RouteBlock(
-                tuple(significant) if significant is not None else None,
-                tuple(entries),
-                short_names=item.get("json") is not None,
-                prefer=tuple(prefer),
-            )
-        )
+            # Its own block, after the inline and TSV rows: only census rows name a short class.
+            rows = tuple(_json(item, label, root, digest))
+            blocks.append(RouteBlock(keys, rows, short_names=True, prefer=tuple(prefer)))
     return blocks
 
 
@@ -182,6 +178,8 @@ def _json(
     selector = item.get("rows", "")
     if not (isinstance(relative, str) and isinstance(columns, dict) and isinstance(selector, str)):
         raise ConfigError(f"indirection_rules: {label!r} routes.json needs a path and columns")
+    if not all(isinstance(columns.get(name), str) for name in ("key", "target")):
+        raise ConfigError(f"indirection_rules: {label!r} routes.json columns need key and target")
     full = root / relative
     if not full.is_file() or not resolves_inside(root, full):
         raise ConfigError(
@@ -232,6 +230,7 @@ def resolve(
     routes: list[Route] = []
     seen: set[str] = set()
     unresolved = 0
+    tied: list[tuple[str, dict[str, object]]] = []
     for block in blocks:
         for declared, target in block.entries:
             key = canonical(declared, block.significant)
@@ -244,15 +243,17 @@ def resolve(
                 picked = _prefer(found, block.prefer)
                 if picked is not None:
                     linked, file = picked
-                elif len(found) > 1 and ambiguous is not None:
-                    ambiguous.append(
-                        {"route": declared, "target": target, "candidates": [q for q, _ in found]}
-                    )
+                elif len(found) > 1:
+                    names = [qname for qname, _ in found]
+                    tied.append((key, {"route": declared, "target": target, "candidates": names}))
             if file is None:
                 unresolved += 1
                 continue
             seen.add(key)
             routes.append(Route(key, declared, linked, file, block.significant))
+    if ambiguous is not None:
+        # A later row of the same key may have linked it; only a key left unrouted is named.
+        ambiguous.extend(row for key, row in tied if key not in seen)
     return routes, unresolved
 
 
@@ -267,14 +268,14 @@ def short_target(target: str) -> tuple[str, str] | None:
 def _prefer(
     found: list[tuple[str, str]], prefer: Sequence[str]
 ) -> tuple[str, str] | None:
-    """The one candidate, or the one the first ``prefer`` segment that matches any narrows to."""
-    if len(found) == 1:
-        return found[0]
+    """The one candidate left once each ``prefer`` segment that matches any narrows the set."""
+    pool = found
     for segment in prefer:
-        narrowed = [pair for pair in found if segment in re.split(r"[^\w$]+", pair[0])]
-        if narrowed:
-            return narrowed[0] if len(narrowed) == 1 else None
-    return None
+        if len(pool) == 1:
+            break
+        narrowed = [pair for pair in pool if segment in re.split(r"[^\w$]+", pair[0])]
+        pool = narrowed or pool
+    return pool[0] if len(pool) == 1 else None
 
 
 def dump(routes: Sequence[Route]) -> str:

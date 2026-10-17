@@ -195,3 +195,31 @@ def test_a_census_with_no_list_at_rows_is_a_config_error(tmp_path: Path) -> None
         read_blocks(_block(rows="generated"), "rules.json", tmp_path, lambda _data: None)
     with pytest.raises(ConfigError, match="needs a json source"):
         read_blocks({"table": [], "prefer": ["x"]}, "rules.json", tmp_path, lambda _data: None)
+
+
+def test_challenger_prefer_narrows_segment_by_segment(tmp_path: Path) -> None:
+    """Minor 1: a segment both candidates share narrows nothing away; the next one decides."""
+    config, report = _build(
+        tmp_path / "r", _block(prefer=["orders", "legacy"]), sources={**SOURCES, **TWIN}
+    )
+
+    assert report.routes_unresolved == 0
+    assert _first_hop(config, URLS[0])["results"][0]["steps"][0]["qname"] == (
+        "legacy.orders.Orders::edit"
+    )
+
+
+def test_challenger_inline_rows_beside_a_census_keep_their_exact_targets(tmp_path: Path) -> None:
+    """Minor 3: a block with both sources resolves short names in census rows only (Scope 3)."""
+    inline = [{"key": "index.php?module=x&action=y", "target": "Orders::listing"}]
+    config, report = _build(tmp_path / "r", _block(table=inline))
+
+    assert report.routes_unresolved == 1  # the inline short name, as before 397
+    assert _first_hop(config, URLS[1])["reason"] == REASON_OK  # the census row still links
+
+
+def test_challenger_columns_need_both_fields(tmp_path: Path) -> None:
+    """Minor 5: a census `columns` naming one field is a config error, not silent row loss."""
+    (tmp_path / "endpoints.json").write_text(json.dumps(CENSUS), encoding="utf-8")
+    with pytest.raises(ConfigError, match="key and target"):
+        read_blocks(_block(columns={"key": "url"}), "rules.json", tmp_path, lambda _data: None)

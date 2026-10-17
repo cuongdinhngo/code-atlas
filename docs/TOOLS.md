@@ -406,8 +406,8 @@ carry `rule: true`.
   the file is the list) and `columns` the key and target fields, dotted for a nested one; a row
   missing either is skipped, and the file is digested like a TSV (396). Its targets may name a
   short class — `Class::method()` or `Class::method` — which links when exactly one stored class of
-  that last name declares the member. Several: `prefer` (qname segments, tried in order; the first
-  that matches any candidate must leave exactly one) picks one, else the row counts in
+  that last name declares the member. Several: `prefer` (qname segments, tried in order, each that
+  matches any candidate narrowing the set) picks the one left, else the row counts in
   `routes_unresolved` and `get_index_status` lists it under `routes_ambiguous` with its candidates
   (first 20, `routes_ambiguous_count` beside). TSV and inline rows resolve exactly as before.
 
