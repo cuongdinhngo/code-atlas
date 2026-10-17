@@ -74,16 +74,17 @@ def head_commit_and_ref(root: Path) -> GitHead:
     return commit, ref or None
 
 
-def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:
+def changed_paths(root: Path, since: str, *, renames: bool = True) -> tuple[str, ...] | None:
     """Paths that differ from ``since`` on disk, or None when git cannot answer (§8.3).
 
     One ``git diff <since>`` — ``since`` against the working tree, staged and unstaged — so an
     uncommitted edit is visible to ``full=false`` the same way a full build would see it, and HEAD
     is never read: a commit landing mid-build cannot slip between two reads (360). Renames
     contribute the new path; the old path drops out of ``collect`` and must be folded into
-    affected qnames by the indexer before reconcile.
+    affected qnames by the indexer before reconcile. ``renames=False`` lists both ends (389).
     """
-    found = _run(root, "diff", "--name-only", "-z", since, "--")
+    flags = () if renames else ("--no-renames",)
+    found = _run(root, "diff", "--name-only", "-z", *flags, since, "--")
     if found is None:
         return None
     return tuple(sorted({path for path in found.split("\0") if path}))

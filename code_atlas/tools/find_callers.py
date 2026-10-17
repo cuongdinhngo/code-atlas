@@ -10,6 +10,8 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
     ARG_SELECTORS,
+    BARE_SUBJECT_KINDS,
+    CALLABLE_KINDS,
     CALLER_KINDS,
     CONFIDENCE_TIERS,
     CONSTRUCTOR_FLAG,
@@ -19,6 +21,7 @@ from code_atlas.contract import (
     split_qname,
 )
 from code_atlas.onboarding.class_diagram import parse_json_field
+from code_atlas.overlay import active_overlay, overlay_inbound
 from code_atlas.store import GraphStore, Row
 from code_atlas.symbol_role import (
     aggregate_test_count_source,
@@ -33,11 +36,9 @@ from code_atlas.tools.coverage import (
     cross_language_relation_unmodelled,
 )
 from code_atlas.tools.freshness import (
-    FreshnessGuard,
-    dirty_indexed_paths,
     finalize_subject_checked_miss,
-    label_serve_behind,
-    unrepaired_subject_served,
+    label_behind,
+    read_subject,
 )
 from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
@@ -52,6 +53,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_PROXIMITY_CANDIDATES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
+    RESOLVED_FROM,
+    RESOLVED_FROM_BARE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     answered_about_ref_for,
@@ -66,6 +69,7 @@ from code_atlas.tools.nav_result import (
     attach_serve_behind_route,
     attach_sibling_definitions,
     attach_try_instead,
+    bare_subject,
     classify_missing_subject,
     definition_sites,
     edge_hit,
@@ -74,13 +78,15 @@ from code_atlas.tools.nav_result import (
     escalate_zero_production,
     nav_result,
     relation_reason,
+    shape_bare_ambiguous,
     shape_exact_miss,
     sibling_definition_rows,
     unique_repoint,
 )
-from code_atlas.tools.staleness import compute_staleness
 
 NAME = "find_callers"
+# A bare name answers to its one Function (a stored procedure, say) — 392.
+BARE_CALLER_KINDS = tuple(kind for kind in BARE_SUBJECT_KINDS if kind in CALLABLE_KINDS)
 
 DetailLevel = Literal["minimal", "standard"]
 
@@ -181,7 +187,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         subject with surviving test callers: ``reason`` is not ``ok``, and
         ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272). A Function
         answer with hits carries the same count, ``authoritative: false`` and the
-        ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334).
+        ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
+        answer at depth 1 counts ``unresolved_receivers``: calls in its language by its bare name on
+        a receiver no type reached (an untyped parameter, say) and left unlinked; ``exclude_tests``
+        drops test callers from it too (393).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
@@ -200,9 +209,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``exclude_tests`` (default off) drops test-role callers in SQL; at depth > 1
         they are pruned from the walk so they never expand (313 shape; 332).
-        ``serve_behind`` (default off) labels a behind-index answer: unchanged subjects as
-        ``index_behind`` (257); unrepaired dirty subjects as ``index_behind_subject_changed``
-        (267). Off keeps today's refuse-when-stale default (022 AC3).
+        On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
+        subject as ``index_behind``, one the working tree no longer declares as
+        ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
+        refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
+        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
+        another worktree of this repo, rows from files it changed give way to its own edges onto
+        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389).
 
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
@@ -246,15 +259,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unlinked_calls = 0
         unlinked_same_name_sites = 0
         unlinked_beside_hits = 0
+        unresolved_receivers = 0
         shared_unlinked: list[str] = []
         shared_honesty_reason = REASON_NO_MATCHES
         unlinked_edge_kinds: list[str] = []
         cross_lang_census: dict[str, object] | None = None
         args_capture_absent = False
         proximity_used = False
-        behind_dirty: list[str] = []
         subject_file: str | None = None
-        subject_unrepaired = False
         test_role_label: str | None = None
         production_count = 0
         test_count = 0
@@ -263,39 +275,32 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             covered = covered_languages(store)
             stamped = store.stamped_unmodelled_resolution_by_language()
             about_ref = answered_about_ref_for(store)
-            if sign or serve_behind:
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-            if serve_behind:
-                behind_dirty = dirty_indexed_paths(store, config)
-            guard = FreshnessGuard(config, store)
-            freshness = guard.ensure_qname(qname)
-            if freshness == "stale" and guard.build_held and not serve_behind:
-                # 365: the writer holding the DB is the repair, so label the built graph.
-                serve_behind = True
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-                behind_dirty = dirty_indexed_paths(store, config)
-            if freshness == "stale":
-                if not unrepaired_subject_served(
-                    store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty
-                ):
-                    refused = nav_result(
-                        qname,
-                        [],
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        truncated=False,
-                        reason=REASON_INDEX_STALE,
-                        total_count=0,
-                        depth=depth,
-                        frontier_skipped_non_resolved=0,
-                        answered_about_ref=about_ref,
-                    )
-                    # 274: name the opt-in that answers; file_outline cannot fix a stale subject.
-                    if not serve_behind:
-                        return signed(attach_serve_behind_route(refused))
-                    return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
-                subject_unrepaired = True
+            # A caller in another worktree reads that worktree, not this checkout's drift (389).
+            overlay = active_overlay(config, store)
+            read = read_subject(
+                config, store, qname, serve_behind=serve_behind, trust_built=overlay is not None
+            )
+            staleness, behind_dirty = read.staleness, read.dirty_paths
+            guard, freshness = read.guard, read.freshness
+            if read.refuse:
+                refused = nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    truncated=False,
+                    reason=REASON_INDEX_STALE,
+                    total_count=0,
+                    depth=depth,
+                    frontier_skipped_non_resolved=0,
+                    answered_about_ref=about_ref,
+                )
+                # 274/388: name the call that answers; file_outline cannot fix a stale subject.
+                if not read.serve_behind:
+                    return signed(attach_serve_behind_route(refused, tool=NAME, call=call))
+                return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
+            subject_unrepaired = read.unrepaired
             asked = qname
             lookup = qname
             also = _constructed_class(store, lookup)
@@ -338,11 +343,22 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 hit_total=outcome.total_count,
                 also_targets=also,
             )
-            if outcome.total_count == 0 and not indexed:
+            from_bare = False
+            if outcome.total_count == 0 and not indexed and not read.removed:
                 resolution = classify_missing_subject(
                     store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
+                bare_sites: list[dict[str, object]] = []
+                if repointed is None and resolution.status == "ambiguous":
+                    repointed, bare_sites = bare_subject(
+                        store,
+                        asked,
+                        kinds=BARE_CALLER_KINDS,
+                        limit=config.page_limit,
+                        parts_compete=False,
+                    )
+                    from_bare = repointed is not None
                 if repointed is None:
                     miss = nav_result(
                         asked,
@@ -365,7 +381,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         miss["args_unrecorded"] = unrecorded
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
                     shaped = shape_exact_miss(miss, resolution)
-                    finalize_subject_checked_miss(shaped, guard)
+                    if bare_sites:
+                        shape_bare_ambiguous(shaped, bare_sites)
+                    finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
                         stamped,
@@ -521,6 +539,21 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_beside_hits = store.count_unlinked_by_target_raw(
                     (lookup, str(subject_nodes[0]["name"])), kinds=CALLER_KINDS
                 )
+            if depth == 1 and indexed and str(subject_nodes[0]["kind"]) == "Method":
+                # A call on an untyped receiver names only the member; count the ones left unlinked
+                # in the subject's language — "were untyped receivers in play?" (393).
+                own = store.language_of_file(str(subject_nodes[0]["file_path"]))
+                languages: dict[str, str | None] = {}
+                for edge in store.edges_by_target_raw(
+                    str(subject_nodes[0]["name"]),
+                    kinds=CALLER_KINDS,
+                    unlinked_only=True,
+                    exclude_test_sources=exclude_tests,
+                ):
+                    path = str(edge["file_path"])
+                    if path not in languages:
+                        languages[path] = store.language_of_file(path)
+                    unresolved_receivers += languages[path] == own
             if depth == 1 and production_count == 0 and indexed and subject_nodes:
                 subject_name = str(subject_nodes[0]["name"])
                 kinds = inbound_kinds_for(str(subject_nodes[0]["kind"]))
@@ -622,6 +655,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 result["test_role_source"] = test_role_label
         if unlinked_same_name_sites and test_count:
             result["unlinked_same_name_sites"] = unlinked_same_name_sites
+        if unresolved_receivers:
+            result["unresolved_receivers"] = unresolved_receivers
         if unlinked_beside_hits:
             result.setdefault("unlinked_same_name_sites", unlinked_beside_hits)
             attach_authoritative_caveats(result, [CAVEAT_UNLINKED_SAME_NAME_SITES])
@@ -635,6 +670,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
+        if from_bare:
+            result[RESOLVED_FROM] = RESOLVED_FROM_BARE
         if reason == REASON_RELATION_UNMODELLED_FOR_LANGUAGE:
             attach_try_instead(
                 result, None, TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
@@ -652,14 +689,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # per-answer partition.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        labelled = label_serve_behind(
-            result,
-            serve_behind=serve_behind,
-            subject_path=subject_file,
-            revision=staleness or None,
-            dirty_paths=behind_dirty,
-            subject_unrepaired=subject_unrepaired,
-        )
+        if overlay is not None:
+            labelled = overlay_inbound(
+                overlay, result, lookup, CALLER_KINDS, depth=depth, offset=offset
+            )
+        else:
+            labelled = label_behind(
+                result,
+                subject_path=subject_file,
+                revision=staleness or None,
+                dirty_paths=behind_dirty,
+                subject_unrepaired=subject_unrepaired,
+                subject_removed=read.removed,
+            )
         attach_coverage_edge_route(
             labelled,
             stamped,

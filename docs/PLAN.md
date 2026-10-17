@@ -103,7 +103,7 @@ Per-language, pick the best parser; do **not** force one across all languages. *
 | 3 | Python | **`ast`** builtin; `jedi` unbought | Zero-dependency parse. **Shipped stdlib-only** (020 tier 1a · 217 tier 2): nothing so far needed import/name resolution, so `jedi` waits for a tier that does. |
 | 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model resembles PHP's, so it *confirms* rather than reshapes the contract. |
 
-**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**); 328 `DELETES` (**v12**).
+**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**); 328 `DELETES` (**v12**); 390 `READS` (**v15**, its own kind — `REFERENCES` is an FK — opt-in on `kinds=`).
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
@@ -120,7 +120,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":14}   # handshake
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":15}   # handshake
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
@@ -844,19 +844,19 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
   with one SQLite backup; a killed build leaves the live index untouched. This reverses 219's
   reader-visible truncate; 202's incomplete stamp stays for in-place incrementals.
 - **Opt-in six-tool `CA_TOOLS` preset; default surface stays 24 (268).** A worktree whose `CA_DB_PATH`
-  resolves outside it refuses with `index_root_mismatch`; a server rooted at main, asked from a
-  worktree (MCP `roots`) at another commit, answers `ref_mismatch`, rows kept (366).
+  resolves outside it refuses with `index_root_mismatch`. A worktree caller (`roots`, else
+  `CA_CALLER_ROOT`) gets its changed files overlaid, unstored, edges at `HEURISTIC` (389); other
+  tools answer `ref_mismatch` (366).
 - **Consumer-repo brief (266 · 270)** — written into the indexed repo's `AGENTS.md` (marked,
   regenerable); a missing `@AGENTS.md` import in `CLAUDE.md` is printed, never written.
 - **Every adapter stamps its runtime-load idiom (279, 294–296)** into
   `File.extra.unmodelled_resolution`; `find_orphans` refuses `resolution_unmodelled`.
 - **Annotations and decorators emit `REFERENCES` (232)**; `Foo::class` stays `DYNAMIC`. Class constants
   by spec markers and PEP 8 upper-case (234) — no new kind.
-- **`serve_behind` labelled reads (257 · 267 · 274)** — opt-in; behind + unchanged → `index_behind`,
-  never `ok`; off ⇒ byte-identical. **Narrowed by 365 (2026-10-07):** while a build holding
-  `write.lock` writes the live DB in place (`live_index_held`: a shadowed rebuild still repairs, a
-  lone short writer is waited out), a
-  changed subject is served as `index_behind_subject_changed` without the opt-in — the cure is running.
+- **Behind-index reads (257 · 267 · 365 · 388)** — behind + unchanged → `index_behind`, never `ok`,
+  **unasked since 388 (2026-10-17)**: 6 of 45 anchor PRs fell back to Grep, the opt-in being the cost.
+  Removed subject → `index_behind_subject_removed`; search never refuses. Only an unre-readable
+  changed subject refuses, naming its `serve_behind=true` call — served unasked under 365's lock.
 - **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
   write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
   floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**

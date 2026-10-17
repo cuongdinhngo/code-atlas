@@ -7,7 +7,7 @@ from typing import Literal, NamedTuple
 
 from code_atlas import routes as route_table
 from code_atlas.config import Config
-from code_atlas.contract import CALLER_KINDS
+from code_atlas.contract import BARE_SUBJECT_KINDS, CALLER_KINDS
 from code_atlas.mirror_search import label_mirror_rows, load_mirror_search_stamp
 from code_atlas.store import GraphStore
 from code_atlas.symbol_role import stored_test_source
@@ -17,6 +17,8 @@ from code_atlas.tools.nav_result import (
     CAVEAT_UNLINKED_SAME_NAME_SITES,
     REASON_NO_SUCH_SYMBOL,
     REASON_SUBJECT_AMBIGUOUS,
+    RESOLVED_FROM,
+    RESOLVED_FROM_BARE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_FIND_CALLERS,
     TRY_INSTEAD_HINT_IMPACT_BY_QNAME,
@@ -27,6 +29,7 @@ from code_atlas.tools.nav_result import (
     attach_authoritative_caveats,
     attach_sibling_definitions,
     attach_try_instead,
+    bare_subject,
     classify_missing_subject,
     definition_sites,
     empty_nav,
@@ -58,6 +61,9 @@ class SeedSet(NamedTuple):
     seeds: list[str]
     dropped: tuple[SubjectResolution, ...]
     from_paths: tuple[str, ...] = ()
+    # A bare name re-pointed onto its one Table or Function, or refused with each (392).
+    from_bare: tuple[tuple[str, str], ...] = ()  # (asked, qname)
+    bare_refused: tuple[tuple[str, list[dict[str, object]]], ...] = ()
 
 
 class SeedPlan(NamedTuple):
@@ -74,6 +80,7 @@ class SeedPlan(NamedTuple):
     ambiguous_sites: list[tuple[str, list[dict[str, object]]]]
     twinned_sites: list[tuple[str, list[dict[str, object]]]]
     dropped: tuple[SubjectResolution, ...]
+    from_bare: tuple[tuple[str, str], ...] = ()
 
     @property
     def refused(self) -> int:
@@ -87,6 +94,7 @@ def plan_seeds(
     """Resolve the subjects, then remove the seeds that cannot honestly be walked (161 + 169)."""
     seed_set = resolve_seeds(store, paths=paths, qnames=qnames, max_results=max_results)
     walk_seeds, ambiguous_sites = _split_ambiguous(store, seed_set.seeds, max_results)
+    ambiguous_sites = [*ambiguous_sites, *seed_set.bare_refused]
     # Only the seeds a PATH expanded into: 161 closed the qname half, and a caller who named a
     # qname asked for that qname (169).
     from_paths = set(seed_set.from_paths)
@@ -103,6 +111,7 @@ def plan_seeds(
         ambiguous_sites=ambiguous_sites,
         twinned_sites=twinned_sites,
         dropped=seed_set.dropped,
+        from_bare=seed_set.from_bare,
     )
 
 
@@ -112,6 +121,9 @@ def attach_seed_refusals(payload: dict[str, object], plan: SeedPlan) -> None:
     A module list that silently lost a seed is worse than one that names the loss, and a rollup is
     acted on destructively exactly as `impact` is. Copied nowhere: both tools call this (R6.7).
     """
+    if plan.from_bare:
+        payload[RESOLVED_FROM] = RESOLVED_FROM_BARE
+        payload["resolved_qnames"] = dict(plan.from_bare)
     if plan.twinned_sites:
         # The bare-name links would pull in the twin's callers and callees, at RESOLVED-looking
         # confidence, on a tool whose answer is acted on destructively (169).
@@ -321,7 +333,10 @@ def _split_ambiguous(
     for qname in seeds:
         rows = store.nodes_by_qualified_name(qname, limit=max_results)
         if len(rows) > 1:
-            ambiguous.append((qname, definition_sites(rows)))
+            sites = definition_sites(rows)
+            for site in sites:  # one site shape with the bare refusal's (392)
+                site["qname"] = qname
+            ambiguous.append((qname, sites))
         else:
             walk.append(qname)
     return walk, ambiguous
@@ -408,6 +423,8 @@ def resolve_seeds(
     found: list[str] = []
     seen: set[str] = set()
     dropped: list[SubjectResolution] = []
+    from_bare: list[tuple[str, str]] = []
+    bare_refused: list[tuple[str, list[dict[str, object]]]] = []
 
     def take(resolution: SubjectResolution) -> None:
         # One rule for both subject slots: a subject that resolved is a seed, whichever argument
@@ -421,7 +438,19 @@ def resolve_seeds(
     for qname in qnames:
         if not qname:
             continue
-        take(_resolve_seed(store, qname, max_results))
+        resolution = _resolve_seed(store, qname, max_results)
+        if resolution.status == "ambiguous":
+            bare, sites = bare_subject(
+                store, qname, kinds=BARE_SUBJECT_KINDS, limit=max_results
+            )
+            if sites:
+                bare_refused.append((qname, sites))
+                continue
+            if bare is not None:
+                if (qname, bare) not in from_bare:
+                    from_bare.append((qname, bare))
+                resolution = SubjectResolution("resolved_unique", bare, 1)
+        take(resolution)
     expanded: list[str] = []
     for path in paths:
         if not path:
@@ -440,7 +469,9 @@ def resolve_seeds(
             take(_resolve_seed(store, qname, max_results))
             if len(found) > before:
                 expanded.append(qname)
-    return SeedSet(found, tuple(dropped), tuple(expanded))
+    return SeedSet(
+        found, tuple(dropped), tuple(expanded), tuple(from_bare), tuple(bare_refused)
+    )
 
 
 def _resolve_seed(store: GraphStore, qname: str, max_results: int) -> SubjectResolution:

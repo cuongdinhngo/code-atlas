@@ -71,7 +71,7 @@ code-atlas/
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column ForeignKey`.
-- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES ALTERS DELETES`.
+- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES ALTERS DELETES READS`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
   so both ends are paths. `target_raw` is the literal as written (`'../helpers.php'`) or `(dynamic)`
@@ -87,7 +87,7 @@ code-atlas/
 - **`ALTERS`:** a file's DDL changes a `Table`/`Function` (v11, 321) — `RESOLVED` literal /
   `DYNAMIC` string-run name. Never a writer. Read as `altered_by` / `altered_by_dynamic` (R5.6).
 - **`DELETES`:** row-removal onto a `Table` (v12, 328) — `DELETE`/`TRUNCATE`/`MERGE…DELETE`;
-  never a Column or a writer (`find_references`).
+  never a Column, never a writer.
 - **`ForeignKey`:** a foreign-key constraint as its own node (v10, 236), never a second `Table`
   row for the table it sits on. qname joins the owning table (`dbo.T::FK_x`), `CONTAINS`-linked to it
   like a column. `ForeignKey.extra`: `parent_table`, `referenced_table`, `columns` (comma-joined).
@@ -192,7 +192,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `production_count` / `test_count` / `test_role_source` / `unlinked_same_name_sites` | `find_callers` at depth 1, `find_references` | inbound split by the **caller's** role (262), partitioning `total_count` — `find_callers` by distinct sources (273), `find_references` by edge rows. `test_role_source` (`adapter` · `path_convention` · `mixed`) is absent if nothing is test, present on `impact`/`search_symbol` test rows (313); both counts, if none inbound (061). `unlinked_same_name_sites` only on an unmeasured test-only zero (272) |
 | `caveat_limits` | any payload with `authoritative_caveats` | caveat name → what it costs the reader operationally, not the relation's name; omitted when no caveat states one (251/061) |
 | `entry_point_candidates` / `stub_root_candidates` | status when roots unset — unbuilt any level, else `standard` | proposed globs + `files_matched`; tool never applies; not on `minimal` for a built index (268/119/061) |
-| `behind_serves` / `behind_refuses` / `serve_behind_opt_in` / `changed_indexed_files` / `changed_indexed_between` | status when `behind` only; count at `standard`+ | 274 — search/read serve; callers need opt-in bar an in-place build (365: `read_symbol` sets `parsed_unstored`); absent on `current`/unbuilt (061) |
+| `behind_serves` / `serve_behind_opt_in` / `changed_indexed_files` / `behind_because` / `changed_indexed_between` | `behind` status only; count + paths at `standard`+ | 274/388 — all read tools serve, labelled; opt-in for a changed subject, not mid in-place build (365); `behind_because` ≤ 20 `{path, change}` |
 | `unconfigured_adapters` / `unindexed_languages` | an indexed answer judged a genuine **or partial** absence; `minimal` omits both | two halves of one gap: the adapter is not launchable (159/160), and the graph holds zero files of a language whose adapter runs (173). A partial answer needs them as much as an empty one (192) |
 | `unindexed_same_basename` | a **non-empty** `search_symbol` page; `minimal` omits it | `{suffixes, count}` of same-stem files whose suffix the index does not hold. Guesses nothing about them (R5.6) and leaves `reason: ok` alone (299) |
 | `mirror_counterpart` / `mirror_no_counterpart` | `search_symbol` / `read_symbol` on a stamped mirror pair | the indexed twin's path, or the honest negative when it is not indexed; no stamp ⇒ neither field (277/282/286/061) |

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CodeAtlas\Php;
 
+use PhpParser\NameContext;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
@@ -36,6 +37,24 @@ final class MemberTypes extends NodeVisitorAbstract
 
     /** How far a member lookup may climb this file's own hierarchy before giving up. */
     private const MAX_DEPTH = 64;
+
+    /** The resolver's live name context: `use` imports and the namespace in force (393). */
+    private ?NameContext $names = null;
+
+    /** @var array<string, string> `\Class::method` → the class its `@return` docblock names */
+    private array $docReturns = [];
+
+    /** Names a docblock type never resolves to a class: PHP's own types and pseudo-types. */
+    private const NOT_A_CLASS = [
+        'array', 'bool', 'callable', 'false', 'float', 'int', 'iterable', 'mixed', 'never',
+        'null', 'object', 'parent', 'resource', 'self', 'static', 'string', 'true', 'void',
+        'boolean', 'double', 'integer', 'number', 'numeric', 'scalar',
+    ];
+
+    public function useNameContext(NameContext $names): void
+    {
+        $this->names = $names;
+    }
 
     public function enterNode(Node $node)
     {
@@ -121,6 +140,9 @@ final class MemberTypes extends NodeVisitorAbstract
         }
         $entry = $this->classes[$current];
         $entry['methods'][$node->name->toString()] = TypeName::of($node->returnType);
+        if ($node->returnType === null && ($doc = $this->docClass($node)) !== null) {
+            $this->docReturns[Qname::member($current, $node->name->toString())] = $doc;
+        }
         foreach ($node->params as $param) {
             // Constructor promotion declares a property from a parameter (PHP 8.0).
             if ($param->flags === 0 || !$param->var instanceof Node\Expr\Variable) {
@@ -213,6 +235,39 @@ final class MemberTypes extends NodeVisitorAbstract
         }
 
         return null;
+    }
+
+    /**
+     * The one class a `@return` docblock names, resolved like code (393). A union other than
+     * `X|null` / `null|X`, a generic, or a PHP type reads as nothing — a docblock is a claim.
+     */
+    private function docClass(Node\Stmt\ClassMethod $node): ?string
+    {
+        $comment = $node->getDocComment();
+        if ($comment === null || $this->names === null) {
+            return null;
+        }
+        // The tag opens its docblock line; `@return` inside prose is not one.
+        $pattern = '/^[\s\/*]*@return\s+(?:null\|)?\??(\\\\?[A-Za-z_][\w\\\\]*)(?:\|null)?(?=\s|\*|$)/m';
+        if (preg_match($pattern, $comment->getText(), $match) !== 1) {
+            return null;
+        }
+        $written = $match[1];
+        $lower = strtolower($written);
+        if (in_array($lower, self::NOT_A_CLASS, true) || str_starts_with($lower, 'namespace\\')) {
+            return null;
+        }
+        if (str_starts_with($written, '\\')) {
+            return Qname::of(new Node\Name\FullyQualified(substr($written, 1)));
+        }
+
+        return Qname::of($this->names->getResolvedClassName(new Node\Name($written)));
+    }
+
+    /** The class ``$method``'s `@return` docblock names, when it declares no return type. */
+    public function docReturn(string $method): ?string
+    {
+        return $this->docReturns[$method] ?? null;
     }
 
     public function functionReturn(string $qname): ?string

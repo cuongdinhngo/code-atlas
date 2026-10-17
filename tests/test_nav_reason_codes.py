@@ -19,6 +19,7 @@ from code_atlas.tools.nav_result import (
     REASON_INCOMPLETE_SNAPSHOT,
     REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
+    REASON_INDEX_BEHIND_SUBJECT_REMOVED,
     REASON_INDEX_ROOT_MISMATCH,
     REASON_INDEX_STALE,
     REASON_KIND_EXCLUDED,
@@ -42,6 +43,7 @@ from code_atlas.tools.nav_result import (
     REASON_SUBSTRING_MATCH,
     REASON_TOKEN_CANDIDATES,
     REASON_VIA_MEMBERS,
+    REASON_WORKTREE_OVERLAY,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
@@ -178,6 +180,8 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_INDEX_STALE,
         REASON_INDEX_BEHIND,
         REASON_INDEX_BEHIND_SUBJECT_CHANGED,
+        REASON_INDEX_BEHIND_SUBJECT_REMOVED,
+        REASON_WORKTREE_OVERLAY,
         REASON_BARE_NAME_TRUNCATED,
         REASON_RELATIONSHIP_NOT_MODELLED,
         REASON_CAPABILITY_NOT_CONFIGURED,

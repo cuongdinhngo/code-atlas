@@ -45,7 +45,9 @@ final class Parser
                 // Two traversals, not two visitors on one: a method may call one declared below
                 // it, so the member types must be complete before the first edge is emitted.
                 $resolve = new NodeTraverser();
-                $resolve->addVisitor(new NameResolver($errors));
+                $names = new NameResolver($errors);
+                $members->useNameContext($names->getNameContext());
+                $resolve->addVisitor($names);
                 if (!$declarationsOnly) {
                     $resolve->addVisitor($members);
                 }

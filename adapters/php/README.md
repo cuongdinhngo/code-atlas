@@ -61,7 +61,7 @@ per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — t
 See **Runtime** above for host vs Docker forms.
 
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":14,"symbol_shapes":[…]}
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":15,"symbol_shapes":[…]}
 → {"path":"src/Models/User.php"}
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}
 ```
@@ -102,7 +102,8 @@ records, under every runtime-invocation mode.
 Nodes `File · Namespace · Class · Interface · Trait · Enum · Method · Property · ClassConst ·
 Const · Function`, and **bare** edges `CONTAINS · EXTENDS · IMPLEMENTS · USES_TRAIT · IMPORTS ·
 CALLS · NEW · INCLUDES · REFERENCES · ALIASES`, plus `WRITES`/`DELETES` from a string literal that
-begins a T-SQL write, and `CALLS` from one that begins an `EXEC` (335; an unqualified name is
+begins a T-SQL write, `READS` from one that begins a `SELECT … FROM` (390), and `CALLS` from one that
+begins an `EXEC` (335; an unqualified name is
 `dbo.<name>`, T-SQL's default schema, 386) —
 `target_raw` only, because a single file cannot know all targets. Cross-file linking is the core
 resolver's job (R3.3).
@@ -115,7 +116,8 @@ separator; this adapter adds it.
 
 An instance method call whose receiver the local type table (137, `semantic_types`) can name is
 emitted `Class::method`; otherwise it is the bare name at `HEURISTIC`, never dressed up as
-`RESOLVED` (R5.2).
+`RESOLVED` (R5.2). A method with no native return type whose `@return` docblock names one class
+carries it as `extra.doc_type`; a receiver typed only through it links at `HEURISTIC` (393).
 
 ## Scope
 

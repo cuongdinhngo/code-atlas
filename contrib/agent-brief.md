@@ -48,7 +48,7 @@ Do not edit by hand — regenerate with
 ### How to spend the calls
 
 - **Ask the index first, then follow through.** Structural questions take more than one call: `search_symbol` → `read_symbol`, `find_callers` → `impact`. One lookup followed by a grep sweep is the failure mode this brief exists to stop.
-- **Call `get_index_status` when you are unsure the index is current** — and read `staleness`. A `behind` index still serves `search_symbol` and `read_symbol`; the inbound tools need `serve_behind: true` and then label the answer.
+- **Call `get_index_status` when you are unsure the index is current** — and read `staleness`. On a `behind` index `find_callers` / `find_references` answer labelled `index_behind` with `last_commit`, and `search_symbol` flags drifted rows `source_stale`; `behind_because` lists the changed paths. A subject whose changed file cannot be re-read still refuses `index_stale` (`read_symbol` too); a caller's hint names the `serve_behind: true` call to copy.
 - **Prefer one call over a sweep of ten.** `search_symbol` takes a list of `queries`.
 
 ### Read what the answer says about itself
@@ -71,7 +71,7 @@ The index holds what the adapters parsed, so a question whose answer is an **abs
 
 - **Narrow a large `search_symbol` page with `kind:` or `namespace`.** A common token across File/Class/Method rows is not a reason to eyeball hundreds of hits — pass `kind` (a contract node kind) or `namespace` and re-ask.
 - **Scope a `search_symbol` / `find_references` / `read_symbol` page to a subtree with `path_prefix`.** An index-root-relative plain prefix (`src/`); a hit outside it answers `path_excluded` (search/refs) or `no_such_symbol` naming the filter (read) — not a silent wrong body (315/327).
-- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method when the question is *what writes this column*.
+- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method when the question is *what writes this column*. Pass `kinds: ["READS"]` for who reads the table instead — routines that `SELECT` from it and strings that begin `SELECT … FROM` it (390).
 - **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when a language stamped `dynamic_sql` (296).
 - **A runtime-loaded module is not an edge either.** A computed `import()` / `require()` / `importlib` load stamps `dynamic_import` (one built from `__dirname`/`__file__` and literals, or a literal `import_module`, is linked — 370/373), a registered class autoloader stamps `autoload`: the target is never linked, so a missing importer is not proof of none — Grep the loader call. `find_orphans` answers `status=resolution_unmodelled` for either (279/294/295).
 - **`find_orphans` has no path scope** — it walks the whole index from `CA_ENTRY_POINTS`. Do not expect a directory filter.

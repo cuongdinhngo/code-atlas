@@ -355,8 +355,11 @@ USAGE_RULES: tuple[str, ...] = (
     " call: `search_symbol` → `read_symbol`, `find_callers` → `impact`. One lookup followed by"
     " a grep sweep is the failure mode this brief exists to stop.",
     "- **Call `get_index_status` when you are unsure the index is current** — and read"
-    " `staleness`. A `behind` index still serves `search_symbol` and `read_symbol`; the inbound"
-    " tools need `serve_behind: true` and then label the answer.",
+    " `staleness`. On a `behind` index `find_callers` / `find_references` answer labelled"
+    " `index_behind` with `last_commit`, and `search_symbol` flags drifted rows `source_stale`;"
+    " `behind_because` lists the changed paths. A subject whose changed file cannot be re-read"
+    " still refuses `index_stale` (`read_symbol` too); a caller's hint names the"
+    " `serve_behind: true` call to copy.",
     "- **Prefer one call over a sweep of ten.** `search_symbol` takes a list of `queries`.",
     "",
     "### Read what the answer says about itself",
@@ -401,7 +404,9 @@ USAGE_RULES: tuple[str, ...] = (
     " wrong body (315/327).",
     "- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus"
     " `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method"
-    " when the question is *what writes this column*.",
+    " when the question is *what writes this column*. Pass `kinds: [\"READS\"]` for who"
+    " reads the table instead — routines that `SELECT` from it and strings that begin"
+    " `SELECT … FROM` it (390).",
     "- **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the"
     " index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when"
     " a language stamped `dynamic_sql` (296).",

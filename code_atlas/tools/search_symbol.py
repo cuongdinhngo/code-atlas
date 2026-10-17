@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from typing import Literal, NamedTuple
 
 from code_atlas import contract, routes
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.contract import CONFIDENCE_TIERS
+from code_atlas.overlay import Overlay, active_overlay
 from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefix_match
 from code_atlas.symbol_role import stored_test_source
 from code_atlas.tools.coverage import (
@@ -20,7 +21,7 @@ from code_atlas.tools.coverage import (
 )
 from code_atlas.tools.freshness import FreshnessGuard, nameable_subject_path
 from code_atlas.tools.nav_result import (
-    REASON_INDEX_STALE,
+    REASON_INDEX_BEHIND,
     REASON_KIND_EXCLUDED,
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
@@ -54,6 +55,13 @@ from code_atlas.tools.nav_result import (
     list_result,
     require_path_prefix,
     subject_answer,
+)
+from code_atlas.tools.symbol_pointers import (
+    ALIASES_FIELD,
+    AMBIGUITY_FIELD,
+    TEST_COPIES,
+    aliases,
+    test_copies_first,
 )
 
 _RESOLVED = CONFIDENCE_TIERS[0]
@@ -127,9 +135,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and ``total_count``, so one miss never colours the rest. At most ``max_subjects`` are
         accepted; the rest are named in ``subjects_dropped`` beside ``subjects_capped_to``.
         A sweep shares **one** read-through repair budget across every subject, so a subject whose
-        file drifted may answer ``index_stale`` where a single call would have repaired it. When a
-        sweep mixes ``ok`` with ``index_stale``, the envelope names the refused subjects and states
-        that the shared budget decided (275) — a fully-``ok`` sweep stays unchanged (061).
+        file drifted may answer ``source_stale`` rows where a single call would have repaired it;
+        it carries ``retry_as: query``. When a sweep mixes vouched ``ok`` answers with such
+        subjects, the envelope names them in ``index_stale_subjects`` and states that the shared
+        budget decided (275) — a fully-vouched sweep stays unchanged (061).
 
         Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
@@ -147,11 +156,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         near-miss, not a hit, and carries the language-coverage note (167 / 160). A
         ``substring_match`` answer, or a page short of ``total_count``, also carries
         ``try_instead=file_outline`` plus the narrow-by-qname hint, so the reader has a query to
-        make next instead of inventing one (245 / 093). On hash drift
-        beyond the per-call reparse cap, returns hits with
-        ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of absence); a
-        zero-hit first page may repair a named subject file or the sole dirty indexed file; an
-        unnameable subject amid several dirty files yields empty ``index_stale`` (073/246). Stub-
+        make next instead of inventing one (245 / 093). It never refuses on
+        staleness (388): a hit whose file drifted beyond the per-call reparse cap carries
+        ``source_stale: true``; a zero-hit first page may repair a named subject file or the sole
+        dirty indexed file; a miss nothing could vouch for (an unnameable subject amid several
+        dirty files) answers ``reason=index_behind``, empty, with ``other_indexed_files_drifted``
+        — never an empty proof of absence (073/246). Stub-
         indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
         hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
         A zero-overlap miss answers ``reason=token_candidates`` with ``candidates`` (names sharing a
@@ -159,6 +169,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind, edit_distance}``, nearest first, never in ``results`` (378).
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
+        A qname held by one production row and test copies lists the production row first and
+        marks each of its rows ``ambiguity: "test_copies"``; a type row at ``standard`` names
+        its ``aliases`` (394).
+        Asked from another worktree of this repo, rows from files it changed are swapped for that
+        worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
         A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
         file, tier, rule}`` — beside ``results``; pass one to ``trace_capability(route=…)``.
         """
@@ -198,7 +213,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             about_ref = answered_about_ref_for(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
-            guard = FreshnessGuard(config, store)
+            overlay = active_overlay(config, store)
+            guard = FreshnessGuard(config, store, trust_built=overlay is not None)
             mirrors = _mirror_context(store)
             table = routes.load(store.get_meta(routes.ROUTES_META_KEY))
             found = [
@@ -217,6 +233,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 for subject in kept
             ]
+            if overlay is not None:
+                found = [
+                    _overlay_hits(
+                        hits,
+                        overlay,
+                        subject,
+                        kind=kind,
+                        namespace=namespace,
+                        path_prefix=path_prefix,
+                        cap=cap,
+                        detail_level=detail_level,
+                    )
+                    for subject, hits in zip(kept, found, strict=True)
+                ]
         if not batched:
             routed = routes.containing(table or [], str(kept[0]), limit=cap)
             single = attach_coverage_note(
@@ -242,6 +272,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if routed:
                 # Declared routes whose key holds the query: beside the symbols, not in them (385).
                 single["routes"] = [route.as_row() for route in routed]
+            if overlay is not None:
+                overlay.label(single)
             return attach_unindexed_same_basename(
                 single,
                 root=config.root,
@@ -267,6 +299,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
         _attach_mixed_repair_budget(payload, answers)
+        if overlay is not None:
+            overlay.label(payload)
         # A swept miss is the same 8-A shape as a single one: name the coverage gap once on the
         # envelope (call-level, never per subject — 061) when any subject came back a genuine zero,
         # a token-candidate miss (253), or a substring near-miss — the sweep path is the one 160's
@@ -354,9 +388,15 @@ def _search_one(
             offset=offset,
         )
     truncated = len(rows) > cap
+    page, held = _test_copies_first(rows[:cap])
     results = _suppress_redundant_file_hits(
-        [_hit(row, store=store, detail_level=detail_level) for row in rows[:cap]]
+        [_hit(row, store=store, detail_level=detail_level) for row in page]
     )
+    for hit in results:
+        if hit["qname"] in held:  # per row: a page can hold several names (394 review)
+            hit[AMBIGUITY_FIELD] = TEST_COPIES
+    if status == "stale":
+        _mark_source_stale(results, guard)
     if truncated or offset > 0:
         total_count = store.count_search_nodes(
             query,
@@ -368,8 +408,9 @@ def _search_one(
         truncated = offset + len(results) < total_count
     else:
         total_count = len(results)
-    if status == "stale":
-        reason: NavReason = REASON_INDEX_STALE
+    if status == "stale" and total_count == 0:
+        # A name search never refuses (388): nothing vouched for this miss; the residue says why.
+        reason: NavReason = REASON_INDEX_BEHIND
     elif total_count == 0:
         # Page emptiness ≠ answer emptiness once offset can walk past the end (057).
         reason = (
@@ -424,6 +465,8 @@ def _search_one(
                             for row in alt_rows[:cap]
                         ]
                     )
+                    if alt_status == "stale":
+                        _mark_source_stale(results, guard)
                     if truncated:
                         total_count = store.count_search_nodes(
                             alt,
@@ -435,12 +478,9 @@ def _search_one(
                         truncated = len(results) < total_count
                     else:
                         total_count = len(results)
-                    alt_reason: NavReason = (
-                        REASON_INDEX_STALE
-                        if alt_status == "stale"
-                        else REASON_SEPARATOR_NORMALISED
+                    return _Hits(
+                        results, truncated, REASON_SEPARATOR_NORMALISED, total_count, residue
                     )
-                    return _Hits(results, truncated, alt_reason, total_count, residue)
     # Zero-overlap miss: kind filter first (275), then path filter (315), then tokens (253).
     if reason == REASON_NO_MATCHES and offset == 0:
         if kind is not None:
@@ -502,6 +542,96 @@ def _search_one(
     return _Hits(results, truncated, reason, total_count, residue, (), order)
 
 
+def _overlay_hits(
+    hits: _Hits,
+    overlay: Overlay,
+    query: str,
+    *,
+    kind: contract.NodeKind | None,
+    namespace: str | None,
+    path_prefix: str | None,
+    cap: int,
+    detail_level: DetailLevel,
+) -> _Hits:
+    """Swap the built rows of every file the worktree changed for that file's worktree symbols.
+
+    Direct matches lead, the 180 band, and ``total_count`` moves by what this page swapped (389).
+    """
+    kept: list[dict[str, object]] = []
+    for row in hits.results:
+        rel = str(row.get("file") or "")
+        if not overlay.changes(rel):
+            kept.append(row)
+        elif overlay.unread(rel):
+            # The worktree's copy would not parse: keep the built row, flagged, never an absence.
+            kept.append({**row, "source_stale": True})
+    swapped = len(hits.results) - len(kept)
+    needle = query.lower()
+    added: list[tuple[bool, dict[str, object]]] = []
+    for rel in overlay.differing:
+        if path_prefix is not None and not is_under_path_prefix(rel, path_prefix):
+            continue
+        for node in overlay.nodes(rel):
+            qname, name = str(node.get("qualified_name")), str(node.get("name"))
+            if kind is not None and node.get("kind") != kind:
+                continue
+            if namespace is not None and not qname.lower().startswith(namespace.lower()):
+                continue
+            direct = is_direct_match(query, name, qname)
+            if direct or needle in qname.lower():
+                added.append((not direct, _hit(node, detail_level=detail_level)))
+    if not added and not swapped and kept == hits.results:
+        return hits
+    added.sort(key=lambda pair: pair[0])  # stable: direct matches first, file order within
+    results = ([hit for _, hit in added] + kept)[:cap]
+    total = max(hits.total_count - swapped + len(added), len(results))
+    reason = hits.reason
+    if results and reason in (REASON_NO_MATCHES, REASON_TOKEN_CANDIDATES, REASON_INDEX_BEHIND):
+        reason = REASON_OK
+    return hits._replace(
+        results=results, total_count=total, truncated=total > len(results), reason=reason
+    )
+
+
+def _test_copies_first(rows: list[Row]) -> tuple[list[Row], frozenset[str]]:
+    """Each qname this page holds twice: its one production row leads its test copies (394).
+
+    Returns the reordered page and the qnames the rule held for.
+    """
+    groups: dict[str, list[Row]] = {}
+    for row in rows:
+        groups.setdefault(str(row["qualified_name"]), []).append(row)
+    ordered: dict[str, Iterator[Row]] = {}
+    for qname, group in groups.items():
+        if len(group) > 1:
+            first, held = test_copies_first(group)
+            if held:
+                ordered[qname] = iter(first)
+    if not ordered:
+        return rows, frozenset()
+    page = [
+        next(ordered[str(row["qualified_name"])]) if str(row["qualified_name"]) in ordered else row
+        for row in rows
+    ]
+    return page, frozenset(ordered)
+
+
+def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:
+    """Flag each row whose file drifted past the repair budget — answered, never refused (388)."""
+    for row in results:
+        if guard.drifted(str(row.get("file") or "")):
+            row["source_stale"] = True
+
+
+def _unvouched(answer: Mapping[str, object]) -> bool:
+    """A subject the shared repair budget could not vouch for: a drifted row, or an empty miss."""
+    rows = answer.get("results")
+    stale_row = isinstance(rows, list) and any(
+        isinstance(row, dict) and row.get("source_stale") for row in rows
+    )
+    return stale_row or answer.get("reason") == REASON_INDEX_BEHIND
+
+
 def _direct(query: str, row: Mapping[str, object] | Row) -> bool:
     """``store.is_direct_match`` over a row — the predicate the search ordering bands on (R6.7)."""
     return is_direct_match(query, str(row["name"]), str(row["qualified_name"]))
@@ -533,8 +663,10 @@ def _single_payload(
         total_count=hits.total_count,
         answered_about_ref=answered_about_ref,
     )
-    # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
-    if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
+    # Empty + unverified (multi-dirty miss) — point at path-named tools (073), name the drift.
+    if hits.reason == REASON_INDEX_BEHIND and hits.total_count == 0:
+        if hits.other_indexed_files_drifted > 0:
+            payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
         return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
     if hits.reason == REASON_KIND_EXCLUDED:
         payload["kind_excluded"] = list(hits.kind_excluded)
@@ -581,8 +713,8 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         reason=hits.reason,
         total_count=hits.total_count,
     )
-    if hits.reason == REASON_INDEX_STALE:
-        # Shared-budget refuse: single-subject retry is the progress route (275 / R5.4).
+    if _unvouched(answer):
+        # Shared budget ran out: single-subject retry is the progress route (275 / R5.4).
         answer[RETRY_AS_FIELD] = RETRY_AS_QUERY
         attach_try_instead(answer, None, TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR)
     elif hits.reason == REASON_KIND_EXCLUDED:
@@ -619,15 +751,11 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
 def _attach_mixed_repair_budget(
     payload: dict[str, object], answers: list[dict[str, object]]
 ) -> None:
-    """Flag a sweep that mixed ok with index_stale under one repair budget (275 / 061)."""
-    stale = [
-        str(a["query"])
-        for a in answers
-        if a.get("reason") == REASON_INDEX_STALE
-    ]
+    """Flag a sweep that mixed vouched answers with unvouched ones under one budget (275 / 388)."""
+    stale = [str(a["query"]) for a in answers if _unvouched(a)]
     if not stale:
         return
-    if not any(a.get("reason") == REASON_OK for a in answers):
+    if not any(a.get("reason") == REASON_OK and not _unvouched(a) for a in answers):
         return
     payload["repair_budget_shared"] = True
     payload["index_stale_subjects"] = stale
@@ -833,6 +961,10 @@ def _hit(
             hit["references_unresolved"] = unresolved
     if store is not None and detail_level != "minimal" and row["kind"] in _ALTERED_KINDS:
         hit.update(_altered_by(store, str(row["qualified_name"])))
+    if store is not None and detail_level != "minimal" and row["kind"] in contract.TYPE_KINDS:
+        named = aliases(store, str(row["qualified_name"]))
+        if named:
+            hit[ALIASES_FIELD] = named  # either name names the other (394)
     return hit
 
 

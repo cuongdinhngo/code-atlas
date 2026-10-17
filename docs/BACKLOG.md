@@ -25,17 +25,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
-| 388 | [Behind index refuses](tasks/388_behind-refuses.md) | Freshness | todo | 365 |
-| 389 | [Worktree reads main](tasks/389_worktree-overlay.md) | Trust | todo | 366 |
-| 390 | [No table readers](tasks/390_table-readers.md) | Coverage | todo | 371 |
-| 391 | [Defaults by expression](tasks/391_defaults-by-expr.md) | Coverage | todo | 320 |
-| 392 | [Bare table refused](tasks/392_bare-table-name.md) | Retrieval | todo | 320 |
-| 393 | [Factory receiver unlinked](tasks/393_factory-receiver.md) | Coverage | todo | 362 |
-| 394 | [Stub hides real code](tasks/394_stub-or-alias.md) | Trust | todo | 286 |
-| 395 | [JS in PHP views](tasks/395_js-in-php-views.md) | Coverage | todo | 361 |
 | 396 | [Rules stale, unlabelled](tasks/396_rules-stale.md) | Freshness | todo | 040, 080, 385 |
 | 397 | [Routes from a JSON census](tasks/397_routes-from-source.md) | Coverage | todo | 385, 396 |
 | 398 | [Wrapped keyed call unread](tasks/398_keyed-string-arg-span.md) | Coverage | todo | 222, 352, 364 |
+| 399 | [PHP view scripts and template refs — evidence-gated](tasks/399_php-view-script-regions.md) | Coverage | deferred | 395 |
 
 ## Open work — Pillar 2 · Onboarding
 

@@ -174,6 +174,9 @@ def test_retry_owes_the_same_freshness_verdict_as_the_correct_spelling(
     _seed_column(store, tmp_path)
     (tmp_path / COL_PATH).unlink()
     tool = search_symbol.create(db_config(tmp_path))
-    assert tool(COL_QNAME)["reason"] == REASON_INDEX_STALE
-    assert tool(COL_DOTTED)["reason"] == REASON_INDEX_STALE
+    # 388: search answers both spellings, and both flag the row its file no longer backs.
+    for spelling in (COL_QNAME, COL_DOTTED):
+        answer = tool(spelling)
+        assert answer["reason"] != REASON_INDEX_STALE, answer
+        assert all(row.get("source_stale") for row in answer["results"]), answer
     assert read_symbol.create(db_config(tmp_path))(COL_DOTTED)["reason"] == REASON_INDEX_STALE

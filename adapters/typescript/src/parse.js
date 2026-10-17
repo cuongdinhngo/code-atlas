@@ -714,6 +714,7 @@ function parseFile(path, declarationsOnly) {
         addNode("Function", cls.name, qname, decl, extraOf(decl), opts);
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
         if (init && ts.isFunctionLike(init)) emitAnnotationRefs(qname, init, typeParams);
+        if (init && ts.isFunctionExpression(init)) emitConstructorMembers(init, qname);
         if (!declarationsOnly && init) walk(init, qname, qname, null, locals, selfProps, typeParams);
       } else if (cls && cls.kind === "Const") {
         const qname = member(container, cls.name);
@@ -726,12 +727,98 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
+  // Constructor members (395): in a named plain function, `this.x = function` — or `self.x` after
+  // `var self = this` — declares a Method of it. `Ctor.prototype.x =` is not read (399).
+  const memberSites = new Map();
+  const bindingNames = (name, out) => {
+    if (ts.isIdentifier(name)) out.push(name.text);
+    else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+      for (const el of name.elements) if (!ts.isOmittedExpression(el)) bindingNames(el.name, out);
+    }
+    return out;
+  };
+  const emitConstructorMembers = (fn, qname) => {
+    if (!fn.body || !ts.isBlock(fn.body) || fn.asteriskToken) return;
+    // An async function, or one typing its own `this` parameter, is never `new`ed.
+    if ((fn.modifiers || []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)) return;
+    const first = fn.parameters[0];
+    if (first && ts.isIdentifier(first.name) && first.name.text === "this") return;
+    // `this` rebinds in any function but an arrow, and in a class: neither is this function's body.
+    const ownBody = (node, visit) => {
+      visit(node);
+      if ((ts.isFunctionLike(node) && !ts.isArrowFunction(node)) || ts.isClassLike(node)) return;
+      node.forEachChild((child) => ownBody(child, visit));
+    };
+    const aliases = new Map(); // name -> where `var name = this` ends; a reassigned name drops out
+    const reassigned = new Set();
+    const declaredHere = new Set(); // a nested declaration already owns `F::name`
+    const scan = (node) => {
+      if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
+        declaredHere.add(node.name.text);
+        reassigned.add(node.name.text);
+      }
+      // An arrow's parameter shadows an alias of the same name; so does any non-`this` redeclaration.
+      const shadows = [];
+      if (ts.isArrowFunction(node)) for (const p of node.parameters) bindingNames(p.name, shadows);
+      if (ts.isVariableDeclaration(node) && !ts.isIdentifier(node.name)) bindingNames(node.name, shadows);
+      for (const n of shadows) reassigned.add(n);
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+        const name = node.name.text;
+        if (node.initializer && node.initializer.kind === ts.SyntaxKind.ThisKeyword) {
+          if (!aliases.has(name)) aliases.set(name, node.end);
+        } else reassigned.add(name);
+        if (node.initializer && (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) {
+          declaredHere.add(node.name.text);
+        }
+      }
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+        reassigned.add(node.left.text);
+      }
+    };
+    for (const st of fn.body.statements) ownBody(st, scan);
+    const isSelf = (expr, at) => {
+      if (expr.kind === ts.SyntaxKind.ThisKeyword) return true;
+      if (!ts.isIdentifier(expr) || reassigned.has(expr.text)) return false;
+      const bound = aliases.get(expr.text);
+      return bound !== undefined && bound <= at;
+    };
+    const seen = new Set();
+    const declareMember = (node) => {
+      if (
+        !ts.isBinaryExpression(node) ||
+        node.operatorToken.kind !== ts.SyntaxKind.EqualsToken ||
+        !ts.isPropertyAccessExpression(node.left) ||
+        !ts.isIdentifier(node.left.name) ||
+        !(ts.isFunctionExpression(node.right) || ts.isArrowFunction(node.right)) ||
+        !isSelf(node.left.expression, node.getStart(sf)) ||
+        declaredHere.has(node.left.name.text)
+      ) {
+        return;
+      }
+      // A member assigned twice is one Method, at its first assignment; both bodies are its.
+      const name = node.left.name.text;
+      const memberQname = member(qname, name);
+      memberSites.set(node, memberQname);
+      if (seen.has(name)) return;
+      seen.add(name);
+      addNode("Method", name, memberQname, node, extraOf(node.right), { params: callableParams(node.right, sf) });
+      addEdge("CONTAINS", qname, memberQname, node.getStart(sf));
+    };
+    for (const st of fn.body.statements) ownBody(st, declareMember);
+  };
+
   // Main walk: nodes + CONTAINS, plus the edges each construct owns. `scope` is what a body edge is
   // sourced at, `enclosingClass` the qname a `this.method()` resolves against; body walking is
   // skipped for declarations_only. `typeParams` names type parameters in scope (skip REFERENCES).
   const walk = (node, container, scope, enclosingClass, locals, selfProps, typeParams) => {
     if (ts.isVariableStatement(node)) {
       walkVariables(node, container, scope, enclosingClass, locals, selfProps, typeParams);
+      return;
+    }
+    const memberQname = memberSites.get(node);
+    if (memberQname) {
+      walk(node.left, container, scope, enclosingClass, locals, selfProps, typeParams);
+      walk(node.right, memberQname, memberQname, null, locals, selfProps, typeParams);
       return;
     }
 
@@ -770,6 +857,7 @@ function parseFile(path, declarationsOnly) {
           childTypeParams = new Set([...typeParams, ...typeParamNames(node)]);
         }
         if (CALLABLE.has(node.kind)) emittedCallable = true;
+        if (ts.isFunctionDeclaration(node)) emitConstructorMembers(node, qname);
         emitHeritage(node, qname);
         emitDefaultAlias(node, name, qname);
       }

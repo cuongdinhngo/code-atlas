@@ -32,6 +32,9 @@ from code_atlas.tools.nav_result import (
     REASON_REF_MISMATCH,
 )
 
+# An answer read through the caller's worktree (389) — named here, where the relabel skips it.
+OVERLAY_FIELD = "overlay"
+OVERLAY_WORKTREE = "worktree"
 # None: the call did not come through MCP (a test, a hook); a str: why the check could not run.
 CALLER_ROOTS: contextvars.ContextVar[tuple[Path, ...] | str | None] = contextvars.ContextVar(
     "caller_roots", default=None
@@ -123,11 +126,11 @@ def _checkout(path: Path) -> tuple[Path, Path] | None:
     return found
 
 
-def find_mismatch(config: Config, roots: tuple[Path, ...]) -> RefMismatch | None:
+def other_checkout(config: Config, roots: tuple[Path, ...]) -> tuple[Path, str] | None:
     """The first root, in client order, that checks out this repository decides (366 X2).
 
-    The index root among the roots: no check, and no git. Another checkout at the built commit:
-    none; at another HEAD: a mismatch. A later root never relabels; one ``rev-parse`` per call.
+    The index root among the roots: none, and no git. Another checkout of the same repository:
+    its top level and HEAD. A later root never decides; one ``rev-parse`` per call.
     """
     index_root = config.root.resolve()
     if any(root.resolve() == index_root for root in roots):
@@ -145,11 +148,35 @@ def find_mismatch(config: Config, roots: tuple[Path, ...]) -> RefMismatch | None
         if head is None:
             _CHECKOUTS.pop(root.resolve(), None)
             continue  # a removed worktree checks out nothing: the next root decides
-        built = read_meta_readonly(config.db_path, LAST_COMMIT_KEY)
-        if built is None or head == built:
-            return None
-        return RefMismatch(caller_root=str(theirs[0]), caller_commit=head, index_commit=built)
+        return theirs[0], head
     return None
+
+
+def find_mismatch(config: Config, roots: tuple[Path, ...]) -> RefMismatch | None:
+    """Another checkout of this repository at another commit than the built one (366)."""
+    found = other_checkout(config, roots)
+    if found is None:
+        return None
+    built = read_meta_readonly(config.db_path, LAST_COMMIT_KEY)
+    if built is None or found[1] == built:
+        return None
+    return RefMismatch(caller_root=str(found[0]), caller_commit=found[1], index_commit=built)
+
+
+def caller_checkout(config: Config) -> Path | None:
+    """The caller's other checkout of this repository, from its roots or ``CA_CALLER_ROOT`` (389).
+
+    ``CA_CALLER_ROOT`` answers only when the client reported no roots: a client that names its
+    checkout is never overruled by the server's environment.
+    """
+    roots = CALLER_ROOTS.get()
+    if isinstance(roots, tuple):
+        found = other_checkout(config, roots)
+    elif config.caller_root is not None:
+        found = other_checkout(config, (config.caller_root,))
+    else:
+        return None
+    return None if found is None else found[0]
 
 
 def attach_ref_check(
@@ -164,6 +191,8 @@ def attach_ref_check(
     roots = CALLER_ROOTS.get()
     if roots is None or not isinstance(answer, dict) or "error" in answer:
         return answer
+    if answer.get(OVERLAY_FIELD) == OVERLAY_WORKTREE:
+        return answer  # 389: the caller's own checkout answered, so nothing is about another ref
     if isinstance(roots, str):
         if status:
             answer[REF_CHECK_FIELD] = roots

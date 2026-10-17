@@ -1,4 +1,4 @@
-"""Task 274 — behind status names served families + serve_behind; not only rebuild."""
+"""Task 274 — behind status names served families + serve_behind; not only rebuild (388: all)."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, get_index_status
 from code_atlas.tools.get_index_status import (
-    BEHIND_REFUSES_FIELD,
     BEHIND_SERVES_FIELD,
     BUILD_TOOL,
     CALLERS_TOOL,
@@ -118,8 +117,9 @@ def test_behind_suggestions_are_not_only_build(
     assert SEARCH_TOOL in suggestions
     assert READ_TOOL in suggestions
     assert suggestions != [BUILD_TOOL]
-    assert behind[BEHIND_SERVES_FIELD] == [SEARCH_TOOL, READ_TOOL]
-    assert behind[BEHIND_REFUSES_FIELD] == [CALLERS_TOOL, REFERENCES_TOOL]
+    # 388: callers/references answer labelled with no build running; nothing is refused.
+    assert behind[BEHIND_SERVES_FIELD] == [SEARCH_TOOL, READ_TOOL, CALLERS_TOOL, REFERENCES_TOOL]
+    assert "behind_refuses" not in behind
     assert behind[SERVE_BEHIND_OPT_IN_FIELD] == SERVE_BEHIND_OPT_IN
     assert behind[CHANGED_INDEXED_BETWEEN_FIELD] == list(CHANGED_INDEXED_BETWEEN)
     assert CHANGED_INDEXED_FILES_FIELD not in behind  # minimal: no extra git (274)
@@ -145,7 +145,7 @@ def test_current_index_status_byte_identical(
         payload = status_fn(detail_level=level)
         assert payload["staleness"] == CURRENT
         assert BEHIND_SERVES_FIELD not in payload
-        assert BEHIND_REFUSES_FIELD not in payload
+        assert "behind_refuses" not in payload
         assert SERVE_BEHIND_OPT_IN_FIELD not in payload
         assert CHANGED_INDEXED_FILES_FIELD not in payload
         assert CHANGED_INDEXED_BETWEEN_FIELD not in payload
@@ -175,7 +175,7 @@ def test_index_stale_refusal_names_serve_behind(
     )
     assert payload["reason"] == REASON_INDEX_STALE, payload
     assert payload[NAV_OPT_IN_FIELD] == SERVE_BEHIND_OPT_IN
-    assert payload["try_instead_hint"] == TRY_INSTEAD_HINT_SERVE_BEHIND
+    assert str(payload["try_instead_hint"]).startswith(TRY_INSTEAD_HINT_SERVE_BEHIND)
     assert "try_instead" not in payload
 
 

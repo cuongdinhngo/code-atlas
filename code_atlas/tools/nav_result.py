@@ -24,6 +24,8 @@ NavReason = Literal[
     "index_stale",
     "index_behind",
     "index_behind_subject_changed",
+    "index_behind_subject_removed",
+    "worktree_overlay",
     "bare_name_truncated",
     "relationship_not_modelled",
     "capability_not_configured",
@@ -53,9 +55,13 @@ REASON_NO_MATCHES: NavReason = "no_matches"
 REASON_NO_SUCH_SYMBOL: NavReason = "no_such_symbol"
 REASON_NOT_INDEXED: NavReason = "not_indexed"
 REASON_INDEX_STALE: NavReason = "index_stale"  # vocabulary for 035; not emitted by 033
-# Opt-in labelled read from a behind index for unchanged subjects (257) — never reason=ok.
+# A behind index answering for an unchanged subject (257; the default since 388) — never ok.
 REASON_INDEX_BEHIND: NavReason = "index_behind"
 REASON_INDEX_BEHIND_SUBJECT_CHANGED: NavReason = "index_behind_subject_changed"
+# The working tree no longer declares the subject; the built graph says who used it (388).
+REASON_INDEX_BEHIND_SUBJECT_REMOVED: NavReason = "index_behind_subject_removed"
+# Built graph plus the caller's worktree edges at HEURISTIC — an inbound answer, never ok (389).
+REASON_WORKTREE_OVERLAY: NavReason = "worktree_overlay"
 REASON_BARE_NAME_TRUNCATED: NavReason = "bare_name_truncated"
 REASON_RELATIONSHIP_NOT_MODELLED: NavReason = "relationship_not_modelled"
 # The tool's capability needs config that is absent — inert, not a genuine zero (069).
@@ -114,6 +120,8 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_INDEX_STALE,
     REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
+    REASON_INDEX_BEHIND_SUBJECT_REMOVED,
+    REASON_WORKTREE_OVERLAY,
     REASON_BARE_NAME_TRUNCATED,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_CAPABILITY_NOT_CONFIGURED,
@@ -275,7 +283,8 @@ RETRY_AS_FIELD = "retry_as"
 SERVE_BEHIND_OPT_IN = "serve_behind"
 SERVE_BEHIND_OPT_IN_FIELD = "serve_behind_opt_in"
 TRY_INSTEAD_HINT_SERVE_BEHIND = (
-    "pass serve_behind=true to answer from the built revision (labelled, not ok)"
+    "the subject's file changed since the build and could not be re-read; to answer from the "
+    "built revision (labelled index_behind_subject_changed), call: "
 )
 # A twinned path seed is refused, not answered — but a refusal with no route is the carve-out this
 # repo keeps re-learning about (065, 171). The qname seed is the half 161 already made safe.
@@ -645,6 +654,60 @@ def classify_missing_subject(
     return SubjectResolution("absent", qname, 0)
 
 
+RESOLVED_FROM = "resolved_from"
+RESOLVED_FROM_BARE = "bare"
+
+
+def bare_subject(
+    store: GraphStore,
+    asked: str,
+    *,
+    kinds: Sequence[str],
+    limit: int,
+    parts_compete: bool = True,
+) -> tuple[str | None, list[dict[str, object]]]:
+    """``(qname, [])`` for the one ``kinds`` node a bare name ends, else ``(None, sites)`` (392).
+
+    Every other candidate must be a table part. Only a Table outranks a part — a column named
+    like it; a Function does not, unless ``parts_compete`` is off (a part has no callers).
+    Several are refused with each qualified site when one is a Table, as 320's bare table is.
+    """
+    if _IDENT_TRAILING.fullmatch(asked) is None:
+        return None, []
+    scanned = store.nodes_by_qname_endswith(asked, asked, limit=limit + 1)
+    if len(scanned) > limit:  # a capped scan cannot prove nothing else answers to the name
+        return None, []
+    rows = [row for row in scanned if _ends_at_boundary(str(row["qualified_name"]), asked)]
+    subjects = [row for row in rows if str(row["kind"]) in kinds]
+    if not subjects or any(
+        str(row["kind"]) not in (*kinds, *contract.TABLE_PART_KINDS) for row in rows
+    ):
+        return None, []
+    qnames = list(dict.fromkeys(str(row["qualified_name"]) for row in subjects))
+    if len(qnames) == 1:
+        if parts_compete and len(subjects) < len(rows):
+            if any(str(row["kind"]) != contract.TABLE_KIND for row in subjects):
+                return None, []
+        return qnames[0], []
+    if not any(str(row["kind"]) == contract.TABLE_KIND for row in subjects):
+        return None, []
+    sites = definition_sites(subjects)
+    for site, row in zip(sites, subjects, strict=True):
+        site["qname"] = row["qualified_name"]
+    return None, sites
+
+
+def shape_bare_ambiguous(
+    miss: dict[str, object], sites: list[dict[str, object]]
+) -> dict[str, object]:
+    """Refuse a bare name several subjects answer to, naming each (392, 320's shape)."""
+    for key in ("candidate_count", "try_instead"):
+        miss.pop(key, None)
+    miss["reason"] = REASON_SUBJECT_AMBIGUOUS
+    miss[AMBIGUOUS_DEFINITIONS] = sites
+    return miss
+
+
 def _stored_shorter(store: GraphStore, qname: str) -> str | None:
     """The longest stored qname ``qname`` ends with at a component boundary (354).
 
@@ -773,13 +836,24 @@ def attach_coverage_edge_route(
     return attach_try_instead(payload, None, hint)
 
 
-def attach_serve_behind_route(payload: dict[str, object]) -> dict[str, object]:
-    """Name the caller opt-in on an ``index_stale`` refusal (274).
+def attach_serve_behind_route(
+    payload: dict[str, object], *, tool: str, call: Mapping[str, object]
+) -> dict[str, object]:
+    """Name the exact call that answers an ``index_stale`` refusal, ready to copy (274 / 388).
 
     ``serve_behind`` is a parameter, not a registered tool — hint only, no ``try_instead`` (R5.4).
     """
     payload[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
-    return attach_try_instead(payload, None, TRY_INSTEAD_HINT_SERVE_BEHIND)
+    return attach_try_instead(
+        payload, None, TRY_INSTEAD_HINT_SERVE_BEHIND + serve_behind_call(tool, call)
+    )
+
+
+def serve_behind_call(tool: str, call: Mapping[str, object]) -> str:
+    """``tool(arg=value, …, serve_behind=true)`` with JSON values, in the caller's arg order."""
+    args = {**call, SERVE_BEHIND_OPT_IN: True}
+    rendered = ", ".join(f"{name}={json.dumps(value)}" for name, value in args.items())
+    return f"{tool}({rendered})"
 
 
 def attach_next_tools(payload: dict[str, object], kind: str) -> dict[str, object]:
@@ -891,6 +965,8 @@ CAVEAT_TIER_PARTITION = "tier_partition"
 # Table/Column writer answer is only languages that emit WRITES (278/281) — covered
 # languages that emit none leave host-language writes unmeasured (§19).
 CAVEAT_WRITES_EMITTERS_ONLY = "writes_emitters_only"
+# The same for a reader answer: a covered language that emits no READS left its readers out (390).
+CAVEAT_READS_EMITTERS_ONLY = "reads_emitters_only"
 # Mirror twin on read_symbol — boundary, never a dispatch verdict (286).
 CAVEAT_MIRROR_TWIN = "mirror_twin"
 # Unlinked same-name inbound remain beside the answer: impact's method seed (330), a Function's
@@ -904,6 +980,10 @@ CAVEAT_LIMIT_WRITES_EMITTERS_ONLY = (
     "This answer lists WRITES from emitting adapters only; covered languages that "
     "do not emit WRITES leave host-language writes unmeasured and out of scope"
 )
+CAVEAT_LIMIT_READS_EMITTERS_ONLY = (
+    "This answer lists READS from emitting adapters only; covered languages that "
+    "do not emit READS leave their readers unmeasured and out of scope"
+)
 CAVEAT_LIMIT_MIRROR_TWIN = (
     "A mirrored counterpart is named (or honestly absent); this tool cannot say "
     "which side a request reaches."
@@ -915,6 +995,7 @@ CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES = (
 CAVEAT_LIMITS: dict[str, str] = {
     CAVEAT_CROSS_LANGUAGE_UNMODELLED: CAVEAT_LIMIT_CROSS_LANGUAGE,
     CAVEAT_WRITES_EMITTERS_ONLY: CAVEAT_LIMIT_WRITES_EMITTERS_ONLY,
+    CAVEAT_READS_EMITTERS_ONLY: CAVEAT_LIMIT_READS_EMITTERS_ONLY,
     CAVEAT_MIRROR_TWIN: CAVEAT_LIMIT_MIRROR_TWIN,
     CAVEAT_UNLINKED_SAME_NAME_SITES: CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES,
 }

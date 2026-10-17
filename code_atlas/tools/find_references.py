@@ -7,16 +7,20 @@ from typing import Literal
 
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
+    BARE_SUBJECT_KINDS,
     CALLER_KINDS,
     COLUMN_KIND,
     CONTAINS,
     DELETES,
+    EDGE_KINDS,
+    READS,
     TABLE_KIND,
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
     WRITES,
     inbound_kinds_for,
 )
+from code_atlas.overlay import active_overlay, overlay_inbound
 from code_atlas.store import GraphStore
 from code_atlas.symbol_role import aggregate_test_count_source, stored_test_source
 from code_atlas.tools import call_site, claim
@@ -29,15 +33,14 @@ from code_atlas.tools.coverage import (
     relation_unmodelled_for_language,
 )
 from code_atlas.tools.freshness import (
-    FreshnessGuard,
-    dirty_indexed_paths,
     finalize_subject_checked_miss,
-    label_serve_behind,
-    unrepaired_subject_served,
+    label_behind,
+    read_subject,
 )
 from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
+    CAVEAT_READS_EMITTERS_ONLY,
     CAVEAT_SIBLING_DEFINITIONS,
     CAVEAT_WRITES_EMITTERS_ONLY,
     REASON_INDEX_STALE,
@@ -45,6 +48,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_VIA_MEMBERS,
+    RESOLVED_FROM,
+    RESOLVED_FROM_BARE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
@@ -61,6 +66,7 @@ from code_atlas.tools.nav_result import (
     attach_serve_behind_route,
     attach_sibling_definitions,
     attach_try_instead,
+    bare_subject,
     classify_missing_subject,
     definition_sites,
     edge_hit,
@@ -69,11 +75,11 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     require_path_prefix,
+    shape_bare_ambiguous,
     shape_exact_miss,
     sibling_definition_rows,
     unique_repoint,
 )
-from code_atlas.tools.staleness import compute_staleness
 
 NAME = "find_references"
 
@@ -86,6 +92,7 @@ CLAIM_CARRY = ("authoritative",)
 _MEMBER_WALK = 10_000
 _UNION_SUBJECT_KINDS = frozenset({"Class"})
 UNLINKED_WRITES_COUNT = "unlinked_writes_count"
+UNLINKED_READS_COUNT = "unlinked_reads_count"
 # Table → Column CONTAINS walk for the writer-set union (248/278); same ballpark as read_symbol.
 _WRITES_CONTAINS_WALK = 10_000
 
@@ -93,8 +100,9 @@ _WRITES_CONTAINS_WALK = 10_000
 def _writes_answer_is_partial(
     covered: str | None,
     emitted: dict[str, list[str]] | None,
+    kind: str = WRITES,
 ) -> bool:
-    """True when a covered language emits no WRITES — that half is unmeasured (281).
+    """True when a covered language emits no ``kind`` — that half is unmeasured (281 / 390).
 
     Keys on ``EMITTED_KINDS_BY_LANGUAGE``, never language count: every covered language
     emitting ``WRITES`` means the answer can hold every writer the index models.
@@ -108,8 +116,46 @@ def _writes_answer_is_partial(
         # Unstamped index (pre-186) never measured itself, which is not evidence that every
         # covered language emits WRITES — keep 278's conservative caveat (R5.6).
         return len(langs) >= 2
-    writers = [lang for lang in langs if "WRITES" in emitted.get(lang, [])]
-    return len(writers) < len(langs)
+    emitters = [lang for lang in langs if kind in emitted.get(lang, [])]
+    return len(emitters) < len(langs)
+
+
+def _table_kinds(kinds: list[str] | None) -> tuple[str, ...]:
+    """The relations a Table / Column answer lists: its writers unless the caller names others."""
+    if kinds is None:
+        return (WRITES, DELETES)
+    unknown = [kind for kind in kinds if kind not in EDGE_KINDS or kind == CONTAINS]
+    if unknown or not kinds:
+        raise ValueError(f"kinds must name inbound edge kinds, got {kinds!r}")
+    return tuple(dict.fromkeys(kinds))
+
+
+def _unlinked_counts(
+    store: GraphStore, lookup: str, subject_kind: str, kinds: tuple[str, ...]
+) -> dict[str, int]:
+    """Unlinked edges of each asked kind that still name the subject's table (215/278/390).
+
+    READS target a Table only, so a Column subject never counts them.
+    """
+    table_key = (
+        lookup.rsplit("::", 1)[0] if subject_kind == COLUMN_KIND and "::" in lookup else lookup
+    )
+    counts: dict[str, int] = {}
+    if WRITES in kinds:
+        counts[UNLINKED_WRITES_COUNT] = store.count_unlinked_relating_to(table_key, kind=WRITES)
+    if READS in kinds and subject_kind == TABLE_KIND:
+        counts[UNLINKED_READS_COUNT] = store.count_unlinked_relating_to(table_key, kind=READS)
+    return counts
+
+
+def _kinds_ignored(kinds: list[str] | None, subject_kind: str | None) -> list[str]:
+    """The asked kinds this subject cannot hold: all off a Table/Column, READS on a Column."""
+    if kinds is None:
+        return []
+    asked = list(dict.fromkeys(kinds))
+    if subject_kind is None:
+        return asked
+    return [kind for kind in asked if kind == READS and subject_kind == COLUMN_KIND]
 
 
 def _writes_targets(store: GraphStore, lookup: str, subject_kind: str) -> list[str]:
@@ -240,6 +286,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         serve_behind: bool = False,
         exclude_tests: bool = False,
         path_prefix: str | None = None,
+        kinds: list[str] | None = None,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -248,8 +295,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         (278/328). A Table unions writers of the table and of its CONTAINS columns
         (named-column sites never target the Table qname); each writing statement is
         one row with the named columns folded in (329). A Column is the narrower
-        per-edge set. ``DELETES`` target the Table only. When the graph still holds
-        unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
+        per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
+        only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
+        lists the routines a ``select`` reads the table from (RESOLVED) and host strings that
+        begin one (HEURISTIC) — 390. ``kinds_ignored`` lists the asked kinds the subject cannot
+        hold: all of them off a Table/Column, ``READS`` on a Column (a read targets the Table).
+        Unlinked edges of an asked kind that still name the table are counted as
+        ``unlinked_writes_count`` / ``unlinked_reads_count``. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language
         emits no ``WRITES``. A host-language string that begins a write is read at
         ``HEURISTIC`` where its adapter reads one; SQL built at runtime is not
@@ -287,15 +339,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
         no line (task 100).
 
-        ``serve_behind`` (default off) labels a behind-index answer: unchanged subjects as
-        ``index_behind`` (257); unrepaired dirty subjects as ``index_behind_subject_changed``
-        (267).
+        On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
+        subject as ``index_behind``, one the working tree no longer declares as
+        ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
+        refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
+        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
+        another worktree of this repo, rows from files it changed give way to its own edges onto
+        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389).
 
         A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
         ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
         stored form (075/122). An exact stored qname is unchanged.
         """
         call = claim.call_args(find_references, locals())
+        table_kinds = _table_kinds(kinds)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         path_prefix = require_path_prefix(path_prefix)
@@ -330,13 +387,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         emitted_kinds: dict[str, list[str]] | None = None
         cross_lang_census: dict[str, object] | None = None
         unlinked_edge_kinds: list[str] = []
-        behind_dirty: list[str] = []
         subject_file: str | None = None
-        subject_unrepaired = False
         production_count = 0
         test_count = 0
         test_role_label: str | None = None
-        unlinked_writes_count = 0
+        unlinked_counts: dict[str, int] = {}
+        table_subject_kind: str | None = None
         writes_subject = False
         writes_kinds: tuple[str, ...] | None = None
         writes_targets: list[str] | None = None
@@ -348,36 +404,29 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             stamped = store.stamped_unmodelled_resolution_by_language()
             emitted_kinds = store.stamped_emitted_kinds_by_language()
             about_ref = answered_about_ref_for(store)
-            if sign or serve_behind:
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-            if serve_behind:
-                behind_dirty = dirty_indexed_paths(store, config)
-            guard = FreshnessGuard(config, store)
-            freshness = guard.ensure_qname(qname)
-            if freshness == "stale" and guard.build_held and not serve_behind:
-                # 365: the writer holding the DB is the repair, so label the built graph.
-                serve_behind = True
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-                behind_dirty = dirty_indexed_paths(store, config)
-            if freshness == "stale":
-                if not unrepaired_subject_served(
-                    store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty
-                ):
-                    refused = nav_result(
-                        qname,
-                        [],
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        truncated=False,
-                        reason=REASON_INDEX_STALE,
-                        total_count=0,
-                        answered_about_ref=about_ref,
-                    )
-                    if not serve_behind:
-                        return signed(attach_serve_behind_route(refused))
-                    return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
-                subject_unrepaired = True
+            # A caller in another worktree reads that worktree, not this checkout's drift (389).
+            overlay = active_overlay(config, store)
+            read = read_subject(
+                config, store, qname, serve_behind=serve_behind, trust_built=overlay is not None
+            )
+            staleness, behind_dirty = read.staleness, read.dirty_paths
+            guard, freshness = read.guard, read.freshness
+            if read.refuse:
+                refused = nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    truncated=False,
+                    reason=REASON_INDEX_STALE,
+                    total_count=0,
+                    answered_about_ref=about_ref,
+                )
+                if not read.serve_behind:
+                    return signed(attach_serve_behind_route(refused, tool=NAME, call=call))
+                return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
+            subject_unrepaired = read.unrepaired
             asked = qname
             lookup = qname
             production_count, test_count, test_role_label = _test_census(store, lookup)
@@ -389,7 +438,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
                 # Mutation set — WRITES + DELETES; Table unions CONTAINS columns (278/328).
                 writes_subject = True
-                writes_kinds = (WRITES, DELETES)
+                writes_kinds = table_kinds
                 subject_kind = str(nodes[0]["kind"])
                 writes_targets = _writes_targets(store, lookup, subject_kind)
                 group_table_writes = subject_kind == TABLE_KIND
@@ -411,18 +460,21 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     production_count, test_count, test_role_label = _test_census_for(
                         store, writes_targets, kinds=writes_kinds
                     )
-                table_key = (
-                    lookup.rsplit("::", 1)[0]
-                    if subject_kind == COLUMN_KIND and "::" in lookup
-                    else lookup
-                )
-                unlinked_writes_count = store.count_unlinked_writes_relating_to(table_key)
-            if total_count == 0 and not indexed:
+                table_subject_kind = subject_kind
+                unlinked_counts = _unlinked_counts(store, lookup, subject_kind, table_kinds)
+            from_bare = False
+            if total_count == 0 and not indexed and not read.removed:
                 # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
                     store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
+                bare_sites: list[dict[str, object]] = []
+                if repointed is None and resolution.status == "ambiguous":
+                    repointed, bare_sites = bare_subject(
+                        store, asked, kinds=BARE_SUBJECT_KINDS, limit=config.page_limit
+                    )
+                    from_bare = repointed is not None
                 if repointed is None:
                     miss = nav_result(
                         asked,
@@ -436,7 +488,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         answered_about_ref=about_ref,
                     )
                     shaped = shape_exact_miss(miss, resolution)
-                    finalize_subject_checked_miss(shaped, guard)
+                    if bare_sites:
+                        shape_bare_ambiguous(shaped, bare_sites)
+                    finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
                         stamped,
@@ -455,18 +509,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 indexed = bool(nodes)
                 if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
                     writes_subject = True
-                    writes_kinds = (WRITES, DELETES)
+                    writes_kinds = table_kinds
                     subject_kind = str(nodes[0]["kind"])
                     writes_targets = _writes_targets(store, lookup, subject_kind)
                     group_table_writes = subject_kind == TABLE_KIND
-                    table_key = (
-                        lookup.rsplit("::", 1)[0]
-                        if subject_kind == COLUMN_KIND and "::" in lookup
-                        else lookup
-                    )
-                    unlinked_writes_count = store.count_unlinked_writes_relating_to(
-                        table_key
-                    )
+                    table_subject_kind = subject_kind
+                    unlinked_counts = _unlinked_counts(store, lookup, subject_kind, table_kinds)
                     production_count, test_count, test_role_label = _test_census_for(
                         store,
                         writes_targets,
@@ -639,9 +687,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
-        if writes_subject and unlinked_writes_count:
-            # Bounded incompleteness the graph can name (215/278) — a count, not a buried bool.
-            result["unlinked_writes_count"] = unlinked_writes_count
+        for key, count in unlinked_counts.items():
+            if count:
+                # Bounded incompleteness the graph can name (215/278/390) — a count, not a bool.
+                result[key] = count
         if production_count or test_count:
             # Nothing inbound: 0 + 0 would only restate `total_count` (061).
             result["production_count"] = production_count
@@ -657,6 +706,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
+        if from_bare:
+            result[RESOLVED_FROM] = RESOLVED_FROM_BARE
         caveats: list[str] = []
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
             caveats.append(CAVEAT_ALL_HITS_DYNAMIC)
@@ -670,18 +721,32 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # 238 hit-path caveat, narrowed by 276: empty census stays on status, not every hit.
             attach_cross_language_census(result, cross_lang_census)
             caveats.append(CAVEAT_CROSS_LANGUAGE_UNMODELLED)
-        if writes_subject and _writes_answer_is_partial(covered, emitted_kinds):
+        if writes_subject and WRITES in table_kinds and _writes_answer_is_partial(
+            covered, emitted_kinds
+        ):
             # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
             caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
+        if table_subject_kind == TABLE_KIND and READS in table_kinds and _writes_answer_is_partial(
+            covered, emitted_kinds, READS
+        ):
+            caveats.append(CAVEAT_READS_EMITTERS_ONLY)
         attach_authoritative_caveats(result, caveats)
-        labelled = label_serve_behind(
-            result,
-            serve_behind=serve_behind,
-            subject_path=subject_file,
-            revision=staleness or None,
-            dirty_paths=behind_dirty,
-            subject_unrepaired=subject_unrepaired,
-        )
+        ignored = _kinds_ignored(kinds, table_subject_kind)
+        if ignored:
+            result["kinds_ignored"] = ignored  # asked, but this subject cannot hold them (390)
+        if overlay is not None:
+            labelled = overlay_inbound(
+                overlay, result, lookup, None, depth=1, offset=offset
+            )
+        else:
+            labelled = label_behind(
+                result,
+                subject_path=subject_file,
+                revision=staleness or None,
+                dirty_paths=behind_dirty,
+                subject_unrepaired=subject_unrepaired,
+                subject_removed=read.removed,
+            )
         labelled = attach_try_instead(labelled, try_instead, try_instead_hint)
         attach_coverage_edge_route(
             labelled,

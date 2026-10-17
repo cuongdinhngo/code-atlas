@@ -620,6 +620,56 @@ function aliasSourceTable(code, from, target) {
   return null;
 }
 
+// Pseudo-tables a trigger reads and a CTE's own name are not tables a statement reads (390).
+const NOT_A_SOURCE = new Set(["inserted", "deleted"]);
+const CTE_NAME = /(?:\bwith|,)\s*([A-Za-z_][\w@#$]*|\[[^\]]+\])\s*(?:\([^)]*\)\s*)?as\s*\(/gi;
+
+/**
+ * The tables a statement reads: every `FROM` / `JOIN` source, subqueries included (390).
+ * A temp table (`#t`), a table variable (`@t`), a derived table, a table-valued function
+ * call and a CTE's own name are not read from the database, so none is a source.
+ * Each carries ``at``, the byte offset of its keyword, so a caller can place it on its own line.
+ * @param {string} code
+ * @returns {{name: string, at: number}[]}
+ */
+function readSources(code) {
+  const ctes = new Set();
+  for (let m = CTE_NAME.exec(code); m; m = CTE_NAME.exec(code)) {
+    ctes.add((m[1] ?? "").replace(/^\[|\]$/g, "").toLowerCase());
+  }
+  CTE_NAME.lastIndex = 0;
+  /** @type {{name: string, at: number}[]} */
+  const out = [];
+  const keyword = /\b(?:from|join)\s+/gi;
+  /** @type {number[]} */
+  const open = []; // offsets of the `(` still open before the keyword
+  let seen = 0;
+  for (let m = keyword.exec(code); m; m = keyword.exec(code)) {
+    for (; seen < m.index; seen++) {
+      if (code[seen] === "(") open.push(seen);
+      else if (code[seen] === ")") open.pop();
+    }
+    // `TRIM(' ' FROM x)`, `EXTRACT(YEAR FROM d)`: a FROM inside a call's parens names no table.
+    const inner = open.length ? open[open.length - 1] : -1;
+    if (inner >= 0 && !/^\s*(?:select|with)\b/i.test(code.slice(inner + 1))) continue;
+    let at = m.index + m[0].length;
+    // `FROM a x, b y` — the old comma join: each listed source is read.
+    for (;;) {
+      const table = readQualified(code, at);
+      if (!table) break;
+      const name = table.name;
+      const lower = name.toLowerCase();
+      const call = /^\s*\(/.test(code.slice(table.next)); // a table-valued function call
+      const skip = /^[#@]/.test(name) || NOT_A_SOURCE.has(lower) || ctes.has(lower) || call;
+      if (!skip && !out.some((seen) => seen.name === name)) out.push({ name, at: m.index });
+      const more = /^\s*(?:as\s+)?(?:[A-Za-z_][\w@#$]*\s*)?,\s*/i.exec(code.slice(table.next));
+      if (call || !more) break;
+      at = table.next + more[0].length;
+    }
+  }
+  return out;
+}
+
 /**
  * TRUNCATE TABLE t (328).
  * @param {string} code
@@ -653,6 +703,6 @@ module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readDelete, readTruncate, readMergeDeletes, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
   readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
-  readIdent, readQualified, readParens, splitTopLevel, splitTopLevelPieces,
+  readIdent, readQualified, readParens, readSources, splitTopLevel, splitTopLevelPieces,
   isReservedObjectName, NOT_A_COLUMN,
 };

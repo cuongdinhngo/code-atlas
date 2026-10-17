@@ -17,6 +17,39 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `check_column_defaults(default_expr="user_name()")` lists every column whose `DEFAULT` is that
+  expression, across tables, each with its omitters — no grep over the schema first (391).
+- `$m = Factory::legacy(); $m->attach();` links when `legacy()` documents `@return Mailer` (PHP,
+  `HEURISTIC`), and `find_callers` on a method counts `unresolved_receivers` (393). A file reads its
+  docblocks when it next re-parses; `code-atlas-build --full` reads them all now.
+- `function EditCtrl() { var self = this; self.save = function () {}; }` declares `EditCtrl::save` as
+  a Method (TS/JS: members assigned on `this` or its alias inside the constructor;
+  `Ctor.prototype.x =` is not read) — `search_symbol save` finds it (395).
+- `find_references Items`, `impact` and `find_callers` (a procedure) answer a bare table or routine
+  name a column shares, with `resolved_from: "bare"`; two schemas' tables refuse with both (392).
+
+## 0.4.0 — 2026-10-17 · contract 15 · schema 7
+
+- **Full rebuild required.** Run `code-atlas-build --full`: the edge vocabulary gains `READS`.
+- **Adapter checkout must be updated.** Every adapter speaks contract 15.
+- A table names its readers: `find_references(<table>, kinds=["READS"])` lists the routines whose
+  `SELECT` reads it (`FROM` / `JOIN`, `RESOLVED`) and the PHP, TS or Python strings that begin a
+  `SELECT … FROM` it (`HEURISTIC`). Without `kinds` a table still answers its writers (390).
+- `read_symbol` names where else a hit's code lives: `implemented_by` (on an empty or abstract
+  method, the overriding methods of linked subtypes) and `aliases` (from `ALIASES` edges, `test_double` when a test file declares
+  one). A name with one production definition and test copies answers the production one, with
+  `ambiguity: "test_copies"`; `search_symbol` lists it first and marks each of its rows (394).
+- An agent in a worktree of the indexed repo reads that worktree: `read_symbol`, `file_outline` and
+  `search_symbol` parse the files that differ from the built commit (plus untracked ones) without
+  storing them, labelled `overlay: worktree`, and `find_callers` / `find_references` add the
+  worktree's edges at `HEURISTIC` (`worktree_overlay`). The worktree comes from MCP `roots`, or
+  `CA_CALLER_ROOT` when a client reports none; switching the main checkout changes nothing (389).
+- A `behind` index with no build running answers instead of refusing: `find_callers` and
+  `find_references` label an unchanged subject `index_behind` with the built revision, and a subject
+  the working tree no longer declares `index_behind_subject_removed`; `search_symbol` never answers
+  `index_stale` (drifted rows carry `source_stale`). Only a changed subject that cannot be re-read
+  refuses, naming the exact `serve_behind=true` call. `get_index_status` lists the changed paths in
+  `behind_because` and drops `behind_refuses` (388).
 - An agent in a consuming repo can now find 382–385: `which_tool` and the skill route a reported
   URL to `trace_capability(route=…)`, and the agent brief and both skills name `code-atlas query`,
   `--verify-claims` and `--changed-since`. Re-run `gen_skill.py --write-agent-brief <repo>` to refresh

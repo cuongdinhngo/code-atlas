@@ -409,7 +409,7 @@ def _link_by_bare_name(
 class _Chain:
     """One call whose receiver is a chain of member types the graph has to walk (137)."""
 
-    __slots__ = ("edge", "steps", "method", "receiver")
+    __slots__ = ("edge", "steps", "method", "receiver", "documented")
 
     def __init__(self, edge: dict[str, object], reference: str, method: str) -> None:
         head, *rest = reference.split(_CHAIN_STEP)
@@ -418,6 +418,8 @@ class _Chain:
         # The head is a whole member qname; every later step is a member ON the previous type.
         self.steps: list[str] = [member_of(head), *rest]
         self.receiver: str | None = container_of(head)
+        # A step read off a docblock rather than a declared type: the link is HEURISTIC (393).
+        self.documented = False
 
     @property
     def walking(self) -> bool:
@@ -448,21 +450,27 @@ def _resolve_deferred(
         ancestries = {
             chain.receiver: _ancestry(str(chain.receiver), parent_map) for chain in walking
         }
-        declared = store.declared_types(
-            sorted(
+        asked = sorted(
+            {
                 contract.join_qname(ancestor, chain.steps[0])
                 for chain in walking
                 for ancestor in ancestries[chain.receiver]
-            )
+            }
+        )
+        declared = store.declared_types(asked)
+        documented = store.declared_types(
+            [qname for qname in asked if qname not in declared], documented=True
         )
         for chain in walking:
-            found = _declared_class(
-                str(chain.receiver), chain.steps[0], ancestries[chain.receiver], declared
-            )
+            ancestry = ancestries[chain.receiver]
+            found = _declared_class(str(chain.receiver), chain.steps[0], ancestry, declared)
+            if found is None:
+                found = _declared_class(str(chain.receiver), chain.steps[0], ancestry, documented)
+                if found is not None:
+                    chain.documented = True
             chain.receiver = found
             if found is not None:
                 chain.steps.pop(0)
-
     # Anything still walking ran past the step bound; treat it as unanswered, never as resolved.
     settled = [chain for chain in chains if chain.receiver is not None and not chain.steps]
     probes = {contract.join_qname(str(chain.receiver), chain.method) for chain in settled}
@@ -481,6 +489,10 @@ def _resolve_deferred(
         if not resolved.get(str(chain.receiver)):
             unanswered.append((chain.edge, "", chain.method))
             continue
+        if chain.documented:
+            # Only a chain that reached a real receiver carries the docblock's tier (393).
+            tier = str(chain.edge.get("confidence_tier") or "RESOLVED")
+            chain.edge["confidence_tier"] = _weaker_tier(tier, "HEURISTIC")
         hits = resolved.get(contract.join_qname(str(chain.receiver), chain.method), [])
         if hits:
             tier = _weaker_tier(str(chain.edge["confidence_tier"]), "RESOLVED")
