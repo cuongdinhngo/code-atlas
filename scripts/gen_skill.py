@@ -355,8 +355,9 @@ USAGE_RULES: tuple[str, ...] = (
     " call: `search_symbol` → `read_symbol`, `find_callers` → `impact`. One lookup followed by"
     " a grep sweep is the failure mode this brief exists to stop.",
     "- **Call `get_index_status` when you are unsure the index is current** — and read"
-    " `staleness`. A `behind` index still serves `search_symbol` and `read_symbol`; the inbound"
-    " tools need `serve_behind: true` and then label the answer.",
+    " `staleness`. A `behind` index still answers every read tool, labelled `index_behind` with"
+    " the built revision; `behind_because` lists the changed paths. Only a subject whose changed"
+    " file cannot be re-read refuses, and its hint names the `serve_behind: true` call to copy.",
     "- **Prefer one call over a sweep of ten.** `search_symbol` takes a list of `queries`.",
     "",
     "### Read what the answer says about itself",
