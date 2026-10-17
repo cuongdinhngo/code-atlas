@@ -7,6 +7,7 @@ from typing import Literal
 
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
+    BARE_SUBJECT_KINDS,
     CALLER_KINDS,
     COLUMN_KIND,
     CONTAINS,
@@ -47,6 +48,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_VIA_MEMBERS,
+    RESOLVED_FROM,
+    RESOLVED_FROM_BARE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
@@ -63,6 +66,7 @@ from code_atlas.tools.nav_result import (
     attach_serve_behind_route,
     attach_sibling_definitions,
     attach_try_instead,
+    bare_subject,
     classify_missing_subject,
     definition_sites,
     edge_hit,
@@ -71,6 +75,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     require_path_prefix,
+    shape_bare_ambiguous,
     shape_exact_miss,
     sibling_definition_rows,
     unique_repoint,
@@ -457,12 +462,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 table_subject_kind = subject_kind
                 unlinked_counts = _unlinked_counts(store, lookup, subject_kind, table_kinds)
+            from_bare = False
             if total_count == 0 and not indexed and not read.removed:
                 # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
                     store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
+                bare_sites: list[dict[str, object]] = []
+                if repointed is None and resolution.status == "ambiguous":
+                    repointed, bare_sites = bare_subject(
+                        store, asked, kinds=BARE_SUBJECT_KINDS, limit=config.page_limit
+                    )
+                    from_bare = repointed is not None
                 if repointed is None:
                     miss = nav_result(
                         asked,
@@ -476,6 +488,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         answered_about_ref=about_ref,
                     )
                     shaped = shape_exact_miss(miss, resolution)
+                    if bare_sites:
+                        shape_bare_ambiguous(shaped, bare_sites)
                     finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
@@ -692,6 +706,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
+        if from_bare:
+            result[RESOLVED_FROM] = RESOLVED_FROM_BARE
         caveats: list[str] = []
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
             caveats.append(CAVEAT_ALL_HITS_DYNAMIC)

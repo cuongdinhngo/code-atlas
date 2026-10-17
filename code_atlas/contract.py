@@ -132,6 +132,10 @@ SUPERTYPE_SUBJECT_KINDS: tuple[str, ...] = ("Class", "Interface")
 # Schema container whose members ride CONTAINS — kind branch, never language (248 / R1.1).
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
+# A bare name re-points onto the one subject of these kinds (392, as 320); a table's own parts
+# sharing the name never compete with it.
+BARE_SUBJECT_KINDS: tuple[str, ...] = ("Table", "Function")
+TABLE_PART_KINDS: tuple[str, ...] = ("Column", "ForeignKey")
 CONTAINS = "CONTAINS"
 # A select's FROM / JOIN source (390); opt-in on find_references(kinds=).
 READS = "READS"

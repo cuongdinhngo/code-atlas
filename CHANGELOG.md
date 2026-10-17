@@ -25,6 +25,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - `function EditCtrl() { var self = this; self.save = function () {}; }` declares `EditCtrl::save` as
   a Method (TS/JS: members assigned on `this` or its alias inside the constructor;
   `Ctor.prototype.x =` is not read) — `search_symbol save` finds it (395).
+- `find_references Items`, `impact` and `find_callers` (a procedure) answer a bare table or routine
+  name a column shares, with `resolved_from: "bare"`; two schemas' tables refuse with both (392).
 
 ## 0.4.0 — 2026-10-17 · contract 15 · schema 7
 

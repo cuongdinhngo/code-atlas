@@ -26,6 +26,10 @@ JOINED_BY_DESIGN = frozenset(
         "FQN_EDGE_KINDS",
         "UNLINKED_EVIDENCE_KINDS",
         "INBOUND_KINDS_BY_SUBJECT",
+        # 392's bare-name rule acts only past a Table or Column row; two Functions keep today's
+        # answer (test_bare_table_name), so a repo with no `.sql` still answers identically.
+        "BARE_SUBJECT_KINDS",
+        "TABLE_PART_KINDS",
     }
 )
 CONVENTION = Path(contract.__file__).resolve().parents[1] / "docs" / "CONVENTION.md"
