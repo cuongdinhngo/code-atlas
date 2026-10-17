@@ -4,7 +4,7 @@ slug: defaults-by-expr
 title: 'check_column_defaults takes one table, so "every column that defaults to user_name(), and its writers" is a Grep over the schema'
 phase: 2
 milestone: Coverage
-status: todo
+status: done
 depends_on: [320]
 ---
 
@@ -41,7 +41,7 @@ column.
 
 ## Session status
 
-- **KEY:** 391 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 391 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W4, runs E1, then merges after #75. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/391-defaults-by-expr`, **stacked on `feat/390-table-readers`**. Contract `.mango/run-contract-391.txt`.
@@ -179,3 +179,68 @@ run` · `seen: 378, 384, 388, 389, 394, 390, 391`.
 ### Rollback
 
 `git revert`; nothing stored moves. Merge after #75 (stacked).
+
+## Phase 3 — execute
+
+Commits `2156565c` (the subject), `d02f413d` (docs), `ac40226e` (challenger minors).
+
+**Red first.** The proving test against 390's tip (`71bd1c81`, a scratch copy): `3 failed in 2.40s`.
+
+**Green after.** `tests/test_defaults_by_expression.py` plus both table-mode suites: `20 passed in 4.99s`; `ruff`,
+`mypy` clean. Ran at ac40226e.
+
+**Axis 1.** Change-list rows 1–4. **Axis 2.** Approach bullets 1–4 implemented as approved.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: raw ticket plus `git diff feat/390-table-readers..feat/391-defaults-by-expr` without this
+file; 1 dispatch, 56,342 tokens): 8 met · 0 not met · 1 can't tell (E1). Six Minor findings:
+
+| # | Finding | Resolution |
+|---|---|---|
+| m1 | a parenthesis inside a literal blocked outer stripping | literals skipped in `_balanced` (ac40226e) |
+| m2 | a matching Column no table contains was dropped silently | counted in `columns_without_table` (ac40226e) |
+| m3 | the partial-writers hint never rode the expression answer | attached once when any row is partial (ac40226e) |
+| m4 | a blank subject answered `no_matches` | refused (ac40226e) |
+| m5 | the unbuilt envelope lacks `default_expr_normalised`; every call scans the columns | kept: nothing to normalise against unbuilt; a schema-sized scan per call (H8) |
+| m6 | no paging test | `test_an_expression_answer_pages` (ac40226e) |
+
+Verify-only round, main loop: `20 passed`. Ran at ac40226e.
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 / R1 / AC1 | `test_ac1_…` | 1/1 |
+| AC2 | `test_ac2_…`, `test_a_quoted_literal_…`, `test_a_parenthesis_inside_a_literal_…` | 3/3 |
+| C1 / AC3 | `test_ac3_…`; both table-mode suites unchanged | 2/2 |
+| R2 | `test_an_expression_answer_pages` | 1/1 |
+| AC4 | E1 | 0/1 (excluded) |
+
+Reviewed at ac40226e — files: change-list rows 1–3. Working doc: `docs/tasks/391_defaults-by-expr.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** None new as a claim.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Stale-review guard: after ac40226e only this file, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md` change. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/391-defaults-by-expr`; open the PR against `main` (stacked on #75).
+Deferred: ratify W2–W4; E1; merge after #75.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 47,135 |
+| 4 review | `challenger` (ticket-blind) | 1 | 56,342 |
+
+`LEDGER TOTAL: 103,477 · top cost driver: challenger`
