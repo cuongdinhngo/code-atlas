@@ -15,9 +15,11 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from code_atlas import gitutil
+from code_atlas.adapter import ParseResult
 from code_atlas.config import Config
+from code_atlas.containment import resolves_inside
 from code_atlas.contract import CONFIDENCE_TIERS, MEMBER_SEPARATOR, UNLINKED_EVIDENCE_KINDS
-from code_atlas.indexer import file_is_current, indexable, parse_file
+from code_atlas.indexer import file_is_current, indexable, parse_files
 from code_atlas.ref_check import OVERLAY_FIELD, OVERLAY_WORKTREE, caller_checkout
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore, stored
 from code_atlas.tools.nav_result import (
@@ -49,6 +51,7 @@ class Overlay:
     # Unchanged in the worktree, yet its built rows were since re-read from another checkout.
     _drifted: set[str] = field(default_factory=set)
     _same: set[str] = field(default_factory=set)
+    _parses: int = 0
 
     @property
     def root(self) -> Path:
@@ -61,20 +64,21 @@ class Overlay:
         if not (self.root / rel).is_file():
             self._parsed[rel] = ([], [])
             return self._parsed[rel]
-        if len(self._parsed) >= OVERLAY_PARSE_CAP:
+        room = OVERLAY_PARSE_CAP - self._parses
+        if room <= 0:
             self.truncated = True
             return None
+        # One adapter start reads every changed file still unread, not one start per file.
+        rest = sorted(r for r in self.changed - {rel} if r not in self._parsed)
+        batch = [rel, *(r for r in rest if (self.root / r).is_file())][:room]
+        self._parses += len(batch)
         try:
-            found = parse_file(self.config, rel)
+            found = parse_files(self.config, batch)
         except (OSError, TimeoutError):
-            found = None
-        result: Parsed | None = None
-        if found is not None and found[1].ok:
-            nodes = [_as_row(node, rel) for node in found[1].nodes]
-            edges = [_as_row(edge, rel) for edge in found[1].edges]
-            result = (nodes, edges)
-        self._parsed[rel] = result
-        return result
+            found = {}
+        for path in batch:
+            self._parsed[path] = _rows(found.get(path), path)
+        return self._parsed[rel]
 
     def changes(self, rel: str) -> bool:
         """Do this worktree's bytes for ``rel`` differ from the rows the store holds for it?
@@ -85,6 +89,9 @@ class Overlay:
         if rel in self.changed or rel in self._drifted:
             return True
         if not rel or rel in self._same:
+            return False
+        if not resolves_inside(self.root, self.root / rel):
+            self._same.add(rel)  # never read outside the worktree, as the build never does
             return False
         # Its own read: an answer is often finished after the tool's connection closed.
         with GraphStore(self.config.db_path) as store:
@@ -167,12 +174,15 @@ def overlay_inbound(
     kinds: Sequence[str] | None,
     *,
     depth: int,
+    offset: int,
+    limit: int,
 ) -> dict[str, object]:
     """Swap this page's rows from changed files for the worktree's own edges onto ``subject``.
 
     A worktree edge counts when its ``target_raw`` names the stored qname; at depth > 1 only the
     first hop is the worktree's; ``kinds=None`` reads every inbound kind but containment. The
-    answer is labelled ``worktree_overlay``, never ``ok``.
+    worktree's edges head the stream, so only the ``offset=0`` page carries them, capped at
+    ``limit``. The answer is labelled ``worktree_overlay``, never ``ok``.
     """
     rows = payload.get("results")
     if not isinstance(rows, list):
@@ -210,7 +220,10 @@ def overlay_inbound(
         payload[OVERLAY_UNLINKED_FIELD] = unlinked
     swapped = len(rows) - len(kept)
     if added or swapped:
-        payload["results"] = added + kept
+        page = added + kept if offset == 0 else kept
+        payload["results"] = page[:limit]
+        if len(page) > limit:
+            payload["truncated"] = True
         total = payload.get("total_count")
         if isinstance(total, int):
             payload["total_count"] = max(total - swapped + len(added), len(added) + len(kept))
@@ -226,3 +239,10 @@ def _as_row(item: Mapping[str, object], rel: str) -> dict[str, object]:
     row = {key: stored(value) for key, value in item.items()}
     row.setdefault("file_path", rel)
     return row
+
+
+def _rows(found: tuple[str, ParseResult] | None, rel: str) -> Parsed | None:
+    """A parse as stored-shaped rows, or None when it failed or no adapter read it."""
+    if found is None or not found[1].ok:
+        return None
+    return [_as_row(n, rel) for n in found[1].nodes], [_as_row(e, rel) for e in found[1].edges]

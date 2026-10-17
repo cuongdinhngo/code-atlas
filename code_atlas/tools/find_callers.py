@@ -646,7 +646,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         if overlay is not None:
-            labelled = overlay_inbound(overlay, result, lookup, CALLER_KINDS, depth=depth)
+            labelled = overlay_inbound(
+                overlay, result, lookup, CALLER_KINDS, depth=depth, offset=offset, limit=cap
+            )
         else:
             labelled = label_behind(
                 result,

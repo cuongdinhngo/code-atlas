@@ -722,36 +722,52 @@ def parse_file(config: Config, path: str) -> tuple[str, ParseResult] | None:
     cannot be announced. The read half of :func:`reparse_file`; ``read_symbol`` uses it alone
     while a writer holds the index.
     """
+    return parse_files(config, [path])[path]
+
+
+def parse_files(
+    config: Config, paths: Sequence[str]
+) -> dict[str, tuple[str, ParseResult] | None]:
+    """:func:`parse_file` for many paths under one announce: adapters start once, not per file.
+
+    Every path maps to its result, or ``None`` when no adapter owns it or none could be announced.
+    """
+    found: dict[str, tuple[str, ParseResult] | None] = dict.fromkeys(paths)
+    if not paths:
+        return found
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
         try:
             announced = _announce(config, watchdog)
         except AdapterError:
-            return None
+            return found
         try:
             owners = _owners(announced)
-            suffix = _suffix(path)
-            if suffix not in owners:
-                return None
-            adapter = announced[owners[suffix]]
-            try:
-                with watchdog.guard(adapter):
-                    result = adapter.parse(
-                        path,
-                        declarations_only=is_stub_path(path, config.stub_roots),
-                        source_roots=config.source_roots,
-                    )
-            except AdapterError as error:
-                result = ParseResult(path=path, ok=False, error=str(error))
-            if is_stub_path(path, config.stub_roots) and result.ok:
-                result = as_stub_result(result)
-            return adapter.name, result
+            for path in paths:
+                key = owners.get(_suffix(path))
+                if key is not None:
+                    found[path] = _parse_one(config, watchdog, announced[key], path)
         finally:
             for adapter in announced.values():
                 adapter.stop()
     finally:
         watchdog.stop()
+    return found
+
+
+def _parse_one(
+    config: Config, watchdog: "_Watchdog", adapter: SubprocessAdapter, path: str
+) -> tuple[str, ParseResult]:
+    stub = is_stub_path(path, config.stub_roots)
+    try:
+        with watchdog.guard(adapter):
+            result = adapter.parse(path, declarations_only=stub, source_roots=config.source_roots)
+    except AdapterError as error:
+        result = ParseResult(path=path, ok=False, error=str(error))
+    if stub and result.ok:
+        result = as_stub_result(result)
+    return adapter.name, result
 
 
 def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
