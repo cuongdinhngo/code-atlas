@@ -8,6 +8,7 @@ from typing import Literal, NamedTuple
 from code_atlas import contract, routes
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.contract import CONFIDENCE_TIERS
+from code_atlas.overlay import Overlay, active_overlay
 from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefix_match
 from code_atlas.symbol_role import stored_test_source
 from code_atlas.tools.coverage import (
@@ -161,6 +162,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind, edit_distance}``, nearest first, never in ``results`` (378).
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
+        Asked from another worktree of this repo, rows from files it changed are swapped for that
+        worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
         A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
         file, tier, rule}`` — beside ``results``; pass one to ``trace_capability(route=…)``.
         """
@@ -200,7 +203,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             about_ref = answered_about_ref_for(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
-            guard = FreshnessGuard(config, store)
+            overlay = active_overlay(config, store)
+            guard = FreshnessGuard(config, store, trust_built=overlay is not None)
             mirrors = _mirror_context(store)
             table = routes.load(store.get_meta(routes.ROUTES_META_KEY))
             found = [
@@ -219,6 +223,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 for subject in kept
             ]
+            if overlay is not None:
+                found = [
+                    _overlay_hits(
+                        hits,
+                        overlay,
+                        subject,
+                        kind=kind,
+                        namespace=namespace,
+                        path_prefix=path_prefix,
+                        cap=cap,
+                        detail_level=detail_level,
+                    )
+                    for subject, hits in zip(kept, found, strict=True)
+                ]
         if not batched:
             routed = routes.containing(table or [], str(kept[0]), limit=cap)
             single = attach_coverage_note(
@@ -244,6 +262,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if routed:
                 # Declared routes whose key holds the query: beside the symbols, not in them (385).
                 single["routes"] = [route.as_row() for route in routed]
+            if overlay is not None:
+                overlay.label(single)
             return attach_unindexed_same_basename(
                 single,
                 root=config.root,
@@ -269,6 +289,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
         _attach_mixed_repair_budget(payload, answers)
+        if overlay is not None:
+            overlay.label(payload)
         # A swept miss is the same 8-A shape as a single one: name the coverage gap once on the
         # envelope (call-level, never per subject — 061) when any subject came back a genuine zero,
         # a token-candidate miss (253), or a substring near-miss — the sweep path is the one 160's
@@ -504,6 +526,57 @@ def _search_one(
     stamp, indexed = mirrors
     order = attach_mirror_search_fields(results, stamp, indexed, store=store)
     return _Hits(results, truncated, reason, total_count, residue, (), order)
+
+
+def _overlay_hits(
+    hits: _Hits,
+    overlay: Overlay,
+    query: str,
+    *,
+    kind: contract.NodeKind | None,
+    namespace: str | None,
+    path_prefix: str | None,
+    cap: int,
+    detail_level: DetailLevel,
+) -> _Hits:
+    """Swap the built rows of every file the worktree changed for that file's worktree symbols.
+
+    Direct matches lead, the 180 band, and ``total_count`` moves by what this page swapped (389).
+    """
+    kept: list[dict[str, object]] = []
+    for row in hits.results:
+        rel = str(row.get("file") or "")
+        if not overlay.changes(rel):
+            kept.append(row)
+        elif overlay.unread(rel):
+            # The worktree's copy would not parse: keep the built row, flagged, never an absence.
+            kept.append({**row, "source_stale": True})
+    swapped = len(hits.results) - len(kept)
+    needle = query.lower()
+    added: list[tuple[bool, dict[str, object]]] = []
+    for rel in overlay.differing:
+        if path_prefix is not None and not is_under_path_prefix(rel, path_prefix):
+            continue
+        for node in overlay.nodes(rel):
+            qname, name = str(node.get("qualified_name")), str(node.get("name"))
+            if kind is not None and node.get("kind") != kind:
+                continue
+            if namespace is not None and not qname.lower().startswith(namespace.lower()):
+                continue
+            direct = is_direct_match(query, name, qname)
+            if direct or needle in qname.lower():
+                added.append((not direct, _hit(node, detail_level=detail_level)))
+    if not added and not swapped and kept == hits.results:
+        return hits
+    added.sort(key=lambda pair: pair[0])  # stable: direct matches first, file order within
+    results = ([hit for _, hit in added] + kept)[:cap]
+    total = max(hits.total_count - swapped + len(added), len(results))
+    reason = hits.reason
+    if results and reason in (REASON_NO_MATCHES, REASON_TOKEN_CANDIDATES, REASON_INDEX_BEHIND):
+        reason = REASON_OK
+    return hits._replace(
+        results=results, total_count=total, truncated=total > len(results), reason=reason
+    )
 
 
 def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:

@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- An agent in a worktree of the indexed repo reads that worktree: `read_symbol`, `file_outline` and
+  `search_symbol` parse the files that differ from the built commit (plus untracked ones) without
+  storing them, labelled `overlay: worktree`, and `find_callers` / `find_references` add the
+  worktree's edges at `HEURISTIC` (`worktree_overlay`). The worktree comes from MCP `roots`, or
+  `CA_CALLER_ROOT` when a client reports none; switching the main checkout changes nothing (389).
 - A `behind` index with no build running answers instead of refusing: `find_callers` and
   `find_references` label an unchanged subject `index_behind` with the built revision, and a subject
   the working tree no longer declares `index_behind_subject_removed`; `search_symbol` never answers

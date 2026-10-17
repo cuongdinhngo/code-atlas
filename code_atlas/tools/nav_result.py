@@ -25,6 +25,7 @@ NavReason = Literal[
     "index_behind",
     "index_behind_subject_changed",
     "index_behind_subject_removed",
+    "worktree_overlay",
     "bare_name_truncated",
     "relationship_not_modelled",
     "capability_not_configured",
@@ -59,6 +60,8 @@ REASON_INDEX_BEHIND: NavReason = "index_behind"
 REASON_INDEX_BEHIND_SUBJECT_CHANGED: NavReason = "index_behind_subject_changed"
 # The working tree no longer declares the subject; the built graph says who used it (388).
 REASON_INDEX_BEHIND_SUBJECT_REMOVED: NavReason = "index_behind_subject_removed"
+# Built graph plus the caller's worktree edges at HEURISTIC — an inbound answer, never ok (389).
+REASON_WORKTREE_OVERLAY: NavReason = "worktree_overlay"
 REASON_BARE_NAME_TRUNCATED: NavReason = "bare_name_truncated"
 REASON_RELATIONSHIP_NOT_MODELLED: NavReason = "relationship_not_modelled"
 # The tool's capability needs config that is absent — inert, not a genuine zero (069).
@@ -118,6 +121,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
     REASON_INDEX_BEHIND_SUBJECT_REMOVED,
+    REASON_WORKTREE_OVERLAY,
     REASON_BARE_NAME_TRUNCATED,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_CAPABILITY_NOT_CONFIGURED,

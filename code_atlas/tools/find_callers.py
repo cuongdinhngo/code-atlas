@@ -19,6 +19,7 @@ from code_atlas.contract import (
     split_qname,
 )
 from code_atlas.onboarding.class_diagram import parse_json_field
+from code_atlas.overlay import active_overlay, overlay_inbound
 from code_atlas.store import GraphStore, Row
 from code_atlas.symbol_role import (
     aggregate_test_count_source,
@@ -201,7 +202,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         subject as ``index_behind``, one the working tree no longer declares as
         ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
         refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
-        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267).
+        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
+        another worktree of this repo, rows from files it changed give way to its own edges onto
+        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389).
 
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
@@ -260,7 +263,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             covered = covered_languages(store)
             stamped = store.stamped_unmodelled_resolution_by_language()
             about_ref = answered_about_ref_for(store)
-            read = read_subject(config, store, qname, serve_behind=serve_behind)
+            # A caller in another worktree reads that worktree, not this checkout's drift (389).
+            overlay = active_overlay(config, store)
+            read = read_subject(
+                config, store, qname, serve_behind=serve_behind, trust_built=overlay is not None
+            )
             staleness, behind_dirty = read.staleness, read.dirty_paths
             guard, freshness = read.guard, read.freshness
             if read.refuse:
@@ -638,14 +645,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # per-answer partition.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        labelled = label_behind(
-            result,
-            subject_path=subject_file,
-            revision=staleness or None,
-            dirty_paths=behind_dirty,
-            subject_unrepaired=subject_unrepaired,
-            subject_removed=read.removed,
-        )
+        if overlay is not None:
+            labelled = overlay_inbound(
+                overlay, result, lookup, CALLER_KINDS, depth=depth, offset=offset
+            )
+        else:
+            labelled = label_behind(
+                result,
+                subject_path=subject_file,
+                revision=staleness or None,
+                dirty_paths=behind_dirty,
+                subject_unrepaired=subject_unrepaired,
+                subject_removed=read.removed,
+            )
         attach_coverage_edge_route(
             labelled,
             stamped,

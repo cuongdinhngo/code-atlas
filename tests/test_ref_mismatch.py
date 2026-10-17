@@ -38,6 +38,7 @@ from code_atlas.tools.nav_result import (
     REASON_OK,
     REASON_PATH_OUTSIDE_ROOT,
     REASON_REF_MISMATCH,
+    REASON_WORKTREE_OVERLAY,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -59,6 +60,10 @@ NAV_CALLS: dict[str, dict[str, object]] = {
     "find_references": {"qname": SUBJECT},
     "impact": {"qnames": [SUBJECT]},
 }
+# The tools a worktree overlays instead of mismatching (389).
+OVERLAID = frozenset(
+    {"search_symbol", "read_symbol", "file_outline", "find_callers", "find_references"}
+)
 
 
 def _git(root: Path, *args: str) -> str:
@@ -130,16 +135,24 @@ def _calls(config: Config, roots: list[Path] | None, names: dict[str, dict[str, 
 def test_every_navigation_tool_names_the_mismatch_with_both_revisions(
     repo: tuple[Config, Path, Path, str],
 ) -> None:
-    """AC1 — index at A, caller's worktree at B: not ``ok``, both commits named, rows kept."""
+    """AC1 — index at A, caller's worktree at B: not ``ok``, both commits named, rows kept.
+
+    Since 389 the five overlay tools read the worktree itself and say so; the rest still mismatch.
+    """
     config, side, _, built = repo
     side_head = _git(side, "rev-parse", "HEAD")
     answers = _calls(config, [side], NAV_CALLS)
     for name, answer in answers.items():
+        if name in OVERLAID:
+            assert answer["overlay"] == "worktree", name
+            assert answer["overlay_root"] == str(side.resolve()), name
+            assert answer.get("reason") != REASON_REF_MISMATCH, name
+            continue
         assert answer["reason"] == REASON_REF_MISMATCH, name
         assert answer["index_commit"] == built, name
         assert answer["caller_commit"] == side_head, name
         assert answer["caller_root"] == str(side.resolve()), name
-    assert answers["find_callers"][REASON_AT_INDEX_FIELD] == REASON_OK
+    assert answers["find_callers"]["reason"] == REASON_WORKTREE_OVERLAY
     assert answers["find_callers"]["total_count"] == 1
 
 
@@ -277,7 +290,7 @@ def test_a_caller_that_moves_into_a_worktree_mid_session_is_seen(
 
     first, then = asyncio.run(session())
     assert first["reason"] == REASON_OK
-    assert then["reason"] == REASON_REF_MISMATCH
+    assert then["reason"] == REASON_WORKTREE_OVERLAY  # 389: the worktree now answers
 
 
 def test_a_foreign_schema_index_still_answers_its_own_refusal(
@@ -305,8 +318,8 @@ def test_the_first_checkout_decides_not_an_extra_root(
     assert first_matches["reason"] == REASON_OK
     assert "caller_root" not in first_matches
     first_moved = _calls(config, [side, same], call)["find_callers"]
-    assert first_moved["reason"] == REASON_REF_MISMATCH
-    assert first_moved["caller_root"] == str(side.resolve())
+    assert first_moved["reason"] == REASON_WORKTREE_OVERLAY  # 389: overlaid, not mismatched
+    assert first_moved["overlay_root"] == str(side.resolve())
 
 
 def test_file_uris_become_local_paths() -> None:

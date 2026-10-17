@@ -52,12 +52,13 @@ KNOB_KEYS: tuple[str, ...] = (
     "tools",
     "host_root",
     "container_root",
+    "caller_root",
 )
 
 # Query-time only: kept out of the ``CA_*`` slice of ``config_identity`` (259). The project file
 # is hashed as bytes, so setting one *there* still moves the id — the id is a provenance stamp,
 # never a rebuild trigger, and the page cap takes effect on the next call either way.
-QUERY_ONLY_KEYS: frozenset[str] = frozenset({"page_limit"})
+QUERY_ONLY_KEYS: frozenset[str] = frozenset({"page_limit", "caller_root"})
 # Pre-259 name: still accepted as the build-time fan-out, never as the page cap (259).
 MAX_RESULTS_ALIAS_ENV = "CA_MAX_RESULTS"
 MAX_RESULTS_ALIAS_FILE = "max_results"
@@ -128,6 +129,8 @@ class Config:
     # Defaulted so every `replace(...)` and hand-built Config keeps working; load_config sets both.
     identity: str = ""
     config_env: tuple[tuple[str, str], ...] = ()
+    # The caller's checkout when a client reports no roots: its worktree overlays the graph (389).
+    caller_root: Path | None = None
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -278,6 +281,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         adapter_cmds=_adapter_cmds(environ, file_values),
         identity=config_identity(root, environ),
         config_env=_config_env_slice(environ),
+        caller_root=_resolve_optional_path("caller_root", environ, file_values),
     )
 
 
