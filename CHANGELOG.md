@@ -17,6 +17,15 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.5.0 — 2026-10-17 · contract 16 · schema 8
+
+- **Full rebuild required.** Run `code-atlas-build --full`: a call site gains `arg_strings` and
+  `kwarg_strings`, the value of a plain string literal argument.
+- **Adapter checkout must be updated.** Every adapter speaks contract 16.
+- A `keyed_calls` string key is read from the edge, so `insertRow(\n 'Items', $row)` and two calls
+  on one line link; `key_kw` names the key by keyword, and PHP 8 named arguments are read into
+  `kwargs` (a named argument no longer voids `args`). Each rule counts `keys_unread` — a string
+  literal where its key is, yet no key read — in the build report and `get_index_status` (398).
 - A `routes` block reads a JSON census as is (`json`, `rows`, `columns`): a handler named by its
   short class (`OrderController::listAction()`) links when one class holds that name, `prefer`
   picks among same-named classes, and `get_index_status` lists the rows still ambiguous (397).
