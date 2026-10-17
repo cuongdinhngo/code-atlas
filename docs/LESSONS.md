@@ -170,7 +170,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 363-C1 — a zero from a text search must count the rows the search cannot match
 
 - type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
-- status: proposed · seen: 363
+- status: proposed · seen: 363, 397
 - evidence: `include_graph` attested an unused copy by searching unlinked include text for its
   basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
   includer yet never matches. The challenger found it; the zero now counts them and is not
@@ -180,7 +180,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396
+- status: proposed · seen: 362, 364, 367, 389, 396, 397
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.
