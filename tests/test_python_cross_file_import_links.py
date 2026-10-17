@@ -141,8 +141,8 @@ def test_external_import_stays_unlinked(tmp_path: Path) -> None:
 
 def test_versions_unchanged(tmp_path: Path) -> None:
     """AC4 — CONTRACT_VERSION and SCHEMA_VERSION stay put."""
-    assert contract.CONTRACT_VERSION == 15
-    assert SCHEMA_VERSION == "7"
+    assert contract.CONTRACT_VERSION == 16
+    assert SCHEMA_VERSION == "8"
     with _index(tmp_path) as store:
         assert store.get_meta("schema_version") == SCHEMA_VERSION
 

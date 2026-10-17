@@ -30,7 +30,7 @@ from code_atlas.contract import CONFIDENCE_TIERS
 # (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
 _TOUR_SEED_BUDGET_DIVISOR = 4
 
-SCHEMA_VERSION = "7"
+SCHEMA_VERSION = "8"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -202,7 +202,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT,
-  kwargs TEXT);
+  kwargs TEXT, arg_strings TEXT, kwarg_strings TEXT);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);

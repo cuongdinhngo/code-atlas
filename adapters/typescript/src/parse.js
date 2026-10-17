@@ -203,6 +203,18 @@ function argLiterals(call) {
   return out;
 }
 
+// Parallel to `argLiterals`: a plain string literal's value, else null (contract v16, task 398). A
+// template with a substitution has no fixed value; a value over 256 characters is not captured.
+function argStrings(call) {
+  const args = call.arguments;
+  if (!args) return [];
+  return args.map((arg) =>
+    (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) && arg.text.length <= 256
+      ? arg.text
+      : null,
+  );
+}
+
 // The top-level string keys of an object literal, in order: a normal or shorthand property's name;
 // a computed key or a spread contributes nothing and does not shift later keys (mirrors PHP 063).
 function objectKeys(node) {
@@ -362,6 +374,8 @@ function parseFile(path, declarationsOnly) {
       if (args !== null) {
         row.args = args;
         row.arg_keys = argKeys(call);
+        const strings = argStrings(call);
+        if (strings.some((value) => value !== null)) row.arg_strings = strings;
       }
     }
     edges.push(row);

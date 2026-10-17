@@ -1180,6 +1180,16 @@ final class Visitor extends NodeVisitorAbstract
         if ($call !== null && ($args = self::argLiterals($call)) !== null) {
             $edge['args'] = $args;
             $edge['arg_keys'] = self::argKeys($call);
+            $strings = self::argStrings($call);
+            if (array_filter($strings, static fn (?string $value): bool => $value !== null) !== []) {
+                $edge['arg_strings'] = $strings;
+            }
+            // PHP 8 named arguments (398): a keyword has no position, so it rides `kwargs`.
+            $edge['kwargs'] = (object) self::kwargLiterals($call);
+            $named = self::kwargStrings($call);
+            if ($named !== []) {
+                $edge['kwarg_strings'] = (object) $named;
+            }
         }
         $this->edges[] = $edge;
     }
@@ -1197,15 +1207,79 @@ final class Visitor extends NodeVisitorAbstract
         }
         $out = [];
         foreach ($call->getArgs() as $arg) {
-            // A spread forwards an unknown count and a named argument leaves its own position
-            // open, so in both cases no position in this list can be trusted (PHP 8.0).
-            if ($arg->unpack || $arg->name !== null) {
+            // A spread forwards an unknown count, so no position in this list can be trusted.
+            if ($arg->unpack) {
                 return null;
             }
-            $out[] = self::literalKind($arg->value);
+            // A named argument follows every positional one (PHP 8.0) and goes to `kwargs` (398).
+            if ($arg->name === null) {
+                $out[] = self::literalKind($arg->value);
+            }
         }
 
         return $out;
+    }
+
+    /**
+     * Parallel to argLiterals: a plain string literal's value, else null (contract v16, 398).
+     * An interpolated string has no fixed value; a value over 256 bytes is not captured.
+     *
+     * @return list<string|null>
+     */
+    private static function argStrings(Node\Expr\CallLike $call): array
+    {
+        $out = [];
+        foreach ($call->getArgs() as $arg) {
+            if ($arg->name === null) {
+                $out[] = self::stringValue($arg->value);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Named argument → its literal category, as an `args` entry (398).
+     *
+     * @return array<string, string|null>
+     */
+    private static function kwargLiterals(Node\Expr\CallLike $call): array
+    {
+        $out = [];
+        foreach ($call->getArgs() as $arg) {
+            if ($arg->name !== null) {
+                $out[$arg->name->toString()] = self::literalKind($arg->value);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Named argument → its plain string literal's value; arguments with no value are left out (398).
+     *
+     * @return array<string, string>
+     */
+    private static function kwargStrings(Node\Expr\CallLike $call): array
+    {
+        $out = [];
+        foreach ($call->getArgs() as $arg) {
+            $value = $arg->name !== null ? self::stringValue($arg->value) : null;
+            if ($arg->name !== null && $value !== null) {
+                $out[$arg->name->toString()] = $value;
+            }
+        }
+
+        return $out;
+    }
+
+    private static function stringValue(Node\Expr $value): ?string
+    {
+        if ($value instanceof Node\Scalar\String_ && strlen($value->value) <= 256) {
+            return $value->value;
+        }
+
+        return null;
     }
 
     /**
@@ -1218,6 +1292,9 @@ final class Visitor extends NodeVisitorAbstract
     {
         $out = [];
         foreach ($call->getArgs() as $arg) {
+            if ($arg->name !== null) {
+                continue;
+            }
             if ($arg->value instanceof Node\Expr\Array_) {
                 $out[] = self::arrayLiteralStringKeys($arg->value);
             } else {

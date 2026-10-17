@@ -22,7 +22,7 @@ const LITERAL_KEEP = 512;
  *   extra: Record<string, unknown>}} Node
  * @typedef {{kind: string, source_qname: string, target_raw: string, file_path: string,
  *   line: number, confidence_tier: string, args?: (string|null)[],
- *   arg_keys?: (string[]|null)[]}} Edge
+ *   arg_keys?: (string[]|null)[], arg_strings?: (string|null)[]}} Edge
  * @typedef {{block: number, string: boolean, elided: boolean, line: number, body: string,
  *   bodyLine: number, bodyPrefix: string,
  *   onLiteral: ((body: string, line: number, final: boolean) => string)|null}} ScanState
@@ -217,10 +217,22 @@ function sqlLiteralKind(token) {
 }
 
 /**
+ * A quoted literal's value (`'a''b'` → `a'b`), else null — contract v16 `arg_strings` (398).
+ * @param {string} t
+ * @returns {string|null}
+ */
+function sqlStringValue(t) {
+  const m = /^N?'((?:[^']|'')*)'$/i.exec(t.trim());
+  if (!m) return null;
+  const value = m[1].replace(/''/g, "'");
+  return value.length <= 256 ? value : null;
+}
+
+/**
  * Named EXEC args after the target: `@p = <literal>`, … — one category per positional slot.
  * @param {string} line
  * @param {number} matchEnd
- * @returns {{args: (string|null)[], arg_keys: (string[]|null)[]}|null}
+ * @returns {{args: (string|null)[], arg_keys: (string[]|null)[], arg_strings: (string|null)[]}|null}
  */
 function execArgs(line, matchEnd) {
   const rest = line.slice(matchEnd);
@@ -252,10 +264,11 @@ function execArgs(line, matchEnd) {
       cur += ch;
     }
     if (cur.trim()) positional.push(cur.trim());
-    if (positional.length === 0) return { args: [], arg_keys: [] };
+    if (positional.length === 0) return { args: [], arg_keys: [], arg_strings: [] };
     return {
       args: positional.map(sqlLiteralKind),
       arg_keys: positional.map(() => null),
+      arg_strings: positional.map(sqlStringValue),
     };
   }
   // Named EXEC args are still positional for `args` categories; `arg_keys` stays null per
@@ -263,6 +276,7 @@ function execArgs(line, matchEnd) {
   return {
     args: named.map((n) => sqlLiteralKind(n.value)),
     arg_keys: named.map(() => null),
+    arg_strings: named.map((n) => sqlStringValue(n.value)),
   };
 }
 
@@ -929,6 +943,9 @@ function parseFile(qpath) {
         if (captured) {
           edge.args = captured.args;
           edge.arg_keys = captured.arg_keys;
+          if (captured.arg_strings.some((value) => value !== null)) {
+            edge.arg_strings = captured.arg_strings;
+          }
         }
       }
       edges.push(edge);

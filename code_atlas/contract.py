@@ -35,7 +35,9 @@ from typing import Literal, get_args
 # v14: `kwargs` on a call site (372). A keyword argument has a name and no position, so it rides
 # its own field beside `args` (R1.7); positional `args` are unchanged.
 # v15: `READS` (390). A select's FROM / JOIN source: a table names its readers beside its writers.
-CONTRACT_VERSION = 15
+# v16: `arg_strings` / `kwarg_strings` (398). A string literal argument's value, so a rule reads its
+# key from the edge instead of the call's first source line; the `args` categories are unchanged.
+CONTRACT_VERSION = 16
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -213,6 +215,8 @@ EDGE_FIELDS: tuple[str, ...] = (
     "args",
     "arg_keys",
     "kwargs",
+    "arg_strings",
+    "kwarg_strings",
 )
 
 # One entry per argument at a CALLS/NEW site, in source order (contract v3, task 049).
@@ -225,6 +229,12 @@ ARG_KEYS_FIELD = "arg_keys"
 # Keyword arguments at a call site (contract v14, task 372): name → the same category as an `args`
 # entry. `{}` = recorded, none passed; absent = not recorded (another language, or a `**` spread).
 KWARGS_FIELD = "kwargs"
+# The value of a plain string literal argument (contract v16, task 398): ``arg_strings`` parallel to
+# ``args`` (null where no value was captured), ``kwarg_strings`` keyword → value. Absent = none
+# captured. An interpolated string, or one longer than ARG_STRING_MAX, has no value.
+ARG_STRINGS_FIELD = "arg_strings"
+KWARG_STRINGS_FIELD = "kwarg_strings"
+ARG_STRING_MAX = 256
 # Reserved ``args`` selectors that are not literals: fewer arguments than asked for, and "present
 # but not a literal". Kept apart from ARG_LITERALS so neither list can shadow the other.
 ARG_ABSENT = "absent"
@@ -556,6 +566,53 @@ def _check_row(
         errors += _check_arg_keys(path, row[ARG_KEYS_FIELD], row.get("args"))
     if KWARGS_FIELD in row:
         errors += _check_kwargs(path, row[KWARGS_FIELD])
+    if ARG_STRINGS_FIELD in row:
+        errors += _check_arg_strings(path, row[ARG_STRINGS_FIELD], row.get("args"))
+    if KWARG_STRINGS_FIELD in row:
+        errors += _check_kwarg_strings(path, row[KWARG_STRINGS_FIELD])
+    return errors
+
+
+def _check_string_value(path: str, value: object) -> list[str]:
+    if isinstance(value, str) and len(value) <= ARG_STRING_MAX:
+        return []
+    return [_wrong_type(path, value, f"a string of at most {ARG_STRING_MAX} characters")]
+
+
+def _check_arg_strings(path: str, values: object, args: object) -> list[str]:
+    """``arg_strings`` parallels ``args``: null, or the value of a ``string`` argument (398)."""
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        return [_wrong_type(f"{path}.arg_strings", values, "a list of strings or nulls")]
+    errors: list[str] = []
+    if isinstance(args, list) and len(values) != len(args):
+        errors.append(
+            f"{path}.arg_strings: length {len(values)} must match args length {len(args)}"
+        )
+    for index, value in enumerate(values):
+        if value is None:
+            continue
+        errors += _check_string_value(f"{path}.arg_strings[{index}]", value)
+        if isinstance(args, list) and index < len(args) and args[index] != "string":
+            errors.append(
+                f"{path}.arg_strings[{index}]: a value where args says {args[index]!r}"
+            )
+    return errors
+
+
+def _check_kwarg_strings(path: str, values: object) -> list[str]:
+    """``kwarg_strings`` maps a keyword's name to the value of its string literal (398)."""
+    if values is None:
+        return []
+    if not isinstance(values, dict):
+        return [_wrong_type(f"{path}.kwarg_strings", values, "an object of keyword → string")]
+    errors: list[str] = []
+    for name, value in values.items():
+        if not isinstance(name, str) or not name:
+            errors.append(_wrong_type(f"{path}.kwarg_strings key", name, "a keyword name"))
+        else:
+            errors += _check_string_value(f"{path}.kwarg_strings[{name!r}]", value)
     return errors
 
 
