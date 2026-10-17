@@ -519,10 +519,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             if depth == 1 and indexed and str(subject_nodes[0]["kind"]) == "Method":
                 # A call on an untyped receiver names only the member: linked by name at best, so
-                # count them all — "were untyped receivers in play?" then has an answer (393).
-                unresolved_receivers = len(
-                    store.edges_by_target_raw(str(subject_nodes[0]["name"]), kinds=CALLER_KINDS)
-                )
+                # count those in the subject's language — "were untyped receivers in play?" (393).
+                own = store.language_of_file(str(subject_nodes[0]["file_path"]))
+                languages: dict[str, str | None] = {}
+                for edge in store.edges_by_target_raw(
+                    str(subject_nodes[0]["name"]), kinds=CALLER_KINDS
+                ):
+                    path = str(edge["file_path"])
+                    if path not in languages:
+                        languages[path] = store.language_of_file(path)
+                    unresolved_receivers += languages[path] == own
             if depth == 1 and production_count == 0 and indexed and subject_nodes:
                 subject_name = str(subject_nodes[0]["name"])
                 kinds = inbound_kinds_for(str(subject_nodes[0]["kind"]))

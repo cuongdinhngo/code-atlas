@@ -13,6 +13,8 @@ from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers
+from tests.ts_adapter_cli import ENTRY as TS_ENTRY
+from tests.ts_adapter_cli import NODE, needs_node
 
 REPO = Path(__file__).resolve().parent.parent
 PHP_ENTRY = REPO / "adapters" / "php" / "index.php"
@@ -38,6 +40,10 @@ FILES = {
         "    public static function make(): Mailer { return new Mailer(); }\n"
         "    /** @return Mailer */\n"
         "    public static function legacy() { return new Mailer(); }\n"
+        "    /** @return \\App\\Pager */\n"
+        "    public static function pager() { return new Pager(); }\n"
+        "    /** Not @return Mailer as a tag, only prose. */\n"
+        "    public static function prose() { return new Pager(); }\n"
         "}\n"
     ),
     "src/User.php": (
@@ -45,13 +51,15 @@ FILES = {
         "    public function native() { $m = Factory::make(); $m->send(); }\n"
         "    public function documented() { $m = Factory::legacy(); $m->attach(); }\n"
         "    public function untyped($x) { $x->send(); }\n"
+        "    public function qualified() { $p = Factory::pager(); $p->attach(); }\n"
+        "    public function described() { $q = Factory::prose(); $q->attach(); }\n"
         "}\n"
     ),
 }
 
 
-def _built(root: Path) -> Config:
-    for rel, body in FILES.items():
+def _built(root: Path, extra: dict[str, str] | None = None) -> Config:
+    for rel, body in {**FILES, **(extra or {})}.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(body, encoding="utf-8")
     for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "init")):
@@ -66,6 +74,11 @@ def _built(root: Path) -> Config:
         {
             "CA_WORKERS": "2",
             "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"]),
+            **(
+                {"CA_TYPESCRIPT_CMD": shlex.join([str(NODE), str(TS_ENTRY), "--server"])}
+                if extra
+                else {}
+            ),
         },
     )
     with GraphStore(config.db_path) as store:
@@ -92,7 +105,16 @@ def test_ac2_a_return_docblock_types_the_local_at_heuristic(tmp_path: Path) -> N
     payload = find_callers.create(config)("\\App\\Mailer::attach", detail_level="minimal")
     assert _rows(payload) == [("\\App\\User::documented", "HEURISTIC")]
     pager = find_callers.create(config)("\\App\\Pager::attach", detail_level="minimal")
-    assert _rows(pager) == []
+    assert _rows(pager) == [("\\App\\User::qualified", "HEURISTIC")]
+
+
+@needs_php
+def test_challenger_a_qualified_return_and_prose_name_the_right_class(tmp_path: Path) -> None:
+    """`@return \\App\\Pager` resolves as written; `@return` inside prose is not a tag."""
+    config = _built(tmp_path)
+    mailer = _rows(find_callers.create(config)("\\App\\Mailer::attach", detail_level="minimal"))
+    assert ("\\App\\User::qualified", "HEURISTIC") not in mailer
+    assert ("\\App\\User::described", "HEURISTIC") not in mailer
 
 
 @needs_php
@@ -108,3 +130,11 @@ def test_scope3_untyped_receivers_are_counted(tmp_path: Path) -> None:
 def test_ac3_a_subject_with_no_such_site_carries_no_count(tmp_path: Path) -> None:
     payload = find_callers.create(_built(tmp_path))("\\App\\Factory::make", detail_level="minimal")
     assert "unresolved_receivers" not in payload
+
+
+@needs_php
+@needs_node
+def test_challenger_another_languages_same_name_call_is_not_counted(tmp_path: Path) -> None:
+    config = _built(tmp_path, {"web/app.ts": "export function go(x: any) { x.send(); }\n"})
+    payload = find_callers.create(config)("\\App\\Mailer::send", detail_level="minimal")
+    assert payload["unresolved_receivers"] == 1, payload

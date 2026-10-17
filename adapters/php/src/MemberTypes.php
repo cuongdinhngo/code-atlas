@@ -48,6 +48,7 @@ final class MemberTypes extends NodeVisitorAbstract
     private const NOT_A_CLASS = [
         'array', 'bool', 'callable', 'false', 'float', 'int', 'iterable', 'mixed', 'never',
         'null', 'object', 'parent', 'resource', 'self', 'static', 'string', 'true', 'void',
+        'boolean', 'double', 'integer', 'number', 'numeric', 'scalar',
     ];
 
     public function useNameContext(NameContext $names): void
@@ -246,15 +247,21 @@ final class MemberTypes extends NodeVisitorAbstract
         if ($comment === null || $this->names === null) {
             return null;
         }
-        $pattern = '/@return\s+\??(\\\\?[A-Za-z_][\w\\\\]*)(?:\|null)?(?=\s|\*|$)/m';
+        // The tag opens its docblock line; `@return` inside prose is not one.
+        $pattern = '/^[\s\/*]*@return\s+\??(\\\\?[A-Za-z_][\w\\\\]*)(?:\|null)?(?=\s|\*|$)/m';
         if (preg_match($pattern, $comment->getText(), $match) !== 1) {
             return null;
         }
-        if (in_array(strtolower($match[1]), self::NOT_A_CLASS, true)) {
+        $written = $match[1];
+        $lower = strtolower($written);
+        if (in_array($lower, self::NOT_A_CLASS, true) || str_starts_with($lower, 'namespace\\')) {
             return null;
         }
+        if (str_starts_with($written, '\\')) {
+            return Qname::of(new Node\Name\FullyQualified(substr($written, 1)));
+        }
 
-        return Qname::of($this->names->getResolvedClassName(new Node\Name($match[1])));
+        return Qname::of($this->names->getResolvedClassName(new Node\Name($written)));
     }
 
     /** The class ``$method``'s `@return` docblock names, when it declares no return type. */
