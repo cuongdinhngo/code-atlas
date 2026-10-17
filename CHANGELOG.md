@@ -24,6 +24,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   docblocks when it next re-parses; `code-atlas-build --full` reads them all now.
 - `function EditCtrl() { var self = this; self.save = function () {}; }` declares `EditCtrl::save` as
   a Method (TS/JS, the ES5 constructor pattern) — `search_symbol save` finds it (395).
+- `find_references Items`, `impact` and `find_callers` (a procedure) answer a bare table or routine
+  name a column shares, with `resolved_from: "bare"`; two schemas' tables refuse with both (392).
 
 ## 0.4.0 — 2026-10-17 · contract 15 · schema 7
 

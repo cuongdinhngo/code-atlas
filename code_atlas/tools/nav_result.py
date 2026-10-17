@@ -664,15 +664,14 @@ def bare_subject(
     """``(qname, [])`` for the one ``kinds`` node a bare name ends, else ``(None, sites)`` (392).
 
     Applies only when every other candidate is a table's own part — a column named like a table.
-    Several of ``kinds`` are refused with each qualified site, as 320's bare table is.
+    Several are refused with each qualified site when one is a Table, as 320's bare table is.
     """
     if _IDENT_TRAILING.fullmatch(asked) is None:
         return None, []
-    rows = [
-        row
-        for row in store.nodes_by_qname_endswith(asked, asked, limit=limit + 1)
-        if _ends_at_boundary(str(row["qualified_name"]), asked)
-    ]
+    scanned = store.nodes_by_qname_endswith(asked, asked, limit=limit + 1)
+    if len(scanned) > limit:  # a capped scan cannot prove nothing else answers to the name
+        return None, []
+    rows = [row for row in scanned if _ends_at_boundary(str(row["qualified_name"]), asked)]
     subjects = [row for row in rows if str(row["kind"]) in kinds]
     if not subjects or any(
         str(row["kind"]) not in (*kinds, *contract.TABLE_PART_KINDS) for row in rows
@@ -681,6 +680,8 @@ def bare_subject(
     qnames = list(dict.fromkeys(str(row["qualified_name"]) for row in subjects))
     if len(qnames) == 1:
         return qnames[0], []
+    if not any(str(row["kind"]) == contract.TABLE_KIND for row in subjects):
+        return None, []
     sites = definition_sites(subjects)
     for site, row in zip(sites, subjects, strict=True):
         site["qname"] = row["qualified_name"]

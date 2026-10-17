@@ -18,7 +18,7 @@ from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, find_references, impact
-from code_atlas.tools.nav_result import REASON_SUBJECT_AMBIGUOUS
+from code_atlas.tools.nav_result import REASON_NAME_NOT_QUALIFIED, REASON_SUBJECT_AMBIGUOUS
 
 NODE = shutil.which("node")
 ENTRY = Path(__file__).resolve().parent.parent / "adapters" / "sql" / "index.js"
@@ -40,6 +40,10 @@ AS
     EXEC dbo.Add_Item;
 GO
 CREATE TABLE dbo.Orders2 (Id int NOT NULL, Add_Item int NULL);
+CREATE PROCEDURE dbo.Twin AS SELECT 1;
+GO
+CREATE PROCEDURE audit.Twin AS SELECT 1;
+GO
 """
 
 
@@ -84,6 +88,22 @@ def test_a_bare_procedure_answers_find_callers_and_impact(config: Config) -> Non
 def test_ac2_two_schemas_refuse_with_both(config: Config) -> None:
     payload = find_references.create(config)("Shared")
     assert payload["reason"] == REASON_SUBJECT_AMBIGUOUS, payload
+    sites = payload["ambiguous_definitions"]
+    assert isinstance(sites, list)
+    assert sorted(str(site["qname"]) for site in sites) == ["audit.Shared", "dbo.Shared"]
+
+
+def test_challenger_two_functions_keep_todays_answer(config: Config) -> None:
+    """Only a table pair refuses with sites (320's world); two routines stay under-qualified."""
+    for tool in (find_references.create(config), find_callers.create(config)):
+        payload = tool("Twin")
+        assert payload["reason"] == REASON_NAME_NOT_QUALIFIED, payload
+        assert "ambiguous_definitions" not in payload
+
+
+def test_challenger_a_mixed_impact_walks_the_bare_seed_and_refuses_the_pair(config: Config) -> None:
+    payload = impact.create(config)(qnames=["Items", "Shared"], detail_level="minimal")
+    assert payload["resolved_from"] == "bare", payload
     sites = payload["ambiguous_definitions"]
     assert isinstance(sites, list)
     assert sorted(str(site["qname"]) for site in sites) == ["audit.Shared", "dbo.Shared"]
