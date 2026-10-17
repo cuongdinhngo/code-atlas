@@ -16,6 +16,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import read_symbol, search_symbol
 from code_atlas.tools.freshness import FreshnessGuard, nameable_subject_path
 from code_atlas.tools.nav_result import (
+    REASON_INDEX_BEHIND,
     REASON_INDEX_STALE,
     REASON_NO_SUCH_SYMBOL,
     REASON_SUBJECT_FILE_CHECKED,
@@ -78,12 +79,12 @@ def test_miss_on_current_subject_amid_three_unrelated_drifts_discloses_residue(
 
 
 def test_unnameable_subject_amid_multi_drift_still_index_stale(tmp_path: Path) -> None:
-    """AC2: bare search (no files-table path) keeps the count-based refuse."""
+    """AC2: bare search (no files-table path) keeps the count gate — answered unvouched (388)."""
     config, _ = _index_with_subject_and_three_unrelated(tmp_path)
     result = search_symbol.create(config)("definitelyAbsentZq9", detail_level="minimal")
-    assert result["reason"] == REASON_INDEX_STALE, result
+    assert result["reason"] == REASON_INDEX_BEHIND, result
     assert result["total_count"] == 0
-    assert "other_indexed_files_drifted" not in result
+    assert result["other_indexed_files_drifted"] >= 2
 
 
 def test_clean_tree_miss_omits_residue_key(tmp_path: Path) -> None:

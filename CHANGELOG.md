@@ -17,6 +17,12 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A `behind` index with no build running answers instead of refusing: `find_callers` and
+  `find_references` label an unchanged subject `index_behind` with the built revision, and a subject
+  the working tree no longer declares `index_behind_subject_removed`; `search_symbol` never answers
+  `index_stale` (drifted rows carry `source_stale`). Only a changed subject that cannot be re-read
+  refuses, naming the exact `serve_behind=true` call. `get_index_status` lists the changed paths in
+  `behind_because` and drops `behind_refuses` (388).
 - An agent in a consuming repo can now find 382–385: `which_tool` and the skill route a reported
   URL to `trace_capability(route=…)`, and the agent brief and both skills name `code-atlas query`,
   `--verify-claims` and `--changed-since`. Re-run `gen_skill.py --write-agent-brief <repo>` to refresh

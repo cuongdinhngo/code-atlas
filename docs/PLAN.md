@@ -852,11 +852,10 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
   `File.extra.unmodelled_resolution`; `find_orphans` refuses `resolution_unmodelled`.
 - **Annotations and decorators emit `REFERENCES` (232)**; `Foo::class` stays `DYNAMIC`. Class constants
   by spec markers and PEP 8 upper-case (234) — no new kind.
-- **`serve_behind` labelled reads (257 · 267 · 274)** — opt-in; behind + unchanged → `index_behind`,
-  never `ok`; off ⇒ byte-identical. **Narrowed by 365 (2026-10-07):** while a build holding
-  `write.lock` writes the live DB in place (`live_index_held`: a shadowed rebuild still repairs, a
-  lone short writer is waited out), a
-  changed subject is served as `index_behind_subject_changed` without the opt-in — the cure is running.
+- **Behind-index reads (257 · 267 · 365 · 388)** — behind + unchanged → `index_behind`, never `ok`,
+  **unasked since 388 (2026-10-17)**: 6 of 45 anchor PRs fell back to Grep, the opt-in being the cost.
+  Removed subject → `index_behind_subject_removed`; search never refuses. Only an unre-readable
+  changed subject refuses, naming its `serve_behind=true` call — served unasked under 365's lock.
 - **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
   write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
   floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**

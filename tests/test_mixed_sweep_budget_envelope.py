@@ -17,7 +17,6 @@ from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import search_symbol
 from code_atlas.tools.nav_result import (
-    REASON_INDEX_STALE,
     REASON_KIND_EXCLUDED,
     REASON_OK,
     RETRY_AS_FIELD,
@@ -104,7 +103,8 @@ def test_mixed_sweep_envelope_names_stale_subject(
     assert by_q["\\App\\Alpha"]["reason"] == REASON_OK
     assert by_q["\\App\\Beta"]["reason"] == REASON_OK
     assert by_q["\\App\\Gamma"]["reason"] == REASON_OK
-    assert by_q["\\App\\Drift"]["reason"] == REASON_INDEX_STALE
+    # 388: the drifted subject is answered, every row flagged, instead of refused.
+    assert all(row.get("source_stale") for row in by_q["\\App\\Drift"]["results"])
     assert payload["repair_budget_shared"] is True
     assert payload["index_stale_subjects"] == ["\\App\\Drift"]
     assert payload["repair_budget_order"] == "queries"

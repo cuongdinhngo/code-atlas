@@ -24,6 +24,7 @@ NavReason = Literal[
     "index_stale",
     "index_behind",
     "index_behind_subject_changed",
+    "index_behind_subject_removed",
     "bare_name_truncated",
     "relationship_not_modelled",
     "capability_not_configured",
@@ -53,9 +54,11 @@ REASON_NO_MATCHES: NavReason = "no_matches"
 REASON_NO_SUCH_SYMBOL: NavReason = "no_such_symbol"
 REASON_NOT_INDEXED: NavReason = "not_indexed"
 REASON_INDEX_STALE: NavReason = "index_stale"  # vocabulary for 035; not emitted by 033
-# Opt-in labelled read from a behind index for unchanged subjects (257) — never reason=ok.
+# A behind index answering for an unchanged subject (257; the default since 388) — never ok.
 REASON_INDEX_BEHIND: NavReason = "index_behind"
 REASON_INDEX_BEHIND_SUBJECT_CHANGED: NavReason = "index_behind_subject_changed"
+# The working tree no longer declares the subject; the built graph says who used it (388).
+REASON_INDEX_BEHIND_SUBJECT_REMOVED: NavReason = "index_behind_subject_removed"
 REASON_BARE_NAME_TRUNCATED: NavReason = "bare_name_truncated"
 REASON_RELATIONSHIP_NOT_MODELLED: NavReason = "relationship_not_modelled"
 # The tool's capability needs config that is absent — inert, not a genuine zero (069).
@@ -114,6 +117,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_INDEX_STALE,
     REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
+    REASON_INDEX_BEHIND_SUBJECT_REMOVED,
     REASON_BARE_NAME_TRUNCATED,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_CAPABILITY_NOT_CONFIGURED,
@@ -275,7 +279,8 @@ RETRY_AS_FIELD = "retry_as"
 SERVE_BEHIND_OPT_IN = "serve_behind"
 SERVE_BEHIND_OPT_IN_FIELD = "serve_behind_opt_in"
 TRY_INSTEAD_HINT_SERVE_BEHIND = (
-    "pass serve_behind=true to answer from the built revision (labelled, not ok)"
+    "the subject's file changed since the build and could not be re-read; to answer from the "
+    "built revision (labelled index_behind_subject_changed), call: "
 )
 # A twinned path seed is refused, not answered — but a refusal with no route is the carve-out this
 # repo keeps re-learning about (065, 171). The qname seed is the half 161 already made safe.
@@ -773,13 +778,24 @@ def attach_coverage_edge_route(
     return attach_try_instead(payload, None, hint)
 
 
-def attach_serve_behind_route(payload: dict[str, object]) -> dict[str, object]:
-    """Name the caller opt-in on an ``index_stale`` refusal (274).
+def attach_serve_behind_route(
+    payload: dict[str, object], *, tool: str, call: Mapping[str, object]
+) -> dict[str, object]:
+    """Name the exact call that answers an ``index_stale`` refusal, ready to copy (274 / 388).
 
     ``serve_behind`` is a parameter, not a registered tool — hint only, no ``try_instead`` (R5.4).
     """
     payload[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
-    return attach_try_instead(payload, None, TRY_INSTEAD_HINT_SERVE_BEHIND)
+    return attach_try_instead(
+        payload, None, TRY_INSTEAD_HINT_SERVE_BEHIND + serve_behind_call(tool, call)
+    )
+
+
+def serve_behind_call(tool: str, call: Mapping[str, object]) -> str:
+    """``tool(arg=value, …, serve_behind=true)`` with JSON values, in the caller's arg order."""
+    args = {**call, SERVE_BEHIND_OPT_IN: True}
+    rendered = ", ".join(f"{name}={json.dumps(value)}" for name, value in args.items())
+    return f"{tool}({rendered})"
 
 
 def attach_next_tools(payload: dict[str, object], kind: str) -> dict[str, object]:

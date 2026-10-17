@@ -20,7 +20,7 @@ from code_atlas.tools.coverage import (
 )
 from code_atlas.tools.freshness import FreshnessGuard, nameable_subject_path
 from code_atlas.tools.nav_result import (
-    REASON_INDEX_STALE,
+    REASON_INDEX_BEHIND,
     REASON_KIND_EXCLUDED,
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
@@ -127,9 +127,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and ``total_count``, so one miss never colours the rest. At most ``max_subjects`` are
         accepted; the rest are named in ``subjects_dropped`` beside ``subjects_capped_to``.
         A sweep shares **one** read-through repair budget across every subject, so a subject whose
-        file drifted may answer ``index_stale`` where a single call would have repaired it. When a
-        sweep mixes ``ok`` with ``index_stale``, the envelope names the refused subjects and states
-        that the shared budget decided (275) — a fully-``ok`` sweep stays unchanged (061).
+        file drifted may answer ``source_stale`` rows where a single call would have repaired it;
+        it carries ``retry_as: query``. When a sweep mixes vouched ``ok`` answers with such
+        subjects, the envelope names them in ``index_stale_subjects`` and states that the shared
+        budget decided (275) — a fully-vouched sweep stays unchanged (061).
 
         Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
@@ -147,11 +148,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         near-miss, not a hit, and carries the language-coverage note (167 / 160). A
         ``substring_match`` answer, or a page short of ``total_count``, also carries
         ``try_instead=file_outline`` plus the narrow-by-qname hint, so the reader has a query to
-        make next instead of inventing one (245 / 093). On hash drift
-        beyond the per-call reparse cap, returns hits with
-        ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of absence); a
-        zero-hit first page may repair a named subject file or the sole dirty indexed file; an
-        unnameable subject amid several dirty files yields empty ``index_stale`` (073/246). Stub-
+        make next instead of inventing one (245 / 093). It never refuses on
+        staleness (388): a hit whose file drifted beyond the per-call reparse cap carries
+        ``source_stale: true``; a zero-hit first page may repair a named subject file or the sole
+        dirty indexed file; a miss nothing could vouch for (an unnameable subject amid several
+        dirty files) answers ``reason=index_behind``, empty, with ``other_indexed_files_drifted``
+        — never an empty proof of absence (073/246). Stub-
         indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
         hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
         A zero-overlap miss answers ``reason=token_candidates`` with ``candidates`` (names sharing a
@@ -357,6 +359,8 @@ def _search_one(
     results = _suppress_redundant_file_hits(
         [_hit(row, store=store, detail_level=detail_level) for row in rows[:cap]]
     )
+    if status == "stale":
+        _mark_source_stale(results, guard)
     if truncated or offset > 0:
         total_count = store.count_search_nodes(
             query,
@@ -368,8 +372,9 @@ def _search_one(
         truncated = offset + len(results) < total_count
     else:
         total_count = len(results)
-    if status == "stale":
-        reason: NavReason = REASON_INDEX_STALE
+    if status == "stale" and total_count == 0:
+        # A name search never refuses (388): nothing vouched for this miss; the residue says why.
+        reason: NavReason = REASON_INDEX_BEHIND
     elif total_count == 0:
         # Page emptiness ≠ answer emptiness once offset can walk past the end (057).
         reason = (
@@ -424,6 +429,8 @@ def _search_one(
                             for row in alt_rows[:cap]
                         ]
                     )
+                    if alt_status == "stale":
+                        _mark_source_stale(results, guard)
                     if truncated:
                         total_count = store.count_search_nodes(
                             alt,
@@ -435,12 +442,9 @@ def _search_one(
                         truncated = len(results) < total_count
                     else:
                         total_count = len(results)
-                    alt_reason: NavReason = (
-                        REASON_INDEX_STALE
-                        if alt_status == "stale"
-                        else REASON_SEPARATOR_NORMALISED
+                    return _Hits(
+                        results, truncated, REASON_SEPARATOR_NORMALISED, total_count, residue
                     )
-                    return _Hits(results, truncated, alt_reason, total_count, residue)
     # Zero-overlap miss: kind filter first (275), then path filter (315), then tokens (253).
     if reason == REASON_NO_MATCHES and offset == 0:
         if kind is not None:
@@ -502,6 +506,22 @@ def _search_one(
     return _Hits(results, truncated, reason, total_count, residue, (), order)
 
 
+def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:
+    """Flag each row whose file drifted past the repair budget — answered, never refused (388)."""
+    for row in results:
+        if guard.drifted(str(row.get("file") or "")):
+            row["source_stale"] = True
+
+
+def _unvouched(answer: Mapping[str, object]) -> bool:
+    """A subject the shared repair budget could not vouch for: a drifted row, or an empty miss."""
+    rows = answer.get("results")
+    stale_row = isinstance(rows, list) and any(
+        isinstance(row, dict) and row.get("source_stale") for row in rows
+    )
+    return stale_row or answer.get("reason") == REASON_INDEX_BEHIND
+
+
 def _direct(query: str, row: Mapping[str, object] | Row) -> bool:
     """``store.is_direct_match`` over a row — the predicate the search ordering bands on (R6.7)."""
     return is_direct_match(query, str(row["name"]), str(row["qualified_name"]))
@@ -533,8 +553,10 @@ def _single_payload(
         total_count=hits.total_count,
         answered_about_ref=answered_about_ref,
     )
-    # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
-    if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
+    # Empty + unverified (multi-dirty miss) — point at path-named tools (073), name the drift.
+    if hits.reason == REASON_INDEX_BEHIND and hits.total_count == 0:
+        if hits.other_indexed_files_drifted > 0:
+            payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
         return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
     if hits.reason == REASON_KIND_EXCLUDED:
         payload["kind_excluded"] = list(hits.kind_excluded)
@@ -581,8 +603,8 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         reason=hits.reason,
         total_count=hits.total_count,
     )
-    if hits.reason == REASON_INDEX_STALE:
-        # Shared-budget refuse: single-subject retry is the progress route (275 / R5.4).
+    if _unvouched(answer):
+        # Shared budget ran out: single-subject retry is the progress route (275 / R5.4).
         answer[RETRY_AS_FIELD] = RETRY_AS_QUERY
         attach_try_instead(answer, None, TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR)
     elif hits.reason == REASON_KIND_EXCLUDED:
@@ -619,15 +641,11 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
 def _attach_mixed_repair_budget(
     payload: dict[str, object], answers: list[dict[str, object]]
 ) -> None:
-    """Flag a sweep that mixed ok with index_stale under one repair budget (275 / 061)."""
-    stale = [
-        str(a["query"])
-        for a in answers
-        if a.get("reason") == REASON_INDEX_STALE
-    ]
+    """Flag a sweep that mixed vouched answers with unvouched ones under one budget (275 / 388)."""
+    stale = [str(a["query"]) for a in answers if _unvouched(a)]
     if not stale:
         return
-    if not any(a.get("reason") == REASON_OK for a in answers):
+    if not any(a.get("reason") == REASON_OK and not _unvouched(a) for a in answers):
         return
     payload["repair_budget_shared"] = True
     payload["index_stale_subjects"] = stale

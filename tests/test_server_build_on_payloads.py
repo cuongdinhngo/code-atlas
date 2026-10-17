@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from code_atlas.build_info import server_identity, server_provenance
 from code_atlas.config import load_config
-from code_atlas.tools import find_references, reach_shared, read_symbol, search_symbol
+from code_atlas.tools import find_references, freshness, reach_shared, read_symbol, search_symbol
 from code_atlas.tools import nav_result as nr
 from tests.test_claim_signing import SUBJECT, configured, indexed_repo
 
@@ -95,17 +95,16 @@ def test_minimal_nav_omits_server_provenance() -> None:
 def test_build_stamp_needs_no_git_on_the_hot_path(tmp_path: Path) -> None:
     """AC1/AC2: the build stamp is drawn from the lru-cached identity, not a git read.
 
-    ``compute_staleness`` is the git HEAD read + dirty scan; find_references guards it behind
-    sign=True. Patched to blow up, a default call still answers with the build — proving the stamp
-    is off the git path. (impact computes staleness by design now — 161 — so the read/nav tools are
-    where the cheap-build-without-git guarantee is asserted.)
+    ``compute_staleness`` is the git HEAD read + dirty scan. find_references reads it on every
+    call since 388 (as impact has since 161), so it is stubbed to a canned verdict here: the
+    stamp must still be the identity's, never a value that read produced.
     """
     db_path = indexed_repo(tmp_path)
     config = configured(tmp_path, db_path)
-    with patch.object(
-        find_references, "compute_staleness", side_effect=AssertionError("git on hot path")
-    ):
+    canned = {"last_commit": None, "head_commit": None, "head_ref": None, "staleness": "unknown"}
+    with patch.object(freshness, "compute_staleness", return_value=canned) as read:
         payload = find_references.create(config)(SUBJECT, sign=False)
+    assert read.called
     ident = server_identity()
     assert payload["server_build"] == ident["build"]
     assert payload["server_version"] == ident["version"]

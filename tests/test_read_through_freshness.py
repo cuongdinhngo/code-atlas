@@ -151,7 +151,9 @@ def test_cap_overflow_yields_index_stale(tmp_path: Path) -> None:
     write(tmp_path, "src/a.aa", "class A { /* drift3 */ }\n")
     write(tmp_path, "src/b.aa", "class B { /* drift3 */ }\n")
     result = search_symbol.create(config)("Thing", detail_level="minimal")
-    assert result["reason"] == REASON_INDEX_STALE
+    # 388: cap overflow keeps the hits and flags the unrepaired file's rows; never index_stale.
+    assert result["reason"] != REASON_INDEX_STALE
+    assert any(row.get("source_stale") for row in result["results"])
     assert result["total_count"] >= 1
     assert result["results"]  # keep useful hits; do not empty on cap overflow
 

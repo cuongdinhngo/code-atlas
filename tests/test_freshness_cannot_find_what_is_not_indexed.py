@@ -19,6 +19,8 @@ from code_atlas.tools import (
 from code_atlas.tools.freshness import FreshnessGuard, dirty_indexed_paths
 from code_atlas.tools.nav_result import (
     REASON_CAPABILITY_NOT_CONFIGURED,
+    REASON_INDEX_BEHIND,
+    REASON_INDEX_BEHIND_SUBJECT_REMOVED,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -122,7 +124,9 @@ def test_abc_multi_dirty_outline_then_search(tmp_path: Path) -> None:
 
     search = search_symbol.create(config)
     cell_a = search("atlasProbeZq7", detail_level="minimal")
-    assert cell_a["reason"] == REASON_INDEX_STALE
+    # 388: a name search never refuses; the unvouched miss is labelled and names the drift.
+    assert cell_a["reason"] == REASON_INDEX_BEHIND
+    assert cell_a["other_indexed_files_drifted"] == 2
     assert cell_a["total_count"] == 0
     assert cell_a["try_instead"] == TRY_INSTEAD_FILE_OUTLINE
 
@@ -164,7 +168,7 @@ def test_six_consumers_share_ensure_qname_miss_path(tmp_path: Path) -> None:
         assert result["reason"] == REASON_SUBJECT_FILE_CHECKED, (tool, result)
 
     search = search_symbol.create(config)("NeverIndexed", detail_level="minimal")
-    assert search["reason"] == REASON_INDEX_STALE
+    assert search["reason"] == REASON_INDEX_BEHIND
     assert search["try_instead"] == TRY_INSTEAD_FILE_OUTLINE
 
 
@@ -241,7 +245,9 @@ def test_repaired_miss_still_names_the_repair_and_the_unrecorded_args(tmp_path: 
     callers = find_callers.create(config)(
         qname, detail_level="minimal", arg_position=1, arg_is="string"
     )
-    assert callers["reason"] == REASON_NO_SUCH_SYMBOL
+    # 388: deleted since the build, so the built graph answers who used it — here nobody.
+    assert callers["reason"] == REASON_INDEX_BEHIND_SUBJECT_REMOVED
+    assert callers["total_count"] == 0
     assert callers["subject_refreshed_only"] is True
     assert callers["args_unrecorded"] == 0
 
