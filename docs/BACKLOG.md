@@ -25,6 +25,14 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
+| 388 | [Behind index refuses](tasks/388_behind-refuses.md) | Freshness | todo | 365 |
+| 389 | [Worktree reads main](tasks/389_worktree-overlay.md) | Trust | todo | 366 |
+| 390 | [No table readers](tasks/390_table-readers.md) | Coverage | todo | 371 |
+| 391 | [Defaults by expression](tasks/391_defaults-by-expr.md) | Coverage | todo | 320 |
+| 392 | [Bare table refused](tasks/392_bare-table-name.md) | Retrieval | todo | 320 |
+| 393 | [Factory receiver unlinked](tasks/393_factory-receiver.md) | Coverage | todo | 362 |
+| 394 | [Stub hides real code](tasks/394_stub-or-alias.md) | Trust | todo | 286 |
+| 395 | [JS in PHP views](tasks/395_js-in-php-views.md) | Coverage | todo | 361 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -81,8 +89,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
 - **Keywords stop at `find_callers`** — a `keyed_calls` rule's `key_arg` cannot name one, and PHP 8's
   named arguments are not read into `kwargs` — 372.
-- **Two route shapes 361 left out** — an inline `on*="fn(…)"` in a PHP view (no attribute reader,
-  no cross-language bare-name link) and `$.ajax({url: '…'})`, a field `key_pattern` cannot reach — 361.
 - **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
   misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
   match, and a procedure in another schema leaves an uncounted unresolved edge — 386.
