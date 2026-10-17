@@ -180,8 +180,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272). A Function
         answer with hits carries the same count, ``authoritative: false`` and the
         ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
-        answer at depth 1 counts ``unresolved_receivers``: calls by its bare name on a receiver no
-        type reached (an untyped parameter, say) — linked by name at ``HEURISTIC`` or not (393).
+        answer at depth 1 counts ``unresolved_receivers``: calls in its language by its bare name on
+        a receiver no type reached (an untyped parameter, say), linked HEURISTIC or not (393).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
