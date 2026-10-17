@@ -4,7 +4,7 @@ slug: table-readers
 title: 'A table lists its writers but never its readers, and a trigger that writes a column is not among them'
 phase: 2
 milestone: Coverage
-status: todo
+status: done
 depends_on: [278, 328, 364, 371]
 ---
 
@@ -48,7 +48,7 @@ questions that still went to Grep:
 
 ## Session status
 
-- **KEY:** 390 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits (a contract bump: an index built at 15 needs a full rebuild after a revert).
+- **KEY:** 390 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W6, pushes the `v0.4.0` tag after merge, runs E1, then merges after #74. **Revert path:** `git revert` the branch's commits (a contract bump: an index built at 15 needs a full rebuild after a revert).
 - `TRACK: backend` · `TIER: full` · `SCOPE: L` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/390-table-readers`, **stacked on `feat/394-stub-or-alias`**. Contract `.mango/run-contract-390.txt`.
@@ -211,3 +211,79 @@ there), green after.
 ### Rollback
 
 `git revert`; an index built at contract 15 then reports `rebuild required` — run `code-atlas-build --full`.
+
+## Phase 3 — execute
+
+Commits `ef229ca7` (contract 15, adapters, `kinds`, proof collateral), `1200f14b` (0.4.0 + docs), `decfc536`
+(`reads_emitters_only`), `0f6ff76c` (challenger fixes).
+
+**Red first.** The proving test against 394's tip (`0d1757fc`, a scratch copy): `3 failed, 1 passed in 2.92s` — AC1
+holds there (the adapter already wrote from the trigger). The challenger-fix test's input on the pre-fix adapter
+(`e11639db`): one of four reads (`[('dbo.Q', 'dbo.A')]`).
+
+**Green after.** `tests/test_table_readers.py`: `6 passed`; the agreement, conformance and proving suites:
+`85 passed`; adapters: `tsc` (TS, SQL) clean, `phpstan` `[OK] No errors`, Python adapter `mypy --strict` and `ruff`
+clean. Ran at 0f6ff76c.
+
+**P8.** `scripts/cross_repo_validate.py --public-only --skip-clone`: `"public_ok": 11, "public_failed": 0` — every
+floor holds; `READS` only adds edges, so no floor moved and none is re-measured. Ran at e11639db (adapter
+emission unchanged since but for the three challenger fixes, which only add reads).
+
+**Axis 1.** Change-list rows 1–10. **Axis 2.** Approach bullets 1–6 implemented as approved; the caveat (H9) and
+the fixes below sit inside rows 3–5.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: raw ticket plus `git diff feat/394-stub-or-alias..feat/390-table-readers` without this
+file; 1 dispatch, 64,894 tokens): 0 not met · 2 can't tell (E1) · 1 met with gaps.
+
+| # | Finding | Resolution |
+|---|---|---|
+| D1 Major | a view's reads are the file's; a one-line inline function read nothing | the function fixed (`0f6ff76c`); views are not nodes in this adapter (README: out of scope) — documented in its emission table |
+| D2 | a comma join read its first table only | every listed source (`0f6ff76c`) |
+| D3 | `INSERT INTO t SELECT … FROM t` lost the self-read | an INSERT keeps it (`0f6ff76c`) |
+| D4 | `UPDATE t … FROM dbo.T t` records no read of its target | kept: that FROM names the write target |
+| D5 | prose ending in "as" passed the host-string guard | `as` dropped from all three ports; shared case added |
+| D6 | AC3 proven by internal equality | W5 |
+
+Verify-only round, main loop: `6 passed` (proving test, the new fix test red on the pre-fix adapter) and `85 passed`
+(agreement, conformance, proving). Ran at 0f6ff76c.
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 / R2 | `test_ac2_…`, conformance `select-sources`, `test_challenger_…` | 3/3 |
+| C1 / AC3 | `test_ac3_…`; the writer suites unchanged | 2/2 |
+| R1 / AC1 | `test_ac1_…` | 1/1 |
+| R3 | `test_kinds_must_name_an_inbound_edge_kind`, `test_a_language_that_emits_no_reads_…` | 2/2 |
+| AC4 | E1 | 0/1 (excluded) |
+
+Reviewed at 0f6ff76c — files: change-list rows 1–9. Working doc: `docs/tasks/390_table-readers.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** None new as a claim: the contract-bump path (version in core and four adapters, conformance, a
+release heading with both flags, the tag left to the maintainer) followed 328 and 381 E3 as written.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Stale-review guard: after 0f6ff76c only this file, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md` change. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/390-table-readers`; open the PR against `main` (stacked on #74).
+Deferred: ratify W2–W6; push `v0.4.0` after merge (a release tag — stop-and-confirm); E1; merge after #74.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 44,709 |
+| 4 review | `challenger` (ticket-blind) | 1 | 64,894 |
+
+`LEDGER TOTAL: 109,603 · top cost driver: challenger`
