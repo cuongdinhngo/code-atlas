@@ -80,6 +80,39 @@ five control-flow questions drew no index calls with every tool available
 ([074](docs/benchmarks/074_mechanism-question.md)). It pays off on relationship questions, and an
 agent is far likelier to use it once told when to: install the [agent brief](#agent-brief-optional).
 
+## Architecture
+
+<img src="docs/assets/architecture.svg" alt="MCP client talks stdio to the language-agnostic core, which drives per-language adapters over a versioned JSONL contract, stores a symbol graph in SQLite, and feeds a deterministic onboarding layer with an opt-in LLM package behind three seams." width="100%">
+
+The core is language-agnostic — **no per-language branches, CI-gated**. Adapters parse files and
+emit a common `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and
+exposes the MCP tools. Everything runs offline against local SQLite, with incremental updates via
+`git diff`.
+
+### Languages
+
+| Language | Parser | Status |
+|---|---|---|
+| PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | **Available** — see [`adapters/php/`](adapters/php/) |
+| TypeScript / JavaScript (Node ≥ 18) | TypeScript compiler API | **Available** — see [`adapters/typescript/`](adapters/typescript/) |
+| T-SQL (Node ≥ 18) | purpose-built scanner, no production dependencies | **Available** — see [`adapters/sql/`](adapters/sql/) |
+| Python (≥ 3.12 grammar) | stdlib `ast` | **Available** — see [`adapters/python/`](adapters/python/) |
+| C# / .NET | Roslyn | Deferred — see [Roadmap](#roadmap) |
+
+**Resolution depth differs by adapter.** A `CALLS` edge the adapter could not pin to one
+definition is stamped `HEURISTIC` rather than guessed, and the share of those is the depth measure
+([`scripts/edge_health_report.py`](scripts/edge_health_report.py)); PHP is the depth standard:
+
+| Adapter | `HEURISTIC` share of `CALLS` | Pinned sample | Report |
+|---|---|---|---|
+| PHP | **1–4 %** | symfony/demo · brick/math · laravel | [137](docs/benchmarks/137_type-table.md) |
+| TypeScript/JavaScript | 54.1% | `ky` | [153](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
+| Python | 82.2% | `flask` | [227](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
+| T-SQL | not measured this way — floors and layer shape instead | SQL samples | [233](docs/benchmarks/233_sql-cross-repo.md) |
+
+Adding a language touches **no core code** — an adapter announces its own name, the file suffixes it
+owns and its capabilities on one handshake line, and the core routes files from that alone.
+
 ## Quick start
 
 **Platform: runs on Linux, macOS, and native Windows.** For heavy indexing on Windows, WSL2 on the
@@ -257,39 +290,6 @@ python3 scripts/setup.py /abs/path/to/your-project --write-agent-brief
 **Load requirement per host:** Cursor reads `AGENTS.md` directly. Claude Code reads only
 `CLAUDE.md` / `CLAUDE.local.md` — if `CLAUDE.md` lacks `@AGENTS.md`, the writer **prints** that
 one line to add and never edits `CLAUDE.md`.
-
-## Architecture
-
-<img src="docs/assets/architecture.svg" alt="MCP client talks stdio to the language-agnostic core, which drives per-language adapters over a versioned JSONL contract, stores a symbol graph in SQLite, and feeds a deterministic onboarding layer with an opt-in LLM package behind three seams." width="100%">
-
-The core is language-agnostic — **no per-language branches, CI-gated**. Adapters parse files and
-emit a common `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and
-exposes the MCP tools. Everything runs offline against local SQLite, with incremental updates via
-`git diff`.
-
-### Languages
-
-| Language | Parser | Status |
-|---|---|---|
-| PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | **Available** — see [`adapters/php/`](adapters/php/) |
-| TypeScript / JavaScript (Node ≥ 18) | TypeScript compiler API | **Available** — see [`adapters/typescript/`](adapters/typescript/) |
-| T-SQL (Node ≥ 18) | purpose-built scanner, no production dependencies | **Available** — see [`adapters/sql/`](adapters/sql/) |
-| Python (≥ 3.12 grammar) | stdlib `ast` | **Available** — see [`adapters/python/`](adapters/python/) |
-| C# / .NET | Roslyn | On the roadmap |
-
-**Resolution depth differs by adapter.** A `CALLS` edge the adapter could not pin to one
-definition is stamped `HEURISTIC` rather than guessed, and the share of those is the depth measure
-([`scripts/edge_health_report.py`](scripts/edge_health_report.py)); PHP is the depth standard:
-
-| Adapter | `HEURISTIC` share of `CALLS` | Pinned sample | Report |
-|---|---|---|---|
-| PHP | **1–4 %** | symfony/demo · brick/math · laravel | [137](docs/benchmarks/137_type-table.md) |
-| TypeScript/JavaScript | 54.1% | `ky` | [153](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
-| Python | 82.2% | `flask` | [227](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
-| T-SQL | not measured this way — floors and layer shape instead | SQL samples | [233](docs/benchmarks/233_sql-cross-repo.md) |
-
-Adding a language touches **no core code** — an adapter announces its own name, the file suffixes it
-owns and its capabilities on one handshake line, and the core routes files from that alone.
 
 ## What you can ask it
 
@@ -472,14 +472,13 @@ vulnerabilities go through [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-- **Core + PHP — shipped.** Full build → resolver → search/read/outline → scale → incremental → impact.
-- **Onboarding — shipped.** `architecture_overview`, `guided_tour` and `generate_onboarding` emit a
-  committable **system map** under `docs/onboarding/`: responsibility layers, dependency matrix,
-  hubs, a business-module table, mirror-subtree lookup, a bounded tour, and the zero-inbound
-  population split.
-- **More languages — TS/JS, T-SQL and Python shipped.** The second adapter was the contract's real
-  test and it passed **without a version bump** and without a line of core code — still one seam, no
-  registry. C#/.NET is next.
+- **Shipped.** Phase 1 (closed 2026-09-27): the core, the onboarding system map and four adapters —
+  PHP, TypeScript/JavaScript, T-SQL and Python — with **24 tools**. Phase 2 so far: releases
+  0.2.0–0.4.0 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
+- **Open.** Graph coverage and freshness work; each ticket and its gate is in
+  [`docs/BACKLOG.md`](docs/BACKLOG.md). Nothing is open on the onboarding map.
+- **Deferred.** The C#/.NET adapter — the only language left, held since 2026-08-04
+  ([plan §19](docs/PLAN.md#19-project-context--decision-log)).
 
 **Design principles.** SOLID **at the boundaries** (the axis of change is *languages*, expressed
 through one versioned contract) + **YAGNI** (one seam only) + **standard over sample** (adapters
