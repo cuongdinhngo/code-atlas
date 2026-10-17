@@ -4,7 +4,7 @@ slug: stub-or-alias
 title: 'read_symbol returns an empty-bodied base method or a test-bootstrap stub as the answer, and does not say where the real one is'
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [286, 252]
 ---
 
@@ -49,7 +49,7 @@ correct body of the wrong code:
 
 ## Session status
 
-- **KEY:** 394 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 394 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W4 and the M1 reading, runs E1, then merges after #73. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/394-stub-or-alias`, **stacked on `feat/389-worktree-overlay`** (both edit `read_symbol` /
@@ -195,3 +195,73 @@ replay F1–F3 · `expiry: when the anchor index is available to a maintainer ru
 ### Rollback
 
 `git revert`; nothing stored moves. Merge after #73 (stacked).
+
+## Phase 3 — execute
+
+Commits `67986060` (change + count pins), `5999aa26` (docs), `cbd54414` (challenger minors).
+
+**Red first.** The proving test against 389's tip (`ff0bab07`, a scratch copy): `3 failed, 2 passed in 7.36s` — the
+two passes are the non-regression guards (AC3 and the body-that-works case).
+
+**Green after.** `tests/test_symbol_pointers.py`: `6 passed in 6.51s`; `ruff check code_atlas`: `All checks passed!`;
+`mypy code_atlas/tools/symbol_pointers.py`: `Success`. Core-module pins, the proving test and doc budgets:
+`329 passed in 4.21s`. Ran at cbd54414.
+
+**Axis 1 — file set.** Change-list rows 1–7, nothing else. **Axis 2.** Approach bullets 1–4 implemented as approved.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: raw ticket plus `git diff feat/389-worktree-overlay..feat/394-stub-or-alias` without this
+file; 1 dispatch, 63,262 tokens): 9 met · 0 not met · 2 can't tell (E1).
+
+| # | Finding | Resolution |
+|---|---|---|
+| M1 | "reaches nothing" also covers `return 3;` | kept — H2's graph cue; TOOLS.md and the docstring say "a body that reaches nothing" (adjudicated, awaiting the maintainer) |
+| m1 | no test that two production rows plus a copy refuse | `test_two_production_definitions_and_a_copy_still_refuse` |
+| m2 | AC3 asserts key absence, not bytes | kept: absence of every pointer key is what AC3 can change |
+| m3 | a cut subtype page set no truncation flag | flagged (`cbd54414`) |
+| m4 | production-first is page-local | W4 |
+| m5 | overlay answers and pointers | the overlay path returns before the pointers attach |
+| m6 | alias directions capped unalike | both capped (`cbd54414`) |
+
+Verify-only round, main loop: fixes inside m1/m3/m6, the approved files only; `6 passed`. Ran at cbd54414.
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 / C1 | pointers read stored edges; `contract.ALIASES` names an existing kind | 1/1 |
+| R1 / AC1 | `test_ac1_…`, `test_a_method_with_a_body_…` | 2/2 |
+| R2 / AC2 | `test_ac2_…` | 1/1 |
+| R3 | `test_scope3_…`, `test_two_production_definitions_…` | 2/2 |
+| AC3 | `test_ac3_…` | 1/1 |
+| AC4 | E1 | 0/1 (excluded) |
+
+Reviewed at cbd54414 — files: change-list rows 1–6. Working doc: `docs/tasks/394_stub-or-alias.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** None new: the run reused stored edges and the existing test role; the one judgement (what "empty"
+means without a body grammar) is recorded as M1 for the maintainer, not as a claim.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Stale-review guard: after cbd54414 only this file, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md` change. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/394-stub-or-alias`; open the PR against `main` (stacked on #73).
+Deferred: ratify W2–W4 and M1; E1; merge after #73.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 44,371 |
+| 4 review | `challenger` (ticket-blind) | 1 | 63,262 |
+
+`LEDGER TOTAL: 107,633 · top cost driver: challenger`
