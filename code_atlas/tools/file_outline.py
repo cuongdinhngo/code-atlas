@@ -8,6 +8,7 @@ from typing import Literal
 
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
+from code_atlas.overlay import Overlay, active_overlay
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
@@ -44,7 +45,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``total_count`` is the file's full symbol count, not the page length — when the map is
         capped, ``truncated`` is true and ``result_kinds`` names how many symbols of each kind
         the file holds — omitted for a single-kind file, where it would restate ``total_count``
-        — so a one-page reader can see what the page omitted (067/123).
+        — so a one-page reader can see what the page omitted (067/123). Asked from another
+        worktree of this repo, a file that worktree changed or added is outlined from its bytes,
+        and the answer carries ``overlay: worktree`` (389).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -61,7 +64,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         rel = _repo_relative(config.root, path)
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
-            guard = FreshnessGuard(config, store)
+            overlay = active_overlay(config, store)
+            if overlay is not None:
+                rel = _repo_relative(overlay.root, rel)
+                if rel in overlay.changed:
+                    return _overlay_outline(overlay, rel, cap, offset, limit_clamped, detail_level)
+            guard = FreshnessGuard(config, store, trust_built=overlay is not None)
             # A path committed since the indexed commit is a named miss subject: repair it (360).
             if store.file_hash(rel) is None and guard.ensure_miss(rel) != "repaired":
                 return _result(
@@ -107,7 +115,36 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if truncated and kind_spread is not None:
             attach_result_kinds(payload, kind_spread)
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
-        return payload
+        return payload if overlay is None else overlay.label(payload)
+
+    def _overlay_outline(
+        overlay: Overlay,
+        rel: str,
+        cap: int,
+        offset: int,
+        limit_clamped: bool,
+        detail_level: str,
+    ) -> dict[str, object]:
+        """A file the worktree changed: its symbols as the worktree has them, parsed (389)."""
+        found = overlay.parsed(rel)
+        nodes = sorted(
+            found[0] if found is not None else [],
+            key=lambda n: (n.get("line_start") or 0, str(n.get("qualified_name"))),
+        )
+        page = [_hit(node) for node in nodes[offset : offset + cap]]
+        payload = _result(
+            rel,
+            page,
+            detail_level=detail_level,
+            db_path=str(config.db_path),
+            index_root=config.index_root,
+            truncated=offset + len(page) < len(nodes),
+            found=found is not None and (overlay.root / rel).is_file(),
+            reason=REASON_OK if found is not None else REASON_INDEX_STALE,
+            total_count=len(nodes),
+        )
+        attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+        return overlay.label(payload)
 
     return file_outline
 

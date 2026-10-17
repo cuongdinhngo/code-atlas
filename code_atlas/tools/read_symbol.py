@@ -13,6 +13,7 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.containment import resolves_inside
 from code_atlas.indexer import parse_file
 from code_atlas.onboarding.class_diagram import parse_json_field
+from code_atlas.overlay import active_overlay
 from code_atlas.source_slice import (
     BODY_LINE_THRESHOLD,
     clamp_line_range,
@@ -134,6 +135,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator),
         and one that drops every definition answers ``path_excluded`` with their files (339).
         An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
+        Asked from another worktree of this repo (MCP roots, or ``CA_CALLER_ROOT``), a subject in
+        a file that worktree changed is read from its bytes — span and body — and every answer
+        so read carries ``overlay: worktree`` and ``overlay_root`` (389).
         An indexed file that now resolves outside the repo (swapped for a symlink since the build)
         answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
 
@@ -183,7 +187,49 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 return attach_answered_about_ref(payload, about_ref)
 
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
-            guard = FreshnessGuard(config, store)
+            overlay = active_overlay(config, store)
+            built_file = str(rows[0]["file_path"]) if len(rows) == 1 else None
+            if overlay is not None and (built_file in overlay.changed or not rows):
+                # The worktree changed or added the subject's file: read the worktree's own parse.
+                worktree_node = overlay.find(qname, first=built_file)
+                if worktree_node is not None:
+                    rel = str(worktree_node["file_path"])
+                    start = _int(worktree_node["line_start"])
+                    payload = _found_body_payload(
+                        qname,
+                        overlay.root / rel,
+                        rel,
+                        start,
+                        _int(worktree_node["line_end"] or start),
+                        root=overlay.root,
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        reason=REASON_OK,
+                        stub=is_stub(worktree_node.get("extra")),
+                        body_opts=body_opts,
+                    )
+                    if detail_level == "standard":
+                        _attach_params(payload, store, dict(worktree_node), rel)
+                    overlay.label(payload)
+                    return attach_next_tools(payload, str(worktree_node["kind"]))
+                if built_file is not None:
+                    # Built, but the worktree no longer declares it — unless a file went unread.
+                    unread = overlay.truncated or overlay.parsed(built_file) is None
+                    return overlay.label(
+                        stamped_result(
+                            qname,
+                            "",
+                            detail_level=detail_level,
+                            db_path=str(config.db_path),
+                            index_root=config.index_root,
+                            found=False,
+                            stale=unread,
+                            reason=REASON_INDEX_STALE if unread else REASON_NO_SUCH_SYMBOL,
+                        )
+                    )
+            # Under an overlay the built rows stand: the index checkout's drift is not the caller's.
+            guard = FreshnessGuard(config, store, trust_built=overlay is not None)
             if not rows:
                 status = guard.ensure_miss(miss_subject_path(store, qname, limit=config.page_limit))
                 if status == "stale":
@@ -291,7 +337,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 node = rows[0]
                 rel = str(node["file_path"])
-            path = config.root / rel
+            # An unchanged file's bytes are the built commit's in the worktree too: read them there.
+            body_root = config.root if overlay is None else overlay.root
+            path = body_root / rel
             start_raw = node["line_start"]
             if not isinstance(start_raw, int):
                 raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")
@@ -305,7 +353,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     rel,
                     start,
                     end,
-                    root=config.root,
+                    root=body_root,
                     detail_level=detail_level,
                     db_path=str(config.db_path),
                     index_root=config.index_root,
@@ -333,9 +381,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 name=str(node["name"]),
             )
             attach_other_indexed_files_drifted(payload, guard)
+            if overlay is not None:
+                overlay.label(payload)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _int(value: object) -> int:
+    """A stored or parsed line number, which is always an int by the contract."""
+    if not isinstance(value, int):
+        raise TypeError(f"line must be int, got {type(value).__name__}")
+    return value
 
 
 def _parsed_node(config: Config, rel: str, qname: str) -> dict[str, object] | None:

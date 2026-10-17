@@ -104,6 +104,8 @@ class FreshnessGuard:
     config: Config
     store: GraphStore
     cap: int = READ_THROUGH_CAP
+    # A worktree overlay answers for the caller's drift; the index checkout's never repairs (389).
+    trust_built: bool = False
     _used: int = field(default=0, init=False)
     other_indexed_files_drifted: int = field(default=0, init=False)
     # A writer held the DB when a repair was due: the refresh is the repair (365).
@@ -116,7 +118,7 @@ class FreshnessGuard:
 
     def ensure(self, path: str) -> EnsureResult:
         """Return ``ok`` if current, ``repaired`` after a successful reparse, else ``stale``."""
-        if not path:
+        if not path or self.trust_built:
             return "ok"
         # Missing on disk: cannot vouch for indexed rows (planted fixtures must write real bytes).
         if not (self.config.root / path).is_file():
@@ -152,6 +154,8 @@ class FreshnessGuard:
         without spending the cap (073). Requires git ``dirty_paths``; outside a repo returns ``ok``.
         """
         self.other_indexed_files_drifted = 0
+        if self.trust_built:
+            return "ok"
         candidates = dirty_indexed_paths(self.store, self.config)
         if not candidates:
             return "ok"
@@ -269,7 +273,7 @@ class SubjectRead:
 
 
 def read_subject(
-    config: Config, store: GraphStore, qname: str, *, serve_behind: bool
+    config: Config, store: GraphStore, qname: str, *, serve_behind: bool, trust_built: bool = False
 ) -> SubjectRead:
     """The freshness preamble ``find_callers`` and ``find_references`` share (R1.8, 388).
 
@@ -280,7 +284,7 @@ def read_subject(
     staleness = compute_staleness(store, config, include_dirty_count=True)
     dirty = dirty_indexed_paths(store, config) if staleness.get("staleness") == BEHIND else []
     built = store.nodes_by_qualified_name(qname, limit=1)
-    guard = FreshnessGuard(config, store)
+    guard = FreshnessGuard(config, store, trust_built=trust_built)
     freshness = guard.ensure_qname(qname)
     if freshness == "stale" and guard.build_held:
         serve_behind = True  # 365: the writer holding the DB is the repair
