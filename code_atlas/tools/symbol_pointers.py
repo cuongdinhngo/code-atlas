@@ -43,9 +43,11 @@ def implemented_by(store: GraphStore, node: Mapping[str, object] | Row) -> dict[
     for _ in range(_DESCENT_LEVELS):
         children = []
         for parent in level:
-            for edge in store.edges_by_target(
+            edges = store.edges_by_target(
                 parent, kinds=contract.IMPL_KINDS, limit=IMPLEMENTED_BY_CAP + 1
-            ):
+            )
+            truncated = truncated or len(edges) > IMPLEMENTED_BY_CAP  # subtypes went unread
+            for edge in edges[:IMPLEMENTED_BY_CAP]:
                 child = str(edge["source_qname"])
                 if child not in seen:
                     seen.add(child)
@@ -102,7 +104,7 @@ def aliases(store: GraphStore, qname: str) -> list[dict[str, object]]:
     entries: list[dict[str, object]] = []
     for edge in store.edges_by_source(qname, kinds=(contract.ALIASES,), limit=IMPLEMENTED_BY_CAP):
         entries.append(_alias(store, edge, str(edge["target_raw"]), "alias_of"))
-    for edge in store.edges_by_target_raw(qname, kinds=(contract.ALIASES,)):
+    for edge in store.edges_by_target_raw(qname, kinds=(contract.ALIASES,))[:IMPLEMENTED_BY_CAP]:
         entries.append(_alias(store, edge, str(edge["source_qname"]), "aliased_as"))
     return entries
 

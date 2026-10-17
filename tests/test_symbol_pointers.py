@@ -121,3 +121,22 @@ def test_a_method_with_a_body_carries_no_implemented_by(tmp_path: Path) -> None:
     )
     payload = read_symbol.create(config)("\\App\\Base::render")
     assert "implemented_by" not in payload, payload
+
+
+@needs_php
+def test_two_production_definitions_and_a_copy_still_refuse(tmp_path: Path) -> None:
+    """Challenger m1 — only one production row plus test copies answers; any other mix refuses."""
+    config = _built(tmp_path)
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "more.php").write_text("<?php\nfunction helper() { return 2; }\n")
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    with GraphStore(config.db_path) as store:
+        assert full_build(config, store).failed == 0
+    payload = read_symbol.create(config)("\\helper")
+    assert payload["reason"] == "subject_ambiguous", payload
+    assert "ambiguity" not in payload
