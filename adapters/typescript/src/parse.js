@@ -374,8 +374,8 @@ function parseFile(path, declarationsOnly) {
       if (args !== null) {
         row.args = args;
         row.arg_keys = argKeys(call);
-        const strings = argStrings(call);
-        if (strings.some((value) => value !== null)) row.arg_strings = strings;
+        // Present whenever a string is passed: a null then means "no value" (398).
+        if (args.includes("string")) row.arg_strings = argStrings(call);
       }
     }
     edges.push(row);

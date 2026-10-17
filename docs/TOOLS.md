@@ -355,8 +355,8 @@ A call whose target is a **string argument** — `Widget::make('SaveButton')`, `
 A `keyed_calls` rule models it: every call to `setter` whose argument `key_arg` is a string literal
 gets a HEURISTIC `CALLS` edge (or the rule's `kind`) to `target_template` with `{key}` replaced by
 the literal. Hits carry `rule: true`. The key is read from the edge (`arg_strings`, contract 16), so
-a wrapped call and two calls on a line each name theirs; an index whose adapter captured no value
-reads the call's first line, as before (398).
+a wrapped call and two calls on a line each name theirs; where the field is absent (SQL, whose
+scanner masks literals, or an older index) the call's first line is read, as before (398).
 
 ```json
 {"keyed_calls": [
@@ -390,11 +390,11 @@ reads the call's first line, as before (398).
   proc its schema — and may name a File (256). Several rules may share a setter; a literal links
   under whichever one names a real symbol.
 - **Nothing is invented:** only an argument that is one whole literal names a key — a variable or a
-  concatenation emits nothing. A literal that names no indexed symbol (an interpolated `"x$v"`
-  included) stays unlinked. The build report counts three misses: `rule_keys_unresolved` (call sites
-  linked under no rule), `rules_unresolved` (rules that linked nothing at all) and, per rule,
-  `keys_unread` (a string literal where the key is, yet no key read — an interpolated literal on a
-  wrapped call); `get_index_status` (standard) repeats `keys_unread`.
+  concatenation emits nothing. A literal that names no indexed symbol stays unlinked. The build
+  report counts three misses: `rule_keys_unresolved` (call sites linked under no rule),
+  `rules_unresolved` (rules that linked nothing at all) and, per rule, `keys_unread` (a string
+  literal where the key is, yet no key read — an interpolated `"x$v"`, or one over 256 characters);
+  `get_index_status` (standard) repeats `keys_unread`.
 - **A route a front controller dispatches at run time (385).** `routes` declares URL → handler as
   data — inline `table` rows `{key, target}`, or a `tsv` census used as is through `columns`
   (`{"key": "url", "target": "handler"}`). `significant` names the query keys that decide a route;

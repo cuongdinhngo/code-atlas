@@ -700,9 +700,9 @@ def parse_file(
             if args is not None:
                 row["args"] = args
                 row["arg_keys"] = _arg_keys(call)
-                values = [_string_value(a) for a in call.args]
-                if any(value is not None for value in values):
-                    row["arg_strings"] = values
+                if "string" in args:
+                    # Present whenever a string is passed: a null then means "no value" (398).
+                    row["arg_strings"] = [_string_value(a) for a in call.args]
             kwargs = _kwarg_literals(call)
             if kwargs is not None:
                 row["kwargs"] = kwargs

@@ -1180,9 +1180,9 @@ final class Visitor extends NodeVisitorAbstract
         if ($call !== null && ($args = self::argLiterals($call)) !== null) {
             $edge['args'] = $args;
             $edge['arg_keys'] = self::argKeys($call);
-            $strings = self::argStrings($call);
-            if (array_filter($strings, static fn (?string $value): bool => $value !== null) !== []) {
-                $edge['arg_strings'] = $strings;
+            // Present whenever a string is passed: a null then means "no value" (398).
+            if (in_array('string', $args, true)) {
+                $edge['arg_strings'] = self::argStrings($call);
             }
             // PHP 8 named arguments (398): a keyword has no position, so it rides `kwargs`.
             $edge['kwargs'] = (object) self::kwargLiterals($call);

@@ -626,10 +626,11 @@ def _keys_for_rule(
     if not key_arg or not _arg_is_string(args, key_arg):
         return []
     captured = _parse_list(edge.get(contract.ARG_STRINGS_FIELD))
-    held = captured[key_arg - 1] if captured is not None and key_arg <= len(captured) else None
-    if isinstance(held, str):
-        # The adapter read the literal, wrapped or not, one call of many on its line (398).
-        return [held] if held else []
+    if captured is not None:
+        # The adapter read the literal, wrapped or not, one call of many on its line; a null is
+        # one it could not value (interpolated, too long), never re-read from the line (398).
+        held = captured[key_arg - 1] if key_arg <= len(captured) else None
+        return [held] if isinstance(held, str) and held else []
     text = _line_text(config.root, rel, line, line_cache)
     argument = _call_argument(text, edge.get("target_raw"), key_arg) if text is not None else None
     if argument is None or _STRING_LIT.fullmatch(argument) is None:

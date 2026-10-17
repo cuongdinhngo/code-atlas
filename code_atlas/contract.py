@@ -230,8 +230,8 @@ ARG_KEYS_FIELD = "arg_keys"
 # entry. `{}` = recorded, none passed; absent = not recorded (another language, or a `**` spread).
 KWARGS_FIELD = "kwargs"
 # The value of a plain string literal argument (contract v16, task 398): ``arg_strings`` parallel to
-# ``args`` (null where no value was captured), ``kwarg_strings`` keyword → value. Absent = none
-# captured. An interpolated string, or one longer than ARG_STRING_MAX, has no value.
+# ``args``, present whenever a ``string`` is passed (null = no value: interpolated, or longer than
+# ARG_STRING_MAX); ``kwarg_strings`` keyword → value. Absent = an adapter that captures none.
 ARG_STRINGS_FIELD = "arg_strings"
 KWARG_STRINGS_FIELD = "kwarg_strings"
 ARG_STRING_MAX = 256

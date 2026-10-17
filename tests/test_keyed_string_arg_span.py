@@ -25,6 +25,9 @@ from code_atlas.tools import find_references, get_index_status
 from tests.php_adapter_cli import CLI as PHP_CLI
 from tests.php_adapter_cli import ENTRY as PHP_ENTRY
 from tests.php_adapter_cli import PHP, needs_php
+from tests.python_adapter_cli import CLI as PY_CLI
+from tests.sql_adapter_cli import CLI as SQL_CLI
+from tests.ts_adapter_cli import CLI as TS_CLI
 
 NODE = shutil.which("node")
 SQL_ENTRY = Path(__file__).resolve().parent.parent / "adapters" / "sql" / "index.js"
@@ -128,7 +131,7 @@ def test_ac3_a_variable_key_links_nothing_and_is_not_unread(
         "kind": "WRITES",
         "key_arg": 1,
         "key_kw": "table",
-        "keys_unread": 0,
+        "keys_unread": 1,  # `"Items_$id"`: a string literal with no value, on one line or many
     }
     status = get_index_status.create(config, (get_index_status.NAME,))()
     assert status["keys_unread"] == [census]
@@ -162,7 +165,7 @@ def test_the_php_adapter_captures_values_and_named_arguments(tmp_path: Path) -> 
 @needs_php
 @needs_node
 def test_an_interpolated_key_is_counted_unread(tmp_path: Path) -> None:
-    """Scope 4: a string literal the adapter cannot value, and the line cannot either, is counted."""
+    """Scope 4: a string literal the adapter could not value is counted, wrapped or not."""
     rules = {"keyed_calls": [{**RULES["keyed_calls"][0], "key_kw": None}]}
     del rules["keyed_calls"][0]["key_kw"]
     page = "<?php\nfunction f($id, $row) {\n    insertRow(\n        \"Items_$id\", $row);\n}\n"
@@ -199,4 +202,55 @@ def test_a_key_the_pattern_refuses_is_not_unread(tmp_path: Path) -> None:
     rule = {**RULES["keyed_calls"][0], "key_pattern": "^(Items)$"}
     _, report = _build(tmp_path, {"keyed_calls": [rule]})
 
-    assert report.keys_unread[0]["keys_unread"] == 0
+    assert report.keys_unread[0]["keys_unread"] == 1  # `"Items_$id"` only; Orders/Lines were read
+
+
+def _edges_by_target(payload: dict[str, Any]) -> dict[str, Any]:
+    return {str(e["target_raw"]).rsplit(".", 1)[-1]: e for e in payload["edges"] if e.get("args")}
+
+
+def test_challenger_the_python_adapter_captures_values(tmp_path: Path) -> None:
+    """Challenger M2: each `args` adapter emits the field; a null is a string with no value."""
+    page = tmp_path / "p.py"
+    source = "def run(v):\n    put(\n        'a',\n        f'b{v}',\n        key='k',\n    )\n"
+    page.write_text(source)
+    edge = _edges_by_target(PY_CLI.parse_file(str(page)))["put"]
+
+    assert edge["args"] == ["string", "string"]
+    assert edge[contract.ARG_STRINGS_FIELD] == ["a", None]
+    assert edge[contract.KWARG_STRINGS_FIELD] == {"key": "k"}
+
+
+@TS_CLI.availability
+def test_challenger_the_typescript_adapter_captures_values(tmp_path: Path) -> None:
+    page = tmp_path / "p.ts"
+    page.write_text("function run(v: string) {\n  put(\n    'a',\n    `b${v}`,\n    3);\n}\n")
+    edge = _edges_by_target(TS_CLI.parse_file(str(page)))["put"]
+
+    assert edge[contract.ARG_STRINGS_FIELD] == ["a", None, None]
+
+
+@SQL_CLI.availability
+def test_challenger_the_sql_adapter_keeps_the_line_read(tmp_path: Path) -> None:
+    """W6: the SQL scanner masks a literal's body before it reads EXEC args, so it captures none."""
+    page = tmp_path / "p.sql"
+    page.write_text("CREATE PROCEDURE dbo.A AS\n    EXEC dbo.B @name = N'x', @n = 3;\nGO\n")
+    edge = _edges_by_target(SQL_CLI.parse_file(str(page)))["B"]
+
+    assert edge["args"] == ["string", "number"]
+    assert contract.ARG_STRINGS_FIELD not in edge  # absent: the core reads the line, as before
+
+
+def test_challenger_ac5_an_edge_without_values_reads_the_line_as_before(tmp_path: Path) -> None:
+    """AC5: a pre-bump edge (no `arg_strings`) still names a one-line key from its source line."""
+    from code_atlas.enrichment import _keys_for_rule
+
+    (tmp_path / "a.php").write_text("<?php\ninsertRow('Items', $row);\n", encoding="utf-8")
+    config = load_config(tmp_path, {})
+    edge: dict[str, object] = {"target_raw": "\\insertRow", "args": ["string", None]}
+
+    keys = _keys_for_rule(config, edge, edge["args"], 1, "string", "a.php", 2, {})
+    unvalued = {**edge, contract.ARG_STRINGS_FIELD: [None, None]}
+    none = _keys_for_rule(config, unvalued, edge["args"], 1, "string", "a.php", 2, {})
+
+    assert (keys, none) == (["Items"], [])  # a v16 null is never re-read from the line
