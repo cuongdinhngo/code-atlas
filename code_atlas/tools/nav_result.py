@@ -10,8 +10,9 @@ from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract
 from code_atlas.build_info import maybe_server_provenance, server_provenance
+from code_atlas.config import Config
 from code_atlas.contract import CONFIDENCE_TIERS
-from code_atlas.enrichment import is_rule_edge_kind, is_rule_edge_path
+from code_atlas.enrichment import is_rule_edge_kind, is_rule_edge_path, rules_drift
 from code_atlas.store import GraphStore, Row
 
 _RESOLVED = CONFIDENCE_TIERS[0]
@@ -48,6 +49,7 @@ NavReason = Literal[
     "path_excluded",
     "path_outside_root",
     "ref_mismatch",
+    "rules_stale",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -111,6 +113,9 @@ REASON_PATH_EXCLUDED: NavReason = "path_excluded"
 REASON_PATH_OUTSIDE_ROOT: NavReason = "path_outside_root"
 # The client works in another checkout of this repo, at a commit the index was not built at (366).
 REASON_REF_MISMATCH: NavReason = "ref_mismatch"
+# Rows fed by a rule file that changed since the build; an incremental re-applies it (396).
+REASON_RULES_STALE: NavReason = "rules_stale"
+RULES_STALE_FIELD = "rules_stale"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -144,6 +149,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_PATH_EXCLUDED,
     REASON_PATH_OUTSIDE_ROOT,
     REASON_REF_MISMATCH,
+    REASON_RULES_STALE,
 )
 
 def require_path_prefix(path_prefix: str | None) -> str | None:
@@ -299,6 +305,29 @@ TRY_INSTEAD_HINT_IMPACT_BY_QNAME = (
 NEXT_TOOLS_FOR_CALLABLE: tuple[str, ...] = ("find_callers", "impact")
 # Class / Interface — the roster step the round-26 retro walked past (285 / 158).
 NEXT_TOOLS_FOR_TYPE: tuple[str, ...] = ("find_implementations",)
+
+
+def has_rule_hit(results: Sequence[Mapping[str, Any]]) -> bool:
+    """True when any hit came from a rule edge (``rule: true``) — the answer is rule-fed (396)."""
+    return any(hit.get(contract.RULE_FLAG) is True for hit in results)
+
+
+def attach_rules_stale(
+    payload: dict[str, object], config: Config, *, relabel: bool = True
+) -> dict[str, object]:
+    """Flag a rule-fed answer whose index was built under other rules; rows are kept (396).
+
+    ``relabel`` turns ``ok`` into ``rules_stale`` when the rows themselves come from a rule; a
+    route side-field only gets the flag. Any other reason stays, so the answer is never ``ok``.
+    """
+    with GraphStore(config.db_path) as store:
+        drift = rules_drift(config, store)
+    if drift is None:
+        return payload
+    payload[RULES_STALE_FIELD] = True
+    if relabel and payload.get("reason") == REASON_OK:
+        payload["reason"] = REASON_RULES_STALE
+    return payload
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:

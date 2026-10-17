@@ -20,6 +20,7 @@ from code_atlas.tools.nav_result import (
     answered_about_ref_for,
     attach_limit_capped,
     attach_resolved_qname,
+    attach_rules_stale,
     attach_try_instead,
     classify_missing_subject,
     edge_hit,
@@ -152,6 +153,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 result["subject_refreshed_only"] = True
             attach_limit_capped(result, cap=cap, clamped=limit_clamped)
             attach_resolved_qname(result, asked=asked, answered=lookup)
+            if config.indirection_rules is not None or total:
+                attach_rules_stale(result, config)
             return attach_coverage_note(result, config, covered, detail_level=detail_level)
 
     return find_view_data

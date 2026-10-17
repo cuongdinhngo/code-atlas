@@ -38,12 +38,14 @@ from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.enrichment import (
     INDIRECTION_FILE,
+    RULES_DIGEST_KEY,
     RulesPayload,
     apply_indirection_rules,
     count_unresolved_keyed_calls,
     count_unresolved_keyed_sites,
     load_indirection_rules,
     publish_routes,
+    rules_digest,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
 from code_atlas.resolver import delta_scope, resolve_edges
@@ -203,6 +205,8 @@ class BuildReport:
     rule_keys_unresolved: int = 0
     # Declared route rows whose target names no indexed symbol or file (task 385).
     routes_unresolved: int = 0
+    # An incremental re-applied the rules because their digest moved since the last build (396).
+    rules_reapplied: bool = False
 
 
 def full_build(
@@ -328,6 +332,7 @@ def _fill(
         rules_unresolved=counts.pop("rules_unresolved", 0),
         rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
         routes_unresolved=counts.pop("routes_unresolved", 0),
+        rules_reapplied=False,
         **counts,
     )
 
@@ -598,10 +603,13 @@ def incremental_update(
     # A true no-op (nothing parsed, nothing reconciled) leaves the graph unchanged, so the late
     # writers would only re-derive rows already present — full-graph work that was the ~56 s floor
     # and the 6,071-edge no-op number (task 080). Skip them; ``wrote.*`` then means the delta.
+    # A moved rules digest is not a no-op: the rule rows are re-derived with no parse (396).
+    reapply = (store.get_meta(RULES_DIGEST_KEY) or "") != rules_digest(rules)
     if to_parse or removed:
         # Scope the fold to what this delta touched — before and after the parse, since a
         # newly added ALTER file's qnames were in neither the old graph nor `affected`.
         store.fold_column_extras(sorted(affected | set(store.qnames_in_files(to_parse))))
+    if to_parse or removed or reapply:
         _count_late_writes(
             counts,
             config,
@@ -641,6 +649,7 @@ def incremental_update(
         rules_unresolved=counts.pop("rules_unresolved", 0),
         rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
         routes_unresolved=counts.pop("routes_unresolved", 0),
+        rules_reapplied=reapply,
         **counts,
     )
 
@@ -713,6 +722,7 @@ def _count_late_writes(
         store, enriched.keyed_call_sites
     )
     counts["routes_unresolved"] = publish_routes(store, rules)
+    store.set_meta(RULES_DIGEST_KEY, rules_digest(rules))
 
 
 def parse_file(config: Config, path: str) -> tuple[str, ParseResult] | None:
