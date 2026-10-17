@@ -669,7 +669,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_authoritative_caveats(result, caveats)
         if overlay is not None:
             labelled = overlay_inbound(
-                overlay, result, lookup, None, depth=1, offset=offset, limit=cap
+                overlay, result, lookup, None, depth=1, offset=offset
             )
         else:
             labelled = label_behind(

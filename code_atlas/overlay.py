@@ -175,14 +175,13 @@ def overlay_inbound(
     *,
     depth: int,
     offset: int,
-    limit: int,
 ) -> dict[str, object]:
     """Swap this page's rows from changed files for the worktree's own edges onto ``subject``.
 
     A worktree edge counts when its ``target_raw`` names the stored qname; at depth > 1 only the
-    first hop is the worktree's; ``kinds=None`` reads every inbound kind but containment. The
-    worktree's edges head the stream, so only the ``offset=0`` page carries them, capped at
-    ``limit``. The answer is labelled ``worktree_overlay``, never ``ok``.
+    first hop is the worktree's; ``kinds=None`` reads every inbound kind but containment. Only
+    the ``offset=0`` page carries the worktree's edges, ahead of the built page's full
+    rows, so built paging never skips a row. The answer is labelled ``worktree_overlay``.
     """
     rows = payload.get("results")
     if not isinstance(rows, list):
@@ -220,10 +219,8 @@ def overlay_inbound(
         payload[OVERLAY_UNLINKED_FIELD] = unlinked
     swapped = len(rows) - len(kept)
     if added or swapped:
-        page = added + kept if offset == 0 else kept
-        payload["results"] = page[:limit]
-        if len(page) > limit:
-            payload["truncated"] = True
+        # Cutting page 0 to ``limit`` would drop built rows the next offset never returns.
+        payload["results"] = added + kept if offset == 0 else kept
         total = payload.get("total_count")
         if isinstance(total, int):
             payload["total_count"] = max(total - swapped + len(added), len(added) + len(kept))

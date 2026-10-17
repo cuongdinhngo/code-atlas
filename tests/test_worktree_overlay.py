@@ -202,8 +202,10 @@ def test_challenger_main_repairing_its_own_drift_does_not_move_the_worktree(
 
 
 @needs_php
-def test_review_worktree_edges_head_only_the_first_page_and_respect_limit(tmp_path: Path) -> None:
-    """PR #73 review — a later page never repeats the worktree's edges; no page exceeds limit."""
+def test_review_worktree_edges_head_only_the_first_page_and_skip_no_built_row(
+    tmp_path: Path,
+) -> None:
+    """PR #73 review — a later page never repeats the worktree's edges; no built row is lost."""
     main, worktree = _main_and_worktree(tmp_path)
     _write(
         worktree,
@@ -213,8 +215,8 @@ def test_review_worktree_edges_head_only_the_first_page_and_respect_limit(tmp_pa
     tool = find_callers.create(_in(main, worktree))
     first = tool("\\App\\Service::run", detail_level="minimal", limit=1)
     rows = first["results"]
-    assert isinstance(rows, list) and [r["qname"] for r in rows] == ["\\App\\Extra::also"], first
-    assert first["truncated"] is True
+    assert isinstance(rows, list) and rows[0]["qname"] == "\\App\\Extra::also", first
+    assert len(rows) == 2, first  # the built page's one row rides behind the worktree's
     later = tool("\\App\\Service::run", detail_level="minimal", limit=1, offset=1)
     rows = later["results"]
     assert isinstance(rows, list) and len(rows) <= 1, later
