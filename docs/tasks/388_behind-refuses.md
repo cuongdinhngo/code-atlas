@@ -4,7 +4,7 @@ slug: behind-refuses
 title: 'With no build running, a behind index still refuses find_callers and find_references, and it is the most common reason an agent falls back to Grep'
 phase: 2
 milestone: Freshness
-status: todo
+status: done
 depends_on: [257, 267, 274, 365]
 ---
 
@@ -59,7 +59,7 @@ the evidence that the opt-in itself is the cost: an agent rarely passes the flag
 
 ## Session status
 
-- **KEY:** 388 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 388 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W3–W5 and 388-C1, runs E1's anchor replay, then merges the PR. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: L` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/388-behind-refuses` off `main`. Contract `.mango/run-contract-388.txt`.
@@ -264,3 +264,95 @@ non-regression guard), green after.
 
 `git revert` the branch's commits; nothing persisted changes shape — no schema, contract or meta key. `SCOPE: L`
 holds: six modules, as declared at analysis.
+
+## Phase 3 — execute
+
+Commits `2807e084` (the change and its proof collateral), `354d3449` (docs), `7e7f9bd2` (layout of two new list
+literals), `505a564a` (challenger minor 3).
+
+**Red first.** The proving test against `main`'s code (a scratch copy, imports pointed at `main`):
+`7 failed, 1 passed in 6.53s` — AC5 green as the non-regression guard. Ran at daa6baa0.
+
+**Green after.** `.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_behind_index_serves.py`:
+`8 passed in 2.48s`. `ruff check code_atlas tests scripts`: `All checks passed!` · `mypy code_atlas`:
+`Success: no issues found in 101 source files`. Ran at 26697466.
+
+**Axis 1 — file set.** `git diff --name-only main..HEAD` lists exactly change-list rows 1–8 (31 files); nothing else.
+`ruff format --check` over the changed Python files: 16 already unformatted on `main` (left alone, R7.7); the two
+hunks this change made unformatted (`tests/test_reads_during_a_refresh.py`, the new test) were laid out by hand in
+`7e7f9bd2`.
+
+**Axis 2 — design conformance.**
+
+| Approach bullet | Result |
+|---|---|
+| 1 `read_subject` shared preamble, refuse / unrepaired / removed | implemented-as-approved |
+| 2 `label_behind`, no opt-in, current index untouched | implemented-as-approved |
+| 3 removed reason, exact-call hint | implemented-as-approved |
+| 4 `source_stale`, unvouched miss, sweep keys | implemented-as-approved |
+| 5 all-serve routes, `behind_because`, summary | implemented-as-approved |
+| 6 docs | implemented-as-approved |
+
+No deviation, no design invalidation.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: the raw ticket above the separator plus `git diff main..branch` without this file;
+1 dispatch, 80,998 tokens): 11 met · 0 not met · 2 can't tell (Scope 1, AC-field: E1). Four Minor findings:
+
+| # | Finding | Resolution |
+|---|---|---|
+| F1 | staleness is now read on every inbound call | W5, measured (5.7 + 3.5 ms on 718 files); kept |
+| F2 | a symbol moved into a file not yet re-read reads as removed | wording: "its built file no longer declares", in the docstring and TOOLS.md (`505a564a`) |
+| F3 | removed + no revision to stamp (off git) fell through to an unlabelled `ok` | fixed in `505a564a`; `test_a_removed_subject_keeps_its_label_with_no_revision_to_stamp` red on the old labeller (`1 failed`), green after |
+| F4 | a repairable changed subject still answers `ok` | 257's rule (H3); TOOLS.md says "cannot be re-read" |
+
+Verify-only round, main loop: the fixes stay inside F2–F3 and the approved files. Affected proof re-run:
+`13 passed in 2.96s` (the proving test and `test_actionable_stale_warnings`). Ran at 505a564a.
+
+**Scope.** File axis: the change-list files, nothing else. Behaviour axis: the six Approach bullets as approved.
+Regression scan: every consumer the mechanical trace found is in the gate's `pytest -q`.
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 / C1 | `test_ac1_…`, `test_unchanged_subjects_answer_the_same_held_or_free` | 1/1 |
+| R1 / AC6 | E1 — the maintainer's anchor replay | 0/1 (excluded) |
+| R2 / AC1 | `test_ac1_unchanged_subject_answers_index_behind_with_the_built_revision` | 1/1 |
+| R3 / AC2 | `test_ac2_changed_subject_refusal_names_the_exact_serve_behind_call` | 1/1 |
+| R4 / AC3 | `test_ac3_search_on_a_behind_index_never_answers_index_stale`, `test_ac3_a_sweep_names_…` | 2/2 |
+| R5 | `test_f2_status_names_the_paths_that_made_it_behind` | 1/1 |
+| R6 / AC4 | `test_ac4_a_deleted_method_…`, `test_ac4_a_deleted_file_…`, `test_a_removed_subject_keeps_its_label_…` | 3/3 |
+| AC5 | `test_ac5_a_current_index_carries_no_behind_label`, `test_behind_status_routes::test_current_index_status_byte_identical` | 2/2 |
+
+Reviewed at 505a564a — files: the 31 change-list files of rows 1–8. Working doc: `docs/tasks/388_behind-refuses.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** `get_index_status` listed `find_callers` / `find_references` under `behind_refuses` from a static
+list, while the tools themselves answered `ok` for every unchanged subject — the status told an agent to Grep for
+answers the tools gave. Recorded as 388-C1.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Stale-review guard: `git diff --name-only 505a564a..HEAD` touches only this file, `docs/LESSONS.md`,
+`docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md` — bookkeeping. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/388-behind-refuses`; open the PR against `main`.
+Deferred to the maintainer: ratify W3–W5 and 388-C1's classification; run E1's anchor replay; merge.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 46,743 |
+| 4 review | `challenger` (ticket-blind) | 1 | 80,998 |
+
+`LEDGER TOTAL: 127,741 · top cost driver: challenger`

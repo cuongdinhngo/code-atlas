@@ -45,6 +45,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 388-C1 — a status that names what a tool refuses must ask the tool's own predicate
+
+- type: 2 (code) · handle: `a-route-list-must-come-from-the-tools-verdict`
+- status: proposed · seen: 388
+- evidence: `get_index_status` put `find_callers` / `find_references` under `behind_refuses` from a constant list
+  whenever the index was behind, yet both answered `ok` for every unchanged subject (reproduced on `main` daa6baa0);
+  six anchor PRs fell back to Grep. R1.8 covers two sites branching on one verdict; this site never consulted the
+  verdict at all. 365 had fixed the held case the same way, by calling the guard's predicate.
+- destination: first sighting.
+
 ### 387-C1 — a surface reached only from a shell is invisible to an agent until its brief names it
 
 - type: 2 (process) · handle: `a-shell-surface-needs-an-agent-channel`
