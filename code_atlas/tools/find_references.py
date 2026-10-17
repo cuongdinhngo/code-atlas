@@ -429,7 +429,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         answered_about_ref=about_ref,
                     )
                     shaped = shape_exact_miss(miss, resolution)
-                    finalize_subject_checked_miss(shaped, guard)
+                    finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
                         stamped,
