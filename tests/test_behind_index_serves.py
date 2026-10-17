@@ -201,7 +201,10 @@ def test_f2_status_names_the_paths_that_made_it_behind(tmp_path: Path) -> None:
         {"path": "lib/other2.php", "change": "deleted"},
     ]
     assert status["behind_serves"] == [
-        "search_symbol", "read_symbol", "find_callers", "find_references",
+        "search_symbol",
+        "read_symbol",
+        "find_callers",
+        "find_references",
     ]
     assert "behind_refuses" not in status
 

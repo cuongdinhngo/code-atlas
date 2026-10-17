@@ -202,7 +202,9 @@ def test_unchanged_subjects_answer_the_same_held_or_free(built: tuple[Config, st
     assert held == [tool() for tool in tools]
     # 388: the inbound pair label the behind graph whether or not a build holds it.
     assert [answer["reason"] for answer in held] == [
-        REASON_INDEX_BEHIND, REASON_INDEX_BEHIND, REASON_OK,
+        REASON_INDEX_BEHIND,
+        REASON_INDEX_BEHIND,
+        REASON_OK,
     ]
 
 
