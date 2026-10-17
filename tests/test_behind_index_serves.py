@@ -14,6 +14,7 @@ from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, find_references, get_index_status, search_symbol
 from code_atlas.tools.claim import REV_CHARS
+from code_atlas.tools.freshness import label_behind
 from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
@@ -224,3 +225,16 @@ def test_ac5_a_current_index_carries_no_behind_label(tmp_path: Path) -> None:
     assert answers[0]["reason"] == REASON_OK
     assert answers[1]["reason"] == REASON_OK
     assert "behind_serves" not in _status(config)
+
+
+def test_a_removed_subject_keeps_its_label_with_no_revision_to_stamp() -> None:
+    """Challenger minor 3 — off git there is no revision, but a removed subject is never ``ok``."""
+    payload = label_behind(
+        {"reason": REASON_OK, "results": [{"qname": "A::b"}]},
+        subject_path=None,
+        revision={"staleness": "unknown", "last_commit": None},
+        dirty_paths=[],
+        subject_removed=True,
+    )
+    assert payload["reason"] == REASON_INDEX_BEHIND_SUBJECT_REMOVED
+    assert "last_commit" not in payload

@@ -273,9 +273,9 @@ def read_subject(
 ) -> SubjectRead:
     """The freshness preamble ``find_callers`` and ``find_references`` share (R1.8, 388).
 
-    A subject the built graph holds (an exact qname row at entry) that its re-read file no
-    longer declares, or whose file is gone, is ``removed``: the built graph still answers who
-    used it. A typo never had a row, so it is never ``removed``.
+    A subject the built graph holds (an exact qname row at entry) that its built file no longer
+    declares, or whose file is gone, is ``removed``: the built graph still answers who used it.
+    A typo never had a row, so it is never ``removed``; a move into an unread file reads so.
     """
     staleness = compute_staleness(store, config, include_dirty_count=True)
     dirty = dirty_indexed_paths(store, config) if staleness.get("staleness") == BEHIND else []
@@ -335,6 +335,10 @@ def label_behind(
         and bool(commit)
     )
     if not stampable:
+        if subject_removed:
+            # No revision to stamp (non-git), but the rows still describe a symbol now gone.
+            payload["reason"] = REASON_INDEX_BEHIND_SUBJECT_REMOVED
+            return payload
         return _refuse_as_stale(payload) if unrepaired else payload
     assert isinstance(commit, str)  # narrowed by `stampable`
     if payload.get("reason") == REASON_INDEX_STALE:
