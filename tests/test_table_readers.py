@@ -152,3 +152,24 @@ def test_challenger_a_comma_join_a_self_read_and_a_one_line_function_are_reads(
         ("dbo.Q", "dbo.A"),
         ("dbo.Q", "dbo.B"),
     }
+
+
+@pytest.mark.skipif(NODE is None, reason="needs node (SQL adapter)")
+def test_review_a_call_s_from_is_no_source_and_one_table_is_read_once(tmp_path: Path) -> None:
+    """390 review: `TRIM(' ' FROM name)` reads no table; `dbo.T` and `[dbo].[t]` are one read."""
+    (tmp_path / "db").mkdir()
+    (tmp_path / "db" / "r.sql").write_text(
+        "CREATE PROCEDURE dbo.R AS\n"
+        "    SELECT TRIM(' ' FROM a.Name), EXTRACT(YEAR FROM a.D) FROM dbo.T a\n"
+        "    JOIN [dbo].[t] b ON b.Id = a.Id\n"
+        "    WHERE a.Id IN (SELECT Id FROM dbo.U);\nGO\n",
+        encoding="utf-8",
+    )
+    done = run_adapter_file([str(NODE), str(SQL_ENTRY)], "db/r.sql", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    reads = [
+        (edge["source_qname"], edge["target_raw"])
+        for edge in json.loads(done.stdout)["edges"]
+        if edge["kind"] == "READS"
+    ]
+    assert reads == [("dbo.R", "dbo.T"), ("dbo.R", "dbo.U")]
