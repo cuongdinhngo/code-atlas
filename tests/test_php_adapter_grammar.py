@@ -247,7 +247,7 @@ def test_i20_method_return_type_is_extra_type() -> None:
 
 def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
     """Keep the pin current through v12 (328 DELETES); earlier bumps: 030…321."""
-    assert CONTRACT_VERSION == 14
+    assert CONTRACT_VERSION == 15
     assert NODE_KINDS == (
         "File", "Namespace", "Class", "Interface", "Trait", "Enum",
         "Function", "Method", "Property", "ClassConst", "Const", "Table", "Column", "ForeignKey",
@@ -255,7 +255,7 @@ def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
     assert EDGE_KINDS == (
         "CONTAINS", "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS",
         "NEW", "IMPORTS", "INCLUDES", "REFERENCES", "ALIASES", "PROVIDES_VIEW_DATA", "WRITES",
-        "ALTERS", "DELETES",
+        "ALTERS", "DELETES", "READS",
     )
     assert "extra" in NODE_FIELDS
     assert "extra" not in EDGE_FIELDS

@@ -103,7 +103,7 @@ Per-language, pick the best parser; do **not** force one across all languages. *
 | 3 | Python | **`ast`** builtin; `jedi` unbought | Zero-dependency parse. **Shipped stdlib-only** (020 tier 1a · 217 tier 2): nothing so far needed import/name resolution, so `jedi` waits for a tier that does. |
 | 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model resembles PHP's, so it *confirms* rather than reshapes the contract. |
 
-**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**); 328 `DELETES` (**v12**).
+**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**); 328 `DELETES` (**v12**); 390 `READS` (**v15**, its own kind — `REFERENCES` is an FK — opt-in on `kinds=`).
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
@@ -120,7 +120,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":14}   # handshake
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":15}   # handshake
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}

@@ -99,6 +99,7 @@ def test_edge_kinds_are_the_thirteen_contract_kinds() -> None:
         "WRITES",
         "ALTERS",
         "DELETES",
+        "READS",
     )
 
 
@@ -107,7 +108,7 @@ def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
     assert FQN_EDGE_KINDS == frozenset(
         {
             "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES",
-            "WRITES", "ALTERS", "DELETES",
+            "WRITES", "ALTERS", "DELETES", "READS",
         }
     )
 
@@ -188,7 +189,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 14
+    assert CONTRACT_VERSION == 15
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:

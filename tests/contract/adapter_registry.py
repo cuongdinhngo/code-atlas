@@ -497,6 +497,8 @@ SQL_R62_CASES = frozenset(
         # v11 (321) — DDL changing an object: literal ALTER at RESOLVED (the three ALTER cases
         # above), and a name read out of an executed string at DYNAMIC.
         "alter-table-dynamic",
+        # v15 (390) — a SELECT's FROM / JOIN sources are READS.
+        "select-sources",
     }
 )
 
@@ -551,6 +553,7 @@ _SQL_NAMED_DEFAULT_EDGE_SHAPES: list[EdgeShape] = [
 # "writes nothing", which is the answer R5.6 forbids (022 AC6).
 _SQL_NO_COLS_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _F_NO_COLS, "dbo.CopyLedger", "RESOLVED"),
+    ("READS", "dbo.CopyLedger", "staging.Ledger", "RESOLVED"),  # its SELECT source (390)
     ("WRITES", "dbo.CopyLedger", "dbo.Ledger", "RESOLVED"),
 ]
 # A trigger is a writer, so it is a Function whose body emits WRITES like any other (022 AC4).
@@ -656,8 +659,12 @@ SQL_CASES: dict[str, Case] = {
     "insert-without-column-list": Case(
         "insert_without_column_list.sql",
         {"File": 1, "Function": 1},
-        {"CONTAINS": 1, "WRITES": 1},
+        {"CONTAINS": 1, "WRITES": 1, "READS": 1},
         _SQL_NO_COLS_EDGE_SHAPES,
+    ),
+    # v15 (390): every FROM / JOIN source a routine reads, once each — never a CTE or a #temp.
+    "select-sources": Case(
+        "select_sources.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "READS": 2}
     ),
     "update-set-list": Case(
         "update_set_list.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "WRITES": 2}

@@ -17,6 +17,13 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.4.0 — 2026-10-17 · contract 15 · schema 7
+
+- **Full rebuild required.** Run `code-atlas-build --full`: the edge vocabulary gains `READS`.
+- **Adapter checkout must be updated.** Every adapter speaks contract 15.
+- A table names its readers: `find_references(<table>, kinds=["READS"])` lists the routines whose
+  `SELECT` reads it (`FROM` / `JOIN`, `RESOLVED`) and the PHP, TS or Python strings that begin a
+  `SELECT … FROM` it (`HEURISTIC`). Without `kinds` a table still answers its writers (390).
 - `read_symbol` names where else a hit's code lives: `implemented_by` (on an empty or abstract
   method, the overriding methods of linked subtypes) and `aliases` (from `ALIASES` edges, `test_double` when a test file declares
   one). A name with one production definition and test copies answers the production one, with

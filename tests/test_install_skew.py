@@ -204,7 +204,7 @@ def test_a_line_past_the_budget_collapses_to_a_pointer() -> None:
     )
     assert estimate_tokens(line) <= state.TOKEN_BUDGET, line
     assert state.UPGRADING_POINTER in line
-    for half in ("tool 0.3.0", "plugin 0.2.0", "'language8' v6", "'leader'"):
+    for half in ("tool 0.3.0", "plugin 0.2.0", f"'language8' v{CORE - 8}", "'leader'"):
         assert half in line, line
 
 

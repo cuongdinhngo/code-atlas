@@ -34,7 +34,8 @@ from typing import Literal, get_args
 # looks like, so the grep-time nudge reads a language standard instead of a core table (R1.1).
 # v14: `kwargs` on a call site (372). A keyword argument has a name and no position, so it rides
 # its own field beside `args` (R1.7); positional `args` are unchanged.
-CONTRACT_VERSION = 14
+# v15: `READS` (390). A select's FROM / JOIN source: a table names its readers beside its writers.
+CONTRACT_VERSION = 15
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -89,13 +90,16 @@ EDGE_KINDS: tuple[str, ...] = (
     # v12 (328): a routine removes rows from a Table. Never a Column list — the statement names
     # none to write — so check_column_defaults keeps reading WRITES only.
     "DELETES",
+    # v15 (390): a routine or a host string reads a Table — a select's FROM / JOIN source. Opt-in
+    # on find_references (kinds=), so a table's default answer stays its writers.
+    "READS",
 )
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
 FQN_EDGE_KINDS: frozenset[str] = frozenset(
     {
         "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES",
-        "ALTERS", "DELETES",
+        "ALTERS", "DELETES", "READS",
     }
 )
 # DYNAMIC rows the resolver still links: their target is a name the adapter read, not an unknown
@@ -129,6 +133,8 @@ SUPERTYPE_SUBJECT_KINDS: tuple[str, ...] = ("Class", "Interface")
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
 CONTAINS = "CONTAINS"
+# A select's FROM / JOIN source (390); opt-in on find_references(kinds=).
+READS = "READS"
 # The alias → real-class edge a literal `class_alias` emits (030); read by 394's pointers.
 ALIASES = "ALIASES"
 # find_references language-emits reader (186/232): the kinds "this language never emits that

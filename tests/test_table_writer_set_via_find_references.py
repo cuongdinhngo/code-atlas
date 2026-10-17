@@ -231,3 +231,63 @@ def test_empty_table_with_unlinked_still_not_bare_no_matches(
     assert payload.get("unlinked_writes_count", 0) >= 1 or "WRITES" in (
         payload.get("unlinked_edge_kinds") or []
     )
+
+
+def test_unlinked_counts_follow_the_asked_kinds(tmp_path: Path, store: GraphStore) -> None:
+    """390 review — READS asks count unlinked readers, never the writers they did not ask."""
+    _seed(
+        store,
+        tmp_path,
+        "schema.sql",
+        [
+            node("Table", "UserNotes", TABLE, "schema.sql"),
+            node("Function", "usp_UpdateUserNotes", WRITER, "schema.sql"),
+        ],
+        [
+            edge("WRITES", "writer.site", TABLE, "schema.sql", target_qname="", tier="DYNAMIC"),
+            edge("READS", WRITER, TABLE, "schema.sql", target_qname=TABLE, tier="RESOLVED"),
+            edge("READS", "reader.a", TABLE, "schema.sql", target_qname="", tier="HEURISTIC"),
+            edge("READS", "reader.b", "UserNotes", "schema.sql", target_qname="", tier="HEURISTIC"),
+        ],
+        language="sql",
+    )
+    _stamp_langs(store, "sql")
+    tool = find_references.create(db_config(tmp_path))
+    reads = tool(TABLE, kinds=["READS"])
+    assert reads["unlinked_reads_count"] == 2
+    assert "unlinked_writes_count" not in reads
+    writes = tool(TABLE)
+    assert writes["unlinked_writes_count"] == 1
+    assert "unlinked_reads_count" not in writes
+    both = tool(TABLE, kinds=["WRITES", "READS"])
+    assert (both["unlinked_writes_count"], both["unlinked_reads_count"]) == (1, 2)
+
+
+def test_reads_on_a_column_is_labelled_ignored(tmp_path: Path, store: GraphStore) -> None:
+    """390 review — a read targets the Table, so READS on a Column is named, not silently empty."""
+    _seed(
+        store,
+        tmp_path,
+        "schema.sql",
+        [
+            node("Table", "UserNotes", TABLE, "schema.sql"),
+            node("Column", "Note", COLUMN, "schema.sql"),
+            node("Function", "usp_UpdateUserNotes", WRITER, "schema.sql"),
+        ],
+        [
+            edge("CONTAINS", TABLE, COLUMN, "schema.sql", target_qname=COLUMN),
+            edge("WRITES", WRITER, COLUMN, "schema.sql", target_qname=COLUMN, tier="RESOLVED"),
+            edge("READS", "reader.a", TABLE, "schema.sql", target_qname="", tier="HEURISTIC"),
+        ],
+        language="sql",
+    )
+    _stamp_langs(store, "sql")
+    tool = find_references.create(db_config(tmp_path))
+    reads = tool(COLUMN, kinds=["READS"])
+    assert reads["kinds_ignored"] == ["READS"]
+    assert reads["total_count"] == 0
+    assert "unlinked_reads_count" not in reads
+    mixed = tool(COLUMN, kinds=["WRITES", "READS"])
+    assert mixed["kinds_ignored"] == ["READS"]
+    assert [row["kind"] for row in mixed["results"]] == ["WRITES"]
+    assert "kinds_ignored" not in tool(TABLE, kinds=["READS"])

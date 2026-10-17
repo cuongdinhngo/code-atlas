@@ -283,6 +283,9 @@ const UPDATE_RE = /\bupdate\b/i;
 const DELETE_RE = /\bdelete\b/i;
 const TRUNCATE_RE = /\btruncate\b/i;
 const MERGE_RE = /\bmerge\b/i;
+// A statement that only reads (390): its FROM / JOIN sources are READS; never a boundary, so an
+// INSERT … SELECT stays one statement.
+const SELECT_RE = /\bselect\b/i;
 // A statement ends where the next one starts. Only tested at paren depth 0, so a keyword inside a
 // table body or a column list never splits the statement that contains it.
 const BOUNDARY_RE =
@@ -616,10 +619,36 @@ function parseFile(qpath) {
     });
   };
 
+  /**
+   * Every table the statement reads, bar the one it writes (390).
+   * @param {string} buf
+   * @param {number} line
+   * @param {string|null} written
+   */
+  const reads = (buf, line, written) => {
+    const source = current ? current.qname : qpath;
+    const emitted = new Set(); // `dbo.T` and `[dbo].[t]` are one table, read once
+    for (const { name, at } of ddl.readSources(buf)) {
+      const target = splitName(name);
+      if (!target || target === written || emitted.has(target.toLowerCase())) continue;
+      emitted.add(target.toLowerCase());
+      // The buffer keeps its newlines (254), so the keyword's own line is countable.
+      const own = line + (buf.slice(0, at).match(/\n/g) ?? []).length;
+      edges.push({
+        kind: "READS", source_qname: source, target_raw: target,
+        file_path: qpath, line: own, confidence_tier: "RESOLVED",
+      });
+    }
+  };
+
   const flush = () => {
     if (!pending) return;
     const { kind, buf, line } = pending;
     pending = null;
+    if (kind === "select") {
+      reads(buf, line, null);
+      return;
+    }
     if (buf.length > PENDING_CAP) {
       let guess = null;
       if (kind === "insert") guess = ddl.readInsert(buf);
@@ -634,6 +663,7 @@ function parseFile(qpath) {
       } else if (guess) {
         writes(guess.table, null, line, "DYNAMIC");
       }
+      if (kind !== "table" && kind !== "truncate") reads(buf, line, guess ? guess.table : null);
       return;
     }
     if (kind === "table") {
@@ -730,12 +760,15 @@ function parseFile(qpath) {
       if (!stmt) return;
       const qname = splitName(stmt.table);
       if (qname) deletes(qname, line);
+      if (kind !== "truncate") reads(buf, line, qname);
       return;
     }
     const stmt = kind === "insert" ? ddl.readInsert(buf) : ddl.readUpdate(buf);
     if (!stmt) return;
     const qname = splitName(stmt.table);
     if (qname) writes(qname, stmt.columns, line);
+    // An INSERT names its target after INTO, so a FROM on the same table is a real read (390).
+    reads(buf, line, kind === "insert" ? null : qname);
   };
 
   /** @param {number} endLine */
@@ -833,6 +866,8 @@ function parseFile(qpath) {
         }
         current = { qname, node };
         paramScan = HEADER_END_RE.test(code) ? null : node;
+        // `CREATE FUNCTION f() RETURNS TABLE AS RETURN (SELECT … FROM t)` on one line (390).
+        if (SELECT_RE.test(code)) reads(code, lineNo, null);
       }
       return;
     }
@@ -911,7 +946,9 @@ function parseFile(qpath) {
               ? "truncate"
               : MERGE_RE.test(code)
                 ? "merge"
-                : null;
+                : SELECT_RE.test(code)
+                  ? "select"
+                  : null;
     if (kind === null) return;
     const depth = depthOf(code);
     pending = { kind, buf: code, line: lineNo, depth, opened: depth > 0 };
