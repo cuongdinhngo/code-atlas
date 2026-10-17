@@ -16,6 +16,8 @@ second field retro (2026-10-10 → 10-17) also asked for:
 - F1: handlers in a `.php` view's inline `<script>`.
 - F2/F3: `ctrl.X(` and `ng-model="…"` in templates.
 - F4: `loadScripts(['js/x.js'])` naming an asset.
+- Prototype members (395 review): `Ctor.prototype.m = function` and `Ctor.prototype = {…}` are not
+  read. A pass for them must share 395's per-constructor `seen` set, or a member is declared twice.
 
 Neither half fits today's seams:
 

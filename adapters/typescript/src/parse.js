@@ -727,11 +727,22 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
-  // The ES5 constructor pattern (395): in a named plain function, `this.x = function` — or `self.x`
-  // after `var self = this` — declares a Method of it. Spec only; registration is a framework's.
+  // Constructor members (395): in a named plain function, `this.x = function` — or `self.x` after
+  // `var self = this` — declares a Method of it. `Ctor.prototype.x =` is not read (399).
   const memberSites = new Map();
+  const bindingNames = (name, out) => {
+    if (ts.isIdentifier(name)) out.push(name.text);
+    else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+      for (const el of name.elements) if (!ts.isOmittedExpression(el)) bindingNames(el.name, out);
+    }
+    return out;
+  };
   const emitConstructorMembers = (fn, qname) => {
-    if (!fn.body || !ts.isBlock(fn.body)) return;
+    if (!fn.body || !ts.isBlock(fn.body) || fn.asteriskToken) return;
+    // An async function, or one typing its own `this` parameter, is never `new`ed.
+    if ((fn.modifiers || []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)) return;
+    const first = fn.parameters[0];
+    if (first && ts.isIdentifier(first.name) && first.name.text === "this") return;
     // `this` rebinds in any function but an arrow, and in a class: neither is this function's body.
     const ownBody = (node, visit) => {
       visit(node);
@@ -742,9 +753,20 @@ function parseFile(path, declarationsOnly) {
     const reassigned = new Set();
     const declaredHere = new Set(); // a nested declaration already owns `F::name`
     const scan = (node) => {
-      if (ts.isFunctionDeclaration(node) && node.name) declaredHere.add(node.name.text);
+      if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
+        declaredHere.add(node.name.text);
+        reassigned.add(node.name.text);
+      }
+      // An arrow's parameter shadows an alias of the same name; so does any non-`this` redeclaration.
+      const shadows = [];
+      if (ts.isArrowFunction(node)) for (const p of node.parameters) bindingNames(p.name, shadows);
+      if (ts.isVariableDeclaration(node) && !ts.isIdentifier(node.name)) bindingNames(node.name, shadows);
+      for (const n of shadows) reassigned.add(n);
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
-        if (node.initializer && node.initializer.kind === ts.SyntaxKind.ThisKeyword) aliases.set(node.name.text, node.end);
+        const name = node.name.text;
+        if (node.initializer && node.initializer.kind === ts.SyntaxKind.ThisKeyword) {
+          if (!aliases.has(name)) aliases.set(name, node.end);
+        } else reassigned.add(name);
         if (node.initializer && (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) {
           declaredHere.add(node.name.text);
         }
