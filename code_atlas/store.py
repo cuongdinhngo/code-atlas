@@ -2133,14 +2133,32 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, (target_raw,))
 
-    def edges_by_target_raw(self, target_raw: str, *, kinds: Sequence[str]) -> list[Row]:
-        """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364)."""
+    def edges_by_target_raw(
+        self,
+        target_raw: str,
+        *,
+        kinds: Sequence[str],
+        unlinked_only: bool = False,
+        exclude_test_sources: bool = False,
+    ) -> list[Row]:
+        """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364).
+
+        ``unlinked_only`` keeps edges no pass linked; ``exclude_test_sources`` drops test
+        callers (393).
+        """
         marks = ", ".join("?" for _ in kinds)
+        extra = _combine_predicates(
+            ("(target_qname IS NULL OR target_qname = '')", ()) if unlinked_only else None,
+            _exclude_test_sources_predicate(exclude_test_sources),
+        )
+        where = f" AND {extra[0]}" if extra else ""
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges "
-            f"WHERE kind IN ({marks}) AND target_raw = ? ORDER BY {_EDGE_ORDER}"
+            f"WHERE kind IN ({marks}) AND target_raw = ?{where} ORDER BY {_EDGE_ORDER}"
         )
-        return self._rows(EDGE_ROW_KEYS, sql, (*kinds, target_raw))
+        return self._rows(
+            EDGE_ROW_KEYS, sql, (*kinds, target_raw, *(extra[1] if extra else ()))
+        )
 
     def calls_ending_with_target_raw(self, suffix: str) -> list[Row]:
         """CALLS whose ``target_raw`` ends with ``suffix`` (bare-setter ``::method`` arm)."""

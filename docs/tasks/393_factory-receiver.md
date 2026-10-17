@@ -36,8 +36,8 @@ receiver assigned from `new X()`. The field's next two shapes are still unlinked
 - **AC1:** `$m = Factory::make(); $m->send();` with `make(): Mailer` gives
   `find_callers Mailer::send` one `HEURISTIC` row.
 - **AC2:** The same with `@return Mailer` only.
-- **AC3:** No existing `RESOLVED` edge changes tier, and an index with no such sites is
-  byte-identical.
+- **AC3:** No existing `RESOLVED` edge changes tier, and an index with no such sites has the same
+  edges and tiers (a docblocked method still gains `extra.doc_type`).
 
 - **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
   without a Grep fallback; record the before/after counts in the working doc.
@@ -113,7 +113,7 @@ Stacked on 391. `main`'s full suite: `4565 passed, 4 skipped, 1 xfailed in 522.3
 | R3 | Scope 3 | "`unresolved_receivers` counts them" | H6, W4 | ⏳ |
 | AC1 | AC | native `make(): Mailer` | W3 | ⏳ |
 | AC2 | AC | `@return Mailer` only | | ⏳ |
-| AC3 | AC | no tier moves; byte-identical | | ⏳ |
+| AC3 | AC | no tier moves; same edges and tiers | | ⏳ |
 | AC4 | AC-field | anchor | W1 → E1 | ⏳ |
 
 ### AC validation
@@ -227,6 +227,8 @@ asserted `RESOLVED`, not the ticket's `HEURISTIC` (W3).
 | R2 / AC4 | E1 | 0/2 (excluded) |
 
 Reviewed at 2c892a81 — files: change-list rows 1–5. Working doc: `docs/tasks/393_factory-receiver.md`.
+
+**PR review (#78).** A same-file docblocked factory now defers to the core (HEURISTIC); the downgrade applies only to a chain that links; `unresolved_receivers` counts unlinked calls and honours `exclude_tests`; `null|X` reads as `X|null` (supersedes m3); AC3 narrowed. Two tests added, `8 passed`.
 
 ## Phase 5 — finalise
 

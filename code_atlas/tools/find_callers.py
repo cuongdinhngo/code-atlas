@@ -181,7 +181,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         answer with hits carries the same count, ``authoritative: false`` and the
         ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
         answer at depth 1 counts ``unresolved_receivers``: calls in its language by its bare name on
-        a receiver no type reached (an untyped parameter, say), linked HEURISTIC or not (393).
+        a receiver no type reached (an untyped parameter, say) and left unlinked; ``exclude_tests``
+        drops test callers from it too (393).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
@@ -518,12 +519,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     (lookup, str(subject_nodes[0]["name"])), kinds=CALLER_KINDS
                 )
             if depth == 1 and indexed and str(subject_nodes[0]["kind"]) == "Method":
-                # A call on an untyped receiver names only the member: linked by name at best, so
-                # count those in the subject's language — "were untyped receivers in play?" (393).
+                # A call on an untyped receiver names only the member; count the ones left unlinked
+                # in the subject's language — "were untyped receivers in play?" (393).
                 own = store.language_of_file(str(subject_nodes[0]["file_path"]))
                 languages: dict[str, str | None] = {}
                 for edge in store.edges_by_target_raw(
-                    str(subject_nodes[0]["name"]), kinds=CALLER_KINDS
+                    str(subject_nodes[0]["name"]),
+                    kinds=CALLER_KINDS,
+                    unlinked_only=True,
+                    exclude_test_sources=exclude_tests,
                 ):
                     path = str(edge["file_path"])
                     if path not in languages:
