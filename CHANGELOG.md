@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A rule file or routes TSV edited after the build no longer answers as current: `get_index_status`
+  reports `rules_stale` with both digests, rule-fed answers say `rules_stale` instead of `ok`, and
+  the next incremental (the refresh hook's included) re-applies the rules without `--full` (396).
 - `check_column_defaults(default_expr="user_name()")` lists every column whose `DEFAULT` is that
   expression, across tables, each with its omitters — no grep over the schema first (391).
 - `$m = Factory::legacy(); $m->attach();` links when `legacy()` documents `@return Mailer` (PHP,
