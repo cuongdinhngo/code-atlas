@@ -44,6 +44,9 @@ CREATE PROCEDURE dbo.Twin AS SELECT 1;
 GO
 CREATE PROCEDURE audit.Twin AS SELECT 1;
 GO
+CREATE PROCEDURE dbo.Status AS SELECT 1;
+GO
+CREATE TABLE dbo.Orders3 (Id int NOT NULL, Status int NULL);
 """
 
 
@@ -81,8 +84,28 @@ def test_a_bare_procedure_answers_find_callers_and_impact(config: Config) -> Non
     assert [row["qname"] for row in rows] == ["dbo.Run_Add"]
     radius = impact.create(config)(qnames=["Items"], detail_level="minimal")
     assert radius["resolved_from"] == "bare", radius
+    assert radius["resolved_qnames"] == {"Items": "dbo.Items"}
     exact = impact.create(config)(qnames=["dbo.Items"], detail_level="minimal")
-    assert {**radius, "qname": exact["qname"]} == {**exact, "resolved_from": "bare"}
+    bare_keys = {"resolved_from": "bare", "resolved_qnames": {"Items": "dbo.Items"}}
+    assert {**radius, "qname": exact["qname"]} == {**exact, **bare_keys}
+
+
+def test_review_a_function_beside_an_unrelated_column_stays_under_qualified(
+    config: Config,
+) -> None:
+    """Only a Table outranks a column; a Function beside `dbo.Orders3::Status` is not chosen."""
+    payload = find_references.create(config)("Status")
+    assert payload["reason"] == REASON_NAME_NOT_QUALIFIED, payload
+    assert "resolved_from" not in payload
+    radius = impact.create(config)(qnames=["Status"], detail_level="minimal")
+    assert "resolved_from" not in radius, radius
+    callers = find_callers.create(config)("Status", detail_level="minimal")
+    assert callers["resolved_from"] == "bare", callers  # a column has no callers
+
+
+def test_review_find_callers_on_a_bare_table_stays_under_qualified(config: Config) -> None:
+    payload = find_callers.create(config)("Items")
+    assert payload["reason"] == REASON_NAME_NOT_QUALIFIED, payload
 
 
 def test_ac2_two_schemas_refuse_with_both(config: Config) -> None:
@@ -102,8 +125,11 @@ def test_challenger_two_functions_keep_todays_answer(config: Config) -> None:
 
 
 def test_challenger_a_mixed_impact_walks_the_bare_seed_and_refuses_the_pair(config: Config) -> None:
-    payload = impact.create(config)(qnames=["Items", "Shared"], detail_level="minimal")
+    payload = impact.create(config)(
+        qnames=["Items", "Shared", "Items"], detail_level="minimal"
+    )
     assert payload["resolved_from"] == "bare", payload
+    assert payload["resolved_qnames"] == {"Items": "dbo.Items"}
     sites = payload["ambiguous_definitions"]
     assert isinstance(sites, list)
     assert sorted(str(site["qname"]) for site in sites) == ["audit.Shared", "dbo.Shared"]

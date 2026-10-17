@@ -351,7 +351,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 bare_sites: list[dict[str, object]] = []
                 if repointed is None and resolution.status == "ambiguous":
                     repointed, bare_sites = bare_subject(
-                        store, asked, kinds=BARE_CALLER_KINDS, limit=config.page_limit
+                        store,
+                        asked,
+                        kinds=BARE_CALLER_KINDS,
+                        limit=config.page_limit,
+                        parts_compete=False,
                     )
                     from_bare = repointed is not None
                 if repointed is None:

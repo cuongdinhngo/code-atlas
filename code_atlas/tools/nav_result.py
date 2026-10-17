@@ -659,11 +659,17 @@ RESOLVED_FROM_BARE = "bare"
 
 
 def bare_subject(
-    store: GraphStore, asked: str, *, kinds: Sequence[str], limit: int
+    store: GraphStore,
+    asked: str,
+    *,
+    kinds: Sequence[str],
+    limit: int,
+    parts_compete: bool = True,
 ) -> tuple[str | None, list[dict[str, object]]]:
     """``(qname, [])`` for the one ``kinds`` node a bare name ends, else ``(None, sites)`` (392).
 
-    Applies only when every other candidate is a table's own part — a column named like a table.
+    Every other candidate must be a table part. Only a Table outranks a part — a column named
+    like it; a Function does not, unless ``parts_compete`` is off (a part has no callers).
     Several are refused with each qualified site when one is a Table, as 320's bare table is.
     """
     if _IDENT_TRAILING.fullmatch(asked) is None:
@@ -679,6 +685,9 @@ def bare_subject(
         return None, []
     qnames = list(dict.fromkeys(str(row["qualified_name"]) for row in subjects))
     if len(qnames) == 1:
+        if parts_compete and len(subjects) < len(rows):
+            if any(str(row["kind"]) != contract.TABLE_KIND for row in subjects):
+                return None, []
         return qnames[0], []
     if not any(str(row["kind"]) == contract.TABLE_KIND for row in subjects):
         return None, []

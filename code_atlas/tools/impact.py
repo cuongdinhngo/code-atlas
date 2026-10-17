@@ -62,7 +62,7 @@ class SeedSet(NamedTuple):
     dropped: tuple[SubjectResolution, ...]
     from_paths: tuple[str, ...] = ()
     # A bare name re-pointed onto its one Table or Function, or refused with each (392).
-    from_bare: tuple[str, ...] = ()
+    from_bare: tuple[tuple[str, str], ...] = ()  # (asked, qname)
     bare_refused: tuple[tuple[str, list[dict[str, object]]], ...] = ()
 
 
@@ -80,7 +80,7 @@ class SeedPlan(NamedTuple):
     ambiguous_sites: list[tuple[str, list[dict[str, object]]]]
     twinned_sites: list[tuple[str, list[dict[str, object]]]]
     dropped: tuple[SubjectResolution, ...]
-    from_bare: tuple[str, ...] = ()
+    from_bare: tuple[tuple[str, str], ...] = ()
 
     @property
     def refused(self) -> int:
@@ -123,6 +123,7 @@ def attach_seed_refusals(payload: dict[str, object], plan: SeedPlan) -> None:
     """
     if plan.from_bare:
         payload[RESOLVED_FROM] = RESOLVED_FROM_BARE
+        payload["resolved_qnames"] = dict(plan.from_bare)
     if plan.twinned_sites:
         # The bare-name links would pull in the twin's callers and callees, at RESOLVED-looking
         # confidence, on a tool whose answer is acted on destructively (169).
@@ -332,7 +333,10 @@ def _split_ambiguous(
     for qname in seeds:
         rows = store.nodes_by_qualified_name(qname, limit=max_results)
         if len(rows) > 1:
-            ambiguous.append((qname, definition_sites(rows)))
+            sites = definition_sites(rows)
+            for site in sites:  # one site shape with the bare refusal's (392)
+                site["qname"] = qname
+            ambiguous.append((qname, sites))
         else:
             walk.append(qname)
     return walk, ambiguous
@@ -419,7 +423,7 @@ def resolve_seeds(
     found: list[str] = []
     seen: set[str] = set()
     dropped: list[SubjectResolution] = []
-    from_bare: list[str] = []
+    from_bare: list[tuple[str, str]] = []
     bare_refused: list[tuple[str, list[dict[str, object]]]] = []
 
     def take(resolution: SubjectResolution) -> None:
@@ -443,7 +447,8 @@ def resolve_seeds(
                 bare_refused.append((qname, sites))
                 continue
             if bare is not None:
-                from_bare.append(bare)
+                if (qname, bare) not in from_bare:
+                    from_bare.append((qname, bare))
                 resolution = SubjectResolution("resolved_unique", bare, 1)
         take(resolution)
     expanded: list[str] = []

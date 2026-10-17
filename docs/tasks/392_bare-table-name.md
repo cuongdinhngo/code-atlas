@@ -214,6 +214,8 @@ Commit `dd51b5b0`.
 
 Reviewed at aa2ec7c0 — files: change-list rows 1–5. Working doc: `docs/tasks/392_bare-table-name.md`.
 
+**PR #80 review fixes.** A Function no longer outranks an unrelated column (`find_callers` excepted); `impact` adds per-seed `resolved_qnames`, deduped, and every `ambiguous_definitions` site carries `qname`.
+
 ## Phase 5 — finalise
 
 **Durable lesson.** None new as a claim.
