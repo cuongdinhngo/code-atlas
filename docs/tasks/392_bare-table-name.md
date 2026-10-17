@@ -185,7 +185,7 @@ Commit `dd51b5b0`.
 **Green after.** `3 passed in 2.01s`; every test file naming the three tools or the classifier: `1867 passed in
 433.88s`; `ruff`, `mypy` clean. Ran at dd51b5b0.
 
-**Axis 1.** Change-list rows 1–4. **Axis 2.** Approach bullets 1–3 implemented as approved.
+**Axis 1.** Change-list rows 1–4, plus one deviation the gate's suite caught: `tests/test_sql_tier2_vocabulary_is_opt_in.py` lists the two new subsets as joined by design — they act only past a Table or Column row, so a repo with no `.sql` answers identically (a P5 miss at design). **Axis 2.** Approach bullets 1–3 implemented as approved.
 
 ## Phase 4 — review
 
