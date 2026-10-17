@@ -642,13 +642,20 @@ function readSources(code) {
   const out = [];
   const keyword = /\b(?:from|join)\s+/gi;
   for (let m = keyword.exec(code); m; m = keyword.exec(code)) {
-    const table = readQualified(code, m.index + m[0].length);
-    if (!table) continue;
-    const name = table.name;
-    const lower = name.toLowerCase();
-    if (/^[#@]/.test(name) || NOT_A_SOURCE.has(lower) || ctes.has(lower)) continue;
-    if (/^\s*\(/.test(code.slice(table.next))) continue; // a table-valued function call
-    if (!out.some((seen) => seen.name === name)) out.push({ name, at: m.index });
+    let at = m.index + m[0].length;
+    // `FROM a x, b y` — the old comma join: each listed source is read.
+    for (;;) {
+      const table = readQualified(code, at);
+      if (!table) break;
+      const name = table.name;
+      const lower = name.toLowerCase();
+      const call = /^\s*\(/.test(code.slice(table.next)); // a table-valued function call
+      const skip = /^[#@]/.test(name) || NOT_A_SOURCE.has(lower) || ctes.has(lower) || call;
+      if (!skip && !out.some((seen) => seen.name === name)) out.push({ name, at: m.index });
+      const more = /^\s*(?:as\s+)?(?:[A-Za-z_][\w@#$]*\s*)?,\s*/i.exec(code.slice(table.next));
+      if (call || !more) break;
+      at = table.next + more[0].length;
+    }
   }
   return out;
 }

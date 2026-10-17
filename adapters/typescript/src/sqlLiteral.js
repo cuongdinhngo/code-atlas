@@ -14,7 +14,7 @@ const HEAD = /^(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)
 // a closed literal, so "Select a file from the list" reads as nothing.
 const FROM = /\bfrom\s+/gi;
 const AFTER_SOURCE =
-  /^\s*(?:(?:where|join|inner|left|right|full|cross|order|group|having|union|with|as)\b|;)/i;
+  /^\s*(?:(?:where|join|inner|left|right|full|cross|order|group|having|union|with)\b|;)/i;
 const NAME_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)`;
 const NAME = new RegExp(String.raw`${NAME_PART}(?:\s*\.\s*${NAME_PART})*`, "y");
 const PART = new RegExp(NAME_PART, "g");

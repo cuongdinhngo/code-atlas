@@ -39,7 +39,7 @@ final class SqlLiteral
 
     /** An unqualified SELECT source must be followed by a clause, or end a closed literal (390). */
     private const AFTER_SOURCE =
-        '/\A\s*(?:(?:where|join|inner|left|right|full|cross|order|group|having|union|with|as)\b|;)/i';
+        '/\A\s*(?:(?:where|join|inner|left|right|full|cross|order|group|having|union|with)\b|;)/i';
 
     /**
      * The statement ``$text`` begins, or null.

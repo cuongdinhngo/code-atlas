@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 import subprocess
@@ -122,3 +123,36 @@ def test_a_language_that_emits_no_reads_marks_the_answer_partial(tmp_path: Path)
     assert "reads_emitters_only" in payload["authoritative_caveats"], payload
     writers = find_references.create(config)("dbo.T")
     assert "reads_emitters_only" not in (writers.get("authoritative_caveats") or [])
+
+
+@needs_both
+def test_challenger_a_comma_join_a_self_read_and_a_one_line_function_are_reads(
+    tmp_path: Path,
+) -> None:
+    """D1–D3: each of these reads a table the routine names; none may be dropped."""
+    (tmp_path / "db").mkdir()
+    (tmp_path / "db" / "more.sql").write_text(
+        "CREATE FUNCTION dbo.F() RETURNS TABLE AS RETURN (SELECT Id FROM dbo.T)\nGO\n"
+        "CREATE PROCEDURE dbo.P AS\n"
+        "    INSERT INTO dbo.T (Id) SELECT Id FROM dbo.T WHERE 1 = 0;\nGO\n"
+        "CREATE PROCEDURE dbo.Q AS\n    SELECT 1 FROM dbo.A a, dbo.B b;\nGO\n",
+        encoding="utf-8",
+    )
+    done = subprocess.run(
+        [str(NODE), str(SQL_ENTRY), "--file", "db/more.sql"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    reads = {
+        (edge["source_qname"], edge["target_raw"])
+        for edge in json.loads(done.stdout)["edges"]
+        if edge["kind"] == "READS"
+    }
+    assert reads == {
+        ("dbo.F", "dbo.T"),
+        ("dbo.P", "dbo.T"),
+        ("dbo.Q", "dbo.A"),
+        ("dbo.Q", "dbo.B"),
+    }

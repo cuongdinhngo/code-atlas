@@ -765,7 +765,8 @@ function parseFile(qpath) {
     if (!stmt) return;
     const qname = splitName(stmt.table);
     if (qname) writes(qname, stmt.columns, line);
-    reads(buf, line, qname);
+    // An INSERT names its target after INTO, so a FROM on the same table is a real read (390).
+    reads(buf, line, kind === "insert" ? null : qname);
   };
 
   /** @param {number} endLine */
@@ -863,6 +864,8 @@ function parseFile(qpath) {
         }
         current = { qname, node };
         paramScan = HEADER_END_RE.test(code) ? null : node;
+        // `CREATE FUNCTION f() RETURNS TABLE AS RETURN (SELECT … FROM t)` on one line (390).
+        if (SELECT_RE.test(code)) reads(code, lineNo, null);
       }
       return;
     }

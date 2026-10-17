@@ -254,6 +254,11 @@
       "text": "SELECT a FROM (SELECT 1 AS a) d",
       "open": false,
       "expect": null
+    },
+    {
+      "text": "select items from stock as needed",
+      "open": false,
+      "expect": null
     }
   ],
   "markers": [

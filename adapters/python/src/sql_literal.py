@@ -27,7 +27,7 @@ _HEAD = re.compile(
 # a closed literal, so "Select a file from the list" reads as nothing.
 _FROM = re.compile(r"\bfrom\s+", re.IGNORECASE)
 _AFTER_SOURCE = re.compile(
-    r"\A\s*(?:where|join|inner|left|right|full|cross|order|group|having|union|with|as|;)\b|\A\s*;",
+    r"\A\s*(?:where|join|inner|left|right|full|cross|order|group|having|union|with|;)\b|\A\s*;",
     re.IGNORECASE,
 )
 _NAME_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)'
