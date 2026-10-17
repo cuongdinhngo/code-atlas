@@ -229,7 +229,12 @@ here ran with both stripped, and the gate ran in the main checkout.
 | C1 / AC5 | `test_challenger_ac5_…`, the keyed-calls / view-data / route suites | 2/2 |
 | AC6 | E1 | 0/1 (excluded) |
 
-Reviewed at 1327ddb3 — files: change-list rows 1–7. Working doc: `docs/tasks/398_keyed-string-arg-span.md`.
+**P8.** `cross_repo_validate.py --public-only --skip-clone` at 8593611f: `public_ok: 10, public_failed: 1` —
+brick_math's `Calculator.php` passes a non-UTF-8 literal, which the PHP adapter captured and could not encode, so the
+file failed. A value that is not UTF-8 is no longer captured (00e4ab3f; `test_cross_repo_a_binary_literal_…`: 1 failed
+before, 14 passed after).
+
+Reviewed at 00e4ab3f — files: change-list rows 1–7. Working doc: `docs/tasks/398_keyed-string-arg-span.md`.
 
 ## Phase 5 — finalise
 
@@ -244,7 +249,7 @@ venv's editable install, so it tests the main checkout's adapters and core, not 
 
 `read-a-literal-by-its-structure-not-a-regex` (361-C1) gains 398 (P1); it cannot promote in an unattended run.
 
-Stale-review guard: after 1327ddb3 only this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`
+Stale-review guard: after 00e4ab3f only this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`
 change. Not stale.
 
 ### Outward actions
