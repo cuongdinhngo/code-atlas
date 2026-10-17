@@ -261,6 +261,8 @@ Verify-only round, main loop: `6 passed` (proving test, the new fix test red on 
 
 Reviewed at 0f6ff76c — files: change-list rows 1–9. Working doc: `docs/tasks/390_table-readers.md`.
 
+PR #75 review fixes (`79c278f`, `c758605`, `4458d1e`, `138f6e0`): handshake examples at v15; unlinked counts per asked kind (`unlinked_reads_count`) and `kinds_ignored` lists `READS` on a Column; host-string SELECT reads `FROM t [AS] a <clause>` and skips nested FROMs; a call's `FROM` (`TRIM`) reads nothing, one table one READS.
+
 ## Phase 5 — finalise
 
 **Durable lesson.** None new as a claim: the contract-bump path (version in core and four adapters, conformance, a
