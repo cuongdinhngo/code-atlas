@@ -10,6 +10,8 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
     ARG_SELECTORS,
+    BARE_SUBJECT_KINDS,
+    CALLABLE_KINDS,
     CALLER_KINDS,
     CONFIDENCE_TIERS,
     CONSTRUCTOR_FLAG,
@@ -51,6 +53,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_PROXIMITY_CANDIDATES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
+    RESOLVED_FROM,
+    RESOLVED_FROM_BARE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     answered_about_ref_for,
@@ -65,6 +69,7 @@ from code_atlas.tools.nav_result import (
     attach_serve_behind_route,
     attach_sibling_definitions,
     attach_try_instead,
+    bare_subject,
     classify_missing_subject,
     definition_sites,
     edge_hit,
@@ -73,12 +78,15 @@ from code_atlas.tools.nav_result import (
     escalate_zero_production,
     nav_result,
     relation_reason,
+    shape_bare_ambiguous,
     shape_exact_miss,
     sibling_definition_rows,
     unique_repoint,
 )
 
 NAME = "find_callers"
+# A bare name answers to its one Function (a stored procedure, say) — 392.
+BARE_CALLER_KINDS = tuple(kind for kind in BARE_SUBJECT_KINDS if kind in CALLABLE_KINDS)
 
 DetailLevel = Literal["minimal", "standard"]
 
@@ -334,11 +342,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 hit_total=outcome.total_count,
                 also_targets=also,
             )
+            from_bare = False
             if outcome.total_count == 0 and not indexed and not read.removed:
                 resolution = classify_missing_subject(
                     store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
+                bare_sites: list[dict[str, object]] = []
+                if repointed is None and resolution.status == "ambiguous":
+                    repointed, bare_sites = bare_subject(
+                        store, asked, kinds=BARE_CALLER_KINDS, limit=config.page_limit
+                    )
+                    from_bare = repointed is not None
                 if repointed is None:
                     miss = nav_result(
                         asked,
@@ -361,6 +376,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         miss["args_unrecorded"] = unrecorded
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
                     shaped = shape_exact_miss(miss, resolution)
+                    if bare_sites:
+                        shape_bare_ambiguous(shaped, bare_sites)
                     finalize_subject_checked_miss(shaped, guard)
                     attach_coverage_edge_route(
                         shaped,
@@ -645,6 +662,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
+        if from_bare:
+            result[RESOLVED_FROM] = RESOLVED_FROM_BARE
         if reason == REASON_RELATION_UNMODELLED_FOR_LANGUAGE:
             attach_try_instead(
                 result, None, TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE

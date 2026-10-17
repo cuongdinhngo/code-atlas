@@ -654,6 +654,50 @@ def classify_missing_subject(
     return SubjectResolution("absent", qname, 0)
 
 
+RESOLVED_FROM = "resolved_from"
+RESOLVED_FROM_BARE = "bare"
+
+
+def bare_subject(
+    store: GraphStore, asked: str, *, kinds: Sequence[str], limit: int
+) -> tuple[str | None, list[dict[str, object]]]:
+    """``(qname, [])`` for the one ``kinds`` node a bare name ends, else ``(None, sites)`` (392).
+
+    Applies only when every other candidate is a table's own part — a column named like a table.
+    Several of ``kinds`` are refused with each qualified site, as 320's bare table is.
+    """
+    if _IDENT_TRAILING.fullmatch(asked) is None:
+        return None, []
+    rows = [
+        row
+        for row in store.nodes_by_qname_endswith(asked, asked, limit=limit + 1)
+        if _ends_at_boundary(str(row["qualified_name"]), asked)
+    ]
+    subjects = [row for row in rows if str(row["kind"]) in kinds]
+    if not subjects or any(
+        str(row["kind"]) not in (*kinds, *contract.TABLE_PART_KINDS) for row in rows
+    ):
+        return None, []
+    qnames = list(dict.fromkeys(str(row["qualified_name"]) for row in subjects))
+    if len(qnames) == 1:
+        return qnames[0], []
+    sites = definition_sites(subjects)
+    for site, row in zip(sites, subjects, strict=True):
+        site["qname"] = row["qualified_name"]
+    return None, sites
+
+
+def shape_bare_ambiguous(
+    miss: dict[str, object], sites: list[dict[str, object]]
+) -> dict[str, object]:
+    """Refuse a bare name several subjects answer to, naming each (392, 320's shape)."""
+    for key in ("candidate_count", "try_instead"):
+        miss.pop(key, None)
+    miss["reason"] = REASON_SUBJECT_AMBIGUOUS
+    miss[AMBIGUOUS_DEFINITIONS] = sites
+    return miss
+
+
 def _stored_shorter(store: GraphStore, qname: str) -> str | None:
     """The longest stored qname ``qname`` ends with at a component boundary (354).
 
