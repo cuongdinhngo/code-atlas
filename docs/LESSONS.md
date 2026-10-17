@@ -45,6 +45,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 398-C1 — a worktree run of the suite tests the main checkout's adapters and core
+
+- type: 5 (environment) · area: `test harness / git worktrees` · verified-at: 2026-10-17, this host
+- status: proposed · seen: 398
+- evidence: in a `git worktree`, tests that spawn an adapter read the host's `CA_<LANG>_CMD` (pointing at the main
+  checkout) and the fake adapter imports `code_atlas` from the venv's editable install, so a contract bump read
+  "adapter speaks v15" ~400 times, and a symlinked `adapters/php/vendor` autoloaded the main checkout's `src/`. Run
+  with `CA_*_CMD` unset and `PYTHONPATH=<worktree>`, copy `vendor/`, or run the gate in the main checkout.
+- destination: stays in lessons_path (type 5, environment).
+
 ### 396-C1 — a payload that omits `reason` reads as `ok`, so a relabel keyed on `"ok"` skips it
 
 - type: 2 (code) · handle: `an-absent-reason-is-ok`
@@ -180,7 +190,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397
+- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.
@@ -189,7 +199,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
 
 - type: 2 (code) · handle: `read-a-literal-by-its-structure-not-a-regex`
-- status: proposed · seen: 361, 371
+- status: proposed · seen: 361, 371, 398
 - evidence: `{data: {action: 'inner'}}` gave `action='inner'`, `{action: 'a' + b}` gave `'a'`, and a
   ternary gave a bogus field — each a guessed rule link. The challenger found it; a depth-aware split
   at top-level commas, keeping only an entry that is exactly a name and one string, reads none of them.
