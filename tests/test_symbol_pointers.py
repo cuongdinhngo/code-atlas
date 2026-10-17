@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import shlex
 import shutil
 import subprocess
@@ -94,9 +95,47 @@ def test_scope3_test_copies_answer_the_production_definition(tmp_path: Path) -> 
     assert payload["file"] == "src/helpers.php"
     assert payload["ambiguity"] == "test_copies"
     found = search_symbol.create(config)(query="helper")
-    files = [r["file"] for r in found["results"] if r["qname"] == "\\helper"]
-    assert files == ["src/helpers.php", "tests/bootstrap.php"]
-    assert found["ambiguity"] == "test_copies"
+    rows = [r for r in found["results"] if r["qname"] == "\\helper"]
+    assert [r["file"] for r in rows] == ["src/helpers.php", "tests/bootstrap.php"]
+    # Per row, never the page: a page can hold several names (394 review).
+    assert all(r["ambiguity"] == "test_copies" for r in rows)
+    assert "ambiguity" not in found
+    form = search_symbol.create(config)(query="Form")
+    assert all("ambiguity" not in r for r in form["results"]), form
+
+
+@needs_php
+def test_a_cut_fetch_never_answers_test_copies(tmp_path: Path) -> None:
+    """Review: a fetch at its limit may hide a second production row, so the rule stands down."""
+    config = dataclasses.replace(_built(tmp_path), page_limit=1)
+    payload = read_symbol.create(config)("\\helper")
+    assert payload["reason"] == "subject_ambiguous", payload
+    assert "ambiguity" not in payload
+
+
+@needs_php
+def test_alias_edges_by_target_are_capped_in_sql(tmp_path: Path) -> None:
+    config = _built(tmp_path)
+    with GraphStore(config.db_path) as store:
+        every = store.edges_by_target_raw("\\StubForm", kinds=("ALIASES",))
+        assert len(every) == 1
+        assert store.edges_by_target_raw("\\StubForm", kinds=("ALIASES",), limit=1) == every
+        assert store.edges_by_target_raw("\\StubForm", kinds=("ALIASES",), limit=0) == []
+
+
+@needs_php
+def test_a_literal_return_reads_as_bodiless(tmp_path: Path) -> None:
+    """Pinned approximation: ``return 1;`` reaches no edge, so its overrides are still named."""
+    config = _built(tmp_path)
+    (tmp_path / "src" / "Base.php").write_text(
+        "<?php\nnamespace App;\nclass Base { public function render() { return 1; } }\n",
+        encoding="utf-8",
+    )
+    payload = read_symbol.create(config)("\\App\\Base::render")
+    assert [row["qname"] for row in payload["implemented_by"]] == [
+        "\\App\\A::render",
+        "\\App\\B::render",
+    ]
 
 
 @needs_php

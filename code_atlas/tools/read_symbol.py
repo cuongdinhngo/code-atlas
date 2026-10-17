@@ -282,12 +282,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         return finalize_subject_checked_miss(_stamp(miss), guard)
             # Refuse before freshness — the list needs no file bytes (078 review).
             # path_prefix filters definition rows before the multiplicity test (327).
+            complete = len(rows) < fetch_limit  # a cut fetch may hide a second production row
             rows, prefix_miss = _apply_path_prefix(
                 rows, path_prefix, qname=qname, detail_level=detail_level, config=config
             )
             if prefix_miss is not None:
                 return _stamp(prefix_miss)
-            rows, test_copies = test_copies_first(rows)
+            rows, test_copies = test_copies_first(rows, complete=complete)
             if len(rows) > 1 and not test_copies:
                 return _stamp(
                     _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
@@ -338,13 +339,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     if miss is not None:
                         return _stamp(miss)
+                complete = len(rows) < fetch_limit
                 rows, prefix_miss = _apply_path_prefix(
                     rows, path_prefix, qname=qname,
                     detail_level=detail_level, config=config,
                 )
                 if prefix_miss is not None:
                     return _stamp(prefix_miss)
-                rows, test_copies = test_copies_first(rows)
+                rows, test_copies = test_copies_first(rows, complete=complete)
                 if len(rows) > 1 and not test_copies:
                     return _stamp(
                         _refuse_ambiguous(
