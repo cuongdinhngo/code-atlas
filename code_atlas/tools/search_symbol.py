@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from typing import Literal, NamedTuple
 
 from code_atlas import contract, routes
@@ -55,6 +55,13 @@ from code_atlas.tools.nav_result import (
     list_result,
     require_path_prefix,
     subject_answer,
+)
+from code_atlas.tools.symbol_pointers import (
+    ALIASES_FIELD,
+    AMBIGUITY_FIELD,
+    TEST_COPIES,
+    aliases,
+    test_copies_first,
 )
 
 _RESOLVED = CONFIDENCE_TIERS[0]
@@ -162,6 +169,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind, edit_distance}``, nearest first, never in ``results`` (378).
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
+        A qname held by one production row and test copies lists the production row first and
+        marks each of its rows ``ambiguity: "test_copies"``; a type row at ``standard`` names
+        its ``aliases`` (394).
         Asked from another worktree of this repo, rows from files it changed are swapped for that
         worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
         A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
@@ -378,9 +388,13 @@ def _search_one(
             offset=offset,
         )
     truncated = len(rows) > cap
+    page, held = _test_copies_first(rows[:cap])
     results = _suppress_redundant_file_hits(
-        [_hit(row, store=store, detail_level=detail_level) for row in rows[:cap]]
+        [_hit(row, store=store, detail_level=detail_level) for row in page]
     )
+    for hit in results:
+        if hit["qname"] in held:  # per row: a page can hold several names (394 review)
+            hit[AMBIGUITY_FIELD] = TEST_COPIES
     if status == "stale":
         _mark_source_stale(results, guard)
     if truncated or offset > 0:
@@ -577,6 +591,29 @@ def _overlay_hits(
     return hits._replace(
         results=results, total_count=total, truncated=total > len(results), reason=reason
     )
+
+
+def _test_copies_first(rows: list[Row]) -> tuple[list[Row], frozenset[str]]:
+    """Each qname this page holds twice: its one production row leads its test copies (394).
+
+    Returns the reordered page and the qnames the rule held for.
+    """
+    groups: dict[str, list[Row]] = {}
+    for row in rows:
+        groups.setdefault(str(row["qualified_name"]), []).append(row)
+    ordered: dict[str, Iterator[Row]] = {}
+    for qname, group in groups.items():
+        if len(group) > 1:
+            first, held = test_copies_first(group)
+            if held:
+                ordered[qname] = iter(first)
+    if not ordered:
+        return rows, frozenset()
+    page = [
+        next(ordered[str(row["qualified_name"])]) if str(row["qualified_name"]) in ordered else row
+        for row in rows
+    ]
+    return page, frozenset(ordered)
 
 
 def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:
@@ -924,6 +961,10 @@ def _hit(
             hit["references_unresolved"] = unresolved
     if store is not None and detail_level != "minimal" and row["kind"] in _ALTERED_KINDS:
         hit.update(_altered_by(store, str(row["qualified_name"])))
+    if store is not None and detail_level != "minimal" and row["kind"] in contract.TYPE_KINDS:
+        named = aliases(store, str(row["qualified_name"]))
+        if named:
+            hit[ALIASES_FIELD] = named  # either name names the other (394)
     return hit
 
 

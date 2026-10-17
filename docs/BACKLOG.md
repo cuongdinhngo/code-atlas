@@ -29,7 +29,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 391 | [Defaults by expression](tasks/391_defaults-by-expr.md) | Coverage | todo | 320 |
 | 392 | [Bare table refused](tasks/392_bare-table-name.md) | Retrieval | todo | 320 |
 | 393 | [Factory receiver unlinked](tasks/393_factory-receiver.md) | Coverage | todo | 362 |
-| 394 | [Stub hides real code](tasks/394_stub-or-alias.md) | Trust | todo | 286 |
 | 395 | [JS in PHP views](tasks/395_js-in-php-views.md) | Coverage | todo | 361 |
 
 ## Open work — Pillar 2 · Onboarding

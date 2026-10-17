@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal, NamedTuple
 
@@ -58,6 +58,14 @@ from code_atlas.tools.nav_result import (
     shape_exact_miss,
 )
 from code_atlas.tools.search_symbol import _column_reference_targets
+from code_atlas.tools.symbol_pointers import (
+    ALIASES_FIELD,
+    AMBIGUITY_FIELD,
+    TEST_COPIES,
+    aliases,
+    implemented_by,
+    test_copies_first,
+)
 
 # Built from the one threshold site (288 / R6.7) — never a second numeric literal.
 
@@ -131,7 +139,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
         returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
         empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
-        ignoring the list (070 warn; 078 refuse). ``try_instead`` points at ``read_symbol`` with
+        ignoring the list (070 warn; 078 refuse) — unless one is production and every other a
+        test copy: that one answers, with ``ambiguity: "test_copies"`` and the copies listed (394).
+        A found hit names where else its code lives (394): ``implemented_by`` — for an abstract
+        method or one whose body reaches nothing, the overriding methods of linked subtypes,
+        capped — and ``aliases`` — the names an ``ALIASES`` edge ties
+        to it, with file, ``relation`` and ``test_double`` when a test file declares the alias.
+        ``try_instead`` points at ``read_symbol`` with
         ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator),
         and one that drops every definition answers ``path_excluded`` with their files (339).
         An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
@@ -268,12 +282,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         return finalize_subject_checked_miss(_stamp(miss), guard)
             # Refuse before freshness — the list needs no file bytes (078 review).
             # path_prefix filters definition rows before the multiplicity test (327).
+            complete = len(rows) < fetch_limit  # a cut fetch may hide a second production row
             rows, prefix_miss = _apply_path_prefix(
                 rows, path_prefix, qname=qname, detail_level=detail_level, config=config
             )
             if prefix_miss is not None:
                 return _stamp(prefix_miss)
-            if len(rows) > 1:
+            rows, test_copies = test_copies_first(rows, complete=complete)
+            if len(rows) > 1 and not test_copies:
                 return _stamp(
                     _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
                 )
@@ -323,13 +339,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     if miss is not None:
                         return _stamp(miss)
+                complete = len(rows) < fetch_limit
                 rows, prefix_miss = _apply_path_prefix(
                     rows, path_prefix, qname=qname,
                     detail_level=detail_level, config=config,
                 )
                 if prefix_miss is not None:
                     return _stamp(prefix_miss)
-                if len(rows) > 1:
+                rows, test_copies = test_copies_first(rows, complete=complete)
+                if len(rows) > 1 and not test_copies:
                     return _stamp(
                         _refuse_ambiguous(
                             qname, rows, detail_level=detail_level, config=config
@@ -399,11 +417,28 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 name=str(node["name"]),
             )
             attach_other_indexed_files_drifted(payload, guard)
+            _attach_pointers(payload, store, node, rows if test_copies else ())
             if overlay is not None:
                 overlay.label(payload)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _attach_pointers(
+    payload: dict[str, object],
+    store: GraphStore,
+    node: Mapping[str, object],
+    candidates: Sequence[Mapping[str, object]],
+) -> None:
+    """Where else this code lives — overrides, aliases, test copies; omitted when empty (394)."""
+    payload.update(implemented_by(store, node))
+    named = aliases(store, str(node["qualified_name"]))
+    if named:
+        payload[ALIASES_FIELD] = named
+    if candidates:
+        payload[AMBIGUITY_FIELD] = TEST_COPIES
+        attach_ambiguous_definitions(payload, definition_sites([dict(c) for c in candidates[1:]]))
 
 
 def _int(value: object) -> int:
