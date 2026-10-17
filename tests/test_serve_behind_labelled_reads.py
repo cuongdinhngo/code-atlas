@@ -1,4 +1,4 @@
-"""Task 257 — opt-in labelled reads from a behind index for unchanged subjects."""
+"""Task 257 — labelled reads from a behind index for unchanged subjects (unasked since 388)."""
 
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ def _commit_edit(root: Path, rel: str, body: str) -> None:
 def test_serve_behind_labels_unchanged_subject(
     tmp_path: Path, store: GraphStore
 ) -> None:
-    """AC1/AC4 — mode on + behind + unchanged subject → rows with revision, not reason=ok."""
+    """AC1/AC4 — behind + unchanged subject → rows with revision, never reason=ok (388)."""
     _plant(tmp_path)
     config = load_config(tmp_path, _env())
     assert full_build(config, store).failed == 0
@@ -91,10 +91,8 @@ def test_serve_behind_labels_unchanged_subject(
     assert status["staleness"] == BEHIND
 
     off = find_callers.create(config)("\\App\\Stable::hit", detail_level="minimal")
-    assert off["reason"] == REASON_OK
-    assert off["total_count"] >= 1
-    assert "last_commit" not in off
-    assert all("index_revision" not in row for row in off["results"])
+    assert off["reason"] == REASON_INDEX_BEHIND
+    assert off["last_commit"] == indexed_rev
 
     on = find_callers.create(config)(
         "\\App\\Stable::hit", detail_level="minimal", serve_behind=True, sign=True
@@ -138,7 +136,7 @@ def test_serve_behind_drifted_subject_still_declines_or_repairs(
 
 @needs_php
 def test_serve_behind_off_is_byte_identical(tmp_path: Path, store: GraphStore) -> None:
-    """AC3 — default off keeps today's payload shape on a behind index."""
+    """AC3 — ``serve_behind`` changes nothing for an unchanged subject (388)."""
     _plant(tmp_path)
     config = load_config(tmp_path, _env())
     assert full_build(config, store).failed == 0
@@ -152,7 +150,7 @@ def test_serve_behind_off_is_byte_identical(tmp_path: Path, store: GraphStore) -
         "\\App\\Stable::hit", detail_level="minimal", serve_behind=False
     )
     assert a == b
-    assert a["reason"] == REASON_OK
+    assert a["reason"] == REASON_INDEX_BEHIND
 
 
 @needs_php

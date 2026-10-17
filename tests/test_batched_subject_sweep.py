@@ -27,7 +27,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tokens import estimate_tokens
 from code_atlas.tools import search_symbol
 from code_atlas.tools.nav_result import (
-    REASON_INDEX_STALE,
+    REASON_INDEX_BEHIND,
     REASON_NOT_INDEXED,
     REASON_OK,
     REASON_TOKEN_CANDIDATES,
@@ -333,7 +333,8 @@ def test_the_sweep_shares_one_read_through_budget(indexed, monkeypatch) -> None:
 
     # Positive control: the cap really was spent by the first subject, not skipped entirely.
     assert len(calls) == freshness.READ_THROUGH_CAP == 1
-    assert payload["subjects"][1]["reason"] == REASON_INDEX_STALE
+    # 388: answered, never refused — but labelled, never a quiet no_matches.
+    assert payload["subjects"][1]["reason"] == REASON_INDEX_BEHIND
 
 
 # --- AC4 — measure the win, and let it be shape rather than a number -------

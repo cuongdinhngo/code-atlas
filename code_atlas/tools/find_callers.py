@@ -33,11 +33,9 @@ from code_atlas.tools.coverage import (
     cross_language_relation_unmodelled,
 )
 from code_atlas.tools.freshness import (
-    FreshnessGuard,
-    dirty_indexed_paths,
     finalize_subject_checked_miss,
-    label_serve_behind,
-    unrepaired_subject_served,
+    label_behind,
+    read_subject,
 )
 from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
@@ -78,7 +76,6 @@ from code_atlas.tools.nav_result import (
     sibling_definition_rows,
     unique_repoint,
 )
-from code_atlas.tools.staleness import compute_staleness
 
 NAME = "find_callers"
 
@@ -200,9 +197,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``exclude_tests`` (default off) drops test-role callers in SQL; at depth > 1
         they are pruned from the walk so they never expand (313 shape; 332).
-        ``serve_behind`` (default off) labels a behind-index answer: unchanged subjects as
-        ``index_behind`` (257); unrepaired dirty subjects as ``index_behind_subject_changed``
-        (267). Off keeps today's refuse-when-stale default (022 AC3).
+        On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
+        subject as ``index_behind``, one the working tree no longer declares as
+        ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
+        refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
+        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267).
 
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
@@ -252,9 +251,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         cross_lang_census: dict[str, object] | None = None
         args_capture_absent = False
         proximity_used = False
-        behind_dirty: list[str] = []
         subject_file: str | None = None
-        subject_unrepaired = False
         test_role_label: str | None = None
         production_count = 0
         test_count = 0
@@ -263,39 +260,28 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             covered = covered_languages(store)
             stamped = store.stamped_unmodelled_resolution_by_language()
             about_ref = answered_about_ref_for(store)
-            if sign or serve_behind:
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-            if serve_behind:
-                behind_dirty = dirty_indexed_paths(store, config)
-            guard = FreshnessGuard(config, store)
-            freshness = guard.ensure_qname(qname)
-            if freshness == "stale" and guard.build_held and not serve_behind:
-                # 365: the writer holding the DB is the repair, so label the built graph.
-                serve_behind = True
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-                behind_dirty = dirty_indexed_paths(store, config)
-            if freshness == "stale":
-                if not unrepaired_subject_served(
-                    store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty
-                ):
-                    refused = nav_result(
-                        qname,
-                        [],
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        truncated=False,
-                        reason=REASON_INDEX_STALE,
-                        total_count=0,
-                        depth=depth,
-                        frontier_skipped_non_resolved=0,
-                        answered_about_ref=about_ref,
-                    )
-                    # 274: name the opt-in that answers; file_outline cannot fix a stale subject.
-                    if not serve_behind:
-                        return signed(attach_serve_behind_route(refused))
-                    return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
-                subject_unrepaired = True
+            read = read_subject(config, store, qname, serve_behind=serve_behind)
+            staleness, behind_dirty = read.staleness, read.dirty_paths
+            guard, freshness = read.guard, read.freshness
+            if read.refuse:
+                refused = nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    truncated=False,
+                    reason=REASON_INDEX_STALE,
+                    total_count=0,
+                    depth=depth,
+                    frontier_skipped_non_resolved=0,
+                    answered_about_ref=about_ref,
+                )
+                # 274/388: name the call that answers; file_outline cannot fix a stale subject.
+                if not read.serve_behind:
+                    return signed(attach_serve_behind_route(refused, tool=NAME, call=call))
+                return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
+            subject_unrepaired = read.unrepaired
             asked = qname
             lookup = qname
             also = _constructed_class(store, lookup)
@@ -338,7 +324,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 hit_total=outcome.total_count,
                 also_targets=also,
             )
-            if outcome.total_count == 0 and not indexed:
+            if outcome.total_count == 0 and not indexed and not read.removed:
                 resolution = classify_missing_subject(
                     store, asked, limit=config.page_limit
                 )
@@ -652,13 +638,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # per-answer partition.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        labelled = label_serve_behind(
+        labelled = label_behind(
             result,
-            serve_behind=serve_behind,
             subject_path=subject_file,
             revision=staleness or None,
             dirty_paths=behind_dirty,
             subject_unrepaired=subject_unrepaired,
+            subject_removed=read.removed,
         )
         attach_coverage_edge_route(
             labelled,

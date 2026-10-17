@@ -29,11 +29,9 @@ from code_atlas.tools.coverage import (
     relation_unmodelled_for_language,
 )
 from code_atlas.tools.freshness import (
-    FreshnessGuard,
-    dirty_indexed_paths,
     finalize_subject_checked_miss,
-    label_serve_behind,
-    unrepaired_subject_served,
+    label_behind,
+    read_subject,
 )
 from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
@@ -73,7 +71,6 @@ from code_atlas.tools.nav_result import (
     sibling_definition_rows,
     unique_repoint,
 )
-from code_atlas.tools.staleness import compute_staleness
 
 NAME = "find_references"
 
@@ -287,9 +284,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
         no line (task 100).
 
-        ``serve_behind`` (default off) labels a behind-index answer: unchanged subjects as
-        ``index_behind`` (257); unrepaired dirty subjects as ``index_behind_subject_changed``
-        (267).
+        On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
+        subject as ``index_behind``, one the working tree no longer declares as
+        ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
+        refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
+        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267).
 
         A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
         ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
@@ -330,9 +329,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         emitted_kinds: dict[str, list[str]] | None = None
         cross_lang_census: dict[str, object] | None = None
         unlinked_edge_kinds: list[str] = []
-        behind_dirty: list[str] = []
         subject_file: str | None = None
-        subject_unrepaired = False
         production_count = 0
         test_count = 0
         test_role_label: str | None = None
@@ -348,36 +345,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             stamped = store.stamped_unmodelled_resolution_by_language()
             emitted_kinds = store.stamped_emitted_kinds_by_language()
             about_ref = answered_about_ref_for(store)
-            if sign or serve_behind:
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-            if serve_behind:
-                behind_dirty = dirty_indexed_paths(store, config)
-            guard = FreshnessGuard(config, store)
-            freshness = guard.ensure_qname(qname)
-            if freshness == "stale" and guard.build_held and not serve_behind:
-                # 365: the writer holding the DB is the repair, so label the built graph.
-                serve_behind = True
-                staleness = compute_staleness(store, config, include_dirty_count=True)
-                behind_dirty = dirty_indexed_paths(store, config)
-            if freshness == "stale":
-                if not unrepaired_subject_served(
-                    store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty
-                ):
-                    refused = nav_result(
-                        qname,
-                        [],
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        truncated=False,
-                        reason=REASON_INDEX_STALE,
-                        total_count=0,
-                        answered_about_ref=about_ref,
-                    )
-                    if not serve_behind:
-                        return signed(attach_serve_behind_route(refused))
-                    return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
-                subject_unrepaired = True
+            read = read_subject(config, store, qname, serve_behind=serve_behind)
+            staleness, behind_dirty = read.staleness, read.dirty_paths
+            guard, freshness = read.guard, read.freshness
+            if read.refuse:
+                refused = nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    truncated=False,
+                    reason=REASON_INDEX_STALE,
+                    total_count=0,
+                    answered_about_ref=about_ref,
+                )
+                if not read.serve_behind:
+                    return signed(attach_serve_behind_route(refused, tool=NAME, call=call))
+                return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
+            subject_unrepaired = read.unrepaired
             asked = qname
             lookup = qname
             production_count, test_count, test_role_label = _test_census(store, lookup)
@@ -417,7 +403,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     else lookup
                 )
                 unlinked_writes_count = store.count_unlinked_writes_relating_to(table_key)
-            if total_count == 0 and not indexed:
+            if total_count == 0 and not indexed and not read.removed:
                 # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
                     store, asked, limit=config.page_limit
@@ -674,13 +660,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
             caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
         attach_authoritative_caveats(result, caveats)
-        labelled = label_serve_behind(
+        labelled = label_behind(
             result,
-            serve_behind=serve_behind,
             subject_path=subject_file,
             revision=staleness or None,
             dirty_paths=behind_dirty,
             subject_unrepaired=subject_unrepaired,
+            subject_removed=read.removed,
         )
         labelled = attach_try_instead(labelled, try_instead, try_instead_hint)
         attach_coverage_edge_route(

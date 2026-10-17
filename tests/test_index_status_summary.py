@@ -35,10 +35,20 @@ def test_summary_is_pure_function_of_structured_fields() -> None:
     assert _compose_summary(base) == "current @ abcdef0 · 10 files · 100 symbols"
     mutated = {**base, "files": 11, "nodes": 200}
     assert _compose_summary(mutated) == "current @ abcdef0 · 11 files · 200 symbols"
-    behind = {**base, "staleness": "behind", "behind_serves": ["search_symbol"]}
+    behind = {
+        **base,
+        "staleness": "behind",
+        "behind_serves": ["search_symbol"],
+        "serve_behind_opt_in": "serve_behind",
+    }
     assert _compose_summary(behind) == (
-        "behind @ abcdef0 · 10 files · 100 symbols (read tools still serve) "
-        "— run build_or_update_index"
+        "behind @ abcdef0 · 10 files · 100 symbols (the built graph answers, labelled "
+        "index_behind) — run build_or_update_index"
+    )
+    held = {k: v for k, v in behind.items() if k != "serve_behind_opt_in"}
+    assert _compose_summary(held) == (
+        "behind @ abcdef0 · 10 files · 100 symbols — the last built graph answers until the "
+        "build lands"
     )
     mismatch = {**base, "indexed": False, "error": "schema_version_mismatch"}
     assert _compose_summary(mismatch) == (

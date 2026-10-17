@@ -26,6 +26,7 @@ from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONTRACT_VERSION
+from code_atlas.gitutil import dirty_paths
 from code_atlas.index_lock import build_in_progress
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
@@ -86,18 +87,20 @@ PARSE_FAILURES_NOTE = (
 __all__ = ["NAME", "create", "CURRENT", "BEHIND", "UNKNOWN"]
 
 BUILD_TOOL = "build_or_update_index"
-# Families that still answer on a behind index without opt-in (274) — search/read via read-through.
+# Every family answers on a behind index, labelled (274; callers/references unasked since 388).
 SEARCH_TOOL = "search_symbol"
 READ_TOOL = "read_symbol"
-# Caller family that refuses on behind unless ``serve_behind`` (257/267 / 274).
 CALLERS_TOOL = "find_callers"
 REFERENCES_TOOL = "find_references"
-# Opt-in param on find_callers / find_references (257/267); named beside suggestions (274 / R5.4).
+# What serves a changed subject whose file cannot be re-read (267); named on status (274 / R5.4).
 SERVE_BEHIND_OPT_IN = "serve_behind"
 SERVE_BEHIND_OPT_IN_FIELD = "serve_behind_opt_in"
 BEHIND_SERVES_FIELD = "behind_serves"
-BEHIND_REFUSES_FIELD = "behind_refuses"
 CHANGED_INDEXED_FILES_FIELD = "changed_indexed_files"
+# The changed paths that make the index behind, so "is my subject affected?" needs no call (388).
+BEHIND_BECAUSE_FIELD = "behind_because"
+BEHIND_BECAUSE_TRUNCATED_FIELD = "behind_because_truncated"
+BEHIND_BECAUSE_CAP = 20
 # Payload field names that bound the drifted set — the route that narrows a subject (274).
 CHANGED_INDEXED_BETWEEN_FIELD = "changed_indexed_between"
 CHANGED_INDEXED_BETWEEN = ("last_commit", "head_commit")
@@ -301,25 +304,41 @@ def _attach_behind_routes(
     config: Config | None = None,
     index_held: bool = False,
 ) -> None:
-    """On ``behind`` only: name what still serves and the caller opt-in (274).
+    """On ``behind`` only: name what serves, the opt-in, and the paths behind it (274 / 388).
 
-    No fields on ``current`` (061). ``changed_indexed_files`` needs a commit-range git read, so it
-    stays off ``minimal`` (no new git spawn there) and off unbuilt (no store). ``index_held`` is
-    the guard's own predicate, so these routes say what the tools will do (365, R1.8).
+    No fields on ``current`` (061). The changed-path read is a commit-range git spawn, so it
+    stays off ``minimal`` and off unbuilt (no store). ``index_held`` is the guard's own
+    predicate: while a build writes, a changed subject is served unasked, so no opt-in (365).
     """
     if staleness != BEHIND:
         return
-    if index_held:
-        # 365: a build writes the live index, so callers/references label the built graph unasked.
-        status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL, CALLERS_TOOL, REFERENCES_TOOL]
-    else:
-        status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL]
-        status[BEHIND_REFUSES_FIELD] = [CALLERS_TOOL, REFERENCES_TOOL]
+    status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL, CALLERS_TOOL, REFERENCES_TOOL]
+    if not index_held:
         status[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
     status[CHANGED_INDEXED_BETWEEN_FIELD] = list(CHANGED_INDEXED_BETWEEN)
     if detail_level == "minimal" or store is None or config is None:
         return
-    status[CHANGED_INDEXED_FILES_FIELD] = len(dirty_indexed_paths(store, config))
+    changed = dirty_indexed_paths(store, config)
+    status[CHANGED_INDEXED_FILES_FIELD] = len(changed)
+    if changed:
+        status[BEHIND_BECAUSE_FIELD] = _behind_because(config, changed[:BEHIND_BECAUSE_CAP])
+        if len(changed) > BEHIND_BECAUSE_CAP:
+            status[BEHIND_BECAUSE_TRUNCATED_FIELD] = True
+
+
+def _behind_because(config: Config, paths: Sequence[str]) -> list[dict[str, str]]:
+    """Each path and how it differs from the build: ``deleted``, ``uncommitted``, ``committed``."""
+    uncommitted = set(dirty_paths(config.root) or ())
+    rows: list[dict[str, str]] = []
+    for path in paths:
+        if not (config.root / path).exists():
+            change = "deleted"
+        elif path in uncommitted:
+            change = "uncommitted"
+        else:
+            change = "committed"
+        rows.append({"path": path, "change": change})
+    return rows
 
 
 def _short_rev(value: object) -> str | None:
@@ -369,10 +388,10 @@ def _compose_state(payload: dict[str, object]) -> str:
     staleness = str(payload.get("staleness") or UNKNOWN)
     if staleness == BEHIND:
         routes = payload.get(BEHIND_SERVES_FIELD)
-        if isinstance(routes, list) and CALLERS_TOOL in routes:
+        if routes and SERVE_BEHIND_OPT_IN_FIELD not in payload:
             # 365: the guard labels instead of repairing; asking for another build would be busy.
             return f"behind{at} · {scale} — the last built graph answers until the build lands"
-        serves = " (read tools still serve)" if routes else ""
+        serves = " (the built graph answers, labelled index_behind)" if routes else ""
         return f"behind{at} · {scale}{serves} — run build_or_update_index"
     if staleness == CURRENT:
         health = ""

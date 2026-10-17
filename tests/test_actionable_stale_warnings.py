@@ -16,7 +16,7 @@ from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers
 from code_atlas.tools.claim import REV_CHARS
-from code_atlas.tools.freshness import label_serve_behind
+from code_atlas.tools.freshness import label_behind
 from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
@@ -132,9 +132,8 @@ def test_serve_behind_off_still_refuses_changed_subject(
 def test_behind_labelled_row_always_carries_revision() -> None:
     """AC2 — no behind-index label without a revision stamp."""
     ok = {"reason": REASON_OK, "results": [{"qname": "A::b"}]}
-    labelled = label_serve_behind(
+    labelled = label_behind(
         ok,
-        serve_behind=True,
         subject_path="src/a.php",
         revision={"staleness": BEHIND, "last_commit": "abcdef1234567890"},
         dirty_paths=["src/other.php"],
@@ -144,9 +143,8 @@ def test_behind_labelled_row_always_carries_revision() -> None:
     assert labelled["results"][0]["index_revision"] == "abcdef1"
 
     changed = {"reason": REASON_OK, "results": [{"qname": "A::b"}]}
-    labelled2 = label_serve_behind(
+    labelled2 = label_behind(
         changed,
-        serve_behind=True,
         subject_path="src/a.php",
         revision={"staleness": BEHIND, "last_commit": "abcdef1234567890"},
         dirty_paths=["src/a.php"],
@@ -155,9 +153,8 @@ def test_behind_labelled_row_always_carries_revision() -> None:
     assert labelled2["reason"] == REASON_INDEX_BEHIND_SUBJECT_CHANGED
     assert labelled2["results"][0]["index_revision"] == "abcdef1"
 
-    silent = label_serve_behind(
+    silent = label_behind(
         {"reason": REASON_OK, "results": [{"qname": "A::b"}], "total_count": 1},
-        serve_behind=True,
         subject_path="src/a.php",
         revision={"staleness": BEHIND, "last_commit": ""},
         dirty_paths=["src/a.php"],
@@ -167,9 +164,8 @@ def test_behind_labelled_row_always_carries_revision() -> None:
     assert silent["results"] == []
     assert silent["total_count"] == 0
 
-    no_rev = label_serve_behind(
+    no_rev = label_behind(
         {"reason": REASON_OK, "results": [{"qname": "A::b"}], "total_count": 1},
-        serve_behind=True,
         subject_path="src/a.php",
         revision=None,
         dirty_paths=["src/a.php"],

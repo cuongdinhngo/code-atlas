@@ -38,6 +38,7 @@ from code_atlas.tools import (
     read_symbol,
 )
 from code_atlas.tools.nav_result import (
+    REASON_INDEX_BEHIND,
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
     REASON_INDEX_STALE,
     REASON_OK,
@@ -199,7 +200,10 @@ def test_unchanged_subjects_answer_the_same_held_or_free(built: tuple[Config, st
     with refresh_holding(config):
         held = [tool() for tool in tools]
     assert held == [tool() for tool in tools]
-    assert all(answer["reason"] == REASON_OK for answer in held)
+    # 388: the inbound pair label the behind graph whether or not a build holds it.
+    assert [answer["reason"] for answer in held] == [
+        REASON_INDEX_BEHIND, REASON_INDEX_BEHIND, REASON_OK,
+    ]
 
 
 def test_with_nothing_held_a_changed_subject_is_repaired_as_before(
@@ -265,11 +269,11 @@ def test_status_says_the_last_graph_answers_while_the_db_is_held(
     with refresh_holding(config):
         minimal = status_tool(detail_level="minimal")
         standard = status_tool(detail_level="standard")
-    assert free["behind_refuses"] == ["find_callers", "find_references"]
+    assert free["serve_behind_opt_in"] == "serve_behind"
     assert "the last built graph answers" not in str(free["summary"])
     for status in (minimal, standard):
         assert status[BUILD_IN_PROGRESS] is True
-        assert "behind_refuses" not in status
+        assert "serve_behind_opt_in" not in status
         assert "find_callers" in status["behind_serves"]
         assert "the last built graph answers" in str(status["summary"])
 
@@ -327,7 +331,7 @@ def test_status_routes_follow_the_guard_during_a_shadowed_rebuild(
     with refresh_holding(config, sqlite_writer=False):
         status = status_tool(detail_level="minimal")
     assert status[BUILD_IN_PROGRESS] is True
-    assert status["behind_refuses"] == ["find_callers", "find_references"]
+    assert status["serve_behind_opt_in"] == "serve_behind"
     assert "the last built graph answers" not in str(status["summary"])
 
 
