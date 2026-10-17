@@ -64,7 +64,10 @@ REPO = Path(__file__).resolve().parent.parent
 # construct gaps -> 007/025, both done), its adapter/tier mapping and AGENTS.md's copy of the R1.2
 # registry provenance now live in one place each; the stale 19,400 prose copies of this very number
 # went too (R6.7). Per-file arguments are in tests/test_doc_size_budget.py.
-TIER1_BUDGET = 19_850
+# 19,850 -> 19,900 on 2026-10-17 (tickets 396-398): measured 19,882. Three todo rows from one anchor
+# finding, filed separately because each ships alone. R7.6 ran first: 372's keyword follow-up is
+# the same adapter capture as 398, so 398 scopes it and its Follow-ups line left (39 tokens back).
+TIER1_BUDGET = 19_900
 
 
 def _tokens(paths: list[Path]) -> int:

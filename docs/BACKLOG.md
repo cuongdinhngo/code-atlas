@@ -33,6 +33,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 393 | [Factory receiver unlinked](tasks/393_factory-receiver.md) | Coverage | todo | 362 |
 | 394 | [Stub hides real code](tasks/394_stub-or-alias.md) | Trust | todo | 286 |
 | 395 | [JS in PHP views](tasks/395_js-in-php-views.md) | Coverage | todo | 361 |
+| 396 | [Rules stale, unlabelled](tasks/396_rules-stale.md) | Freshness | todo | 040, 080, 385 |
+| 397 | [Routes from a JSON census](tasks/397_routes-from-source.md) | Coverage | todo | 385, 396 |
+| 398 | [Wrapped keyed call unread](tasks/398_keyed-string-arg-span.md) | Coverage | todo | 222, 352, 364 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -87,8 +90,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
   subclass's `new` sites — 362.
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
-- **Keywords stop at `find_callers`** — a `keyed_calls` rule's `key_arg` cannot name one, and PHP 8's
-  named arguments are not read into `kwargs` — 372.
 - **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
   misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
   match, and a procedure in another schema leaves an uncounted unresolved edge — 386.
