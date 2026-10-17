@@ -202,7 +202,7 @@ def normalise_default(expr: str) -> str:
 
 def _balanced(text: str) -> bool:
     depth = 0
-    for char in text:
+    for char in re.sub(r"'(?:[^']|'')*'", "", text):  # a literal's parentheses are text
         depth += {"(": 1, ")": -1}.get(char, 0)
         if depth < 0:
             return False
@@ -269,6 +269,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if (table is None) == (default_expr is None):
             raise ValueError("pass exactly one of table and default_expr")
+        if not (table or default_expr or "").strip():
+            raise ValueError("the subject must not be blank")
         if default_expr is not None and column is not None:
             raise ValueError("column narrows a table; default_expr already names the columns")
         if offset < 0:
@@ -365,9 +367,11 @@ def _by_expression(
                 continue
             by_table.setdefault(qname.rsplit("::", 1)[0], []).append(qname)
         rows: list[dict[str, object]] = []
+        unowned = 0
         for table in sorted(by_table):
             all_columns, defaulted, declarations = _columns_of(store, table)
             matched = [pair for pair in defaulted if pair[0] in by_table[table]]
+            unowned += len(by_table[table]) - len(matched)
             measured, writers = _measure(
                 store, table, all_columns, matched, declarations, detail_level=detail_level
             )
@@ -388,6 +392,11 @@ def _by_expression(
         "total_count": len(rows),
         "truncated": offset + len(page) < len(rows),
     }
+    if unowned:
+        # A matching Column no table CONTAINS: named, never silently dropped from the count (R5.6).
+        payload["columns_without_table"] = unowned
+    if any(row.get(WRITERS_PARTIAL_KEY) for row in rows):
+        payload[WRITERS_PARTIAL_HINT_KEY] = WRITERS_PARTIAL_HINT
     if len(scanned) >= _COLUMN_SCAN:
         payload["columns_scan_capped"] = _COLUMN_SCAN  # a schema larger than the scan (R5.6)
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)

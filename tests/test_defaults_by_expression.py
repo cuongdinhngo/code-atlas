@@ -100,3 +100,20 @@ def test_a_quoted_literal_keeps_its_case_and_spaces() -> None:
     assert normalise_default("('N')") != normalise_default("('n')")
     assert normalise_default("('a b')") != normalise_default("('ab')")
     assert normalise_default(" ( [User_Name] ( ) ) ") == "user_name()"
+
+
+@needs_node
+def test_an_expression_answer_pages(tmp_path: Path) -> None:
+    """Scope 2 — paged like the other tools: limit/offset over the matched columns."""
+    tool = check_column_defaults.create(_built(tmp_path))
+    first = tool(default_expr="user_name()", limit=1)
+    second = tool(default_expr="user_name()", limit=1, offset=1)
+    assert first["total_count"] == second["total_count"] == 2
+    assert first["truncated"] is True and second["truncated"] is False
+    assert first["results"][0]["column"] != second["results"][0]["column"]
+    with pytest.raises(ValueError, match="blank"):
+        tool(default_expr="  ")
+
+
+def test_a_parenthesis_inside_a_literal_does_not_block_stripping() -> None:
+    assert normalise_default("('(')") == "'('"
