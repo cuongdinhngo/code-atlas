@@ -1,5 +1,5 @@
 ---
-id: 396
+id: 399
 slug: php-view-script-regions
 title: "A PHP view's inline <script> and its template references are not in the graph — evidence-gated"
 phase: 2

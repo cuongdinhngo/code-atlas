@@ -55,7 +55,7 @@ outside the graph. 4 PRs:
 
 ## Session status
 
-- **KEY:** 395 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W5 (above all the split to 396), runs E1, then merges after #77. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 395 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W5 (above all the split to 399), runs E1, then merges after #78. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/395-js-in-php-views`, **stacked on `feat/393-factory-receiver`**. Contract `.mango/run-contract-395.txt`.
@@ -87,8 +87,8 @@ is not a call, so `keyed_calls` cannot match it.
 | H9 | a member body's edges | how | sourced at the member, as a class method's are |
 | W1 | AC-field (anchor) | want | **asked, settled by the maintainer (2026-10-17):** E1 |
 | W2 | Scope 1's count and order | want | **ASSUMED (awaiting ratification):** the count rides E1; unmeasured, the order is cost — Scope 2 first, being spec-only and seam-free |
-| W3 | Scope 3, `<script>` regions (AC2) | want | **ASSUMED (awaiting ratification):** deferred to 396 — a contract bump, or a second JS reader, on an unmeasured count |
-| W4 | Scope 4, template references (AC3) | want | **ASSUMED (awaiting ratification):** deferred to 396 — no existing rule matches template text, and a new one breaks R1.2 |
+| W3 | Scope 3, `<script>` regions (AC2) | want | **ASSUMED (awaiting ratification):** deferred to 399 — a contract bump, or a second JS reader, on an unmeasured count |
+| W4 | Scope 4, template references (AC3) | want | **ASSUMED (awaiting ratification):** deferred to 399 — no existing rule matches template text, and a new one breaks R1.2 |
 | W5 | where the `$scope` count lands | want | **ASSUMED (awaiting ratification):** E1's replay, no new field |
 
 ## Phase 1 — analysis
@@ -111,7 +111,7 @@ Stacked on 393. `main`'s full suite: `4565 passed, 4 skipped, 1 xfailed in 522.3
 | Goal | Current | Target |
 |---|---|---|
 | F2 controller members | `self.save = function` is no symbol | a Method of the controller function |
-| F1/F3/F4 view references | not read | 396 |
+| F1/F3/F4 view references | not read | 399 |
 
 ### Requirements matrix
 
@@ -121,8 +121,8 @@ Stacked on 393. `main`'s full suite: `4565 passed, 4 skipped, 1 xfailed in 522.3
 | C1 | AC4 | "byte-identical" | output changes only where the pattern is | ⏳ |
 | R1 | Scope 1 | "Measure first" | W2 → E1 | ⏳ |
 | R2 | Scope 2 | "members assigned on `this` … as Methods" | H1–H9 | ⏳ |
-| R3 | Scope 3 | "Embedded `<script>` regions" | W3 → 396 | ⏳ |
-| R4 | Scope 4 | "Template references" | W4 → 396 | ⏳ |
+| R3 | Scope 3 | "Embedded `<script>` regions" | W3 → 399 | ⏳ |
+| R4 | Scope 4 | "Template references" | W4 → 399 | ⏳ |
 | AC1 | AC | `search_symbol save` finds a Method of `EditCtrl` | | ⏳ |
 | AC2 | AC | `file_outline` lists `onPick` | W3 → E2 | ⏳ |
 | AC3 | AC | `ctrl.save(` a `HEURISTIC` caller | W4 → E2 | ⏳ |
@@ -149,7 +149,7 @@ Stacked on 393. `main`'s full suite: `4565 passed, 4 skipped, 1 xfailed in 522.3
 
 1. TS adapter: `emitConstructorMembers` scans a named plain function's own body (H2) for aliases, reassignments and
    nested declarations, then emits each live member as a Method with its CONTAINS; `walk` sources a member's body at it.
-2. Docs: TS README node table, CHANGELOG `Unreleased`; task 396 filed for Scopes 3–4.
+2. Docs: TS README node table, CHANGELOG `Unreleased`; task 399 filed for Scopes 3–4.
 
 ### Rejected alternatives
 
@@ -190,8 +190,8 @@ inline `<script>` and the `this.X = function` / `self.X = function` / `$scope.X 
 before/after · `expiry: when the anchor index is available to a maintainer run` · `seen: 378, 384, 388, 389, 394, 390, 391, 393, 395`.
 
 **E2 (scope exclusion, delegated).** AC2 and AC3 · risk: medium — F1, F3 and F4 stay Grep · why: W3–W4, a contract
-seam on an unmeasured count · decided under the handover's delegation, awaiting ratification · follow-up: task 396 ·
-`expiry: when 396 opens, gated on E1's count`.
+seam on an unmeasured count · decided under the handover's delegation, awaiting ratification · follow-up: task 399 ·
+`expiry: when 399 opens, gated on E1's count`.
 
 `EXCLUSIONS: 2 recorded | 2 with a checkable expiry | 1 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
@@ -201,7 +201,7 @@ seam on an unmeasured count · decided under the handover's delegation, awaiting
 
 ### Rollback
 
-`git revert`; a full rebuild drops the members. Merge after #77 (stacked).
+`git revert`; a full rebuild drops the members. Merge after #78 (stacked).
 
 ## Phase 3 — execute
 
@@ -240,7 +240,7 @@ four Minor:
 |---|---|---|
 | G1 / R2 / AC1 | `test_ac1_…`, `test_this_a_variable_bound_…`, `test_a_members_body_…`, `test_challenger_only_a_live_alias_…` | 4/4 |
 | C1 / AC4 | TS suites and conformance unchanged | 1/1 |
-| R3 / R4 / AC2 / AC3 | E2 → 396 | 0/4 (excluded) |
+| R3 / R4 / AC2 / AC3 | E2 → 399 | 0/4 (excluded) |
 | R1 / AC5 | E1 | 0/2 (excluded) |
 
 Reviewed at 3f81f3b4 — files: change-list rows 1–3. Working doc: `docs/tasks/395_js-in-php-views.md`.
@@ -260,8 +260,8 @@ change. Not stale.
 
 ### Outward actions
 
-Under the handover: push `feat/395-js-in-php-views`; open the PR against `main` (stacked on #77).
-Deferred: ratify W2–W5 and the 396 split; E1; merge after #77.
+Under the handover: push `feat/395-js-in-php-views`; open the PR against `main` (stacked on #78).
+Deferred: ratify W2–W5 and the 399 split; E1; merge after #78.
 
 ### Cost ledger
 
