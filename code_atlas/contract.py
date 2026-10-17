@@ -129,6 +129,8 @@ SUPERTYPE_SUBJECT_KINDS: tuple[str, ...] = ("Class", "Interface")
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
 CONTAINS = "CONTAINS"
+# The alias → real-class edge a literal `class_alias` emits (030); read by 394's pointers.
+ALIASES = "ALIASES"
 # find_references language-emits reader (186/232): the kinds "this language never emits that
 # relation" is asked over. Honesty across *unlinked* inbound edges uses the full EDGE_KINDS
 # vocabulary instead (255), so a Table with unlinked WRITES is not a bare no_matches.

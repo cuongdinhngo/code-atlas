@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from typing import Literal, NamedTuple
 
 from code_atlas import contract, routes
@@ -56,6 +56,13 @@ from code_atlas.tools.nav_result import (
     require_path_prefix,
     subject_answer,
 )
+from code_atlas.tools.symbol_pointers import (
+    ALIASES_FIELD,
+    AMBIGUITY_FIELD,
+    TEST_COPIES,
+    aliases,
+    test_copies_first,
+)
 
 _RESOLVED = CONFIDENCE_TIERS[0]
 # The kinds DDL changes (321): only their hits pay the ALTERS read.
@@ -80,6 +87,7 @@ class _Hits(NamedTuple):
     kind_excluded: tuple[str, ...] = ()
     path_excluded: tuple[str, ...] = ()
     did_you_mean: tuple[dict[str, object], ...] = ()
+    test_copies: bool = False
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -162,6 +170,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind, edit_distance}``, nearest first, never in ``results`` (378).
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
+        A qname held by one production row and test copies lists the production row first and
+        sets ``ambiguity: "test_copies"``; a type row at ``standard`` names its ``aliases`` (394).
         Asked from another worktree of this repo, rows from files it changed are swapped for that
         worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
         A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
@@ -378,8 +388,9 @@ def _search_one(
             offset=offset,
         )
     truncated = len(rows) > cap
+    page, test_copies = _test_copies_first(rows[:cap])
     results = _suppress_redundant_file_hits(
-        [_hit(row, store=store, detail_level=detail_level) for row in rows[:cap]]
+        [_hit(row, store=store, detail_level=detail_level) for row in page]
     )
     if status == "stale":
         _mark_source_stale(results, guard)
@@ -525,7 +536,9 @@ def _search_one(
 
     stamp, indexed = mirrors
     order = attach_mirror_search_fields(results, stamp, indexed, store=store)
-    return _Hits(results, truncated, reason, total_count, residue, (), order)
+    return _Hits(
+        results, truncated, reason, total_count, residue, (), order, test_copies=test_copies
+    )
 
 
 def _overlay_hits(
@@ -577,6 +590,26 @@ def _overlay_hits(
     return hits._replace(
         results=results, total_count=total, truncated=total > len(results), reason=reason
     )
+
+
+def _test_copies_first(rows: list[Row]) -> tuple[list[Row], bool]:
+    """Each qname this page holds twice: its one production row leads its test copies (394)."""
+    groups: dict[str, list[Row]] = {}
+    for row in rows:
+        groups.setdefault(str(row["qualified_name"]), []).append(row)
+    ordered: dict[str, Iterator[Row]] = {}
+    for qname, group in groups.items():
+        if len(group) > 1:
+            first, held = test_copies_first(group)
+            if held:
+                ordered[qname] = iter(first)
+    if not ordered:
+        return rows, False
+    page = [
+        next(ordered[str(row["qualified_name"])]) if str(row["qualified_name"]) in ordered else row
+        for row in rows
+    ]
+    return page, True
 
 
 def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:
@@ -658,6 +691,8 @@ def _single_payload(
             payload["did_you_mean"] = list(hits.did_you_mean)
         attach_try_instead(payload, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+    if hits.test_copies:
+        payload[AMBIGUITY_FIELD] = TEST_COPIES
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     if hits.search_order is not None:
@@ -702,6 +737,8 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         if hits.did_you_mean:
             answer["did_you_mean"] = list(hits.did_you_mean)
         attach_try_instead(answer, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
+    if hits.test_copies:
+        answer[AMBIGUITY_FIELD] = TEST_COPIES
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     if hits.search_order is not None:
@@ -924,6 +961,10 @@ def _hit(
             hit["references_unresolved"] = unresolved
     if store is not None and detail_level != "minimal" and row["kind"] in _ALTERED_KINDS:
         hit.update(_altered_by(store, str(row["qualified_name"])))
+    if store is not None and detail_level != "minimal" and row["kind"] in contract.TYPE_KINDS:
+        named = aliases(store, str(row["qualified_name"]))
+        if named:
+            hit[ALIASES_FIELD] = named  # either name names the other (394)
     return hit
 
 
