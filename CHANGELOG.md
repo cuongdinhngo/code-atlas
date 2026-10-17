@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `check_column_defaults(default_expr="user_name()")` lists every column whose `DEFAULT` is that
+  expression, across tables, each with its omitters — no grep over the schema first (391).
+
 ## 0.4.0 — 2026-10-17 · contract 15 · schema 7
 
 - **Full rebuild required.** Run `code-atlas-build --full`: the edge vocabulary gains `READS`.

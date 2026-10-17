@@ -30,7 +30,7 @@
 | `check_architecture_rules` | confirmed vs candidate violations of declarative rules (`CA_ARCHITECTURE_RULES`): a path set that must not reach another, or symbols that must reach a gate ([rule files](#architecture-rule-files)) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots; a path resolving outside the indexed tree answers `path_outside_root`, unread (342) |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
-| `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter; a bare table name resolves to its one schema-qualified table or is refused with the candidates (SQL tier 2, 320) |
+| `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter; a bare table name resolves to its one schema-qualified table or is refused with the candidates (SQL tier 2, 320); `default_expr` replaces `table` as the subject — every column whose `DEFAULT` is that expression (case, brackets and outer parentheses ignored; whitespace outside a quoted literal removed, so `a b` matches `ab`), each row naming its `table` and measured against that table's writers (391) |
 | `trace_capability` | the capability flows ONE subject takes part in — an entry symbol (`qname`), a file (`path`), a business module (`module`) or a URL through a declared route table (`route`, 385: flows start at its target, that hop `HEURISTIC` + `rule: true`; a miss names `nearest_routes`); each result is a traced path with its hops (`qname` · `file` · `layer` · `kind` · `tier`), how it `ended` and its `sink`. Carries no layer table, matrix or hub list: for the whole picture call `architecture_overview`. A subject the index does not hold answers `no_such_symbol`; one that joins no flow answers `no_matches` (199); on an index where no flow could be seeded — no declared entry point, no entry-named path — every subject answers `capability_not_configured` and routes to `get_index_status`, which nominates entry-point globs (354) |
 
 ### `architecture_overview` — layers, crossings, and the populations behind a zero
@@ -196,7 +196,7 @@ for a reason:
 | `check_architecture_rules` | its subject is the configured rule set — a list of rule ids is filtering, not a batch of independent questions |
 | `diff_architecture` | its subject is already a pair of snapshots — a list of pairs is a query language, which 101 deliberately is not |
 | `class_diagram` | its subject is one type (plus ancestry) or one file — a list of subjects is N diagrams, and the honest form is N calls |
-| `check_column_defaults` | its subject is one table, and the answer is already a scan of every defaulted column on it — a list of tables is N independent scans with no shared arithmetic |
+| `check_column_defaults` | its subject is one table, or one `default_expr` (391) — a list of tables is N independent scans with no shared arithmetic |
 | `trace_capability` | its subject IS the question — *what happens when a user does X* is asked of one entry, one file or one module. A list would return N unrelated traces and reintroduce exactly the over-answering 199 exists to remove (101) |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
