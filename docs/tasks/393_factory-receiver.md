@@ -13,9 +13,9 @@ depends_on: [362]
 This comes from the anchor project's second field retro (2026-10-10 → 10-17). 362 types a
 receiver assigned from `new X()`. The field's next two shapes are still unlinked:
 
-- F1 (1 PR): `find_callers Mailer::createPdfAttachment` returned only a test, because the
-  production receiver is `$mail = Builder::buildMail(); $mail->createPdfAttachment(…)`.
-  `buildMail()` declares `: Mailer` (or `@return Mailer`). The real call was found with Read.
+- F1 (1 PR): `find_callers Mailer::attach` returned only a test, because the
+  production receiver is `$mail = Factory::make(); $mail->attach(…)`.
+  `make()` declares `: Mailer` (or `@return Mailer`). The real call was found with Read.
 - F2 (1 PR): `find_callers` missed the callers that receive `$model` as an untyped parameter. The
   only callers of that function pass one class, and the print paths were found with Grep.
 - F3 (1 PR): a sweep confirmed callers with `find_callers` plus Grep "to be sure", because the
@@ -33,8 +33,11 @@ receiver assigned from `new X()`. The field's next two shapes are still unlinked
 
 ## Acceptance criteria
 
-- **AC1:** `$m = Builder::buildMail(); $m->send();` with `buildMail(): Mailer` gives
+- **AC1:** `$m = Factory::make(); $m->send();` with `make(): Mailer` gives
   `find_callers Mailer::send` one `HEURISTIC` row.
 - **AC2:** The same with `@return Mailer` only.
 - **AC3:** No existing `RESOLVED` edge changes tier, and an index with no such sites is
   byte-identical.
+
+- **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
+  without a Grep fallback; record the before/after counts in the working doc.

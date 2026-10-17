@@ -51,3 +51,6 @@ the evidence that the opt-in itself is the cost: an agent rarely passes the flag
 - **AC4:** A method deleted between A and B: `find_references` lists its built-graph references,
   labelled `index_behind_subject_removed`.
 - **AC5:** On a current index, every answer is byte-identical.
+
+- **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
+  without a Grep fallback; record the before/after counts in the working doc.

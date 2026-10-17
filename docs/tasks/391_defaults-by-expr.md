@@ -33,3 +33,6 @@ column.
   `default_expr="user_name()"` lists the first two, with their omitters.
 - **AC2:** `[USER_NAME]()` and `user_name ( )` match the same columns.
 - **AC3:** A `table=` call is byte-identical.
+
+- **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
+  without a Grep fallback; record the before/after counts in the working doc.

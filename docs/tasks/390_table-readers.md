@@ -15,7 +15,7 @@ questions that still went to Grep:
 
 - F1 (1 PR): "who reads `dbo.X`" before a reference-data change. `find_references` returns
   `WRITES` and `DELETES` only, so the reader sweep over the PHP and SQL trees was Grep.
-- F2 (1 PR): the writer of `Resident.InActive` was an `AFTER` trigger. Asking which SQL writes
+- F2 (1 PR): the writer of a status column `T.Flag` was an `AFTER` trigger. Asking which SQL writes
   a column inside a trigger was not a one-call question.
 - F3 (2 PRs): a column written by an `UPDATE` inside a PHP string, and a T-SQL function
   (`USER_NAME()`) compared inside PHP SQL strings. 371 reads a string that *begins* a write.
@@ -35,7 +35,11 @@ questions that still went to Grep:
 ## Acceptance criteria
 
 - **AC1:** An `AFTER UPDATE` trigger that sets `T.C` is listed by `find_references T::C`, labelled
-  with the trigger as its writer.
+  with the trigger as its writer — or, if scope 1 finds the gap outside the SQL adapter, the
+  measured cause is recorded and AC1 moves to the ticket that owns it.
 - **AC2:** With `kinds=["READS"]`, a proc that selects from `T` and a PHP string
   `"SELECT … FROM dbo.T"` are both listed, with their tiers.
 - **AC3:** Without `kinds`, `find_references` on a table is byte-identical.
+
+- **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
+  without a Grep fallback; record the before/after counts in the working doc.

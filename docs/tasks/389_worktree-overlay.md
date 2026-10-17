@@ -46,3 +46,6 @@ This comes from the anchor project's second field retro (2026-10-10 → 10-17, a
 - **AC3:** Main switched to another branch after the build: the worktree's answers do not change
   (the overlay is keyed on the worktree, not on main's HEAD).
 - **AC4:** No roots and no `CA_CALLER_ROOT`: answers are byte-identical to today.
+
+- **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
+  without a Grep fallback; record the before/after counts in the working doc.

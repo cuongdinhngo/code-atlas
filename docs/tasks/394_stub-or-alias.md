@@ -27,9 +27,10 @@ correct body of the wrong code:
 
 1. A `read_symbol` hit whose body is empty or abstract carries `implemented_by`: the overriding
    methods, capped, with paths (read from the inheritance edges the index holds).
-2. A `class_alias('Real', 'Alias')` with literal arguments emits an alias relation, and
-   `read_symbol` / `search_symbol` on either name names the other, with its path. A literal call in
-   a test path is labelled `test_double`.
+2. The PHP adapter already emits `ALIASES` for a literal `class_alias` (`Visitor.php`). Measure
+   whether the anchor's bootstrap aliases reach the store, then `read_symbol` / `search_symbol` on
+   either name names the other from that edge — no new relation, with its path. An alias declared in a
+   file the index already classes as a test is labelled `test_double`.
 3. On an ambiguous name where every other candidate lives in a test path, the production row comes
    first, and `ambiguity: "test_copies"` is set.
 
@@ -40,3 +41,6 @@ correct body of the wrong code:
 - **AC2:** `class_alias('StubForm', 'Form')` in `tests/bootstrap.php`: `read_symbol Form` names
   the stub and labels it `test_double`.
 - **AC3:** A symbol with no override, alias or test copy is byte-identical.
+
+- **AC-field:** the F-cases' query shapes, replayed on the anchor index after the build, answer
+  without a Grep fallback; record the before/after counts in the working doc.
