@@ -28,11 +28,29 @@ CTRL = (
     "var ListCtrl = function () { this.refresh = () => 1; };\n"  # 8
 )
 
+# The challenger's cases: a namesake declaration, a reassigned or late alias, a block alias,
+# a repeat.
+EDGE = (
+    "function C() {\n"  # 1
+    "  function keep() {}\n"  # 2
+    "  this.keep = function () {};\n"  # 3
+    "  var self = this;\n"  # 4
+    "  self = other;\n"  # 5
+    "  self.x = function () {};\n"  # 6
+    "  that.early = function () {};\n"  # 7
+    "  var that = this;\n"  # 8
+    "  if (ok) { var s = this; s.inblock = function () {}; }\n"  # 9
+    "  this.dup = function () {};\n"  # 10
+    "  this.dup = function () {};\n"  # 11
+    "}\n"  # 12
+)
+
 
 @pytest.fixture
 def config(tmp_path: Path) -> Config:
     (tmp_path / "web").mkdir()
     (tmp_path / "web" / "ctrl.js").write_text(CTRL, encoding="utf-8")
+    (tmp_path / "web" / "edge.js").write_text(EDGE, encoding="utf-8")
     for args in (("init", "-q"), ("add", "-A")):
         subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
     built = load_config(
@@ -76,3 +94,17 @@ def test_a_members_body_is_sourced_at_the_member(config: Config) -> None:
     rows = payload["results"]
     assert isinstance(rows, list)
     assert [row["qname"] for row in rows] == ["web/ctrl.js::EditCtrl::save"]
+
+
+def test_challenger_only_a_live_alias_declares_and_a_namesake_declaration_keeps_its_name(
+    config: Config,
+) -> None:
+    outline = file_outline.create(config)("web/edge.js")
+    symbols = outline["results"]
+    assert isinstance(symbols, list)
+    rows = [(str(s["qname"]), str(s["kind"]), int(s["line_start"])) for s in symbols]
+    assert len({qname for qname, _, _ in rows}) == len(rows)
+    assert {row for row in rows if row[1] == "Method"} == {
+        ("web/edge.js::C::inblock", "Method", 9),
+        ("web/edge.js::C::dup", "Method", 10),
+    }

@@ -732,40 +732,57 @@ function parseFile(path, declarationsOnly) {
   const memberSites = new Map();
   const emitConstructorMembers = (fn, qname) => {
     if (!fn.body || !ts.isBlock(fn.body)) return;
-    const selves = new Set();
-    for (const st of fn.body.statements) {
-      if (!ts.isVariableStatement(st)) continue;
-      for (const d of st.declarationList.declarations) {
-        if (ts.isIdentifier(d.name) && d.initializer && d.initializer.kind === ts.SyntaxKind.ThisKeyword) {
-          selves.add(d.name.text);
-        }
-      }
-    }
-    const seen = new Set();
-    const visit = (node) => {
-      // `this` rebinds in any function but an arrow; so does a class.
+    // `this` rebinds in any function but an arrow, and in a class: neither is this function's body.
+    const ownBody = (node, visit) => {
+      visit(node);
       if ((ts.isFunctionLike(node) && !ts.isArrowFunction(node)) || ts.isClassLike(node)) return;
-      if (
-        ts.isBinaryExpression(node) &&
-        node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-        ts.isPropertyAccessExpression(node.left) &&
-        ts.isIdentifier(node.left.name) &&
-        (ts.isFunctionExpression(node.right) || ts.isArrowFunction(node.right)) &&
-        (node.left.expression.kind === ts.SyntaxKind.ThisKeyword ||
-          (ts.isIdentifier(node.left.expression) && selves.has(node.left.expression.text)))
-      ) {
-        const name = node.left.name.text;
-        const memberQname = member(qname, name);
-        memberSites.set(node, memberQname);
-        if (!seen.has(name)) {
-          seen.add(name);
-          addNode("Method", name, memberQname, node, extraOf(node.right), { params: callableParams(node.right, sf) });
-          addEdge("CONTAINS", qname, memberQname, node.getStart(sf));
+      node.forEachChild((child) => ownBody(child, visit));
+    };
+    const aliases = new Map(); // name -> where `var name = this` ends; a reassigned name drops out
+    const reassigned = new Set();
+    const declaredHere = new Set(); // a nested declaration already owns `F::name`
+    const scan = (node) => {
+      if (ts.isFunctionDeclaration(node) && node.name) declaredHere.add(node.name.text);
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+        if (node.initializer && node.initializer.kind === ts.SyntaxKind.ThisKeyword) aliases.set(node.name.text, node.end);
+        if (node.initializer && (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) {
+          declaredHere.add(node.name.text);
         }
       }
-      node.forEachChild(visit);
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(node.left)) {
+        reassigned.add(node.left.text);
+      }
     };
-    fn.body.statements.forEach(visit);
+    for (const st of fn.body.statements) ownBody(st, scan);
+    const isSelf = (expr, at) => {
+      if (expr.kind === ts.SyntaxKind.ThisKeyword) return true;
+      if (!ts.isIdentifier(expr) || reassigned.has(expr.text)) return false;
+      const bound = aliases.get(expr.text);
+      return bound !== undefined && bound <= at;
+    };
+    const seen = new Set();
+    const declareMember = (node) => {
+      if (
+        !ts.isBinaryExpression(node) ||
+        node.operatorToken.kind !== ts.SyntaxKind.EqualsToken ||
+        !ts.isPropertyAccessExpression(node.left) ||
+        !ts.isIdentifier(node.left.name) ||
+        !(ts.isFunctionExpression(node.right) || ts.isArrowFunction(node.right)) ||
+        !isSelf(node.left.expression, node.getStart(sf)) ||
+        declaredHere.has(node.left.name.text)
+      ) {
+        return;
+      }
+      // A member assigned twice is one Method, at its first assignment; both bodies are its.
+      const name = node.left.name.text;
+      const memberQname = member(qname, name);
+      memberSites.set(node, memberQname);
+      if (seen.has(name)) return;
+      seen.add(name);
+      addNode("Method", name, memberQname, node, extraOf(node.right), { params: callableParams(node.right, sf) });
+      addEdge("CONTAINS", qname, memberQname, node.getStart(sf));
+    };
+    for (const st of fn.body.statements) ownBody(st, declareMember);
   };
 
   // Main walk: nodes + CONTAINS, plus the edges each construct owns. `scope` is what a body edge is
