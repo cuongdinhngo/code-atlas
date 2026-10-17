@@ -328,6 +328,8 @@ Regression scan: every consumer the mechanical trace found is in the gate's `pyt
 
 Reviewed at 505a564a — files: the 31 change-list files of rows 1–8. Working doc: `docs/tasks/388_behind-refuses.md`.
 
+PR #72 review fixes: brief/status name only callers/references as `index_behind`; an unnameable miss amid drift answers `index_behind` + `last_commit`, not `subject_file_checked`; `behind_because` sorts by path; `removed` relabels only `ok`/`no_matches`/`no_such_symbol` — two tests pin it.
+
 ## Phase 5 — finalise
 
 **Durable lesson.** `get_index_status` listed `find_callers` / `find_references` under `behind_refuses` from a static

@@ -5,7 +5,9 @@ from __future__ import annotations
 import shlex
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -117,3 +119,54 @@ def test_an_expression_answer_pages(tmp_path: Path) -> None:
 
 def test_a_parenthesis_inside_a_literal_does_not_block_stripping() -> None:
     assert normalise_default("('(')") == "'('"
+
+
+def _expr_tool(root: Path, extra: dict[str, str]) -> Callable[..., dict[str, Any]]:
+    for name, text in extra.items():
+        (root / name).write_text(text, encoding="utf-8")
+    return check_column_defaults.create(_built(root))
+
+
+@needs_node
+def test_a_column_declared_in_two_files_is_one_row_and_not_unowned(tmp_path: Path) -> None:
+    """Review — two Column nodes for one qname must not double-append nor count as tableless."""
+    again = "CREATE TABLE dbo.Orders (Id INT, ChangeUser VARCHAR(50) DEFAULT (user_name()));\n"
+    payload = _expr_tool(tmp_path, {"again.sql": again})(default_expr="user_name()")
+    columns = [row["column"] for row in payload["results"]]
+    assert columns.count("dbo.Orders::ChangeUser") == 1
+    assert "columns_without_table" not in payload
+
+
+@needs_node
+def test_a_default_added_only_by_alter_is_reported_with_that_default(tmp_path: Path) -> None:
+    """Review — CREATE without DEFAULT, then ALTER ... DEFAULT FOR in another file."""
+    alter = "ALTER TABLE dbo.Stamps ADD CONSTRAINT DF_s DEFAULT (user_name()) FOR Id;\n"
+    payload = _expr_tool(tmp_path, {"zz.sql": alter})(default_expr="user_name()")
+    rows = {row["column"]: row for row in payload["results"]}
+    assert rows["dbo.Stamps::Id"]["default"] == "(user_name())"
+    assert "columns_without_table" not in payload
+
+
+@needs_node
+def test_the_scan_cap_is_silent_on_an_exact_fit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _built(tmp_path)
+    with GraphStore(config.db_path) as store:
+        total = len(store.nodes_by_kind("Column", limit=1_000))
+    tool = check_column_defaults.create(config)
+    monkeypatch.setattr(check_column_defaults, "_COLUMN_SCAN", total)
+    assert "columns_scan_capped" not in tool(default_expr="user_name()")
+    monkeypatch.setattr(check_column_defaults, "_COLUMN_SCAN", total - 1)
+    assert tool(default_expr="user_name()")["columns_scan_capped"] == total - 1
+
+
+def test_empty_parentheses_are_blank_and_unbuilt_echoes_the_normalised_form(
+    tmp_path: Path,
+) -> None:
+    tool = check_column_defaults.create(load_config(tmp_path, {}))
+    with pytest.raises(ValueError, match="blank"):
+        tool(default_expr="()")
+    unbuilt = tool(default_expr="(USER_NAME())")
+    assert unbuilt["reason"] == "not_indexed"
+    assert unbuilt["default_expr_normalised"] == "user_name()"

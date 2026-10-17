@@ -42,7 +42,7 @@ def test_summary_is_pure_function_of_structured_fields() -> None:
         "serve_behind_opt_in": "serve_behind",
     }
     assert _compose_summary(behind) == (
-        "behind @ abcdef0 · 10 files · 100 symbols (the built graph answers, labelled "
+        "behind @ abcdef0 · 10 files · 100 symbols (callers/references answer labelled "
         "index_behind) — run build_or_update_index"
     )
     held = {k: v for k, v in behind.items() if k != "serve_behind_opt_in"}
