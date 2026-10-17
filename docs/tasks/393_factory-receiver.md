@@ -4,7 +4,7 @@ slug: factory-receiver
 title: 'A call on an object a factory returned, or on an untyped parameter, links to nothing, so find_callers lists only the test'
 phase: 2
 milestone: Coverage
-status: todo
+status: done
 depends_on: [362]
 ---
 
@@ -46,7 +46,7 @@ receiver assigned from `new X()`. The field's next two shapes are still unlinked
 
 ## Session status
 
-- **KEY:** 393 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 393 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W4, runs E1, then merges after #76. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/393-factory-receiver`, **stacked on `feat/391-defaults-by-expr`**. Contract `.mango/run-contract-393.txt`.
@@ -61,7 +61,7 @@ receiver assigned from `new X()`. The field's next two shapes are still unlinked
 `()` chain (`code_atlas/resolver.py` `_resolve_deferred`) and `unlinked_same_name_sites` resolve. `unresolved_receivers`
 is to-be-created. Ambiguous: "the anchor index".
 
-**Exposure-checker** (ticket-blind `challenger`, 1 dispatch, tokens unmeasured — the host reported none) raised ten;
+**Exposure-checker** (ticket-blind `challenger`, 1 dispatch, 64,777 tokens) raised ten;
 its first is the AC1 contradiction (W3).
 
 | # | Decision | Class | Resolution |
@@ -78,7 +78,7 @@ its first is the AC1 contradiction (W3).
 | W1 | AC-field (anchor) | want | **asked, settled by the maintainer (2026-10-17):** E1 |
 | W2 | Scope 2 — F2 call-site inference | want | **ASSUMED (awaiting ratification):** not built; the count needs the anchor index, so it rides E1's replay |
 | W3 | AC1's tier for a native return type | want | **ASSUMED (awaiting ratification):** RESOLVED, as at base — AC1's `HEURISTIC` would move an existing edge, which AC3 forbids |
-| W4 | what `unresolved_receivers` counts | want | **ASSUMED (awaiting ratification):** every caller edge whose raw target is the method's bare name — linked by name at `HEURISTIC` or not |
+| W4 | what `unresolved_receivers` counts | want | **ASSUMED (awaiting ratification):** every caller edge in the subject's language whose raw target is the method's bare name — linked by name at `HEURISTIC` or not |
 
 ## Phase 1 — analysis
 
@@ -190,12 +190,67 @@ pass one class · `expiry: when the anchor index is available to a maintainer ru
 
 ## Phase 3 — execute
 
-Commits `95ab2fe1` (code), `a9cffa37` (docs).
+Commits `d1c1ca81` (code), `68647122` (docs), `2c892a81` + `0ca1f2fa` (challenger fixes).
 
 **Red first.** The proving test with the base's `adapters/php/src` and `code_atlas` restored (8141543a): `2 failed, 2
 passed in 3.50s` — AC2 and the count; AC1 and AC3 pass at base, as W3 says.
 
-**Green after.** `4 passed in 1.75s`. Ran at a9cffa37.
+**Green after.** `4 passed in 1.75s` at the code commit; with the challenger's tests, see Phase 4.
 
 **Axis 1.** Change-list rows 1–5. **Axis 2.** Approach bullets 1–5 implemented as approved. **P3 deviation:** AC1 is
 asserted `RESOLVED`, not the ticket's `HEURISTIC` (W3).
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: raw ticket plus `git diff` from the base without this file; 1 dispatch, 63,178 tokens):
+4 met · 1 not met · 2 can't tell (Scope 2's count, E1) · AC1 noted as W3. One Major, four Minor:
+
+| # | Finding | Resolution |
+|---|---|---|
+| M1 | `@return \App\Mailer` resolved against the namespace again (`\App\\App\Mailer`), so the twin class could link | a leading `\` is fully qualified as written (2c892a81) |
+| m1 | `@return` inside prose read as a tag | the tag must open its docblock line (2c892a81) |
+| m2 | `integer`, `scalar`, `namespace\X` produced dead `doc_type`s | added to the not-a-class list (2c892a81) |
+| m3 | `null\|X` reads as nothing | kept: a missed link, never a wrong one (H3) |
+| m4 | the count is index-wide by bare name, any language | kept to the subject's language (2c892a81); still not per class, which W4 states |
+
+**Red first.** The three challenger tests against the pre-fix code: `3 failed, 3 passed in 2.60s`. **Green after:**
+`tests/test_factory_receiver.py` `6 passed`; `ruff`, `mypy`, PHPStan clean. Ran at 2c892a81.
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 / R1 / AC2 | `test_ac2_…`, `test_challenger_a_qualified_return_…` | 2/2 |
+| AC1 | `test_ac1_…` (W3) | 1/1 |
+| C1 / AC3 | `test_ac3_…`; the existing suites unchanged | 2/2 |
+| R3 | `test_scope3_…`, `test_challenger_another_languages_…` | 2/2 |
+| R2 / AC4 | E1 | 0/2 (excluded) |
+
+Reviewed at 2c892a81 — files: change-list rows 1–5. Working doc: `docs/tasks/393_factory-receiver.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** None new as a claim.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Stale-review guard: after 2c892a81 only docs (`0ca1f2fa`: a docstring and the TOOLS row), this file, `docs/BACKLOG.md` and
+`docs/TOKEN_LEDGER.md` change. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/393-factory-receiver`; open the PR against `main` (stacked on #76).
+Deferred: ratify W2–W4; E1 (with Scope 2's count); merge after #76.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 64,777 |
+| 4 review | `challenger` (ticket-blind) | 1 | 63,178 |
+
+`LEDGER TOTAL: 127,955 · top cost driver: exposure-checker`
