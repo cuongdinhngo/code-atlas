@@ -19,7 +19,7 @@ from tests.python_adapter_cli import CLI as PY_CLI
 from tests.ts_adapter_cli import CLI as TS_CLI
 
 TABLE = json.loads((Path(__file__).parent / "sql_literal_cases.json").read_text(encoding="utf-8"))
-_KINDS = ("WRITES", "DELETES", "CALLS")
+_KINDS = ("WRITES", "DELETES", "CALLS", "READS")
 
 
 def _php(text: str, is_open: bool) -> str:

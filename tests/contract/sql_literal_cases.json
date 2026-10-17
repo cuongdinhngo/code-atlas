@@ -1,5 +1,5 @@
 {
-  "_doc": "Task 371: one recogniser, three copies. Each literal is the whole text of a string (`open: false`) or the text before an interpolation (`open: true`); `expect` is the edge every source adapter emits from it at HEURISTIC, or null. `markers` holds the parameter markers each host language's drivers write, so the EXEC guard reads per adapter (228). An unqualified EXEC names the default schema, `dbo` (386).",
+  "_doc": "Task 371: one recogniser, three copies; 390 adds a SELECT's FROM source as READS. Each literal is the whole text of a string (`open: false`) or the text before an interpolation (`open: true`); `expect` is the edge every source adapter emits from it at HEURISTIC, or null. `markers` holds the parameter markers each host language's drivers write, so the EXEC guard reads per adapter (228). An unqualified EXEC names the default schema, `dbo` (386).",
   "cases": [
     {
       "text": "INSERT INTO dbo.Items (a) VALUES (1)",
@@ -200,6 +200,58 @@
     },
     {
       "text": "Execute the plan",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "SELECT a FROM dbo.Items WHERE id = 1",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "select * from Items",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items"
+      }
+    },
+    {
+      "text": "SELECT a FROM Items WHERE id = ",
+      "open": true,
+      "expect": {
+        "kind": "READS",
+        "target": "Items"
+      }
+    },
+    {
+      "text": "SELECT c.a FROM [dbo].[Line Items] c JOIN dbo.Other o ON 1 = 1",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "dbo.Line Items"
+      }
+    },
+    {
+      "text": "Select a file from the list",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "Select files from disk please",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "SELECT * FROM #tmp",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "SELECT a FROM (SELECT 1 AS a) d",
       "open": false,
       "expect": null
     }

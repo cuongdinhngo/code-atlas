@@ -16,10 +16,19 @@ KINDS = {
     "merge": "WRITES",
     "delete": "DELETES",
     "exec": "CALLS",
+    "select": "READS",
 }
 
 _HEAD = re.compile(
-    r"\A(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)?)\s+", re.IGNORECASE
+    r"\A(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)?|select)\s+",
+    re.IGNORECASE,
+)
+# A SELECT names its table after FROM (390). An unqualified one must be followed by a clause, or end
+# a closed literal, so "Select a file from the list" reads as nothing.
+_FROM = re.compile(r"\bfrom\s+", re.IGNORECASE)
+_AFTER_SOURCE = re.compile(
+    r"\A\s*(?:where|join|inner|left|right|full|cross|order|group|having|union|with|as|;)\b|\A\s*;",
+    re.IGNORECASE,
 )
 _NAME_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)'
 _NAME = re.compile(_NAME_PART + r"(?:\s*\.\s*" + _NAME_PART + r")*")
@@ -54,6 +63,8 @@ def read(text: str, closed: bool) -> tuple[str, str, int] | None:
     verb = head.group(2).split()[0].lower()
     verb = "exec" if verb.startswith("exec") else verb
     start = head.end()
+    if verb == "select":
+        return _read_select(text, start, closed, len(head.group(1)))
     if verb == "exec":
         rc = _RETURN_CODE.match(text, start)  # `EXEC @rc = dbo.P …`, the return-code capture form
         start = rc.end() if rc else start
@@ -68,6 +79,19 @@ def read(text: str, closed: bool) -> tuple[str, str, int] | None:
         # whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
         parts.insert(0, DEFAULT_SCHEMA)
     return KINDS[verb], ".".join(parts), len(head.group(1))
+
+
+def _read_select(text: str, start: int, closed: bool, offset: int) -> tuple[str, str, int] | None:
+    """The table a SELECT reads: the first FROM's name, never a temp table or a derived one."""
+    source = _FROM.search(text, start)
+    name = _NAME.match(text, source.end()) if source else None
+    if name is None:
+        return None
+    parts = [_unquote(part) for part in _PART.findall(name.group(0))]
+    rest = text[name.end() :]
+    if len(parts) == 1 and not (_AFTER_SOURCE.match(rest) or (closed and rest.strip() == "")):
+        return None
+    return KINDS["select"], ".".join(parts), offset
 
 
 def _follows(verb: str, rest: str, qualified: bool, closed: bool) -> bool:

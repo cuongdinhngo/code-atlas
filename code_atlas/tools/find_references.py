@@ -11,6 +11,7 @@ from code_atlas.contract import (
     COLUMN_KIND,
     CONTAINS,
     DELETES,
+    EDGE_KINDS,
     TABLE_KIND,
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
@@ -108,6 +109,16 @@ def _writes_answer_is_partial(
         return len(langs) >= 2
     writers = [lang for lang in langs if "WRITES" in emitted.get(lang, [])]
     return len(writers) < len(langs)
+
+
+def _table_kinds(kinds: list[str] | None) -> tuple[str, ...]:
+    """The relations a Table / Column answer lists: its writers unless the caller names others."""
+    if kinds is None:
+        return (WRITES, DELETES)
+    unknown = [kind for kind in kinds if kind not in EDGE_KINDS or kind == CONTAINS]
+    if unknown or not kinds:
+        raise ValueError(f"kinds must name inbound edge kinds, got {kinds!r}")
+    return tuple(dict.fromkeys(kinds))
 
 
 def _writes_targets(store: GraphStore, lookup: str, subject_kind: str) -> list[str]:
@@ -238,6 +249,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         serve_behind: bool = False,
         exclude_tests: bool = False,
         path_prefix: str | None = None,
+        kinds: list[str] | None = None,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -246,8 +258,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         (278/328). A Table unions writers of the table and of its CONTAINS columns
         (named-column sites never target the Table qname); each writing statement is
         one row with the named columns folded in (329). A Column is the narrower
-        per-edge set. ``DELETES`` target the Table only. When the graph still holds
-        unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
+        per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
+        only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
+        lists the routines a ``SELECT`` reads the table from (RESOLVED) and host strings that
+        begin one (HEURISTIC) — 390; another subject carries ``kinds_ignored``. When the graph
+        still holds unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language
         emits no ``WRITES``. A host-language string that begins a write is read at
         ``HEURISTIC`` where its adapter reads one; SQL built at runtime is not
@@ -298,6 +313,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         stored form (075/122). An exact stored qname is unchanged.
         """
         call = claim.call_args(find_references, locals())
+        table_kinds = _table_kinds(kinds)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         path_prefix = require_path_prefix(path_prefix)
@@ -382,7 +398,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
                 # Mutation set — WRITES + DELETES; Table unions CONTAINS columns (278/328).
                 writes_subject = True
-                writes_kinds = (WRITES, DELETES)
+                writes_kinds = table_kinds
                 subject_kind = str(nodes[0]["kind"])
                 writes_targets = _writes_targets(store, lookup, subject_kind)
                 group_table_writes = subject_kind == TABLE_KIND
@@ -448,7 +464,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 indexed = bool(nodes)
                 if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
                     writes_subject = True
-                    writes_kinds = (WRITES, DELETES)
+                    writes_kinds = table_kinds
                     subject_kind = str(nodes[0]["kind"])
                     writes_targets = _writes_targets(store, lookup, subject_kind)
                     group_table_writes = subject_kind == TABLE_KIND
@@ -667,6 +683,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
             caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
         attach_authoritative_caveats(result, caveats)
+        if kinds is not None and not writes_subject:
+            result["kinds_ignored"] = True  # kinds= picks a table's relations; others list all
         if overlay is not None:
             labelled = overlay_inbound(overlay, result, lookup, None, depth=1)
         else:

@@ -5,9 +5,16 @@
 // one object name, and the clause T-SQL requires after it, so "Update settings" reads as nothing.
 // tests/contract/sql_literal_cases.json keeps this copy, the PHP original and the Python port in step.
 
-const KINDS = { insert: "WRITES", update: "WRITES", merge: "WRITES", delete: "DELETES", exec: "CALLS" };
+const KINDS = {
+  insert: "WRITES", update: "WRITES", merge: "WRITES", delete: "DELETES", exec: "CALLS", select: "READS",
+};
 
-const HEAD = /^(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)?)\s+/i;
+const HEAD = /^(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)?|select)\s+/i;
+// A SELECT names its table after FROM (390). An unqualified one must be followed by a clause, or end
+// a closed literal, so "Select a file from the list" reads as nothing.
+const FROM = /\bfrom\s+/gi;
+const AFTER_SOURCE =
+  /^\s*(?:(?:where|join|inner|left|right|full|cross|order|group|having|union|with|as)\b|;)/i;
 const NAME_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)`;
 const NAME = new RegExp(String.raw`${NAME_PART}(?:\s*\.\s*${NAME_PART})*`, "y");
 const PART = new RegExp(NAME_PART, "g");
@@ -32,6 +39,7 @@ function readSqlLiteral(text, closed) {
   let verb = head[2].split(/\s/)[0].toLowerCase();
   if (verb.startsWith("exec")) verb = "exec";
   let start = head[0].length;
+  if (verb === "select") return readSelect(text, start, closed, head[1].length);
   if (verb === "exec") {
     RETURN_CODE.lastIndex = start; // `EXEC @rc = dbo.P …`, the return-code capture form
     const rc = RETURN_CODE.exec(text);
@@ -46,6 +54,20 @@ function readSqlLiteral(text, closed) {
   // whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
   if (verb === "exec" && parts.length === 1) parts.unshift(DEFAULT_SCHEMA);
   return { kind: KINDS[verb], target: parts.join("."), offset: head[1].length };
+}
+
+// The table a SELECT reads: the first FROM's name, never a temp table or a derived one.
+function readSelect(text, start, closed, offset) {
+  FROM.lastIndex = start;
+  const source = FROM.exec(text);
+  if (!source) return null;
+  NAME.lastIndex = source.index + source[0].length;
+  const name = NAME.exec(text);
+  if (!name) return null;
+  const parts = (name[0].match(PART) || []).map(unquote);
+  const rest = text.slice(NAME.lastIndex);
+  if (parts.length === 1 && !(AFTER_SOURCE.test(rest) || (closed && rest.trim() === ""))) return null;
+  return { kind: KINDS.select, target: parts.join("."), offset };
 }
 
 // The clause T-SQL requires after the name; for DELETE / EXEC on a qualified name, its end.

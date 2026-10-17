@@ -20,6 +20,7 @@ final class SqlLiteral
         'merge' => 'WRITES',
         'delete' => 'DELETES',
         'exec' => 'CALLS',
+        'select' => 'READS',
     ];
 
     /** What must follow the object name for the text to be that statement. */
@@ -36,6 +37,10 @@ final class SqlLiteral
 
     private const NAME_PART = '(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)';
 
+    /** An unqualified SELECT source must be followed by a clause, or end a closed literal (390). */
+    private const AFTER_SOURCE =
+        '/\A\s*(?:(?:where|join|inner|left|right|full|cross|order|group|having|union|with|as)\b|;)/i';
+
     /**
      * The statement ``$text`` begins, or null.
      *
@@ -46,7 +51,7 @@ final class SqlLiteral
      */
     public static function read(string $text, bool $closed): ?array
     {
-        $head = '/\A(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)?)\s+/i';
+        $head = '/\A(\s*)(insert\s+into|update|merge\s+into|delete\s+from|exec(?:ute)?|select)\s+/i';
         if (preg_match($head, $text, $m) !== 1) {
             return null;
         }
@@ -54,6 +59,9 @@ final class SqlLiteral
         $verb = str_starts_with($verb, 'exec') ? 'exec' : $verb;
         $name = '/\G' . self::NAME_PART . '(?:\s*\.\s*' . self::NAME_PART . ')*/';
         $start = strlen($m[0]);
+        if ($verb === 'select') {
+            return self::readSelect($text, $start, $closed, $name, strlen($m[1]));
+        }
         if ($verb === 'exec' && preg_match('/\G@[A-Za-z_]\w*\s*=\s*/', $text, $rc, 0, $start) === 1) {
             $start += strlen($rc[0]);  // `EXEC @rc = dbo.P …` — the return-code capture form
         }
@@ -73,6 +81,35 @@ final class SqlLiteral
         }
 
         return ['kind' => self::KINDS[$verb], 'target' => implode('.', $parts), 'offset' => strlen($m[1])];
+    }
+
+    /**
+     * The table a SELECT reads: the first FROM's name, never a temp table or a derived one (390).
+     *
+     * @return array{kind: string, target: string, offset: int}|null
+     */
+    private static function readSelect(
+        string $text,
+        int $start,
+        bool $closed,
+        string $name,
+        int $offset,
+    ): ?array {
+        if (preg_match('/\bfrom\s+/i', $text, $from, PREG_OFFSET_CAPTURE, $start) !== 1) {
+            return null;
+        }
+        $at = $from[0][1] + strlen($from[0][0]);
+        if (preg_match($name, $text, $n, 0, $at) !== 1) {
+            return null;
+        }
+        $parts = self::parts($n[0]);
+        $rest = substr($text, $at + strlen($n[0]));
+        $ends = preg_match(self::AFTER_SOURCE, $rest) === 1 || ($closed && trim($rest) === '');
+        if (count($parts) === 1 && !$ends) {
+            return null;
+        }
+
+        return ['kind' => self::KINDS['select'], 'target' => implode('.', $parts), 'offset' => $offset];
     }
 
     /** The clause T-SQL requires after the name, or — DELETE / EXEC on a qualified name — its end. */

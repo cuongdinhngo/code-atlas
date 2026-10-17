@@ -620,6 +620,39 @@ function aliasSourceTable(code, from, target) {
   return null;
 }
 
+// Pseudo-tables a trigger reads and a CTE's own name are not tables a statement reads (390).
+const NOT_A_SOURCE = new Set(["inserted", "deleted"]);
+const CTE_NAME = /(?:\bwith|,)\s*([A-Za-z_][\w@#$]*|\[[^\]]+\])\s*(?:\([^)]*\)\s*)?as\s*\(/gi;
+
+/**
+ * The tables a statement reads: every `FROM` / `JOIN` source, subqueries included (390).
+ * A temp table (`#t`), a table variable (`@t`), a derived table, a table-valued function
+ * call and a CTE's own name are not read from the database, so none is a source.
+ * Each carries ``at``, the byte offset of its keyword, so a caller can place it on its own line.
+ * @param {string} code
+ * @returns {{name: string, at: number}[]}
+ */
+function readSources(code) {
+  const ctes = new Set();
+  for (let m = CTE_NAME.exec(code); m; m = CTE_NAME.exec(code)) {
+    ctes.add((m[1] ?? "").replace(/^\[|\]$/g, "").toLowerCase());
+  }
+  CTE_NAME.lastIndex = 0;
+  /** @type {{name: string, at: number}[]} */
+  const out = [];
+  const keyword = /\b(?:from|join)\s+/gi;
+  for (let m = keyword.exec(code); m; m = keyword.exec(code)) {
+    const table = readQualified(code, m.index + m[0].length);
+    if (!table) continue;
+    const name = table.name;
+    const lower = name.toLowerCase();
+    if (/^[#@]/.test(name) || NOT_A_SOURCE.has(lower) || ctes.has(lower)) continue;
+    if (/^\s*\(/.test(code.slice(table.next))) continue; // a table-valued function call
+    if (!out.some((seen) => seen.name === name)) out.push({ name, at: m.index });
+  }
+  return out;
+}
+
 /**
  * TRUNCATE TABLE t (328).
  * @param {string} code
@@ -653,6 +686,6 @@ module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readDelete, readTruncate, readMergeDeletes, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
   readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
-  readIdent, readQualified, readParens, splitTopLevel, splitTopLevelPieces,
+  readIdent, readQualified, readParens, readSources, splitTopLevel, splitTopLevelPieces,
   isReservedObjectName, NOT_A_COLUMN,
 };
