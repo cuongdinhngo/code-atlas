@@ -259,6 +259,38 @@
       "text": "select items from stock as needed",
       "open": false,
       "expect": null
+    },
+    {
+      "text": "SELECT u.id FROM users u WHERE u.active = 1",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "users"
+      }
+    },
+    {
+      "text": "SELECT u.id FROM users AS u WHERE u.id = ",
+      "open": true,
+      "expect": {
+        "kind": "READS",
+        "target": "users"
+      }
+    },
+    {
+      "text": "SELECT a, (SELECT COUNT(*) FROM dbo.Lines l WHERE l.o = o.id) FROM dbo.Orders o",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "dbo.Orders"
+      }
+    },
+    {
+      "text": "SELECT 'x from y' FROM orders WHERE id = 1",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "orders"
+      }
     }
   ],
   "markers": [
