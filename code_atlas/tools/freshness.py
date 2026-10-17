@@ -23,6 +23,8 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
     REASON_INDEX_BEHIND_SUBJECT_REMOVED,
     REASON_INDEX_STALE,
+    REASON_NO_MATCHES,
+    REASON_NO_SUCH_SYMBOL,
     REASON_OK,
     REASON_SUBJECT_FILE_CHECKED,
     classify_missing_subject,
@@ -106,6 +108,8 @@ class FreshnessGuard:
     cap: int = READ_THROUGH_CAP
     _used: int = field(default=0, init=False)
     other_indexed_files_drifted: int = field(default=0, init=False)
+    # The miss named no subject amid several drifted files, so no file was checked (388).
+    subject_unchecked: bool = field(default=False, init=False)
     # A writer held the DB when a repair was due: the refresh is the repair (365).
     build_held: bool = field(default=False, init=False)
 
@@ -152,6 +156,7 @@ class FreshnessGuard:
         without spending the cap (073). Requires git ``dirty_paths``; outside a repo returns ``ok``.
         """
         self.other_indexed_files_drifted = 0
+        self.subject_unchecked = False
         candidates = dirty_indexed_paths(self.store, self.config)
         if not candidates:
             return "ok"
@@ -164,6 +169,7 @@ class FreshnessGuard:
         if len(candidates) > 1:
             # Nothing was checked, so every drifted file is residue the answer must name (388).
             self.other_indexed_files_drifted = len(candidates)
+            self.subject_unchecked = True
             return "stale"
         return self.ensure(candidates[0])
 
@@ -194,12 +200,23 @@ def attach_other_indexed_files_drifted(
 
 
 def finalize_subject_checked_miss(
-    payload: dict[str, object], guard: FreshnessGuard
+    payload: dict[str, object],
+    guard: FreshnessGuard,
+    revision: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    """On a miss after a named subject check: weaker ``reason`` + residue count (246)."""
+    """On a miss after a named subject check: weaker ``reason`` + residue count (246).
+
+    No subject checked (an unnameable miss amid drift) → ``index_behind`` + ``last_commit`` (388).
+    """
     if guard.other_indexed_files_drifted > 0:
-        payload["reason"] = REASON_SUBJECT_FILE_CHECKED
         payload["other_indexed_files_drifted"] = guard.other_indexed_files_drifted
+        if not guard.subject_unchecked:
+            payload["reason"] = REASON_SUBJECT_FILE_CHECKED
+            return payload
+        payload["reason"] = REASON_INDEX_BEHIND
+        commit = revision.get("last_commit") if revision is not None else None
+        if isinstance(commit, str) and commit:
+            payload["last_commit"] = commit
     return payload
 
 
@@ -309,6 +326,12 @@ def _refuse_as_stale(payload: dict[str, object]) -> dict[str, object]:
     return payload
 
 
+def _label_removed(payload: dict[str, object]) -> None:
+    """Relabel a plain answer only: a zero that already says why (unmodelled, …) keeps it."""
+    if payload.get("reason") in (REASON_OK, REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL):
+        payload["reason"] = REASON_INDEX_BEHIND_SUBJECT_REMOVED
+
+
 def label_behind(
     payload: dict[str, object],
     *,
@@ -337,14 +360,14 @@ def label_behind(
     if not stampable:
         if subject_removed:
             # No revision to stamp (non-git), but the rows still describe a symbol now gone.
-            payload["reason"] = REASON_INDEX_BEHIND_SUBJECT_REMOVED
+            _label_removed(payload)
             return payload
         return _refuse_as_stale(payload) if unrepaired else payload
     assert isinstance(commit, str)  # narrowed by `stampable`
     if payload.get("reason") == REASON_INDEX_STALE:
         return payload
     if subject_removed:
-        payload["reason"] = REASON_INDEX_BEHIND_SUBJECT_REMOVED
+        _label_removed(payload)
     elif unrepaired:
         payload["reason"] = REASON_INDEX_BEHIND_SUBJECT_CHANGED
     elif subject_dirty:
