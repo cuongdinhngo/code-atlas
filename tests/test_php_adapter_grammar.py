@@ -255,7 +255,7 @@ def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
     assert EDGE_KINDS == (
         "CONTAINS", "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS",
         "NEW", "IMPORTS", "INCLUDES", "REFERENCES", "ALIASES", "PROVIDES_VIEW_DATA", "WRITES",
-        "ALTERS", "DELETES",
+        "ALTERS", "DELETES", "READS",
     )
     assert "extra" in NODE_FIELDS
     assert "extra" not in EDGE_FIELDS

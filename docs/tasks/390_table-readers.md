@@ -229,7 +229,7 @@ clean. Ran at 0f6ff76c.
 floor holds; `READS` only adds edges, so no floor moved and none is re-measured. Ran at e11639db (adapter
 emission unchanged since but for the three challenger fixes, which only add reads).
 
-**Axis 1.** Change-list rows 1–10, plus one deviation: `scripts/gen_skill.py` and the regenerated `contrib/agent-brief.md` — `test_agent_brief_usage_completeness` requires every `find_references` parameter taught or waived, and `kinds` is taught (a P5 miss at design, caught by the gate's suite). **Axis 2.** Approach bullets 1–6 implemented as approved; the caveat (H9) and
+**Axis 1.** Change-list rows 1–10, plus one deviation: `scripts/gen_skill.py` and the regenerated `contrib/agent-brief.md` — `test_agent_brief_usage_completeness` requires every `find_references` parameter taught or waived, and `kinds` is taught (a P5 miss at design, caught by the gate's suite). Two test-only follow-ups the gate's suite also caught: the comma-join test spawns through `tests/adapter_cli.run_adapter_file` (the one `--file` spawner), and the PHP grammar's vocabulary pin gains `READS`. **Axis 2.** Approach bullets 1–6 implemented as approved; the caveat (H9) and
 the fixes below sit inside rows 3–5.
 
 ## Phase 4 — review

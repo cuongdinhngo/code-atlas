@@ -14,6 +14,7 @@ from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_references
+from tests.adapter_cli import run_adapter_file
 
 REPO = Path(__file__).resolve().parent.parent
 SQL_ENTRY = REPO / "adapters" / "sql" / "index.js"
@@ -138,13 +139,8 @@ def test_challenger_a_comma_join_a_self_read_and_a_one_line_function_are_reads(
         "CREATE PROCEDURE dbo.Q AS\n    SELECT 1 FROM dbo.A a, dbo.B b;\nGO\n",
         encoding="utf-8",
     )
-    done = subprocess.run(
-        [str(NODE), str(SQL_ENTRY), "--file", "db/more.sql"],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    done = run_adapter_file([str(NODE), str(SQL_ENTRY)], "db/more.sql", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
     reads = {
         (edge["source_qname"], edge["target_raw"])
         for edge in json.loads(done.stdout)["edges"]
