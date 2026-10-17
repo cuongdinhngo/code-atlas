@@ -263,7 +263,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         one row with the named columns folded in (329). A Column is the narrower
         per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
         only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
-        lists the routines a ``SELECT`` reads the table from (RESOLVED) and host strings that
+        lists the routines a ``select`` reads the table from (RESOLVED) and host strings that
         begin one (HEURISTIC) — 390; another subject carries ``kinds_ignored``. When the graph
         still holds unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language
