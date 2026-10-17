@@ -4,7 +4,7 @@ slug: worktree-overlay
 title: 'An agent in a worktree gets main''s spans and main''s staleness, and the per-worktree index is too expensive to be the route'
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [366, 365, 268]
 ---
 
@@ -54,7 +54,7 @@ This comes from the anchor project's second field retro (2026-10-10 → 10-17, a
 
 ## Session status
 
-- **KEY:** 389 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 389 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W4, 389-C1 and the `widen-every-query-that-shares-the-page` promotion (`/mango:promote`), runs E1, then merges after #72. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: L` · `STRUCTURE: native` · Run mode: `autorun 388 - 389 - 394 - 390 - 391 - 393 - 395 - 392 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/389-worktree-overlay`, **stacked on `feat/388-behind-refuses`** (both rewrite the inbound tools'
@@ -252,3 +252,93 @@ non-regression guard), green after.
 ### Rollback
 
 `git revert` the branch's commits; nothing is stored, so no index changes shape. Merge after #72 (stacked).
+
+## Phase 3 — execute
+
+Commits `5d49096c` (the change and its proof collateral), `e39394ef` (docs), `38924705` (challenger fixes).
+
+**Red first.** The proving test against 388's tip (`b3f986cf`, a scratch copy): `5 failed, 1 passed in 2.12s` — AC4
+is the non-regression guard. The three challenger tests against `02a3effb`: `3 failed, 6 deselected in 1.76s`.
+
+**Green after.** `tests/test_worktree_overlay.py` + `tests/test_ref_mismatch.py`: `21 passed in 9.90s`; `ruff check
+code_atlas`: `All checks passed!`; `mypy code_atlas`: `Success: no issues found in 102 source files`. Ran at 38924705.
+
+**Axis 1 — file set.** The diff over 388's tip lists change-list rows 1–10 plus `code_atlas/gitutil.py`
+(`changed_paths(..., renames=False)`, the F1 fix) — recorded as a deviation from the Gate-2 list, the one file the
+rename leak needed. `ruff format --check` on the new files: clean; no new format drift in edited files.
+
+**Axis 2 — design conformance.**
+
+| Approach bullet | Result |
+|---|---|
+| 1 shared `other_checkout`, `caller_checkout` | implemented-as-approved |
+| 2 overlay module | deviated (recorded): `changes()` also counts a file whose stored rows no longer match the worktree (F5), and the diff lists renames as both paths (F1) |
+| 3 `trust_built` | implemented-as-approved |
+| 4 overlay paths in five tools | deviated (recorded): inbound swaps only first-hop rows and flags `overlay_first_hop_only` (F3); an unparseable file's search rows stay, `source_stale` (F2) |
+| 5 relabel skip, knob | implemented-as-approved |
+| 6 docs | implemented-as-approved |
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: the raw ticket plus `git diff feat/388-behind-refuses..feat/389-worktree-overlay`
+without this file; 1 dispatch, 68,408 tokens): 0 not met · 2 can't tell (Scope 1's client measurement, AC-field) ·
+1 partial (Scope 4's tool argument — the ticket says "or"; H8 rejects it).
+
+| # | Finding | Resolution |
+|---|---|---|
+| F1 Major | a rename lists only its new path, so the old path's built rows leak | `changed_paths(..., renames=False)`; `test_challenger_renamed_file_…` |
+| F2 Major | search reads an unparseable worktree file as an absence | rows kept, `source_stale`; `test_challenger_an_unparseable_file_…` |
+| F3 Minor | depth > 1 dropped transitive rows from changed files | only first-hop rows swap; `overlay_first_hop_only` |
+| F4 Minor | a `path_prefix`-chosen row in a changed file read main's span | the worktree's parse answers it, or `index_stale` |
+| F5 Risk | another checkout's read-through repair rewrites "built" rows | `Overlay.changes` compares stored hash and worktree bytes; `test_challenger_main_repairing_…` |
+| F6 Minor | an overlay that cannot start (no git, no built commit) is silent | unchanged: the answer is then exactly 366's, `ref_mismatch` included |
+
+Verify-only round, main loop: the fixes stay inside F1–F5; `gitutil.py` is the one file added (Phase 3). The three
+new tests are red on the pre-fix tip and green after (above).
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 / C1 | no store write on any overlay path; AC1–AC3 tests | 1/1 |
+| R1 | Scope 1 measurement (Phase 0) | 1/1 |
+| R2 / AC1–AC3 | `test_ac1_…`, `test_ac2_…`, `test_ac3_…`, the three challenger tests | 6/6 |
+| R3 | `test_scope3_…`; `test_ref_mismatch` (overlaid tools) | 2/2 |
+| R4 / AC4 | `test_ac4_…`; `test_config` precedence for `CA_CALLER_ROOT` | 2/2 |
+| AC5 | E1 | 0/1 (excluded) |
+
+Reviewed at 38924705 — files: the change-list files plus `code_atlas/gitutil.py`. Working doc:
+`docs/tasks/389_worktree-overlay.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** A store shared by checkouts is rewritten by any checkout's read-through repair while
+`last_commit` stays put, so "unchanged since the build" is a per-file hash question, never a commit question.
+Recorded as 389-C1. The handle traced at design, `widen-every-query-that-shares-the-page`, reaches recurrence 4.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+
+Falsification of `widen-every-query-that-shares-the-page`: still true — this run's grep found four partitions the
+inbound pair compute over the built rows that a row swap would have left stale (HANDLES row). Proposed for
+ENGINEERING_RULES R5.5's neighbourhood; `/mango:promote` is the cross-ticket pass the maintainer runs.
+
+Stale-review guard: everything after 38924705 is this file, `docs/LESSONS.md`, `docs/BACKLOG.md` and
+`docs/TOKEN_LEDGER.md` — bookkeeping. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/389-worktree-overlay`; open the PR against `main` (stacked on #72).
+Deferred to the maintainer: ratify W2–W4, 389-C1 and the promotion; run E1; merge after #72.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 45,436 |
+| 4 review | `challenger` (ticket-blind) | 1 | 68,408 |
+
+`LEDGER TOTAL: 113,844 · top cost driver: challenger`

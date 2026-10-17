@@ -40,10 +40,19 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
-| `widen-every-query-that-shares-the-page` | 3 | 362, 364, 367 | not yet — awaiting the maintainer's `/mango:promote` |
+| `widen-every-query-that-shares-the-page` | 4 | 362, 364, 367, 389 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 389-C1 — a shared store's read-through repair rewrites rows another checkout reads as built
+
+- type: 5 (descriptive) · area: `freshness / shared index across checkouts`
+- status: proposed · seen: 389
+- evidence: the challenger's F5 — main's `find_callers` repaired its own dirty file into the one store while
+  `last_commit` stayed at the build, so a worktree reading an unchanged file got main's spans. The overlay now
+  compares the stored hash with the worktree's bytes per file (`Overlay.changes`); `test_challenger_main_…`.
+- destination: stays in lessons_path (type 5, descriptive; no `design_doc_path` file exists yet).
 
 ### 388-C1 — a status that names what a tool refuses must ask the tool's own predicate
 
@@ -162,7 +171,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367
+- status: proposed · seen: 362, 364, 367, 389
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.
