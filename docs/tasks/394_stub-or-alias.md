@@ -252,6 +252,8 @@ means without a body grammar) is recorded as M1 for the maintainer, not as a cla
 
 Stale-review guard: after cbd54414 only this file, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md` change. Not stale.
 
+PR review fixes (#74): a cut fetch never answers test copies; `search_symbol` marks `ambiguity` per row, not per page; the `aliased_as` read is capped in SQL; the `return <literal>;` approximation is pinned by a test.
+
 ### Outward actions
 
 Under the handover: push `feat/394-stub-or-alias`; open the PR against `main` (stacked on #73).

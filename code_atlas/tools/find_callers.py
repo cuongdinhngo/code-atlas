@@ -189,7 +189,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         answer with hits carries the same count, ``authoritative: false`` and the
         ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
         answer at depth 1 counts ``unresolved_receivers``: calls in its language by its bare name on
-        a receiver no type reached (an untyped parameter, say), linked HEURISTIC or not (393).
+        a receiver no type reached (an untyped parameter, say) and left unlinked; ``exclude_tests``
+        drops test callers from it too (393).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
@@ -382,7 +383,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     shaped = shape_exact_miss(miss, resolution)
                     if bare_sites:
                         shape_bare_ambiguous(shaped, bare_sites)
-                    finalize_subject_checked_miss(shaped, guard)
+                    finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
                         stamped,
@@ -539,12 +540,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     (lookup, str(subject_nodes[0]["name"])), kinds=CALLER_KINDS
                 )
             if depth == 1 and indexed and str(subject_nodes[0]["kind"]) == "Method":
-                # A call on an untyped receiver names only the member: linked by name at best, so
-                # count those in the subject's language — "were untyped receivers in play?" (393).
+                # A call on an untyped receiver names only the member; count the ones left unlinked
+                # in the subject's language — "were untyped receivers in play?" (393).
                 own = store.language_of_file(str(subject_nodes[0]["file_path"]))
                 languages: dict[str, str | None] = {}
                 for edge in store.edges_by_target_raw(
-                    str(subject_nodes[0]["name"]), kinds=CALLER_KINDS
+                    str(subject_nodes[0]["name"]),
+                    kinds=CALLER_KINDS,
+                    unlinked_only=True,
+                    exclude_test_sources=exclude_tests,
                 ):
                     path = str(edge["file_path"])
                     if path not in languages:
@@ -686,7 +690,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         if overlay is not None:
-            labelled = overlay_inbound(overlay, result, lookup, CALLER_KINDS, depth=depth)
+            labelled = overlay_inbound(
+                overlay, result, lookup, CALLER_KINDS, depth=depth, offset=offset
+            )
         else:
             labelled = label_behind(
                 result,

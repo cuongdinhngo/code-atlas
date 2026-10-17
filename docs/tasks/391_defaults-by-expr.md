@@ -219,6 +219,8 @@ Verify-only round, main loop: `20 passed`. Ran at ac40226e.
 
 Reviewed at ac40226e — files: change-list rows 1–3. Working doc: `docs/tasks/391_defaults-by-expr.md`.
 
+PR #76 review fixes: one row per column qname with its matching node's default (duplicate / cross-file ALTER), unqualified matches counted unowned, `()` refused as blank, cap flag only past the scan, unbuilt echoes `default_expr_normalised` (supersedes m5's first half).
+
 ## Phase 5 — finalise
 
 **Durable lesson.** None new as a claim.

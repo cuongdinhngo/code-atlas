@@ -87,7 +87,6 @@ class _Hits(NamedTuple):
     kind_excluded: tuple[str, ...] = ()
     path_excluded: tuple[str, ...] = ()
     did_you_mean: tuple[dict[str, object], ...] = ()
-    test_copies: bool = False
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -171,7 +170,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
         A qname held by one production row and test copies lists the production row first and
-        sets ``ambiguity: "test_copies"``; a type row at ``standard`` names its ``aliases`` (394).
+        marks each of its rows ``ambiguity: "test_copies"``; a type row at ``standard`` names
+        its ``aliases`` (394).
         Asked from another worktree of this repo, rows from files it changed are swapped for that
         worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
         A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
@@ -388,10 +388,13 @@ def _search_one(
             offset=offset,
         )
     truncated = len(rows) > cap
-    page, test_copies = _test_copies_first(rows[:cap])
+    page, held = _test_copies_first(rows[:cap])
     results = _suppress_redundant_file_hits(
         [_hit(row, store=store, detail_level=detail_level) for row in page]
     )
+    for hit in results:
+        if hit["qname"] in held:  # per row: a page can hold several names (394 review)
+            hit[AMBIGUITY_FIELD] = TEST_COPIES
     if status == "stale":
         _mark_source_stale(results, guard)
     if truncated or offset > 0:
@@ -536,9 +539,7 @@ def _search_one(
 
     stamp, indexed = mirrors
     order = attach_mirror_search_fields(results, stamp, indexed, store=store)
-    return _Hits(
-        results, truncated, reason, total_count, residue, (), order, test_copies=test_copies
-    )
+    return _Hits(results, truncated, reason, total_count, residue, (), order)
 
 
 def _overlay_hits(
@@ -592,8 +593,11 @@ def _overlay_hits(
     )
 
 
-def _test_copies_first(rows: list[Row]) -> tuple[list[Row], bool]:
-    """Each qname this page holds twice: its one production row leads its test copies (394)."""
+def _test_copies_first(rows: list[Row]) -> tuple[list[Row], frozenset[str]]:
+    """Each qname this page holds twice: its one production row leads its test copies (394).
+
+    Returns the reordered page and the qnames the rule held for.
+    """
     groups: dict[str, list[Row]] = {}
     for row in rows:
         groups.setdefault(str(row["qualified_name"]), []).append(row)
@@ -604,12 +608,12 @@ def _test_copies_first(rows: list[Row]) -> tuple[list[Row], bool]:
             if held:
                 ordered[qname] = iter(first)
     if not ordered:
-        return rows, False
+        return rows, frozenset()
     page = [
         next(ordered[str(row["qualified_name"])]) if str(row["qualified_name"]) in ordered else row
         for row in rows
     ]
-    return page, True
+    return page, frozenset(ordered)
 
 
 def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:
@@ -691,8 +695,6 @@ def _single_payload(
             payload["did_you_mean"] = list(hits.did_you_mean)
         attach_try_instead(payload, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
-    if hits.test_copies:
-        payload[AMBIGUITY_FIELD] = TEST_COPIES
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     if hits.search_order is not None:
@@ -737,8 +739,6 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         if hits.did_you_mean:
             answer["did_you_mean"] = list(hits.did_you_mean)
         attach_try_instead(answer, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
-    if hits.test_copies:
-        answer[AMBIGUITY_FIELD] = TEST_COPIES
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     if hits.search_order is not None:

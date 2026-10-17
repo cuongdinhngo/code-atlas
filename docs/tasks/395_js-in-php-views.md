@@ -233,6 +233,11 @@ four Minor:
 | m3 | an alias in a nested block was missed | the scan covers the function's own body (3f81f3b4) |
 | m4 | `this['x'] =` is not read | kept: a computed name is not a declaration |
 
+**PR #79 review fixes:** an arrow-shadowed or redeclared alias drops out; async, generator and `this`-typed
+functions declare nothing; a nested class keeps its name; prototype forms are recorded in 399
+(`test_review_shadowed_…`: 1 failed before, 5 passed after). Known gap: `this.check()` inside a member
+body does not resolve; only `self.check()` is proven.
+
 **Red first.** The challenger test against 6a83743d: `1 failed, 3 passed in 1.82s`. **Green after:** `4 passed in
 1.85s`; `ruff`, `mypy`, `tsc` clean. Ran at 3f81f3b4.
 

@@ -23,7 +23,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   `HEURISTIC`), and `find_callers` on a method counts `unresolved_receivers` (393). A file reads its
   docblocks when it next re-parses; `code-atlas-build --full` reads them all now.
 - `function EditCtrl() { var self = this; self.save = function () {}; }` declares `EditCtrl::save` as
-  a Method (TS/JS, the ES5 constructor pattern) — `search_symbol save` finds it (395).
+  a Method (TS/JS: members assigned on `this` or its alias inside the constructor;
+  `Ctor.prototype.x =` is not read) — `search_symbol save` finds it (395).
 - `find_references Items`, `impact` and `find_callers` (a procedure) answer a bare table or routine
   name a column shares, with `resolved_from: "bare"`; two schemas' tables refuse with both (392).
 
@@ -37,7 +38,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - `read_symbol` names where else a hit's code lives: `implemented_by` (on an empty or abstract
   method, the overriding methods of linked subtypes) and `aliases` (from `ALIASES` edges, `test_double` when a test file declares
   one). A name with one production definition and test copies answers the production one, with
-  `ambiguity: "test_copies"`, and `search_symbol` lists it first (394).
+  `ambiguity: "test_copies"`; `search_symbol` lists it first and marks each of its rows (394).
 - An agent in a worktree of the indexed repo reads that worktree: `read_symbol`, `file_outline` and
   `search_symbol` parse the files that differ from the built commit (plus untracked ones) without
   storing them, labelled `overlay: worktree`, and `find_callers` / `find_references` add the

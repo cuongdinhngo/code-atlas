@@ -188,8 +188,9 @@ def _measure(
 def normalise_default(expr: str) -> str:
     """A DEFAULT as a comparable string: case, brackets, whitespace and outer parentheses dropped.
 
-    ``(user_name())``, ``[USER_NAME]()`` and ``user_name ( )`` are one expression (391). A
-    quoted literal is kept as written, so ``'N'`` and ``'n'`` stay two defaults.
+    ``(user_name())``, ``[USER_NAME]()`` and ``user_name ( )`` are one expression (391). Whitespace
+    outside a quoted literal is removed, not collapsed, so ``a b`` and ``ab`` match. A quoted
+    literal is kept as written, so ``'N'`` and ``'n'`` stay two defaults.
     """
     parts = re.split(r"('(?:[^']|'')*')", expr)
     text = "".join(
@@ -271,6 +272,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError("pass exactly one of table and default_expr")
         if not (table or default_expr or "").strip():
             raise ValueError("the subject must not be blank")
+        if default_expr is not None and not normalise_default(default_expr):
+            raise ValueError("the subject must not be blank")  # `()` normalises to nothing
         if default_expr is not None and column is not None:
             raise ValueError("column narrows a table; default_expr already names the columns")
         if offset < 0:
@@ -285,11 +288,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if default_expr is not None:
                 del unbuilt["table"]
                 unbuilt["default_expr"] = default_expr
+                unbuilt["default_expr_normalised"] = normalise_default(default_expr)
             return unbuilt
 
         if default_expr is not None:
             return _by_expression(
-                config, default_expr, detail_level=detail_level, cap=cap, offset=offset,
+                config,
+                default_expr,
+                detail_level=detail_level,
+                cap=cap,
+                offset=offset,
                 limit_clamped=limit_clamped,
             )
         assert table is not None  # narrowed by the exactly-one check above
@@ -358,19 +366,26 @@ def _by_expression(
     wanted = normalise_default(expr)
     with GraphStore(config.db_path) as store:
         covered = covered_languages(store)
-        by_table: dict[str, list[str]] = {}
-        scanned = store.nodes_by_kind("Column", limit=_COLUMN_SCAN)
-        for node in scanned:
+        # A column declared in several nodes (two files, CREATE then ALTER) is one qname; the
+        # default reported is the one that matched, never another node's (391 review).
+        by_table: dict[str, dict[str, str]] = {}
+        unqualified: set[str] = set()
+        scanned = store.nodes_by_kind("Column", limit=_COLUMN_SCAN + 1)
+        for node in scanned[:_COLUMN_SCAN]:
             declared = _declared_default(dict(node))
-            qname = str(node["qualified_name"])
-            if declared is None or normalise_default(declared) != wanted or "::" not in qname:
+            if declared is None or normalise_default(declared) != wanted:
                 continue
-            by_table.setdefault(qname.rsplit("::", 1)[0], []).append(qname)
+            qname = str(node["qualified_name"])
+            if "::" not in qname:
+                unqualified.add(qname)
+                continue
+            by_table.setdefault(qname.rsplit("::", 1)[0], {}).setdefault(qname, declared)
         rows: list[dict[str, object]] = []
-        unowned = 0
+        unowned = len(unqualified)
         for table in sorted(by_table):
-            all_columns, defaulted, declarations = _columns_of(store, table)
-            matched = [pair for pair in defaulted if pair[0] in by_table[table]]
+            all_columns, _, declarations = _columns_of(store, table)
+            owned = set(all_columns)
+            matched = [pair for pair in sorted(by_table[table].items()) if pair[0] in owned]
             unowned += len(by_table[table]) - len(matched)
             measured, writers = _measure(
                 store, table, all_columns, matched, declarations, detail_level=detail_level
@@ -393,11 +408,11 @@ def _by_expression(
         "truncated": offset + len(page) < len(rows),
     }
     if unowned:
-        # A matching Column no table CONTAINS: named, never silently dropped from the count (R5.6).
+        # A matching Column no table CONTAINS, or with no owner: counted, never dropped (R5.6).
         payload["columns_without_table"] = unowned
     if any(row.get(WRITERS_PARTIAL_KEY) for row in rows):
         payload[WRITERS_PARTIAL_HINT_KEY] = WRITERS_PARTIAL_HINT
-    if len(scanned) >= _COLUMN_SCAN:
+    if len(scanned) > _COLUMN_SCAN:
         payload["columns_scan_capped"] = _COLUMN_SCAN  # a schema larger than the scan (R5.6)
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     return attach_coverage_note(payload, config, covered, detail_level=detail_level)

@@ -45,12 +45,24 @@ EDGE = (
     "}\n"  # 12
 )
 
+# Review fixes: a shadowed or redeclared alias, a function never `new`ed, a nested class namesake.
+SHADOW = (
+    "function A() { var self = this; xs.forEach((self) => { self.a = function () {}; }); }\n"  # 1
+    "function B() { var self = this; var self = other; self.b = function () {}; }\n"  # 2
+    "function Ok() { var self = this; xs.forEach(() => { self.ok = function () {}; }); }\n"  # 3
+    "async function D() { this.d = function () {}; }\n"  # 4
+    "function* G() { this.g = function () {}; }\n"  # 5
+    "function T(this: Window) { this.t = function () {}; }\n"  # 6
+    "function K() { class persist {} this.persist = function () {}; }\n"  # 7
+)
+
 
 @pytest.fixture
 def config(tmp_path: Path) -> Config:
     (tmp_path / "web").mkdir()
     (tmp_path / "web" / "ctrl.js").write_text(CTRL, encoding="utf-8")
     (tmp_path / "web" / "edge.js").write_text(EDGE, encoding="utf-8")
+    (tmp_path / "web" / "shadow.ts").write_text(SHADOW, encoding="utf-8")
     for args in (("init", "-q"), ("add", "-A")):
         subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
     built = load_config(
@@ -108,3 +120,13 @@ def test_challenger_only_a_live_alias_declares_and_a_namesake_declaration_keeps_
         ("web/edge.js::C::inblock", "Method", 9),
         ("web/edge.js::C::dup", "Method", 10),
     }
+
+
+def test_review_shadowed_aliases_and_non_constructors_declare_nothing(config: Config) -> None:
+    outline = file_outline.create(config)("web/shadow.ts")
+    symbols = outline["results"]
+    assert isinstance(symbols, list)
+    rows = [(str(s["qname"]), str(s["kind"])) for s in symbols]
+    assert len({qname for qname, _ in rows}) == len(rows)
+    assert {row for row in rows if row[1] == "Method"} == {("web/shadow.ts::Ok::ok", "Method")}
+    assert ("web/shadow.ts::K::persist", "Class") in rows

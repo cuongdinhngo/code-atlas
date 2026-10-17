@@ -642,7 +642,7 @@ _WALK_UNLINKED = 10_000
 
 
 def _writes_raw_relates_to(raw: str, table_folded: str, bare: str) -> bool:
-    """Does an unlinked WRITES ``target_raw`` name ``table`` under casefold (215)?"""
+    """Does an unlinked WRITES / READS ``target_raw`` name ``table`` under casefold (215)?"""
     folded = raw.casefold()
     if folded == table_folded or folded.startswith(table_folded + "::"):
         return True
@@ -2133,14 +2133,34 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, (target_raw,))
 
-    def edges_by_target_raw(self, target_raw: str, *, kinds: Sequence[str]) -> list[Row]:
-        """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364)."""
+    def edges_by_target_raw(
+        self,
+        target_raw: str,
+        *,
+        kinds: Sequence[str],
+        unlinked_only: bool = False,
+        exclude_test_sources: bool = False,
+        limit: int | None = None,
+    ) -> list[Row]:
+        """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364).
+
+        ``unlinked_only`` keeps edges no pass linked; ``exclude_test_sources`` drops test
+        callers (393); ``limit`` caps the rows in SQL, ``None`` reads them all (394).
+        """
         marks = ", ".join("?" for _ in kinds)
+        extra = _combine_predicates(
+            ("(target_qname IS NULL OR target_qname = '')", ()) if unlinked_only else None,
+            _exclude_test_sources_predicate(exclude_test_sources),
+        )
+        where = f" AND {extra[0]}" if extra else ""
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges "
-            f"WHERE kind IN ({marks}) AND target_raw = ? ORDER BY {_EDGE_ORDER}"
+            f"WHERE kind IN ({marks}) AND target_raw = ?{where} ORDER BY {_EDGE_ORDER}"
         )
-        return self._rows(EDGE_ROW_KEYS, sql, (*kinds, target_raw))
+        params = (*kinds, target_raw, *(extra[1] if extra else ()))
+        if limit is None:
+            return self._rows(EDGE_ROW_KEYS, sql, params)
+        return self._rows(EDGE_ROW_KEYS, f"{sql} LIMIT ?", (*params, limit))
 
     def calls_ending_with_target_raw(self, suffix: str) -> list[Row]:
         """CALLS whose ``target_raw`` ends with ``suffix`` (bare-setter ``::method`` arm)."""
@@ -2668,10 +2688,10 @@ class GraphStore:
         The tool cannot see writers that never emitted an edge; this is the incompleteness it
         *can* know — a write site that reached the graph but never linked.
         """
-        return self.count_unlinked_writes_relating_to(table) > 0
+        return self.count_unlinked_relating_to(table, kind="WRITES") > 0
 
-    def count_unlinked_writes_relating_to(self, table: str) -> int:
-        """How many unlinked ``WRITES`` still name ``table`` under casefold (215/278).
+    def count_unlinked_relating_to(self, table: str, *, kind: str) -> int:
+        """How many unlinked ``kind`` edges still name ``table`` under casefold (215/278/390).
 
         Bounded by ``_WALK_UNLINKED`` — the same cap as the boolean probe (R4.3).
         """
@@ -2680,13 +2700,13 @@ class GraphStore:
         folded = table.casefold()
         bare = folded.rsplit(".", 1)[-1]
         sql = (
-            "SELECT target_raw FROM edges WHERE kind = 'WRITES' "
+            "SELECT target_raw FROM edges WHERE kind = ? "
             "AND (target_qname IS NULL OR target_qname = '') "
             f"ORDER BY {_EDGE_ORDER} LIMIT ?"
         )
         return sum(
             1
-            for (raw,) in self._conn.execute(sql, (_WALK_UNLINKED,))
+            for (raw,) in self._conn.execute(sql, (kind, _WALK_UNLINKED))
             if _writes_raw_relates_to(str(raw), folded, bare)
         )
 

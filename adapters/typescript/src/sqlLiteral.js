@@ -18,6 +18,8 @@ const AFTER_SOURCE =
 const NAME_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)`;
 const NAME = new RegExp(String.raw`${NAME_PART}(?:\s*\.\s*${NAME_PART})*`, "y");
 const PART = new RegExp(NAME_PART, "g");
+// `FROM users u WHERE` / `FROM users AS u WHERE`: an alias still needs the clause after it.
+const ALIAS = new RegExp(String.raw`\s+(?:as\s+)?${NAME_PART}`, "iy");
 const RETURN_CODE = /@[A-Za-z_]\w*\s*=\s*/y;
 const END = /^\s*(?:;|$)/;
 // T-SQL resolves an unqualified procedure in the caller's default schema, `dbo` unless set (386).
@@ -56,18 +58,39 @@ function readSqlLiteral(text, closed) {
   return { kind: KINDS[verb], target: parts.join("."), offset: head[1].length };
 }
 
-// The table a SELECT reads: the first FROM's name, never a temp table or a derived one.
+// The table a SELECT reads: the first top-level FROM's name, never a temp or derived one.
 function readSelect(text, start, closed, offset) {
   FROM.lastIndex = start;
-  const source = FROM.exec(text);
+  let source = FROM.exec(text);
+  while (source && !topLevel(text, start, source.index)) source = FROM.exec(text);
   if (!source) return null;
   NAME.lastIndex = source.index + source[0].length;
   const name = NAME.exec(text);
   if (!name) return null;
   const parts = (name[0].match(PART) || []).map(unquote);
-  const rest = text.slice(NAME.lastIndex);
-  if (parts.length === 1 && !(AFTER_SOURCE.test(rest) || (closed && rest.trim() === ""))) return null;
+  if (parts.length === 1 && !sourceEnds(text, NAME.lastIndex, closed)) return null;
   return { kind: KINDS.select, target: parts.join("."), offset };
+}
+
+// A clause follows the unqualified source, after an optional alias, or a closed literal ends.
+function sourceEnds(text, at, closed) {
+  const rest = text.slice(at);
+  if (AFTER_SOURCE.test(rest) || (closed && rest.trim() === "")) return true;
+  ALIAS.lastIndex = at;
+  const alias = ALIAS.exec(text);
+  return alias !== null && AFTER_SOURCE.test(text.slice(ALIAS.lastIndex));
+}
+
+// Is `end` outside every parenthesis and quoted string opened since `start`?
+function topLevel(text, start, end) {
+  let depth = 0;
+  let quoted = false;
+  for (const char of text.slice(start, end)) {
+    if (char === "'") quoted = !quoted;
+    else if (!quoted && char === "(") depth += 1;
+    else if (!quoted && char === ")") depth -= 1;
+  }
+  return depth === 0 && !quoted;
 }
 
 // The clause T-SQL requires after the name; for DELETE / EXEC on a qualified name, its end.

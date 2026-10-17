@@ -48,7 +48,7 @@ Do not edit by hand — regenerate with
 ### How to spend the calls
 
 - **Ask the index first, then follow through.** Structural questions take more than one call: `search_symbol` → `read_symbol`, `find_callers` → `impact`. One lookup followed by a grep sweep is the failure mode this brief exists to stop.
-- **Call `get_index_status` when you are unsure the index is current** — and read `staleness`. A `behind` index still answers every read tool, labelled `index_behind` with the built revision; `behind_because` lists the changed paths. Only a subject whose changed file cannot be re-read refuses, and its hint names the `serve_behind: true` call to copy.
+- **Call `get_index_status` when you are unsure the index is current** — and read `staleness`. On a `behind` index `find_callers` / `find_references` answer labelled `index_behind` with `last_commit`, and `search_symbol` flags drifted rows `source_stale`; `behind_because` lists the changed paths. A subject whose changed file cannot be re-read still refuses `index_stale` (`read_symbol` too); a caller's hint names the `serve_behind: true` call to copy.
 - **Prefer one call over a sweep of ten.** `search_symbol` takes a list of `queries`.
 
 ### Read what the answer says about itself

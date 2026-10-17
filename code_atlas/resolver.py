@@ -471,11 +471,6 @@ def _resolve_deferred(
             chain.receiver = found
             if found is not None:
                 chain.steps.pop(0)
-    for chain in chains:
-        if chain.documented:
-            tier = str(chain.edge.get("confidence_tier") or "RESOLVED")
-            chain.edge["confidence_tier"] = _weaker_tier(tier, "HEURISTIC")
-
     # Anything still walking ran past the step bound; treat it as unanswered, never as resolved.
     settled = [chain for chain in chains if chain.receiver is not None and not chain.steps]
     probes = {contract.join_qname(str(chain.receiver), chain.method) for chain in settled}
@@ -494,6 +489,10 @@ def _resolve_deferred(
         if not resolved.get(str(chain.receiver)):
             unanswered.append((chain.edge, "", chain.method))
             continue
+        if chain.documented:
+            # Only a chain that reached a real receiver carries the docblock's tier (393).
+            tier = str(chain.edge.get("confidence_tier") or "RESOLVED")
+            chain.edge["confidence_tier"] = _weaker_tier(tier, "HEURISTIC")
         hits = resolved.get(contract.join_qname(str(chain.receiver), chain.method), [])
         if hits:
             tier = _weaker_tier(str(chain.edge["confidence_tier"]), "RESOLVED")
