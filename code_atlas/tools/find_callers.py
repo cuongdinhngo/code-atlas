@@ -358,7 +358,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         miss["args_unrecorded"] = unrecorded
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
                     shaped = shape_exact_miss(miss, resolution)
-                    finalize_subject_checked_miss(shaped, guard)
+                    finalize_subject_checked_miss(shaped, guard, staleness)
                     attach_coverage_edge_route(
                         shaped,
                         stamped,
@@ -646,7 +646,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         if overlay is not None:
-            labelled = overlay_inbound(overlay, result, lookup, CALLER_KINDS, depth=depth)
+            labelled = overlay_inbound(
+                overlay, result, lookup, CALLER_KINDS, depth=depth, offset=offset
+            )
         else:
             labelled = label_behind(
                 result,

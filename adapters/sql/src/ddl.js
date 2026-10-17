@@ -641,7 +641,17 @@ function readSources(code) {
   /** @type {{name: string, at: number}[]} */
   const out = [];
   const keyword = /\b(?:from|join)\s+/gi;
+  /** @type {number[]} */
+  const open = []; // offsets of the `(` still open before the keyword
+  let seen = 0;
   for (let m = keyword.exec(code); m; m = keyword.exec(code)) {
+    for (; seen < m.index; seen++) {
+      if (code[seen] === "(") open.push(seen);
+      else if (code[seen] === ")") open.pop();
+    }
+    // `TRIM(' ' FROM x)`, `EXTRACT(YEAR FROM d)`: a FROM inside a call's parens names no table.
+    const inner = open.length ? open[open.length - 1] : -1;
+    if (inner >= 0 && !/^\s*(?:select|with)\b/i.test(code.slice(inner + 1))) continue;
     let at = m.index + m[0].length;
     // `FROM a x, b y` — the old comma join: each listed source is read.
     for (;;) {

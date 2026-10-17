@@ -30,7 +30,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - `read_symbol` names where else a hit's code lives: `implemented_by` (on an empty or abstract
   method, the overriding methods of linked subtypes) and `aliases` (from `ALIASES` edges, `test_double` when a test file declares
   one). A name with one production definition and test copies answers the production one, with
-  `ambiguity: "test_copies"`, and `search_symbol` lists it first (394).
+  `ambiguity: "test_copies"`; `search_symbol` lists it first and marks each of its rows (394).
 - An agent in a worktree of the indexed repo reads that worktree: `read_symbol`, `file_outline` and
   `search_symbol` parse the files that differ from the built commit (plus untracked ones) without
   storing them, labelled `overlay: worktree`, and `find_callers` / `find_references` add the
