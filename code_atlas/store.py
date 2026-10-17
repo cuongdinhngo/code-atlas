@@ -2134,20 +2134,33 @@ class GraphStore:
         return self._rows(EDGE_ROW_KEYS, sql, (target_raw,))
 
     def edges_by_target_raw(
-        self, target_raw: str, *, kinds: Sequence[str], limit: int | None = None
+        self,
+        target_raw: str,
+        *,
+        kinds: Sequence[str],
+        unlinked_only: bool = False,
+        exclude_test_sources: bool = False,
+        limit: int | None = None,
     ) -> list[Row]:
         """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364).
 
-        ``limit`` caps the rows in SQL; ``None`` reads them all.
+        ``unlinked_only`` keeps edges no pass linked; ``exclude_test_sources`` drops test
+        callers (393); ``limit`` caps the rows in SQL, ``None`` reads them all (394).
         """
         marks = ", ".join("?" for _ in kinds)
+        extra = _combine_predicates(
+            ("(target_qname IS NULL OR target_qname = '')", ()) if unlinked_only else None,
+            _exclude_test_sources_predicate(exclude_test_sources),
+        )
+        where = f" AND {extra[0]}" if extra else ""
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges "
-            f"WHERE kind IN ({marks}) AND target_raw = ? ORDER BY {_EDGE_ORDER}"
+            f"WHERE kind IN ({marks}) AND target_raw = ?{where} ORDER BY {_EDGE_ORDER}"
         )
+        params = (*kinds, target_raw, *(extra[1] if extra else ()))
         if limit is None:
-            return self._rows(EDGE_ROW_KEYS, sql, (*kinds, target_raw))
-        return self._rows(EDGE_ROW_KEYS, f"{sql} LIMIT ?", (*kinds, target_raw, limit))
+            return self._rows(EDGE_ROW_KEYS, sql, params)
+        return self._rows(EDGE_ROW_KEYS, f"{sql} LIMIT ?", (*params, limit))
 
     def calls_ending_with_target_raw(self, suffix: str) -> list[Row]:
         """CALLS whose ``target_raw`` ends with ``suffix`` (bare-setter ``::method`` arm)."""
@@ -2902,12 +2915,14 @@ class GraphStore:
         ).fetchall()
         return {str(source): str(target) for source, target in rows}
 
-    def declared_types(self, qnames: Sequence[str]) -> dict[str, str]:
+    def declared_types(self, qnames: Sequence[str], *, documented: bool = False) -> dict[str, str]:
         """Map member qname → its declared type from ``extra['type']``, for those that carry one.
 
         The store owns the JSON column, so it owns decoding it (R1.4). Absent, empty and
         unparseable all mean "this member declares no type" — never a guess at one.
+        ``documented`` reads ``extra['doc_type']`` instead: a docblock's claim, not a type (393).
         """
+        key = "doc_type" if documented else "type"
         found: dict[str, str] = {}
         for qname, rows in self.nodes_by_qualified_names(qnames, limit=1).items():
             if not rows:
@@ -2919,7 +2934,7 @@ class GraphStore:
                 extra = json.loads(raw)
             except json.JSONDecodeError:
                 continue
-            declared = extra.get("type") if isinstance(extra, dict) else None
+            declared = extra.get(key) if isinstance(extra, dict) else None
             if isinstance(declared, str) and declared:
                 found[qname] = declared
         return found
