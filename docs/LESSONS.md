@@ -40,10 +40,28 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
-| `widen-every-query-that-shares-the-page` | 4 | 362, 364, 367, 389 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
+| `widen-every-query-that-shares-the-page` | 8 | 362, 364, 367, 389, 396, 397, 398, 400 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 400-C1 — one long writer transaction turns every reader-side write into a busy-timeout wait
+
+- type: 2 (code) · handle: `a-long-writer-makes-reader-writes-wait`
+- status: proposed · seen: 400
+- evidence: WAL readers of an incremental's one transaction read in 0.001 s, but each fit bump waited the full 5 s busy
+  timeout and dropped its count, two per served call. The poke repair and `reset_fit_counts` did the same, and the
+  reviewer found the last. Before you lengthen a write transaction, list every writer that runs on a reader's path.
+- destination: first sighting.
+
+### 400-C2 — a `with conn:` through a local alias commits a batch that a `with self._conn:` sweep missed
+
+- type: 2 (code) · handle: `an-alias-hides-the-commit`
+- status: proposed · seen: 400
+- evidence: replacing the 12 `with self._conn:` sites left `_fill_delta_temps`' `conn = self._conn; with conn:`
+  (`store.py:3104`), which committed the build mid-way. Only the in-batch `BatchLostError` guard caught it, at the
+  resolve. Sweep for the object, not one spelling of it, and keep a guard that fails when one slips through.
+- destination: first sighting.
 
 ### 398-C1 — a worktree run of the suite tests the main checkout's adapters and core
 
@@ -190,7 +208,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398
+- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.

@@ -58,6 +58,7 @@ def poke(root: Path, abs_or_rel: str, *, verbose: bool = False) -> int:
         from code_atlas.config import load_config
         from code_atlas.indexer import file_is_current, reparse_file
         from code_atlas.store import GraphStore
+        from code_atlas.tools.freshness import live_index_held
 
         config = load_config(root)
         if not config.db_path.is_file():
@@ -68,6 +69,9 @@ def poke(root: Path, abs_or_rel: str, *, verbose: bool = False) -> int:
             _note("skipped: path outside project", verbose=verbose)
             return 0
         with GraphStore(config.db_path) as store:
+            if live_index_held(config, store):
+                _note(f"skipped: a build holds the index ({rel})", verbose=verbose)
+                return 0
             if file_is_current(store, config.root, rel):
                 _note(f"skipped: current {rel}", verbose=verbose)
                 return 0

@@ -148,6 +148,18 @@ def is_pending(db_path: Path) -> bool:
     return pending_path_for(db_path).exists()
 
 
+def build_holds_live_db(db_path: Path) -> bool:
+    """Is a build under ``write.lock`` writing the live DB itself, not a 356 shadow? (365, 400)
+
+    An incremental holds its one transaction until it commits, so a write here would wait out
+    the busy timeout. A build that takes the lock drops a killed build's leftover shadow, so a
+    present shadow is the running build's. Read-only: a lock probe and a stat.
+    """
+    from code_atlas.store import shadow_db_path
+
+    return build_in_progress(db_path) and not shadow_db_path(db_path).exists()
+
+
 def build_in_progress(db_path: Path) -> bool:
     """Is a writer holding the lock right now? Read-only, non-blocking, creates nothing.
 

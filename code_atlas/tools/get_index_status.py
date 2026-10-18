@@ -30,7 +30,7 @@ from code_atlas.config import Config
 from code_atlas.contract import CONTRACT_VERSION
 from code_atlas.enrichment import rules_drift
 from code_atlas.gitutil import dirty_paths
-from code_atlas.index_lock import build_in_progress
+from code_atlas.index_lock import build_holds_live_db, build_in_progress
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     COVERAGE_LOSS,
@@ -114,6 +114,8 @@ CHANGED_INDEXED_BETWEEN = ("last_commit", "head_commit")
 # REVISION this index describes — 072's busy refusal and 077 both read it that way — so "is a build
 # running" and "did the last build finish linking" get their own names rather than overloading it.
 INDEX_COMPLETE = "index_complete"
+# A reset asked while a build held the live index, so the counts were left as they were (400).
+FIT_RESET_SKIPPED = "fit_reset_skipped"
 FULL_REBUILD_REQUIRED = "full_rebuild_required"
 # The summary's lead when a rebuild is pending; the state hook puts that line on screen (381).
 REBUILD_LEAD = "rebuild required"
@@ -171,7 +173,8 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         multi-language index (261): ``standard`` is the verdict only (``unlinked`` /
         ``by_tier`` per language); ``verbose`` nests the full census including ``pairs``.
         ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
-        ``reset_fit_counts=true`` to clear them first (documented reset; local counts are not
+        ``reset_fit_counts=true`` to clear them first — skipped while a build holds the live
+        index, saying ``fit_reset_skipped: true`` (400) — (documented reset; local counts are not
         telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
         ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
 
@@ -184,20 +187,27 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             raise ValueError(f"offset must be >= 0, got {offset}")
         if offset > 0 and detail_level != "verbose":
             raise ValueError("offset requires detail_level='verbose'")
+        reset_skipped = False
         if reset_fit_counts and config.db_path.is_file():
-            with GraphStore(config.db_path) as store:
-                store.clear_fit_counts()
+            # Behind an incremental's one transaction the delete would wait out the busy timeout.
+            reset_skipped = build_holds_live_db(config.db_path)
+            if not reset_skipped:
+                with GraphStore(config.db_path) as store:
+                    store.clear_fit_counts()
         if not config.db_path.is_file():
             status = _unbuilt(servable, detail_level, config)
             _attach_root_nominations(status, config, paths=None)
             return status
         try:
             with GraphStore(config.db_path) as store:
-                return _status(
+                status = _status(
                     store, config, servable, detail_level, offset=offset, sign=sign, call=call
                 )
         except SchemaVersionError as mismatch:
-            return _mismatched(mismatch, servable, detail_level, config)
+            status = _mismatched(mismatch, servable, detail_level, config)
+        if reset_skipped:
+            status[FIT_RESET_SKIPPED] = True
+        return status
 
     return get_index_status
 

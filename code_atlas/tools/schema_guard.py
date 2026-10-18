@@ -16,8 +16,8 @@ from code_atlas.store import SchemaVersionError
 from code_atlas.worktree_guard import worktree_db_refusal
 
 SCHEMA_MISMATCH = "schema_version_mismatch"
-# A writer holds `write.lock` (178) and its live phase (177). A full rebuild serves the last good
-# index until it publishes, so these say "a newer graph is coming", not "this one is partial" (356).
+# A writer holds `write.lock` (178) and its live phase (177). Both builds serve the last good index
+# until they publish (356 full, 400 incremental): "a newer graph is coming", not "this is partial".
 BUILD_IN_PROGRESS = "build_in_progress"
 BUILD_PHASE = "build_phase"
 

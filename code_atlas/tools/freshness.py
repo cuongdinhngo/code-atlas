@@ -9,13 +9,12 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.contract import MEMBER_SEPARATOR
-from code_atlas.index_lock import build_in_progress
+from code_atlas.index_lock import build_holds_live_db, build_in_progress
 from code_atlas.indexer import file_is_current, indexable, reparse_file
 from code_atlas.store import (
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     GraphStore,
-    shadow_db_path,
 )
 from code_atlas.tools.claim import REV_CHARS
 from code_atlas.tools.nav_result import (
@@ -79,18 +78,15 @@ def miss_subject_path(store: GraphStore, qname: str, *, limit: int) -> str | Non
 
 
 def live_index_held(config: Config, store: GraphStore) -> bool:
-    """Is a build writing the live DB in place, so a repair would wait behind it? (365)
+    """Is a build holding the live DB, so a repair would wait behind it? (365)
 
     The one predicate the guard and ``get_index_status`` share (R1.8). It needs ``write.lock``:
-    a writer without it (another server's short repair) is waited out by the busy timeout. Under
-    the lock, an in-place build holds the DB mid- or between transactions; a 356 full rebuild
-    writes the shadow and counts only while its publish holds the live DB. A build that takes the
-    lock drops a killed build's leftover shadow, so a present shadow is the running build's.
+    a writer without it (another server's short repair) is waited out by the busy timeout. A 356
+    full rebuild writes the shadow and counts only while its publish holds the live DB.
     """
-    db_path = config.db_path
-    if not build_in_progress(db_path):
-        return False
-    return store.write_locked() or not shadow_db_path(db_path).exists()
+    if build_holds_live_db(config.db_path):
+        return True
+    return build_in_progress(config.db_path) and store.write_locked()
 
 
 @dataclass

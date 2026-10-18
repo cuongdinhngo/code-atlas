@@ -79,8 +79,12 @@ def big_repo(root: Path) -> None:
     )
 
 
-def kill_an_incremental_mid_write(root: Path) -> None:
+def kill_an_incremental_mid_write(root: Path, *, in_place: bool = True) -> None:
     """Reproduce the field state: kill a real INCREMENTAL, then leave HEAD where it was.
+
+    Since 400 an incremental commits once, so a kill leaves the graph it found. ``in_place`` runs
+    the child as a pre-400 server did — its batch never opened — since an index such a server left
+    mid-write is what the 202 escalation still has to repair; ``in_place=False`` is today's build.
 
     A killed *full* build leaves no `last_commit`, so `_run` already degrades to full and the index
     is not the unrepairable one this ticket is about. The field case is a killed **incremental** on
@@ -92,10 +96,13 @@ def kill_an_incremental_mid_write(root: Path) -> None:
     """
     for path in sorted((root / "src").glob("*.aa")):
         path.write_text(path.read_text(encoding="utf-8") + "class More {}\n", encoding="utf-8")
+    pre_400 = "GraphStore.begin_batch = lambda self: None;" if in_place else ""
     script = (
         "from code_atlas.config import load_config;"
+        "from code_atlas.store import GraphStore;"
         "from code_atlas.tools.build_or_update_index import create;"
         "import os, pathlib;"
+        f"{pre_400}"
         "create(load_config(pathlib.Path(os.environ['CA_ROOT'])))(full=False)"
     )
     child = subprocess.Popen(
@@ -142,6 +149,23 @@ def killed_index(tmp_path: Path) -> Path:
         # The field state exactly: the index still names HEAD, so no incremental can repair it.
         assert store.get_meta(LAST_COMMIT_KEY) == head_commit(tmp_path)
     return tmp_path
+
+
+def test_a_killed_incremental_leaves_the_previous_graph(tmp_path: Path) -> None:
+    """400 H2 by a real SIGKILL mid-parse: the build's one transaction never commits, so the
+    index is the previous build's, complete and still `current` — no escalation is needed."""
+    big_repo(tmp_path)
+    build_tool(config_for(tmp_path))(full=True)
+    with GraphStore(config_for(tmp_path).db_path) as store:
+        before = store.counts()
+
+    kill_an_incremental_mid_write(tmp_path, in_place=False)
+
+    with GraphStore(config_for(tmp_path).db_path) as store:
+        assert build_incomplete(store) is False
+        assert store.counts() == before
+    status = status_tool(config_for(tmp_path), (STATUS_NAME, BUILD_NAME))()
+    assert status["staleness"] == CURRENT
 
 
 def test_a_killed_build_does_not_report_current(killed_index: Path) -> None:

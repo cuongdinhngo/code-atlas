@@ -11,10 +11,11 @@ import functools
 import json
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from code_atlas.config import Config
 from code_atlas.containment import resolves_inside
+from code_atlas.index_lock import build_holds_live_db
 from code_atlas.store import bump_cost_counts, bump_fit_count
 from code_atlas.tokens import estimate_tokens
 
@@ -39,7 +40,7 @@ _CITE_KEYS = frozenset({"file", "file_path", "path"})
 
 def record(tool_name: str, config: Config, payload: Mapping[str, object] | object) -> None:
     """Increment one fit row from a tool return; no-op when there is no index file yet."""
-    if not isinstance(payload, Mapping) or not config.db_path.is_file():
+    if not _countable(payload, config):
         return
     reason = payload.get("reason")
     # A tool with no reason field (a build, a report) counts under the empty reason, not a guess.
@@ -50,6 +51,14 @@ def record(tool_name: str, config: Config, payload: Mapping[str, object] | objec
     bump_fit_count(
         config.db_path, tool_name, reason_s, authoritative=auth, truncated=truncated
     )
+
+
+def _countable(payload: object, config: Config) -> TypeGuard[Mapping[str, object]]:
+    """A count needs an index file and no build holding it: a bump behind an incremental's one
+    transaction would wait out the busy timeout, so that call's count is dropped instead (400)."""
+    if not isinstance(payload, Mapping) or not config.db_path.is_file():
+        return False
+    return not build_holds_live_db(config.db_path)
 
 
 def cited_files(root: Path, payload: object) -> list[str]:
@@ -80,7 +89,7 @@ def _cited_values(payload: object) -> Iterator[str]:
 
 def record_cost(tool_name: str, config: Config, payload: Mapping[str, object] | object) -> None:
     """Add this answer's est. tokens and its est. grep+Read baseline to the tool's rows (379)."""
-    if not isinstance(payload, Mapping) or not config.db_path.is_file():
+    if not _countable(payload, config):
         return
     try:
         response = estimate_tokens(
