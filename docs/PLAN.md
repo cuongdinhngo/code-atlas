@@ -841,9 +841,10 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 - **Tier-first default inbound order (265).** `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then stable keys,
   in the store query before truncation; `confidence_tier` stays an opt-in *filter*.
 - **Unresolved CALL site stored once (258)** — the site is the fact, candidates are a query.
-- **A full rebuild serves the last good index (356)** — it fills `graph.db.shadow` and publishes it
-  with one SQLite backup; a killed build leaves the live index untouched. This reverses 219's
-  reader-visible truncate; 202's incomplete stamp stays for in-place incrementals.
+- **Every build serves the last good index (356 · 400)** — a full rebuild fills `graph.db.shadow` and
+  publishes it with one SQLite backup; an incremental writes in one transaction (a savepoint per
+  file) — 3.65 s against 7.28 s on this repo's 336-file incremental, at a transient 34 MB WAL against 5 MB. A killed build of either kind leaves the live index untouched, and a call
+  served meanwhile drops its fit count rather than wait. 202's stamp now only repairs pre-400 indexes.
 - **Opt-in six-tool `CA_TOOLS` preset; default surface stays 24 (268).** A worktree whose `CA_DB_PATH`
   resolves outside it refuses with `index_root_mismatch`. A worktree caller (`roots`, else
   `CA_CALLER_ROOT`) gets its changed files overlaid, unstored, edges at `HEURISTIC` (389); other

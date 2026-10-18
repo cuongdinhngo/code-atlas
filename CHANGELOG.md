@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- An answer read while an incremental build runs is the previous graph's, never a half-linked one:
+  the build writes in one transaction, so a caller in a re-parsed file is no longer missing until the
+  resolve, and a killed incremental leaves the index as it was. A call served meanwhile skips its fit
+  and cost counts instead of waiting 5 s on each, and the poke hook skips its repair (400).
+
 ## 0.5.0 — 2026-10-17 · contract 16 · schema 8
 
 - **Full rebuild required.** Run `code-atlas-build --full`: a call site gains `arg_strings` and
