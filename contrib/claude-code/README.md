@@ -35,8 +35,9 @@ PreToolUse hook's plain stdout (346).
 [`plugin/`](plugin/) is generated from the same table as the snippet below, and each command — the
 snippet's too — is gated on `${CLAUDE_PROJECT_DIR}/.code-atlas`, then on its script being on `PATH`,
 so a repo with no index pays one shell test (~1.5 ms) and spawns no Python. An indexed repo whose `PATH` lacks the console scripts gets one `SessionStart`
-line naming step 1, and every hook exits 0 (376). A fourth hook, `code-atlas-refresh`, runs in the
-background at `SessionStart`.
+line naming step 1, and every hook exits 0 (376). Two plugin-only hooks run at `SessionStart`:
+`code-atlas-refresh` in the background, and `code-atlas-release-check`, which says when a newer
+tagged release is out (401, [Upgrading](../../README.md#upgrading)).
 A fifth, **`code-atlas-nudge`** (345), speaks right after a `Grep` or a `grep`/`rg`/`git grep` whose
 pattern matches a shape an adapter declared — one "ask the index first" line, once per kind per
 session and per subagent, and only while the index is settled: current, no build running (377). **Already running a project-local grep-nudge hook?** Remove it when you install this, or
@@ -49,7 +50,7 @@ Coming from a hand install? Remove the merged snippet and any `claude mcp add` e
    or your usual setup from the [README](../../README.md)). This provides the
    **`code-atlas-poke`**, **`code-atlas-signal`**, **`code-atlas-state`** and **`code-atlas-nudge`**
    console scripts on `PATH` (same interpreter as the install). The snippet wires all four;
-   `code-atlas-refresh` at `SessionStart` is plugin-only.
+   `code-atlas-refresh` and `code-atlas-release-check` are plugin-only.
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
    `.claude/settings.json` (shareable — a teammate without code-atlas runs nothing past the gate:
    no output, exit 0, no network, 381; a copy merged before 381 names each script bare — re-copy

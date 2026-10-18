@@ -29,6 +29,7 @@ code-atlas/
 │   ├── hooks/                        # opt-in: poke refresh signal state nudge
 │   └── tools/                        # one module per MCP tool
 ├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated)
+├── release_check/                    # the plugin's tag check — network, so OUTSIDE the core (401)
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
 ├── docker/                           # test image, runtime image, compose
 ├── contrib/                          # offered, never installed: skill/ (generated Agent Skill,
