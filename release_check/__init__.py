@@ -1,4 +1,4 @@
-"""The plugin's release check — is a newer tagged release out? (task 401)
+"""The plugin's release check — is a newer tagged release out? (task 405)
 
 PLAN §19 re-opened: an install whose halves agree on an old release was told by nothing. A
 release is a ``vX.Y.Z`` tag (381), so the newest one is read with ``git ls-remote --tags``. That is

@@ -235,7 +235,7 @@ def _claude_code_hooks(command: Callable[[str, bool], str]) -> dict[str, Any]:
 
 def render_plugin_hooks() -> str:
     """The snippet's hooks, each gated on the index, plus a background refresh at start (344) and
-    the release check (401): a background tag fetch, and a cache read that speaks when one is newer.
+    the release check (405): a background tag fetch, and a cache read that speaks when one is newer.
     """
     hooks = _claude_code_hooks(plugin_command)
     refresh = {"type": "command", "command": plugin_command("code-atlas-refresh")}

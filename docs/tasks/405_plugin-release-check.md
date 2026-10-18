@@ -1,5 +1,5 @@
 ---
-id: 401
+id: 405
 slug: plugin-release-check
 title: "An install a tagged release behind, halves agreeing, is told by nothing — re-open PLAN §19's update check"
 phase: 2
@@ -58,7 +58,7 @@ Out of scope: the hand snippet, Codex and OpenCode. A committed project file mus
 
 **Red runs (R6.5)**, on a copy inside `code-atlas-test`:
 - Changing `newer <= mine` to `<` fails AC3's equal-release case.
-- The pre-401 `hooks.json` fails AC5.
+- The pre-405 `hooks.json` fails AC5.
 
 **Count-pin (P5):** `_plugin_state_command` in `test_release_discipline.py` matched on
 `--expect-version` and so found two hooks. It now selects the `code-atlas-state` command.

@@ -707,11 +707,11 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
 - **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
   needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
 - **Releases are versioned; the plugin checks the tags — 2026-09-30 (348), re-decided 2026-10-09
-  (374) and 2026-10-10 (381), re-opened 2026-10-18 (401).**
+  (374) and 2026-10-10 (381), re-opened 2026-10-18 (405).**
   - **How a release is defined.** A release is the package version plus the contract and schema it
     ships, named by `CHANGELOG.md`'s top heading, test-gated and tagged `vX.Y.Z`; untagged commits are
     not a newer release (381). From 0.2.0 on, a rebuild-forcing change moves the minor version.
-  - **The check (401).** 381's re-open condition was met: tool and plugin agreed on 0.3.0, two tagged
+  - **The check (405).** 381's re-open condition was met: tool and plugin agreed on 0.3.0, two tagged
     releases behind, auto-update off, told by nothing. `release_check/` — outside the core (R4.1) —
     caches the remote's newest `vX.Y.Z` from an async `SessionStart` hook, at most daily; a sync hook
     reads only the cache and speaks on screen. Plugin-only: a committed snippet never goes online (381).

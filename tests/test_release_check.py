@@ -1,4 +1,4 @@
-"""Task 401 — an install a tagged release behind is told by the plugin; the core stays offline.
+"""Task 405 — an install a tagged release behind is told by the plugin; the core stays offline.
 
 The newest release is the highest `vX.Y.Z` tag on the remote (381). An async hook caches it at most
 once a day; a sync hook reads only that cache and speaks when it is newer than the plugin's release.

@@ -26,7 +26,7 @@ import gen_skill  # noqa: E402
 
 REFRESH = "code-atlas-refresh"
 # The hooks a plugin carries and a hand snippet never does: one async refresh (344), and the release
-# check's async fetch and sync speaker (401) — a network call no committed project file may make.
+# check's async fetch and sync speaker (405) — a network call no committed project file may make.
 PLUGIN_ONLY = (REFRESH, gen_skill.RELEASE_CHECK)
 
 
@@ -65,7 +65,7 @@ def test_a_drifted_hook_list_is_caught() -> None:
 
 
 def test_the_plugin_adds_only_the_refresh_and_the_release_check() -> None:
-    """344 Scope 2 · 401: plugin-only hooks run at SessionStart, and only the cache read blocks."""
+    """344 Scope 2 · 405: plugin-only hooks run at SessionStart, and only the cache read blocks."""
     plugin = _load(gen_skill.PLUGIN_HOOKS_PATH)["hooks"]
     extra = {
         gen_skill.ungate(h["command"]): h.get("async", False)
