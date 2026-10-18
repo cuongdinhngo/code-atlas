@@ -20,7 +20,7 @@ const META = {
     declared_types: true,
     inheritance: true,
   },
-  contract_version: 15,
+  contract_version: 16,
   // What a grep for a TS/JS symbol looks like (345): a declaration, a member call or import, a bare call.
   symbol_shapes: [
     {

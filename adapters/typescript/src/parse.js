@@ -203,6 +203,23 @@ function argLiterals(call) {
   return out;
 }
 
+// Parallel to `argLiterals`: a plain string literal's value, else null (contract v16, task 398). A
+// template with a substitution has no fixed value; a value over 256 code points is not captured.
+function argStrings(call) {
+  const args = call.arguments;
+  if (!args) return [];
+  return args.map((arg) =>
+    (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) && capturable(arg.text)
+      ? arg.text
+      : null,
+  );
+}
+
+// A lone surrogate has no UTF-8 form to store, so its literal has no value either.
+function capturable(text) {
+  return [...text].length <= 256 && !/[\uD800-\uDFFF]/u.test(text);
+}
+
 // The top-level string keys of an object literal, in order: a normal or shorthand property's name;
 // a computed key or a spread contributes nothing and does not shift later keys (mirrors PHP 063).
 function objectKeys(node) {
@@ -362,6 +379,8 @@ function parseFile(path, declarationsOnly) {
       if (args !== null) {
         row.args = args;
         row.arg_keys = argKeys(call);
+        // Present whenever a string is passed: a null then means "no value" (398).
+        if (args.includes("string")) row.arg_strings = argStrings(call);
       }
     }
     edges.push(row);

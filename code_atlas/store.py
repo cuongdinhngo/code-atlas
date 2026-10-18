@@ -30,7 +30,7 @@ from code_atlas.contract import CONFIDENCE_TIERS
 # (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
 _TOUR_SEED_BUDGET_DIVISOR = 4
 
-SCHEMA_VERSION = "7"
+SCHEMA_VERSION = "8"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -202,7 +202,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT,
-  kwargs TEXT);
+  kwargs TEXT, arg_strings TEXT, kwarg_strings TEXT);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
@@ -695,7 +695,12 @@ def _args_predicate(args_at: tuple[int | str, str] | None) -> _Predicate:
     if selector not in contract.ARG_SELECTORS:
         raise ValueError(f"unknown argument selector {selector!r}: {contract.ARG_SELECTORS}")
     if selector == contract.ARG_ABSENT:
-        return "edges.args IS NOT NULL AND json_array_length(edges.args) < ?", (position,)
+        # A keyword may fill the position by name, so a site that passed one proves nothing (398).
+        return (
+            "edges.args IS NOT NULL AND json_array_length(edges.args) < ? "
+            "AND (edges.kwargs IS NULL OR NOT EXISTS (SELECT 1 FROM json_each(edges.kwargs)))",
+            (position,),
+        )
     at = f"$[{position - 1}]"
     if selector == contract.ARG_DYNAMIC:
         return (

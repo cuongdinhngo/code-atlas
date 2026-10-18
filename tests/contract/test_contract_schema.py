@@ -159,7 +159,7 @@ def test_node_fields_are_the_ten_contract_fields() -> None:
     )
 
 
-def test_edge_fields_are_the_ten_contract_fields() -> None:
+def test_edge_fields_are_the_twelve_contract_fields() -> None:
     assert EDGE_FIELDS == (
         "kind",
         "source_qname",
@@ -171,6 +171,8 @@ def test_edge_fields_are_the_ten_contract_fields() -> None:
         "args",
         "arg_keys",
         "kwargs",
+        "arg_strings",
+        "kwarg_strings",
     )
 
 
@@ -189,7 +191,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 15
+    assert CONTRACT_VERSION == 16
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:
@@ -426,3 +428,29 @@ def test_validate_meta_rejects_a_non_integer_version() -> None:
 def test_validate_meta_never_raises_on_malformed_input() -> None:
     for malformed in (None, 42, "a string", [], {}, {"name": 1, "extensions": "no"}):
         assert isinstance(validate_meta(malformed), list)
+
+
+# --- contract 16 (398): the string-value fields refuse each malformation ------------------------
+
+
+def _call_errors(**fields: object) -> list[str]:
+    edge = {**good_edge(), "kind": "CALLS", "target_raw": "f", "args": ["string", "number"]}
+    return validate({**good_result(), "edges": [{**edge, **fields}]})
+
+
+def test_arg_strings_well_formed_is_accepted() -> None:
+    assert _call_errors(arg_strings=["k", None], kwarg_strings={"table": "Items"}) == []
+
+
+def test_arg_strings_malformations_are_each_named() -> None:
+    assert any("must match args length" in e for e in _call_errors(arg_strings=["k"]))
+    assert any("a value where args says" in e for e in _call_errors(arg_strings=["k", "1"]))
+    over = "x" * (contract.ARG_STRING_MAX + 1)
+    assert any("at most" in e for e in _call_errors(arg_strings=[over, None]))
+    assert any("arg_strings" in e for e in _call_errors(arg_strings="k"))
+
+
+def test_kwarg_strings_malformations_are_each_named() -> None:
+    assert any("kwarg_strings" in e for e in _call_errors(kwarg_strings=["k"]))
+    assert any("keyword name" in e for e in _call_errors(kwarg_strings={"": "k"}))
+    assert any("at most" in e for e in _call_errors(kwarg_strings={"table": 3}))

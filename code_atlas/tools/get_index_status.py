@@ -41,6 +41,7 @@ from code_atlas.indexer import (
     build_incomplete,
     contract_rebuild_required,
     coverage_loss,
+    keys_unread,
 )
 from code_atlas.store import (
     BUILT_AT_KEY,
@@ -121,14 +122,16 @@ COVERAGE_LOSS_PENDING = "coverage_loss_pending"
 # the live lock, which is why it is named here rather than left to be discovered (177, 203).
 BUILD_PROGRESS_ROUTE = "code-atlas-build --status"
 BUILD_PROGRESS_ROUTE_FIELD = "build_progress_route"
-# The rule files changed since the build: rule-fed answers are labelled until an incremental (396).
 # Unresolved route rows a `prefer` list could settle, first 20 named (397; the 388 cap).
 ROUTES_AMBIGUOUS_FIELD = "routes_ambiguous"
 ROUTES_AMBIGUOUS_COUNT_FIELD = "routes_ambiguous_count"
 ROUTES_AMBIGUOUS_CAP = 20
+# The rule files changed since the build: rule-fed answers are labelled until an incremental (396).
 RULES_DIGEST_FIELD = "rules_digest"
 RULES_ERROR_FIELD = "rules_error"
 RULES_STALE_LEAD = "rules changed since this build"
+# Per keyed_calls rule, the sites whose string key was not read (398).
+KEYS_UNREAD_FIELD = "keys_unread"
 
 
 def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str, object]]:
@@ -576,6 +579,10 @@ def _status(
     }
     _attach_build_state(enriched, config, store)
     _attach_routes_ambiguous(enriched, store)
+    unread = keys_unread(store)
+    if unread:
+        # Rule coverage the line read could not see, per keyed_calls rule (398).
+        enriched[KEYS_UNREAD_FIELD] = list(unread)
     _attach_unconfigured_adapters(enriched, config)
     attach_config_provenance(enriched, config, store)
     hint = store.count_source_root_hint_imports()
