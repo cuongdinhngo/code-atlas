@@ -402,10 +402,21 @@ carry `rule: true`.
   not stored, so its URL answers `no_such_symbol`. Only those three tools read routes — the map,
   `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
   `HEURISTIC` + `rule: true`; later hops carry their own tiers.
+  **A JSON census (397).** `json` names a file, `rows` a dotted path to its list of objects (absent:
+  the file is the list) and `columns` the key and target fields, dotted for a nested one; a row
+  missing either is skipped, and the file is digested like a TSV (396). Its targets may name a
+  short class — `Class::method()` or `Class::method` — which links when exactly one stored class of
+  that last name declares the member. Several: `prefer` (qname segments, tried in order, each that
+  matches any candidate narrowing the set) picks the one left, else the row counts in
+  `routes_unresolved` and `get_index_status` lists it under `routes_ambiguous` with its candidates
+  (first 20, `routes_ambiguous_count` beside). TSV and inline rows resolve exactly as before.
 
   ```json
   {"routes": {"significant": ["module", "action"], "tsv": "docs/routes.tsv",
               "columns": {"key": "url", "target": "handler"}}}
+  {"routes": {"significant": ["module", "action"], "json": "docs/endpoints.json",
+              "rows": "endpoints", "columns": {"key": "url", "target": "handler"},
+              "prefer": ["Main"]}}
   ```
 - **Rules age with the index (396).** A build stores the digest of its rule files and any routes
   TSV. When the files on disk differ — edited, removed, or the knob turned off — `get_index_status`

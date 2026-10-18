@@ -217,6 +217,9 @@ def apply_indirection_rules(
     )
 
 
+_SHORT_CLASS_SCAN = 1000
+
+
 def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     """Store the resolved route table in meta (or drop it); return ``routes_unresolved`` (385).
 
@@ -224,6 +227,7 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     """
     if payload is None or not payload.routes:
         store.delete_meta(routes.ROUTES_META_KEY)
+        store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
         return 0
     files = set(store.file_paths())
 
@@ -233,8 +237,31 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
         rows = store.nodes_by_qualified_name(target, limit=1)
         return str(rows[0]["file_path"]) if rows else None
 
-    table, unresolved = routes.resolve(payload.routes, locate)
+    def candidates(target: str) -> list[tuple[str, str]]:
+        """Members named ``method`` of a class whose last qname component is the short class."""
+        parts = routes.short_target(target)
+        if parts is None:
+            return []
+        suffix = f"{parts[0]}{contract.MEMBER_SEPARATOR}{parts[1]}"
+        found: dict[str, str] = {}
+        rows = store.nodes_by_qname_endswith(parts[1], suffix, limit=_SHORT_CLASS_SCAN)
+        if len(rows) == _SHORT_CLASS_SCAN:
+            return []  # a cut list could hide a rival; unresolved beats a guess (R5.2)
+        for row in rows:
+            qname = str(row["qualified_name"])
+            before = qname[: -len(suffix)]
+            # Whole component, exact case: `LIKE` folds case and `Order` never names `AcmeOrder`.
+            if qname.endswith(suffix) and (not before or not re.match(r"[\w$]", before[-1])):
+                found.setdefault(qname, str(row["file_path"]))
+        return sorted(found.items())
+
+    ambiguous: list[dict[str, object]] = []
+    table, unresolved = routes.resolve(payload.routes, locate, candidates, ambiguous)
     store.set_meta(routes.ROUTES_META_KEY, routes.dump(table))
+    if ambiguous:
+        store.set_meta(routes.ROUTES_AMBIGUOUS_META_KEY, json.dumps(ambiguous, sort_keys=True))
+    else:
+        store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
     return unresolved
 
 
