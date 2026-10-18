@@ -25,6 +25,7 @@ from code_atlas.adapter import ADAPTERS_DIR, shipped_adapters  # noqa: E402
 from code_atlas.contract import CONTRACT_VERSION  # noqa: E402
 from code_atlas.main import TOOL_NAMES  # noqa: E402
 from code_atlas.tools import prompts  # noqa: E402
+from release_check import EXPECT_FLAG, FETCH_FLAG  # noqa: E402
 
 SKILL_PATH = REPO / "contrib" / "skill" / "SKILL.md"
 CLAUDE_CODE_SNIPPET_PATH = REPO / "contrib" / "claude-code" / "settings.snippet.json"
@@ -38,6 +39,7 @@ PLUGIN_HOOKS_PATH = PLUGIN_DIR / "hooks" / "hooks.json"
 PLUGIN_SKILL_PATH = PLUGIN_DIR / "skills" / "code-atlas" / "SKILL.md"
 MARKETPLACE_PATH = REPO / ".claude-plugin" / "marketplace.json"
 REPOSITORY_URL = "https://github.com/cuongdinhngo/code-atlas"
+RELEASE_CHECK = "code-atlas-release-check"
 # A user-scope plugin fires in every project: the shell test spares a repo with no index the
 # Python spawn, so each hook is silent there (344 Scope 3).
 PLUGIN_GATE = '[ -d "${CLAUDE_PROJECT_DIR:-.}/.code-atlas" ] || exit 0; '
@@ -232,10 +234,18 @@ def _claude_code_hooks(command: Callable[[str, bool], str]) -> dict[str, Any]:
 
 
 def render_plugin_hooks() -> str:
-    """The snippet's hooks, each gated on the index, plus a background refresh at start (344)."""
+    """The snippet's hooks, each gated on the index, plus a background refresh at start (344) and
+    the release check (401): a background tag fetch, and a cache read that speaks when one is newer.
+    """
     hooks = _claude_code_hooks(plugin_command)
     refresh = {"type": "command", "command": plugin_command("code-atlas-refresh")}
     hooks["SessionStart"].append({"hooks": [{**refresh, "async": True, "timeout": 600}]})
+    check = plugin_command(f"{RELEASE_CHECK} {EXPECT_FLAG} {_package()['version']}")
+    fetch = plugin_command(f"{RELEASE_CHECK} {FETCH_FLAG} {REPOSITORY_URL}")
+    hooks["SessionStart"].append({"hooks": [{"type": "command", "command": check, "timeout": 10}]})
+    hooks["SessionStart"].append(
+        {"hooks": [{"type": "command", "command": fetch, "async": True, "timeout": 60}]}
+    )
     return json.dumps({"hooks": hooks}, indent=2) + "\n"
 
 

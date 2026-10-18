@@ -25,11 +25,12 @@ code-atlas-llm = "onboarding_llm.server:run"
 code-atlas-nudge = "code_atlas.hooks.nudge:main"
 code-atlas-poke = "code_atlas.hooks.poke:main"
 code-atlas-refresh = "code_atlas.hooks.refresh:main"
+code-atlas-release-check = "release_check:main"
 code-atlas-signal = "code_atlas.hooks.signal:main"
 code-atlas-state = "code_atlas.hooks.state:main"
 
 [tool.setuptools.packages.find]
-include = ["code_atlas*", "onboarding_llm*"]
+include = ["code_atlas*", "onboarding_llm*", "release_check*"]
 
 [tool.ruff]
 target-version = "py312"
@@ -44,7 +45,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["code_atlas", "onboarding_llm"]
+files = ["code_atlas", "onboarding_llm", "release_check"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

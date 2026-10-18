@@ -25,6 +25,9 @@ sys.path.insert(0, str(REPO / "scripts"))
 import gen_skill  # noqa: E402
 
 REFRESH = "code-atlas-refresh"
+# The hooks a plugin carries and a hand snippet never does: one async refresh (344), and the release
+# check's async fetch and sync speaker (401) — a network call no committed project file may make.
+PLUGIN_ONLY = (REFRESH, gen_skill.RELEASE_CHECK)
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -36,13 +39,15 @@ def _commands(hooks: dict[str, Any]) -> list[str]:
 
 
 def _ungated(plugin: dict[str, Any]) -> dict[str, Any]:
-    """The plugin's hook table with the gate stripped and its plugin-only refresh entry removed."""
+    """The plugin's hook table with the gate stripped and its plugin-only entries removed."""
     table = copy.deepcopy(plugin["hooks"])
     for event, entries in table.items():
         for entry in entries:
             for hook in entry["hooks"]:
                 hook["command"] = gen_skill.ungate(hook["command"])
-        table[event] = [e for e in entries if e["hooks"][0]["command"] != REFRESH]
+        table[event] = [
+            e for e in entries if e["hooks"][0]["command"].split()[0] not in PLUGIN_ONLY
+        ]
     return {"hooks": table}
 
 
@@ -59,14 +64,20 @@ def test_a_drifted_hook_list_is_caught() -> None:
     assert _ungated(plugin) != _ungated(_load(gen_skill.CLAUDE_CODE_SNIPPET_PATH))
 
 
-def test_the_plugin_adds_only_the_background_refresh() -> None:
-    """Scope 2: the one plugin-only hook is a SessionStart refresh that never blocks the start."""
+def test_the_plugin_adds_only_the_refresh_and_the_release_check() -> None:
+    """344 Scope 2 · 401: plugin-only hooks run at SessionStart, and only the cache read blocks."""
     plugin = _load(gen_skill.PLUGIN_HOOKS_PATH)["hooks"]
-    extra = [
-        h for e in plugin["SessionStart"] for h in e["hooks"] if h["command"].endswith(REFRESH)
-    ]
-    assert len(extra) == 1 and extra[0]["async"] is True
-    assert sum(c.endswith(REFRESH) for c in _commands(plugin)) == 1
+    extra = {
+        gen_skill.ungate(h["command"]): h.get("async", False)
+        for e in plugin["SessionStart"] for h in e["hooks"]
+        if gen_skill.ungate(h["command"]).split()[0] in PLUGIN_ONLY
+    }
+    version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
+    check = f"{gen_skill.RELEASE_CHECK} {gen_skill.EXPECT_FLAG} {version}"
+    fetch = f"{gen_skill.RELEASE_CHECK} {gen_skill.FETCH_FLAG} {gen_skill.REPOSITORY_URL}"
+    assert extra == {REFRESH: True, fetch: True, check: False}
+    every = [gen_skill.ungate(c).split()[0] for c in _commands(plugin)]
+    assert sum(c in PLUGIN_ONLY for c in every) == len(extra)
 
 
 def _gated_commands() -> list[str]:
