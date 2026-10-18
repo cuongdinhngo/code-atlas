@@ -695,7 +695,12 @@ def _args_predicate(args_at: tuple[int | str, str] | None) -> _Predicate:
     if selector not in contract.ARG_SELECTORS:
         raise ValueError(f"unknown argument selector {selector!r}: {contract.ARG_SELECTORS}")
     if selector == contract.ARG_ABSENT:
-        return "edges.args IS NOT NULL AND json_array_length(edges.args) < ?", (position,)
+        # A keyword may fill the position by name, so a site that passed one proves nothing (398).
+        return (
+            "edges.args IS NOT NULL AND json_array_length(edges.args) < ? "
+            "AND (edges.kwargs IS NULL OR NOT EXISTS (SELECT 1 FROM json_each(edges.kwargs)))",
+            (position,),
+        )
     at = f"$[{position - 1}]"
     if selector == contract.ARG_DYNAMIC:
         return (

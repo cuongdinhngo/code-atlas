@@ -136,7 +136,7 @@ this branch starts from it).
 ### Approach
 
 1. Contract 16: `arg_strings` / `kwarg_strings` in `EDGE_FIELDS` with validators; schema 8 stores them.
-2. Adapters: PHP, Python, TypeScript and SQL emit the values; PHP reads named arguments into `kwargs`.
+2. Adapters: PHP, Python and TypeScript emit the values (SQL emits none, W6); PHP reads named arguments into `kwargs`.
 3. `enrichment.py`: `_keys_for_rule` reads `key_kw`, then the captured value, then the line; `keyed_calls` counts
    `keys_unread` per rule; the loader accepts `key_kw`.
 4. `indexer.py` / `get_index_status.py`: the census in the report, meta and status.

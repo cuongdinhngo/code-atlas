@@ -204,15 +204,20 @@ function argLiterals(call) {
 }
 
 // Parallel to `argLiterals`: a plain string literal's value, else null (contract v16, task 398). A
-// template with a substitution has no fixed value; a value over 256 characters is not captured.
+// template with a substitution has no fixed value; a value over 256 code points is not captured.
 function argStrings(call) {
   const args = call.arguments;
   if (!args) return [];
   return args.map((arg) =>
-    (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) && arg.text.length <= 256
+    (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) && capturable(arg.text)
       ? arg.text
       : null,
   );
+}
+
+// A lone surrogate has no UTF-8 form to store, so its literal has no value either.
+function capturable(text) {
+  return [...text].length <= 256 && !/[\uD800-\uDFFF]/u.test(text);
 }
 
 // The top-level string keys of an object literal, in order: a normal or shorthand property's name;

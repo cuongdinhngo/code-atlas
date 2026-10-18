@@ -189,15 +189,25 @@ def _kwarg_literals(call: ast.Call) -> dict[str, str | None] | None:
     return {kw.arg: _literal_kind(kw.value) for kw in call.keywords if kw.arg is not None}
 
 
-# Contract v16 (398): a longer value is not captured, and the core reads the line as before.
+# Contract v16 (398): a longer value is not captured — its null means "no value".
 _ARG_STRING_MAX = 256
 
 
 def _string_value(node: ast.expr) -> str | None:
     """A plain ``str`` literal's value, else null — an f-string or bytes has none (398)."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node.value if len(node.value) <= _ARG_STRING_MAX else None
+        if len(node.value) <= _ARG_STRING_MAX and _encodable(node.value):
+            return node.value
     return None
+
+
+def _encodable(value: str) -> bool:
+    """A lone surrogate (``"\\ud800"``) has no UTF-8 form to store."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def _dict_string_keys(node: ast.Dict) -> list[str]:

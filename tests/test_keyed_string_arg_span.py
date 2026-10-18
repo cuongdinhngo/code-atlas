@@ -168,14 +168,17 @@ def test_an_interpolated_key_is_counted_unread(tmp_path: Path) -> None:
     """Scope 4: a string literal the adapter could not value is counted, wrapped or not."""
     rules = {"keyed_calls": [{**RULES["keyed_calls"][0], "key_kw": None}]}
     del rules["keyed_calls"][0]["key_kw"]
-    page = "<?php\nfunction f($id, $row) {\n    insertRow(\n        \"Items_$id\", $row);\n}\n"
+    page = (
+        "<?php\nfunction f($id, $row) {\n    insertRow(\n        \"Items_$id\", $row);\n"
+        "    insertRow(\"Lines_$id\", $row);\n}\n"
+    )
     (tmp_path / "x").mkdir()
-    config, report = _build(tmp_path / "x", rules)
+    config, _ = _build(tmp_path / "x", rules)
     (config.root / "src" / "page.php").write_text(page, encoding="utf-8")
     with GraphStore(config.db_path) as store:
         report = full_build(config, store)
 
-    assert report.keys_unread[0]["keys_unread"] == 1
+    assert report.keys_unread[0]["keys_unread"] == 2  # the wrapped site and the one-line site
 
 
 def test_key_kw_needs_a_string_key(tmp_path: Path) -> None:

@@ -120,7 +120,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":15}   # handshake
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":16}   # handshake
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
@@ -166,15 +166,14 @@ was the inconsistent one. Anchoring on the container made `include_graph(directi
 `[]` **with** `unresolved_includes: 0` for every file declaring a namespace — in a PSR-4 repo, every
 file. Spelling and per-kind semantics: [`CONVENTION.md`](CONVENTION.md) §3.
 
-**Why `args` records categories and never values.** `args` (contract v3, task 049) is one entry per
-argument at a `CALLS`/`NEW` site, in source order: `null` for any non-literal expression, otherwise
-the literal's **category**, never the literal. A value would make the graph a copy of the source and
-a leak of whatever the source holds; a category is enough to answer *which call sites pass an array
-here*. The whole field is **omitted when positions cannot be trusted** — a spread, a named argument —
-or when the adapter does not record arguments; omitted means *unknown*, never *no arguments*.
-`arg_keys` (contract v5, task 063) is parallel to it and follows the same discipline: keys, never
-values, and an absent field means *not captured* (a pre-v5 index), not *none found*. `kwargs`
-(contract v14, task 372) maps a keyword argument's name to its category, beside `args` (R1.7).
+**`args` records categories; a string literal alone carries its value.** `args` (contract v3, task
+049) is one entry per argument at a `CALLS`/`NEW` site, in source order: `null` for a non-literal,
+else the literal's **category**. A string's value rides `arg_strings` / `kwarg_strings` (v16,
+398; ≤ 256 characters) for `keyed_calls`. The field is **omitted when positions cannot be
+trusted** (a spread) or not recorded; omitted means *unknown*, never *no arguments*. A named
+argument rides `kwargs`; its site never leaves a position `absent`.
+`arg_keys` (v5, 063) runs parallel: keys, never values. `kwargs` (v14, 372) maps a keyword
+argument's name to its category, beside `args` (R1.7).
 
 **Qualified-name convention** (identical across languages, adapter's job to honor): the **container**
 keeps its language-native separator (`\`, `.`, `/`); the **member** boundary is always
@@ -184,7 +183,7 @@ that pressure-tests the convention (see §4.4). Worked examples per language: CO
 
 **Capability flags** (ISP): adapter advertises optionals, e.g. `{"semantic_types": true}` (Roslyn) so the core can *use* richer data when present but never *require* it.
 
-**Contract is versioned** (`contract_version` in meta) and covered by a schema-validation test each adapter must pass — this is what makes LSP-substitutability real.
+**Contract is versioned** (`contract_version` in meta) and covered by a schema-validation test each adapter must pass — what makes adapters substitutable.
 
 ### 4.3 Python-side abstraction (thin)
 ```python
@@ -389,11 +388,11 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"7"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"8"` and enforced loud.** On open, a database carrying a different value raises
 — the DB is a derived cache, so there is no migration runner. Each bump names the task that
 holds it: **2** `nodes_fts` trigram (camelCase substring search); **3** `edges.args` (049); **4**
 `edges.arg_keys` (063); **5** `files.fingerprint` (213); **6** one unresolved site per call in place
-of materialised Method-name siblings (258); **7** `edges.kwargs` (372).
+of materialised Method-name siblings (258); **7** `edges.kwargs` (372); **8** string values (398).
 
 **The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
 is read *before* the DDL runs, so a database this build cannot read is never written to, and
@@ -694,6 +693,8 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
   (the decisive fact of a critical-path ticket sat in 378,790 lines of unread T-SQL), and because
   tier 1a cost zero vocabulary. Its tier-2 vocabulary (`Table`, `Column`, `WRITES`, **v9**) joins no
   existing named subset, so a repo with no `.sql` is unchanged. Honest counter-case: `n = 1` repo.
+- **A call site keeps its string literals' values — 2026-10-18, reversing 049 (398).** A wrapped
+  call needs the value; the local `graph.db` now holds literals the source holds.
 - **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
 - **Native Windows runtime taken — 2026-09-10, superseding 220's `unsupported`.** A
   `sys.platform`-selected lock arm keeps POSIX byte-identical and 072's property. Tiered: native
