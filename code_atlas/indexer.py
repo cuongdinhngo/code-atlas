@@ -432,6 +432,35 @@ def incremental_update(
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
+    Every write lands in one transaction, so a reader sees the previous graph until the build
+    commits, and a build that dies leaves it untouched (400) — see :func:`_incremental_update`.
+    """
+    with store.batched():
+        return _incremental_update(
+            config,
+            store,
+            changed,
+            phase_times=phase_times,
+            progress=progress,
+            scope=scope,
+            allow_coverage_loss=allow_coverage_loss,
+            head=head,
+        )
+
+
+def _incremental_update(
+    config: Config,
+    store: GraphStore,
+    changed: Sequence[str],
+    *,
+    phase_times: dict[str, float] | None = None,
+    progress: ProgressSink | None = None,
+    scope: dict[str, object] | None = None,
+    allow_coverage_loss: bool = False,
+    head: gitutil.GitHead | None = None,
+) -> BuildReport:
+    """The body of :func:`incremental_update`, which holds the batch it opens.
+
     ``changed`` is the git path set (commit range ∪ dirty tree); the caller falls back to
     :func:`full_build` when git cannot name one. Deletes and rename sources drop out of ``collect``
     and are reconciled away after their qnames are folded into ``affected``.
@@ -557,7 +586,8 @@ def incremental_update(
             if crossover > 0 and len(to_parse) >= crossover:
                 raise _TooLarge(len(to_parse), len(changed_set), crossover)
             # The first write, below every escalation: a delta that escalates reaches the shadowed
-            # full build with the live index untouched (356).
+            # full build with the live index untouched (356); readers keep it until commit (400).
+            store.begin_batch()
             store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
             mark = time.monotonic()
             removed = _reconcile(store, kept)

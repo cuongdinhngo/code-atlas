@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
 
 from code_atlas import gitutil
@@ -78,19 +79,26 @@ def miss_subject_path(store: GraphStore, qname: str, *, limit: int) -> str | Non
     return str(rows[0]["file_path"]) if rows else None
 
 
+def build_holds_live_db(db_path: Path) -> bool:
+    """Is a build under ``write.lock`` writing the live DB itself, not a 356 shadow? (365, 400)
+
+    An incremental holds its one transaction until it commits, so a write here would wait out
+    the busy timeout. A build that takes the lock drops a killed build's leftover shadow, so a
+    present shadow is the running build's. Read-only: a lock probe and a stat.
+    """
+    return build_in_progress(db_path) and not shadow_db_path(db_path).exists()
+
+
 def live_index_held(config: Config, store: GraphStore) -> bool:
-    """Is a build writing the live DB in place, so a repair would wait behind it? (365)
+    """Is a build holding the live DB, so a repair would wait behind it? (365)
 
     The one predicate the guard and ``get_index_status`` share (R1.8). It needs ``write.lock``:
-    a writer without it (another server's short repair) is waited out by the busy timeout. Under
-    the lock, an in-place build holds the DB mid- or between transactions; a 356 full rebuild
-    writes the shadow and counts only while its publish holds the live DB. A build that takes the
-    lock drops a killed build's leftover shadow, so a present shadow is the running build's.
+    a writer without it (another server's short repair) is waited out by the busy timeout. A 356
+    full rebuild writes the shadow and counts only while its publish holds the live DB.
     """
-    db_path = config.db_path
-    if not build_in_progress(db_path):
-        return False
-    return store.write_locked() or not shadow_db_path(db_path).exists()
+    if build_holds_live_db(config.db_path):
+        return True
+    return build_in_progress(config.db_path) and store.write_locked()
 
 
 @dataclass

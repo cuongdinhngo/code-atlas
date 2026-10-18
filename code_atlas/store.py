@@ -439,6 +439,11 @@ def schema_direction(found: str, expected: str) -> str:
         return SCHEMA_UNRECOGNISED
 
 
+class BatchLostError(RuntimeError):
+    """SQLite rolled the batch's transaction back itself (a full disk, an I/O error), so the writes
+    after it would land one by one — the build stops rather than publish half a graph (400)."""
+
+
 class SchemaVersionError(Exception):
     """Written by another schema version, so it raises loud (R5.3).
 
@@ -902,6 +907,7 @@ class GraphStore:
         self._now = utc_now if now is None else now
         self._db_path = db_path
         self._publish_to: Path | None = None
+        self._batch_open = False
         if str(db_path) != MEMORY_DB:
             db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path)
@@ -934,6 +940,53 @@ class GraphStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def begin_batch(self) -> None:
+        """Open the one transaction :meth:`batched` closes: readers keep the graph they had until it
+        commits (400). ``IMMEDIATE`` takes the write lock now, not at the first write."""
+        if self._conn.in_transaction:
+            self._conn.commit()
+        self._conn.execute("BEGIN IMMEDIATE")
+        self._batch_open = True
+
+    @contextlib.contextmanager
+    def batched(self) -> Iterator[None]:
+        """Commit a :meth:`begin_batch` transaction on a clean exit, roll it back on any exception.
+
+        A no-op when ``begin_batch`` never ran — an escalated incremental reaches 356's shadow
+        publish with nothing held on the live file.
+        """
+        try:
+            yield
+        except BaseException:
+            if self._batch_open:
+                self._batch_open = False
+                if self._conn.in_transaction:
+                    self._conn.rollback()
+            raise
+        if self._batch_open:
+            self._batch_open = False
+            self._conn.commit()
+
+    @contextlib.contextmanager
+    def _tx(self) -> Iterator[None]:
+        """One write unit: its own transaction, or a savepoint inside an open batch, so one file's
+        error still rolls back that file only (R5.1, 400)."""
+        if not self._batch_open:
+            with self._conn:
+                yield
+            return
+        if not self._conn.in_transaction:
+            raise BatchLostError("the batch's transaction is gone")
+        self._conn.execute("SAVEPOINT write_unit")
+        try:
+            yield
+        except BaseException:
+            if self._conn.in_transaction:
+                self._conn.execute("ROLLBACK TO write_unit")
+                self._conn.execute("RELEASE write_unit")
+            raise
+        self._conn.execute("RELEASE write_unit")
 
     def write_locked(self) -> bool:
         """Does another connection hold this database's write lock right now? (365)
@@ -1029,7 +1082,7 @@ class GraphStore:
             ).fetchall()
         except sqlite3.Error:
             return  # no meta table: a first build writes over an empty file
-        with self._conn:
+        with self._tx():
             self._conn.executemany(
                 "INSERT INTO meta (key, value) VALUES (?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -1084,7 +1137,7 @@ class GraphStore:
         ``fingerprint`` is the whitespace-normalised digest (213). ``None`` leaves an existing
         value alone on conflict so test helpers that only plant a hash do not wipe it.
         """
-        with self._conn:
+        with self._tx():
             self._conn.execute(
                 "INSERT INTO files (path, hash, language, parsed_ok, updated_at, fingerprint) "
                 "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET "
@@ -1098,7 +1151,7 @@ class GraphStore:
         self, path: str, file_hash: str, fingerprint: str
     ) -> None:
         """Refresh hash + fingerprint without touching nodes/edges (213 fingerprint skip)."""
-        with self._conn:
+        with self._tx():
             self._conn.execute(
                 "UPDATE files SET hash = ?, fingerprint = ?, updated_at = ? WHERE path = ?",
                 (file_hash, fingerprint, self._now(), path),
@@ -1119,7 +1172,7 @@ class GraphStore:
         kept_nodes, deduped = _dedupe_nodes(nodes)
         node_groups = _grouped(contract.NODE_FIELDS, kept_nodes)
         edge_groups = _grouped(contract.EDGE_FIELDS, edges)
-        with self._conn:
+        with self._tx():
             self._delete_rows(path)
             self._insert(NODES, node_groups)
             self._insert(EDGES, edge_groups)
@@ -1166,7 +1219,7 @@ class GraphStore:
             )
 
         deleted = 0
-        with self._conn:
+        with self._tx():
             for group in by_qname.values():
                 typed = [g for g in group if g[4]]
                 sparse = [g for g in group if not g[4]]
@@ -1242,7 +1295,7 @@ class GraphStore:
 
     def remove_file(self, path: str) -> None:
         """Drop a vanished path (§8.1); nodes go before the files row, because FKs are on."""
-        with self._conn:
+        with self._tx():
             self._delete_rows(path)
             self._conn.execute("DELETE FROM files WHERE path = ?", (path,))
 
@@ -1279,7 +1332,7 @@ class GraphStore:
         return row is not None
 
     def set_meta(self, key: str, value: str) -> None:
-        with self._conn:
+        with self._tx():
             self._conn.execute(
                 "INSERT INTO meta (key, value) VALUES (?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -1288,7 +1341,7 @@ class GraphStore:
 
     def delete_meta(self, key: str) -> None:
         """Drop a meta row so a rebuild cannot inherit a stale stamp (077)."""
-        with self._conn:
+        with self._tx():
             self._conn.execute("DELETE FROM meta WHERE key = ?", (key,))
 
     def increment_fit_count(
@@ -1304,7 +1357,7 @@ class GraphStore:
         Counts only — the key never carries qname, path, or argument values (task 260 / R4).
         """
         key = fit_meta_key(tool, reason, authoritative=authoritative, truncated=truncated)
-        with self._conn:
+        with self._tx():
             self._conn.execute(_FIT_BUMP_SQL, (key,))
 
     def list_fit_counts(self) -> list[dict[str, object]]:
@@ -1348,7 +1401,7 @@ class GraphStore:
 
     def clear_fit_counts(self) -> int:
         """Delete every ``fit:`` and ``cost:`` meta row; return how many went (260, 379)."""
-        with self._conn:
+        with self._tx():
             cursor = self._conn.execute(
                 "DELETE FROM meta WHERE key LIKE ? ESCAPE '!' OR key LIKE ? ESCAPE '!'",
                 (
@@ -1360,7 +1413,7 @@ class GraphStore:
 
     def rebuild_search_index(self) -> None:
         """Repair only: the triggers keep nodes_fts current, so this just recovers a stale index."""
-        with self._conn:
+        with self._tx():
             self._conn.execute("INSERT INTO nodes_fts(nodes_fts) VALUES ('rebuild')")
 
     # --- reads ----------------------------------------------------------------------------------
@@ -3048,7 +3101,7 @@ class GraphStore:
         """Stage the delta's files and lookup keys so the scan joins instead of binding N params."""
         self._drop_delta_temps()
         conn = self._conn
-        with conn:
+        with self._tx():
             conn.execute("CREATE TEMP TABLE delta_files (path TEXT PRIMARY KEY)")
             conn.execute("CREATE TEMP TABLE delta_keys (key TEXT PRIMARY KEY)")
             conn.executemany(
@@ -3102,7 +3155,7 @@ class GraphStore:
         """Link parents and insert HEURISTIC siblings in one transaction (crash-safe)."""
         if not links and not siblings:
             return
-        with self._conn:
+        with self._tx():
             if links:
                 self._conn.executemany(
                     "UPDATE edges SET target_qname = ?, confidence_tier = ? WHERE id = ?",
