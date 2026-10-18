@@ -279,9 +279,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if reached:
                 result["routes"] = [route.as_row() for route in reached]
         _attach_freshness(result, staleness)
-        if routed or "routes" in result:
-            # A route subject feeds the rows; a reached route is only a side-field (396).
-            attach_rules_stale(result, config, relabel=bool(routed))
+        if routes or "routes" in result:
+            # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
+            attach_rules_stale(result, config, relabel=bool(routes))
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)
         if unlinked_same_name_sites:
