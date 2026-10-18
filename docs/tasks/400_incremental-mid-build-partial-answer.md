@@ -10,12 +10,12 @@ depends_on: [356, 365, 388]
 
 ## Why this exists
 
-This comes from the anchor project's Round-3 feedback (2026-09-20 → 10-18), PR #3179 (2026-10-07).
-`find_callers CateringHandoffToken::assemble` answered while a build was running. It listed
-`build()` and the tests, but not the production caller `CateringSyncClient::buildServiceToken`,
-and nothing marked the answer as partial. `git grep` found the caller. On a finished build the
-edge is there and `RESOLVED` (anchor `graph.db`, `CateringSyncClient.php:86`). #3180 and #2927
-report the same thing: answers during a build come back `reason: ok` with `build_in_progress: true`.
+This comes from one of the anchor project's PRs (2026-10-07) in its Round-3 feedback (2026-09-20 → 10-18).
+`find_callers HandoffToken::assemble` answered while a build was running. It listed `build()` and
+the tests, but not the production caller `SyncClient::serviceToken`, and nothing marked the answer
+as partial. `git grep` found the caller. On a finished build the edge is there and `RESOLVED`
+(the anchor's `graph.db`). Two more anchor PRs report the same thing: answers during a build come
+back `reason: ok` with `build_in_progress: true`.
 
 356 serves the last good index during a **full** rebuild by writing to a shadow. An **incremental**
 still writes the live DB in place:
