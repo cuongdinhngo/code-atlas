@@ -173,7 +173,8 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         multi-language index (261): ``standard`` is the verdict only (``unlinked`` /
         ``by_tier`` per language); ``verbose`` nests the full census including ``pairs``.
         ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
-        ``reset_fit_counts=true`` to clear them first (documented reset; local counts are not
+        ``reset_fit_counts=true`` to clear them first — skipped while a build holds the live
+        index, saying ``fit_reset_skipped: true`` (400) — (documented reset; local counts are not
         telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
         ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
 
@@ -202,11 +203,11 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
                 status = _status(
                     store, config, servable, detail_level, offset=offset, sign=sign, call=call
                 )
-            if reset_skipped:
-                status[FIT_RESET_SKIPPED] = True
-            return status
         except SchemaVersionError as mismatch:
-            return _mismatched(mismatch, servable, detail_level, config)
+            status = _mismatched(mismatch, servable, detail_level, config)
+        if reset_skipped:
+            status[FIT_RESET_SKIPPED] = True
+        return status
 
     return get_index_status
 
