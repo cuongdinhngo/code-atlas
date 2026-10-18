@@ -4,7 +4,7 @@ slug: incremental-mid-build-partial-answer
 title: "An answer read while an incremental build writes the live index drops callers and still says ok"
 phase: 2
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [356, 365, 388]
 ---
 
@@ -62,7 +62,7 @@ failure the PRs describe as the costliest: a caller list that looks complete.
 
 ## Session status
 
-- **KEY:** 400 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** the full suite, then review (gates delegated by the maintainer).
+- **KEY:** 400 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews the PR; merging is theirs. **Revert path:** `git revert` the branch; no rebuild needed.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `solve 400` — `REVIEWER: ON` · `CHALLENGER: ON`.
 
 ## Phase 0 — refine
@@ -284,3 +284,70 @@ The anchor's 1.1 GB index will peak higher on a large delta; 212's crossover is 
 
 **Axis 1 (the diff ⊆ the change list).** Rows 1–9. Row 7 gained `tests/test_killed_build_is_honest.py`, which the
 design named ("any 202 test whose kill semantics move"). **Axis 2.** Approach bullets 1–4 as approved.
+
+## Phase 4 — review
+
+`REVIEWER: ON` · `CHALLENGER: ON`. Both ran on c93b8171 + b0b98cda.
+
+**Reviewer** (`mango:reviewer`, 82,232 tokens): **CHANGES REQUESTED**. It found no mid-batch commit, safe savepoint
+nesting, and no escalation that can run with a batch open. All four findings are fixed:
+1. `get_index_status(reset_fit_counts=True)` is a fifth reader-side writer, missed by C1's inventory of 4. It now
+   skips while a build holds the live index and says so (`fit_reset_skipped`).
+2. A failing `commit()` in `batched()` no longer leaves the transaction open, and a failing `ROLLBACK TO` no longer
+   masks the error that caused it.
+3. `build_holds_live_db` moved to `index_lock.py`, its one definition site, so `fit.py` no longer imports
+   `freshness`.
+4. The poke and reset skips gained a test, observed red without the poke gate (`5.06 s`, R6.5).
+
+**C1 checklist (N = 5 after review):** fit bump ✅ · cost bump ✅ · read-through repair ✅ (365, unchanged) · poke ✅ ·
+`reset_fit_counts` ✅.
+
+**Challenger** (ticket-blind `mango:challenger`, 60,252 tokens): `CHALLENGE: 4 met · 0 not met · 3 can't tell`. The
+three can't-tells sit outside the code diff it was given: AC4's measurement and Scope 3's doc are in this file,
+PLAN §19 and TOOLS.md, and AC2 is the full suite. Its Minor findings:
+- the dropped counts during a build are by design (approach 3);
+- the untested poke skip is fixed by review item 4;
+- the `live_index_held` rewrite keeps its truth table (both arms need `write.lock`);
+- `BatchLostError` is not exercised: a SQLite self-rollback needs a full disk or an I/O fault (residual).
+
+**Reviewer round 2** (the fix delta b0b98cda..716105c4, 48,084 tokens): CHANGES REQUESTED, conditional LGTM. Items
+1–4 are confirmed, with no import cycle and comments ≤ 3 lines. Its one Important finding is fixed in the next commit:
+the schema-mismatch status branch now carries `fit_reset_skipped` too, and the tool description names the key. A
+test for that branch was not added: a mismatched schema escalates to a shadow rebuild, so the flag cannot co-occur
+with it.
+
+**Scope reconciliation.** The diff matches change-list rows 1–9, plus `code_atlas/index_lock.py` and
+`code_atlas/tools/get_index_status.py` from review items 1 and 3. That is the same change type within the same
+concern, so `SCOPE: M` holds.
+
+## Phase 5 — finalise
+
+**Durable lessons.** `400-C1` in `LESSONS.md`: one long writer transaction turns every reader-side write into a
+busy-timeout wait. `400-C2`: a `with conn:` through a local alias commits a batch that a `with self._conn:` sweep
+missed.
+
+`CLAIMS: 2 claim(s) from 2 lesson entr(ies) | T1=0 T2=2 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 1 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`widen-every-query-that-shares-the-page` (362-C1) gains 400, because the reviewer found a fifth reader-side writer.
+It cannot promote here: `/mango:promote` is the maintainer's pass between tickets.
+
+### Outward actions
+
+Under AGENTS.md's standing approval and the maintainer's delegation of 2026-10-18: push
+`fix/400-incremental-mid-build-partial-answer`, then open the PR against `main`. Merging stays with the maintainer.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| pre-run | Explore — nine Round-3 field gaps checked against `main` | 1 | 61,232 |
+| 0 refine | exposure-checker (`challenger`) | 1 | 43,786 |
+| 4 review | `reviewer` | 1 | 82,232 |
+| 4 review | `challenger` (ticket-blind) | 1 | 60,252 |
+| 4 review | `reviewer` (the fix delta) | 2 | 48,084 |
+
+`LEDGER TOTAL: 295,586 · top cost driver: reviewer`
