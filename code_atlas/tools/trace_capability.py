@@ -224,7 +224,7 @@ def _traced_route(
             reason=REASON_CAPABILITY_NOT_CONFIGURED,
         )
         payload["try_instead_hint"] = ROUTES_HINT
-        return payload
+        return attach_rules_stale(payload, config)  # a routes block added since the build (396)
     route = routes.match(table, url)
     if route is None:
         payload = _envelope(

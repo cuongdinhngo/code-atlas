@@ -189,6 +189,25 @@ def test_a_short_class_matches_a_whole_component_only(tmp_path: Path) -> None:
     )
 
 
+def test_a_short_class_matches_its_exact_case_only(tmp_path: Path) -> None:
+    """SQLite `LIKE` folds ASCII case; `Orders` never names `ORDERS` (R5.2)."""
+    sources = {**SOURCES, "shout.py": "class ORDERS:\n    def edit(self):\n        return 4\n"}
+    config, report = _build(tmp_path / "r", _block(), sources=sources)
+
+    assert report.routes_unresolved == 0  # folded case would tie `edit` and leave it unresolved
+    assert _first_hop(config, URLS[0])["results"][0]["steps"][0]["qname"] == (
+        "handlers.orders.Orders::edit"
+    )
+
+
+def test_a_key_tied_in_two_rows_is_named_once(tmp_path: Path) -> None:
+    census = {"endpoints": [*CENSUS["endpoints"], CENSUS["endpoints"][0]]}
+    config, _ = _build(tmp_path / "r", _block(), sources={**SOURCES, **TWIN}, census=census)
+
+    status = get_index_status.create(config, (get_index_status.NAME,))()
+    assert status["routes_ambiguous_count"] == 1
+
+
 def test_a_census_with_no_list_at_rows_is_a_config_error(tmp_path: Path) -> None:
     (tmp_path / "endpoints.json").write_text(json.dumps(CENSUS), encoding="utf-8")
     with pytest.raises(ConfigError, match="no list"):

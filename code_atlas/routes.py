@@ -230,7 +230,7 @@ def resolve(
     routes: list[Route] = []
     seen: set[str] = set()
     unresolved = 0
-    tied: list[tuple[str, dict[str, object]]] = []
+    tied: dict[str, dict[str, object]] = {}
     for block in blocks:
         for declared, target in block.entries:
             key = canonical(declared, block.significant)
@@ -245,7 +245,7 @@ def resolve(
                     linked, file = picked
                 elif len(found) > 1:
                     names = [qname for qname, _ in found]
-                    tied.append((key, {"route": declared, "target": target, "candidates": names}))
+                    tied.setdefault(key, {"route": declared, "target": target, "candidates": names})
             if file is None:
                 unresolved += 1
                 continue
@@ -253,7 +253,7 @@ def resolve(
             routes.append(Route(key, declared, linked, file, block.significant))
     if ambiguous is not None:
         # A later row of the same key may have linked it; only a key left unrouted is named.
-        ambiguous.extend(row for key, row in tied if key not in seen)
+        ambiguous.extend(row for key, row in tied.items() if key not in seen)
     return routes, unresolved
 
 

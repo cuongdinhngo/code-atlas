@@ -279,3 +279,33 @@ def test_challenger_impact_on_a_route_is_labelled_until_the_incremental(repo: Co
 
     assert stale["reason"] == REASON_RULES_STALE and stale["rules_stale"] is True
     assert "reason" not in fresh and "rules_stale" not in fresh  # impact's ok carries no reason
+
+
+def test_review_impact_on_a_route_added_since_the_build_is_labelled(repo: Config) -> None:
+    """A URL the stale table does not hold still asked a route: never an unlabelled empty ok."""
+    from code_atlas.tools import impact
+
+    added = "index.php?module=orders&action=new"
+    (repo.root / "routes.tsv").write_text(
+        f"url\thandler\n{URL}\t{HANDLER}\n{added}\t{OTHER}\n", encoding="utf-8"
+    )
+    stale = impact.create(repo)(routes=[added])
+
+    assert stale["reason"] == REASON_RULES_STALE and stale["rules_stale"] is True
+
+
+def test_review_a_routes_block_added_since_the_build_carries_the_flag(tmp_path: Path) -> None:
+    """Built with no routes block, then one added: not configured *in the index*, and stale."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "handler.py").write_text(SOURCE, encoding="utf-8")
+    (root / "rules.json").write_text(json.dumps({"view_data": [SET_RULE]}), encoding="utf-8")
+    config = _config(root)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    (root / "rules.json").write_text(_rules(SET_RULE), encoding="utf-8")
+    (root / "routes.tsv").write_text(f"url\thandler\n{URL}\t{HANDLER}\n", encoding="utf-8")
+
+    answer = trace_capability.create(config)(route=URL)
+
+    assert answer["reason"] == "capability_not_configured" and answer["rules_stale"] is True

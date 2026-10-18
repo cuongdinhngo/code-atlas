@@ -227,6 +227,9 @@ def apply_indirection_rules(
     )
 
 
+_SHORT_CLASS_SCAN = 1000
+
+
 def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     """Store the resolved route table in meta (or drop it); return ``routes_unresolved`` (385).
 
@@ -251,11 +254,14 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
             return []
         suffix = f"{parts[0]}{contract.MEMBER_SEPARATOR}{parts[1]}"
         found: dict[str, str] = {}
-        for row in store.nodes_by_qname_endswith(parts[1], suffix, limit=50):
+        rows = store.nodes_by_qname_endswith(parts[1], suffix, limit=_SHORT_CLASS_SCAN)
+        if len(rows) == _SHORT_CLASS_SCAN:
+            return []  # a cut list could hide a rival; unresolved beats a guess (R5.2)
+        for row in rows:
             qname = str(row["qualified_name"])
             before = qname[: -len(suffix)]
-            # A whole component only: `Order` never names `AcmeOrder` (R5.2).
-            if not before or not re.match(r"[\w$]", before[-1]):
+            # Whole component, exact case: `LIKE` folds case and `Order` never names `AcmeOrder`.
+            if qname.endswith(suffix) and (not before or not re.match(r"[\w$]", before[-1])):
                 found.setdefault(qname, str(row["file_path"]))
         return sorted(found.items())
 
