@@ -15,9 +15,9 @@ from typing import Any, TypeGuard
 
 from code_atlas.config import Config
 from code_atlas.containment import resolves_inside
+from code_atlas.index_lock import build_holds_live_db
 from code_atlas.store import bump_cost_counts, bump_fit_count
 from code_atlas.tokens import estimate_tokens
-from code_atlas.tools.freshness import build_holds_live_db
 
 # ``get_index_status`` is the tool that *reports* the counter, so counting it would make its own
 # verbose payload differ between two identical calls (R4.2). It is in neither fit bucket anyway —

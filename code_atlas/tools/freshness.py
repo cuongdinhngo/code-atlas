@@ -4,19 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Literal
 
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.contract import MEMBER_SEPARATOR
-from code_atlas.index_lock import build_in_progress
+from code_atlas.index_lock import build_holds_live_db, build_in_progress
 from code_atlas.indexer import file_is_current, indexable, reparse_file
 from code_atlas.store import (
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     GraphStore,
-    shadow_db_path,
 )
 from code_atlas.tools.claim import REV_CHARS
 from code_atlas.tools.nav_result import (
@@ -77,16 +75,6 @@ def miss_subject_path(store: GraphStore, qname: str, *, limit: int) -> str | Non
         return None
     rows = store.nodes_by_qualified_name(variant, limit=1)
     return str(rows[0]["file_path"]) if rows else None
-
-
-def build_holds_live_db(db_path: Path) -> bool:
-    """Is a build under ``write.lock`` writing the live DB itself, not a 356 shadow? (365, 400)
-
-    An incremental holds its one transaction until it commits, so a write here would wait out
-    the busy timeout. A build that takes the lock drops a killed build's leftover shadow, so a
-    present shadow is the running build's. Read-only: a lock probe and a stat.
-    """
-    return build_in_progress(db_path) and not shadow_db_path(db_path).exists()
 
 
 def live_index_held(config: Config, store: GraphStore) -> bool:

@@ -966,7 +966,12 @@ class GraphStore:
             raise
         if self._batch_open:
             self._batch_open = False
-            self._conn.commit()
+            try:
+                self._conn.commit()
+            except BaseException:
+                if self._conn.in_transaction:
+                    self._conn.rollback()
+                raise
 
     @contextlib.contextmanager
     def _tx(self) -> Iterator[None]:
@@ -982,9 +987,11 @@ class GraphStore:
         try:
             yield
         except BaseException:
+            # A failing ROLLBACK TO must not mask the error that caused it.
             if self._conn.in_transaction:
-                self._conn.execute("ROLLBACK TO write_unit")
-                self._conn.execute("RELEASE write_unit")
+                with contextlib.suppress(sqlite3.Error):
+                    self._conn.execute("ROLLBACK TO write_unit")
+                    self._conn.execute("RELEASE write_unit")
             raise
         self._conn.execute("RELEASE write_unit")
 

@@ -8,6 +8,7 @@ adapter; the reads are the tools' own entry points, called from the build's prog
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -15,16 +16,21 @@ from pathlib import Path
 import pytest
 
 from code_atlas.config import Config
+from code_atlas.hooks.poke import poke
 from code_atlas.index_lock import try_index_write_lock
 from code_atlas.indexer import incremental_update
 from code_atlas.store import BUILD_COMPLETE, WRITE_ERRORS, GraphStore, close_fit_connections
 from code_atlas.tools import fit
 from code_atlas.tools.build_or_update_index import create as build_tool
 from code_atlas.tools.find_callers import create as find_callers_tool
+from code_atlas.tools.get_index_status import FIT_RESET_SKIPPED
+from code_atlas.tools.get_index_status import NAME as STATUS_NAME
+from code_atlas.tools.get_index_status import create as status_tool
 from tests.test_rebuild_behind_a_shadow_index import (
     CALLERS,
     CORE,
     Died,
+    env_for,
     git,
     live_state,
     repo,
@@ -98,6 +104,34 @@ def test_a_served_call_during_an_incremental_does_not_wait_on_it(tmp_path: Path)
     close_fit_connections()
     with GraphStore(config.db_path) as store:
         assert not [k for k in store.list_fit_counts() if k["tool"] == "find_callers"]
+
+
+def test_the_poke_hook_and_a_fit_reset_skip_while_an_incremental_holds_the_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C1 items 4–5: the poke hook's repair and ``reset_fit_counts`` would each wait out the busy
+    timeout behind the build, so both skip — and the status says the reset did not happen."""
+    config = committed_repo(tmp_path)
+    for key in [key for key in os.environ if key.startswith("CA_")]:
+        monkeypatch.delenv(key)
+    for key, value in env_for(tmp_path).items():
+        monkeypatch.setenv(key, value)  # the hook reads its config from the environment
+    status = status_tool(config, (STATUS_NAME,))
+    changed_core(config)
+    (config.root / "dep/a.aa").write_text("class Thing {} // edited\n", encoding="utf-8")
+    seen: list[tuple[float, object]] = []
+
+    def probe(phase: str) -> None:
+        if phase == "resolve" and not seen:
+            started = time.monotonic()
+            poke(config.root, "dep/a.aa")
+            answer = status(reset_fit_counts=True)
+            seen.append((time.monotonic() - started, answer.get(FIT_RESET_SKIPPED)))
+
+    incremental(config, probe)
+
+    assert seen and seen[0][0] < 1.0, f"the hook or the reset waited: {seen}"
+    assert seen[0][1] is True
 
 
 def test_a_killed_incremental_leaves_the_graph_it_found(tmp_path: Path) -> None:
