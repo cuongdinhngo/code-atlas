@@ -27,6 +27,7 @@ from code_atlas.tools.nav_result import (
     answered_about_ref_for,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
+    attach_rules_stale,
     attach_sibling_definitions,
     attach_try_instead,
     bare_subject,
@@ -278,6 +279,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if reached:
                 result["routes"] = [route.as_row() for route in reached]
         _attach_freshness(result, staleness)
+        if routes or "routes" in result:
+            # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
+            attach_rules_stale(result, config, relabel=bool(routes))
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)
         if unlinked_same_name_sites:

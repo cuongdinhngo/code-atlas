@@ -32,6 +32,7 @@ from code_atlas.tools.nav_result import (
     REASON_NOT_INDEXED,
     REASON_OK,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    attach_rules_stale,
     attach_try_instead,
 )
 
@@ -223,7 +224,7 @@ def _traced_route(
             reason=REASON_CAPABILITY_NOT_CONFIGURED,
         )
         payload["try_instead_hint"] = ROUTES_HINT
-        return payload
+        return attach_rules_stale(payload, config)  # a routes block added since the build (396)
     route = routes.match(table, url)
     if route is None:
         payload = _envelope(
@@ -231,7 +232,7 @@ def _traced_route(
             reason=REASON_NO_SUCH_SYMBOL,
         )
         payload["nearest_routes"] = routes.nearest(table, url)
-        return payload
+        return attach_rules_stale(payload, config)
     built = _build(store, config, seeds=[(route.target, SUBJECT_ROUTE)])
     rows = [_flow_row(flow, detail_level) for flow in built.flows]
     for row in rows:
@@ -240,10 +241,13 @@ def _traced_route(
         if isinstance(steps, list) and steps:
             # The hop INTO the target is the declaration, so it carries the route's tier.
             steps[0].update(tier=routes.ROUTE_TIER, rule=True)
-    return _envelope(
-        config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
-        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
-        truncated=_incomplete(built),
+    return attach_rules_stale(
+        _envelope(
+            config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
+            reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
+            truncated=_incomplete(built),
+        ),
+        config,
     )
 
 

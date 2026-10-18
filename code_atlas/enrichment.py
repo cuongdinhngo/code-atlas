@@ -18,6 +18,9 @@ from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.store import GraphStore
 
+# The digest of the rule files the index was built under; "" when the knob was off (396).
+RULES_DIGEST_KEY = "indirection_rules_digest"
+
 # Synthetic path holding rule-emitted edges; replaced each build, dropped when rules are off.
 # Not a real on-disk file — no files row / File node (068); nav treats edges as rule-derived.
 INDIRECTION_FILE = ".code-atlas/indirection-rules"
@@ -116,6 +119,35 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         digest=digester.hexdigest(),
         routes=tuple(route_blocks),
     )
+
+
+def rules_digest(payload: RulesPayload | None) -> str:
+    """The digest a build stores for ``payload``: ``""`` when no rules are configured (396)."""
+    return "" if payload is None else payload.digest
+
+
+class RulesDrift(NamedTuple):
+    """The build's rules digest against the files on disk; ``current`` is None when unreadable."""
+
+    built: str | None
+    current: str | None
+    error: str | None = None
+
+
+def rules_drift(config: Config, store: GraphStore) -> RulesDrift | None:
+    """Why rule-fed answers are stale, or ``None`` when the index holds today's rules (396).
+
+    The one predicate the status and every rule-fed tool ask (R1.8). An index with no stored
+    digest predates 396, so it is never attested current under configured rules (R5.6).
+    """
+    built = store.get_meta(RULES_DIGEST_KEY)
+    try:
+        current = rules_digest(load_indirection_rules(config))
+    except ConfigError as error:
+        return RulesDrift(built, None, str(error))
+    if (built or "") == current:
+        return None
+    return RulesDrift(built, current)
 
 
 class Enriched(NamedTuple):

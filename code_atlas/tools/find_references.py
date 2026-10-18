@@ -63,6 +63,7 @@ from code_atlas.tools.nav_result import (
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
+    attach_rules_stale,
     attach_serve_behind_route,
     attach_sibling_definitions,
     attach_try_instead,
@@ -72,6 +73,7 @@ from code_atlas.tools.nav_result import (
     edge_hit,
     empty_nav,
     escalate_zero_production,
+    has_rule_hit,
     nav_result,
     relation_reason,
     require_path_prefix,
@@ -748,6 +750,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 subject_removed=read.removed,
             )
         labelled = attach_try_instead(labelled, try_instead, try_instead_hint)
+        if has_rule_hit(results):
+            attach_rules_stale(labelled, config)
         attach_coverage_edge_route(
             labelled,
             stamped,

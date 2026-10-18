@@ -407,6 +407,14 @@ carry `rule: true`.
   {"routes": {"significant": ["module", "action"], "tsv": "docs/routes.tsv",
               "columns": {"key": "url", "target": "handler"}}}
   ```
+- **Rules age with the index (396).** A build stores the digest of its rule files and any routes
+  TSV. When the files on disk differ — edited, removed, or the knob turned off — `get_index_status`
+  reports `rules_stale: true` with `rules_digest` (`built` / `current`; `rules_error` when a file no
+  longer loads) and its summary says so. `find_view_data`, the rule hits of `find_callers` /
+  `find_references`, `trace_capability(route=…)` and `impact(routes=[…])` then answer `rules_stale`
+  for `ok`, rows kept; a route side-field (`search_symbol`, `impact` on a path) only carries the flag.
+  The next incremental re-applies the rules without a parse (`wrote.rules_reapplied: true`); an index
+  built before 396 reads stale under rules until then.
 - `aliases`, `calls` and `view_data` entries share the file; PLAN §11 holds their limits.
 
 The adapter command is the **whole** command: the core appends nothing to it, not even `--server`, so
