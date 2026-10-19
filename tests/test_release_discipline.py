@@ -149,7 +149,7 @@ def _plugin_state_command(version: str) -> str:
         h["command"]
         for e in hooks["SessionStart"]
         for h in e["hooks"]
-        if state.EXPECT_FLAG in h["command"]
+        if gen_skill.ungate(h["command"]).startswith("code-atlas-state ")
     ]
     return command.replace(f"{state.EXPECT_FLAG} {_version()}", f"{state.EXPECT_FLAG} {version}")
 
