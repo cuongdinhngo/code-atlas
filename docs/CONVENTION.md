@@ -28,7 +28,7 @@ code-atlas/
 │   ├── onboarding/                   # Phase-3 enrichment, deterministic — one module per concern
 │   ├── hooks/                        # opt-in: poke refresh signal state nudge
 │   └── tools/                        # one module per MCP tool
-├── onboarding_llm/  release_check/   # LLM implementers · plugin tag check (405): OUTSIDE the core, R4.1
+├── onboarding_llm/  release_check/   # LLM implementers · tag check (405): outside the core, R4.1
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
 ├── docker/                           # test image, runtime image, compose
 ├── contrib/                          # offered, never installed: skill/ (generated Agent Skill,
