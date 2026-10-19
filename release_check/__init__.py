@@ -69,6 +69,8 @@ def fetch(remote: str, *, now: float | None = None) -> str | None:
     checked = cached.get("checked_at") if cached else None
     if isinstance(checked, int | float) and now - checked < CHECK_INTERVAL_S:
         return None
+    # Record the attempt first, so an offline machine retries daily rather than every session.
+    _write_cache({"checked_at": int(now), "latest": cached.get("latest") if cached else None})
     done = subprocess.run(
         ["git", "ls-remote", "--tags", "--refs", remote],
         capture_output=True,
@@ -80,13 +82,16 @@ def fetch(remote: str, *, now: float | None = None) -> str | None:
     latest = newest_tag(done.stdout)
     if latest is None:
         return None
+    _write_cache({"checked_at": int(now), "latest": latest, "remote": remote})
+    return latest
+
+
+def _write_cache(record: dict[str, object]) -> None:
     path = cache_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_suffix(".tmp")
-    record = {"checked_at": int(now), "latest": latest, "remote": remote}
     partial.write_text(json.dumps(record), encoding="utf-8")
     partial.replace(path)
-    return latest
 
 
 def release_line(expected: str) -> str | None:

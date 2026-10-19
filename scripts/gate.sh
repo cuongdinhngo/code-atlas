@@ -97,7 +97,7 @@ echo "== job: test =="
 _run "bytecode invalidation (checked-hash, 146)" \
     "$py" -m compileall -q -f --invalidation-mode checked-hash \
     -x 'tests[/\\]fixtures[/\\]python[/\\]' \
-    code_atlas onboarding_llm tests
+    code_atlas onboarding_llm release_check tests
 
 # ci.yml step "Install check": the declared console scripts resolve and import. Derived from
 # [project.scripts], never listed (R6.7). Weaker than CI's by construction: CI checks a fresh
@@ -288,7 +288,7 @@ fi
 
 if [ ! -d code_atlas ]; then
     _record FAIL "R4.1 no LLM in core" "code_atlas/ is missing"
-elif grep -rEn "^[[:space:]]*(from|import)[[:space:]]+(anthropic|onboarding_llm)\b" \
+elif grep -rEn "^[[:space:]]*(from|import)[[:space:]]+(anthropic|onboarding_llm|release_check)\b" \
     code_atlas/ >"$log" 2>&1 \
     || grep -rEin 'claude-[a-z0-9.]|gpt-[0-9]|max_tokens|no preamble' code_atlas/ >>"$log" 2>&1; then
     _record FAIL "R4.1 no LLM in core"
