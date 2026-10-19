@@ -115,6 +115,19 @@ def test_a_path_prefix_over_the_migrations_answers_the_latest(tmp_path: Path) ->
 
 
 @needs_node
+def test_a_cut_search_page_names_no_latest(tmp_path: Path) -> None:
+    """Review of 403: with V9 past the page's cap, V7 must not be labelled the latest."""
+    config = _built(
+        tmp_path,
+        {"db/V1__p.sql": _proc("1"), "db/V7__p.sql": _proc("7"), "db/V9__p.sql": _proc("9")},
+    )
+    found = search_symbol.create(config)("dbo.P", kind="Function", limit=2)
+
+    assert found["truncated"] is True, found
+    assert not any("ambiguity" in hit for hit in found["results"]), found  # type: ignore[union-attr]
+
+
+@needs_node
 def test_search_lists_the_latest_first_with_the_same_label(tmp_path: Path) -> None:
     """One rule for every reader of several definitions (R1.8)."""
     config = _built(

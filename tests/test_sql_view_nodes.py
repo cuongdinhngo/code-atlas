@@ -38,6 +38,15 @@ WITH c AS (
 )
 SELECT Id FROM c;
 GO
+CREATE TABLE dbo.Cust (Id INT NOT NULL);
+GO
+CREATE VIEW dbo.Labelled WITH SCHEMABINDING AS
+SELECT CASE WHEN o.Active = 1 THEN 'x'
+            ELSE 'y'
+       END AS k
+  FROM dbo.Orders o
+  JOIN dbo.Cust c ON c.Id = o.Id;
+GO
 CREATE PROCEDURE dbo.Archive AS
     INSERT INTO dbo.activeorders SELECT Id FROM dbo.Orders;
 GO
@@ -108,6 +117,15 @@ def test_a_cte_inside_a_view_is_never_read_as_a_table(tmp_path: Path) -> None:
     with GraphStore(config.db_path) as store:
         reads = store.edges_by_source("dbo.Recent", kinds=("READS",), limit=10)
     assert {str(edge["target_raw"]) for edge in reads} == {"dbo.Orders"}
+
+
+@needs_node
+def test_a_line_leading_end_never_cuts_a_view_s_reads(tmp_path: Path) -> None:
+    """Review of 402: a multi-line CASE's `END` at depth 0 flushed the body before its FROM."""
+    config = _built(tmp_path)
+    with GraphStore(config.db_path) as store:
+        reads = store.edges_by_source("dbo.Labelled", kinds=("READS",), limit=10)
+    assert {str(edge["target_raw"]) for edge in reads} == {"dbo.Orders", "dbo.Cust"}
 
 
 @needs_node

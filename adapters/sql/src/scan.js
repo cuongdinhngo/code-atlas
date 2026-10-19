@@ -307,6 +307,7 @@ const SELECT_RE = /\bselect\b/i;
 // table body or a column list never splits the statement that contains it.
 const BOUNDARY_RE =
   /^\s*(go|create|alter|insert|update|delete|truncate|merge|if|while|begin|end|return|declare|exec|execute)\b|^\s*;/i;
+const VIEW_END_RE = /^\s*(go|create|alter)\b/i;
 const DYNAMIC_PROCS = new Set(["sp_executesql", "sp_execute", "dbo.sp_executesql"]);
 // DDL that changes an existing object, read inside a string literal (321). The name after it is
 // the whole claim: no concatenation is followed, and a constraint clause names no object of its own.
@@ -825,7 +826,9 @@ function parseFile(qpath) {
     }
 
     // A statement in progress absorbs the line unless a new one starts at paren depth 0.
-    if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)) flush();
+    // A view's batch is one statement, so a line-leading `END` of a CASE never closes it (402).
+    if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)
+        && (!pending.whole || VIEW_END_RE.test(code))) flush();
     if (pending) {
       // Keep newlines so Column line_start can count from the CREATE body's start (254).
       pending.buf += `\n${code}`;

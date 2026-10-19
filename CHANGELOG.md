@@ -36,6 +36,10 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - A refresh hook that is refused (an adapter failing its handshake, for one) or errors no longer
   goes only to a log: `get_index_status` names it as `refresh_refused`, with the time and the fix,
   and the session-start line shows it on screen, until a build succeeds (401).
+- The plugin says when a newer tagged release is out, even with marketplace auto-update off: a
+  background hook caches the newest `vX.Y.Z` tag daily, and the next session start names it on
+  screen. New console script `code-atlas-release-check`; `CA_RELEASE_CHECK=0` turns it off (405).
+  Tags `v0.3.0`, `v0.4.0` and `v0.5.0` are now cut.
 
 ## 0.5.0 — 2026-10-17 · contract 16 · schema 8
 
