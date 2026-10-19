@@ -706,18 +706,17 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
   prose seams live outside it (R4.1). Shipped M10–M12.
 - **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
   needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
-- **Releases are versioned; no network update check — 2026-09-30 (348), re-decided 2026-10-09 (374)
-  and 2026-10-10 (381).**
+- **Releases are versioned; the plugin checks the tags — 2026-09-30 (348), re-decided 2026-10-09
+  (374) and 2026-10-10 (381), re-opened 2026-10-18 (405).**
   - **How a release is defined.** A release is the package version plus the contract and schema it
     ships, named by `CHANGELOG.md`'s top heading, test-gated and tagged `vX.Y.Z`; untagged commits are
     not a newer release (381). From 0.2.0 on, a rebuild-forcing change moves the minor version.
-  - **Why no check of our own (374, 381).** Plugin auto-update fetches outside the core; once the
-    plugin moves, the offline hook names every lagging half (R4/R4.1). 381's install *was* told, but
-    only its agent read the line, its tool was pinned (`?rev=`), and its newer commits had no tag to
-    find: the fix is the line on screen and the pin named. A hook-borne check would reach teammates.
-  - **What stays silent, knowingly.** An install whose halves all agree on an old release, with
-    plugin auto-update off or with no plugin, is not told. Only a network check could tell it.
-  - **Re-open condition.** An install a *tagged* release behind, halves agreeing, told by nothing.
+  - **The check (405).** 381's re-open condition was met: tool and plugin agreed on 0.3.0, two tagged
+    releases behind, auto-update off, told by nothing. `release_check/` — outside the core (R4.1) —
+    caches the remote's newest `vX.Y.Z` from an async `SessionStart` hook, at most daily; a sync hook
+    reads only the cache and speaks on screen. Plugin-only: a committed snippet never goes online (381).
+  - **What stays silent, knowingly.** An install with no plugin (a hand snippet) is not told; the
+    offline hook still names any half that lags another (374).
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04, from phase 1's external review rounds 1–4).**

@@ -526,6 +526,25 @@
             "timeout": 600
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-release-check >/dev/null 2>&1 || exit 0; exec code-atlas-release-check --expect-version 0.5.0",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-release-check >/dev/null 2>&1 || exit 0; exec code-atlas-release-check --fetch https://github.com/cuongdinhngo/code-atlas",
+            "async": true,
+            "timeout": 60
+          }
+        ]
       }
     ],
     "PreCompact": [
