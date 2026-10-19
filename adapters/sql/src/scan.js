@@ -279,7 +279,7 @@ const TRIGGER_RE =
   /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?trigger\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 // A view is its own kind (402). `ALTER` and `CREATE OR ALTER` redefine one, so they are ALTERS.
 const VIEW_RE =
-  /\b(create|alter)\s+(or\s+(?:alter|replace)\s+)?view\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
+  /\b(create|alter)\s+(or\s+alter\s+)?view\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 const TABLE_RE = /\b(?:create|alter)\s+table\b/i;
 const INSERT_RE = /\binsert\b/i;
 const UPDATE_RE = /\bupdate\b/i;
@@ -337,7 +337,7 @@ function parseFile(qpath) {
   let lineNo = 0;
   let lastLine = 0;
   const fingerprints = lineFingerprints();
-  /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean}|null} */
+  /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean, whole?: boolean}|null} */
   let pending = null;
   /** @type {Map<string, Node>} */
   const tables = new Map();
@@ -815,7 +815,8 @@ function parseFile(qpath) {
       pending.buf += `\n${code}`;
       pending.depth += depthOf(code);
       if (pending.depth > 0) pending.opened = true;
-      if (pending.opened && pending.depth <= 0) flush();
+      // A view's body ends at its batch, not at a closing paren: a CTE closes one mid-body (402).
+      if (pending.opened && pending.depth <= 0 && !pending.whole) flush();
       else if (pending.buf.length > PENDING_CAP) flush();
       return;
     }
@@ -923,12 +924,11 @@ function parseFile(qpath) {
         file_path: qpath, line: lineNo, confidence_tier: "RESOLVED",
       });
       if (view[1].toLowerCase() === "alter" || view[2]) alters(qname, false, lineNo);
-      // The view's batch is its body: its SELECT, on this line or the next, reads from it.
+      // The view's batch is its body, read whole from the header so a `WITH` CTE name is seen
+      // as one and never read as a table; its sources are READS from the view.
       current = { qname, node };
-      if (SELECT_RE.test(code)) {
-        const depth = depthOf(code);
-        pending = { kind: "select", buf: code, line: lineNo, depth, opened: depth > 0 };
-      }
+      const depth = depthOf(code);
+      pending = { kind: "select", buf: code, line: lineNo, depth, opened: depth > 0, whole: true };
       return;
     }
 

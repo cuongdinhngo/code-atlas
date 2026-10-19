@@ -31,6 +31,16 @@ SELECT Id
   FROM dbo.Orders
  WHERE Active = 1;
 GO
+CREATE VIEW dbo.Recent
+AS
+WITH c AS (
+    SELECT Id FROM dbo.Orders
+)
+SELECT Id FROM c;
+GO
+CREATE PROCEDURE dbo.Archive AS
+    INSERT INTO dbo.activeorders SELECT Id FROM dbo.Orders;
+GO
 """
 # Two Flyway-style migrations redefine one view; neither is its first CREATE.
 V1 = "CREATE OR ALTER VIEW dbo.OpenOrders AS SELECT Id FROM dbo.Orders WHERE Active = 1\nGO\n"
@@ -89,3 +99,21 @@ def test_ac3_both_redefining_migrations_are_in_altered_by(tmp_path: Path) -> Non
     assert files == {"db/migration/V1__open_orders.sql", "db/migration/V7__open_orders.sql"}
     for hit in hits:  # type: ignore[union-attr]
         assert {str(row["file"]) for row in hit["altered_by"]} == files, hit
+
+
+@needs_node
+def test_a_cte_inside_a_view_is_never_read_as_a_table(tmp_path: Path) -> None:
+    """The challenger's I1: the CTE closes its paren mid-body, and its name is not a source."""
+    config = _built(tmp_path)
+    with GraphStore(config.db_path) as store:
+        reads = store.edges_by_source("dbo.Recent", kinds=("READS",), limit=10)
+    assert {str(edge["target_raw"]) for edge in reads} == {"dbo.Orders"}
+
+
+@needs_node
+def test_a_case_mismatched_write_through_a_view_links_to_it(tmp_path: Path) -> None:
+    """The challenger's I2: T-SQL's case-insensitive rule (215) reaches a View as a Table."""
+    config = _built(tmp_path)
+    with GraphStore(config.db_path) as store:
+        writes = store.edges_by_target("dbo.ActiveOrders", kinds=("WRITES",), limit=10)
+    assert [str(edge["source_qname"]) for edge in writes] == ["dbo.Archive"]

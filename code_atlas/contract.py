@@ -141,7 +141,7 @@ COLUMN_KIND = "Column"
 VIEW_KIND = "View"
 # A bare name re-points onto the one subject of these kinds (392, as 320); a table's own parts
 # sharing the name never compete with it.
-BARE_SUBJECT_KINDS: tuple[str, ...] = ("Table", "Function")
+BARE_SUBJECT_KINDS: tuple[str, ...] = ("Table", "Function", "View")
 TABLE_PART_KINDS: tuple[str, ...] = ("Column", "ForeignKey")
 CONTAINS = "CONTAINS"
 # A select's FROM / JOIN source (390); opt-in on find_references(kinds=).
