@@ -61,6 +61,17 @@ def test_the_newest_tag_is_numeric_and_ignores_non_releases() -> None:
     assert release_check.newest_tag("abc\trefs/tags/nightly\n") is None
 
 
+def test_an_offline_fetch_waits_a_day_and_keeps_the_last_answer(tmp_path: Path) -> None:
+    """A failed listing still counts as the day's attempt; the release already cached survives."""
+    _cache("0.5.0", checked_at=0)
+    missing = str(tmp_path / "no-such-remote")
+    start = release_check.CHECK_INTERVAL_S
+    with pytest.raises(subprocess.CalledProcessError):
+        release_check.fetch(missing, now=start)
+    assert release_check.fetch(missing, now=start + 1) is None
+    assert release_check.release_line("0.4.0") is not None
+
+
 def test_fetch_caches_the_remote_s_newest_release(tmp_path: Path) -> None:
     remote = _remote(tmp_path, ["v0.2.0", "v0.10.0", "v0.9.1"])
     assert release_check.fetch(remote, now=1_000_000) == "0.10.0"

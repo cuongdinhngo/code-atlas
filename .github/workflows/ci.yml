@@ -105,7 +105,7 @@ jobs:
       - name: Bytecode invalidation (checked-hash, task 146)
         run: python -m compileall -q -f --invalidation-mode checked-hash
           -x 'tests[/\\]fixtures[/\\]python[/\\]'
-          code_atlas onboarding_llm tests
+          code_atlas onboarding_llm release_check tests
 
       # No `if:` guards below. They existed while these directories were empty; today their only
       # effect would be to skip the check and pass green when the directory goes missing.
@@ -332,7 +332,7 @@ jobs:
           fi
           # The 117 prose seam declares a Protocol and nothing else: every prompt, model id and
           # `anthropic` import lives in onboarding_llm/. A leak here is a determinism breach (R4).
-          if grep -rEn "^[[:space:]]*(from|import)[[:space:]]+(anthropic|onboarding_llm)\b" code_atlas/; then
+          if grep -rEn "^[[:space:]]*(from|import)[[:space:]]+(anthropic|onboarding_llm|release_check)\b" code_atlas/; then
             echo "::error::R4.1 — the core imports an LLM package"
             exit 1
           fi
