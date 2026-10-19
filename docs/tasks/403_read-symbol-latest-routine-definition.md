@@ -4,7 +4,7 @@ slug: read-symbol-latest-routine-definition
 title: "`read_symbol` on a routine several migrations redefine refuses as ambiguous instead of answering the latest"
 phase: 2
 milestone: Retrieval
-status: todo
+status: done
 depends_on: [394]
 ---
 
@@ -122,3 +122,51 @@ contract 17). **Red first** on `main` (8c0ddd00): `4 failed, 2 passed` — the t
 named none: AC1's "naming V1" failed. A labelled answer now always lists them; this fixes 394's one-copy case too.
 
 Axis 1 (the diff ⊆ the change list): rows 1–7. Axis 2: the approach as designed.
+
+## Phase 4 — review
+
+`REVIEWER: OFF` — waived by the run's "with skipped reviewer". `CHALLENGER: ON`.
+
+**Challenger** (ticket-blind `mango:challenger`, 65,011 tokens) on ab6083a3: `CHALLENGE: 4 met · 1 not met · 2 can't
+tell`. The "not met" row was R7.5, which it then judged met after all. The can't-tells were `path_excluded`'s source
+(the prefix filter runs before the rule, and `test_a_path_prefix_over_the_migrations_answers_the_latest` passes)
+and whether the extra key needs a conformance assertion (the proving test runs the real adapter).
+
+Fixed in 9e0bef53, each new test observed red on the pre-fix code (`3 failed, 6 passed`):
+- **1 (Important):** a test copy with a higher version answered. Production rows are now ranked; copies follow and
+  never answer.
+- **2 (Important):** `a/V1__p.sql` and `b/V9__p.sql` (two Flyway locations) answered b. Every production row must now
+  share one directory, or it refuses.
+- **3, 4:** versions are kept as digit strings (a long timestamp keeps every digit), and trailing zero parts drop,
+  so `V1` and `V01.0` tie and refuse.
+- **5:** the regex is case-sensitive, as Flyway's default prefix and suffix are.
+- **7:** `attach_ambiguous_definitions`' docstring now allows the list beside a labelled answer (394, 403).
+- **6, 8, 9:** no change. `R__` and `U` scripts are unversioned, so the set refuses; a cut fetch stands down
+  (shared with 394's test); search's per-qname labels are consistent.
+
+**Scope reconciliation.** Rows 1–7, plus `code_atlas/tools/nav_result.py` (a docstring, item 7). `SCOPE: S` holds.
+
+## Phase 5 — finalise
+
+**Durable lessons.** None new. 362-C1 gains 403 (P1, traced in Phase 2).
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 1 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+It cannot promote here: `/mango:promote` is the maintainer's pass between tickets.
+
+### Outward actions
+
+Under AGENTS.md's standing approval and the maintainer's handover of 2026-10-19: push
+`fix/403-read-symbol-latest-routine-definition`, then open the PR against `main`, marked stacked on 402's.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | `challenger` (ticket-blind) | 1 | 65,011 |
+
+`LEDGER TOTAL: 65,011 · top cost driver: challenger`
