@@ -40,7 +40,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
-| `widen-every-query-that-shares-the-page` | 9 | 362, 364, 367, 389, 396, 397, 398, 400, 402 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
+| `widen-every-query-that-shares-the-page` | 10 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
@@ -210,7 +210,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402
+- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.

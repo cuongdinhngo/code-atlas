@@ -24,6 +24,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - A T-SQL view (`CREATE`, `ALTER`, `CREATE OR ALTER VIEW`) is a `View` node: `search_symbol` finds
   it, `read_symbol` returns its definition, its `FROM` / `JOIN` sources are `READS` from the view
   rather than from its file, and a migration that redefines it is in its `altered_by` (402).
+- `read_symbol` on a routine or view that several Flyway versioned migrations (`V7__x.sql`) redefine
+  answers the highest version and lists the others, instead of refusing as `subject_ambiguous`; two
+  unversioned definitions still refuse. The SQL adapter stamps `extra.migration_version` (403).
 - An answer read while an incremental build runs is the previous graph's, never a half-linked one:
   the build writes in one transaction, so a caller in a re-parsed file is no longer missing until the
   resolve, and a killed incremental leaves the index as it was. A call served meanwhile skips its fit

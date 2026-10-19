@@ -1,4 +1,4 @@
-"""Where else the code a read names lives: overrides, aliases, test copies (394).
+"""Where else the code a read names lives: overrides, aliases, other definitions (394, 403).
 
 A body read can be correct and still be the wrong code — an empty base method whose behaviour sits
 in two subclasses, a class a test bootstrap aliases to a stub, a function with test-bootstrap
@@ -19,6 +19,8 @@ IMPLEMENTED_BY_TRUNCATED_FIELD = "implemented_by_truncated"
 ALIASES_FIELD = "aliases"
 AMBIGUITY_FIELD = "ambiguity"
 TEST_COPIES = "test_copies"
+# Several migrations redefine one object; the highest version answers (403).
+MIGRATION_REDEFINITIONS = "migration_redefinitions"
 # Overrides named per read, and subtype levels walked to find them: a pointer, not a hierarchy.
 IMPLEMENTED_BY_CAP = 20
 _DESCENT_LEVELS = 4
@@ -124,6 +126,66 @@ def test_copies_first(rows: Sequence[Row], *, complete: bool = True) -> tuple[li
     if len(rows) > 1 and len(production) == 1 and copies:
         return [production[0], *copies], True
     return list(rows), False
+
+
+def _migration_version(row: Row) -> tuple[int, ...] | None:
+    """The adapter-stamped migration version of a definition, trailing zero parts dropped (403).
+
+    ``1.0`` and ``1`` are one version (trailing zero parts never count); ``None`` when unstamped.
+    """
+    raw = row.get("extra")
+    try:
+        extra = json.loads(raw) if isinstance(raw, str) and raw else {}
+    except json.JSONDecodeError:
+        return None
+    version = extra.get(contract.MIGRATION_VERSION_KEY) if isinstance(extra, dict) else None
+    if not isinstance(version, str):
+        return None
+    try:
+        parts = [int(part) for part in version.split(".")]
+    except ValueError:
+        return None
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
+
+def latest_migration_first(
+    rows: Sequence[Row], *, complete: bool = True
+) -> tuple[list[Row], bool]:
+    """The highest version first when every production definition is a redefinition in one
+    migration directory; test copies follow them and never answer (403).
+
+    An unversioned row, a tied version, two directories (two migration sets) or a cut fetch is a
+    genuine ambiguity: the rows are left as they are.
+    """
+    production = [row for row in rows if not row.get("is_test")]
+    copies = [row for row in rows if row.get("is_test")]
+    if not complete or len(rows) < 2 or not production:
+        return list(rows), False
+    versions = [_migration_version(row) for row in production]
+    known = [version for version in versions if version is not None]
+    folders = {str(row["file_path"]).rpartition("/")[0] for row in production}
+    if len(known) != len(production) or len(set(known)) != len(known) or len(folders) != 1:
+        return list(rows), False
+    ranked = sorted(zip(known, production, strict=True), key=lambda pair: pair[0], reverse=True)
+    return [row for _, row in ranked] + copies, True
+
+
+def one_definition_first(
+    rows: Sequence[Row], *, complete: bool = True, every_version: bool = True
+) -> tuple[list[Row], str | None]:
+    """The definition that answers first, and why the others do not compete — or ``None``.
+
+    The one rule every reader of several definitions applies (R1.8): a production row over its test
+    copies (394), then the latest of a migration's redefinitions (403). ``every_version=False``
+    (a page may hide a redefinition) never names a latest it cannot see.
+    """
+    ordered, held = test_copies_first(rows, complete=complete)
+    if held:
+        return ordered, TEST_COPIES
+    ordered, held = latest_migration_first(rows, complete=complete and every_version)
+    return ordered, MIGRATION_REDEFINITIONS if held else None
 
 
 def _alias(

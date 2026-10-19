@@ -39,6 +39,7 @@ from typing import Literal, get_args
 # key from the edge instead of the call's first source line; the `args` categories are unchanged.
 # v17: `View` (402). A view is a stored query, not a table: its source is its answer and it has no
 # columns of its own, so its own kind keeps every Table reader (columns, ER, writers) unchanged.
+# Also v17: `extra.migration_version` (403), so the latest of a migration's redefinitions answers.
 CONTRACT_VERSION = 17
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
@@ -298,6 +299,8 @@ KNOWN_CAPABILITIES: tuple[str, ...] = (
 
 # ``extra`` / tool-payload key for declarations-only stub nodes (task 039). Not a contract bump.
 STUB_FLAG = "stub"
+# ``extra`` key (v17, 403): the migration version a redefinition's file name carries, dotted.
+MIGRATION_VERSION_KEY = "migration_version"
 # Tool-payload key for edges emitted from CA_INDIRECTION_RULES (task 040). Not a contract bump.
 RULE_FLAG = "rule"
 # Method.extra key: the language spec makes this method its class's constructor, so a `new` of

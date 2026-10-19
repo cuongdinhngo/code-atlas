@@ -26,7 +26,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 | 399 | [PHP view scripts and template refs — evidence-gated](tasks/399_php-view-script-regions.md) | Coverage | deferred | 395 |
-| 403 | [`read_symbol` on a routine migrations redefine refuses instead of answering the latest](tasks/403_read-symbol-latest-routine-definition.md) | Retrieval | todo | 394 |
 | 404 | [A PHP property's bare name finds only near-misses](tasks/404_typed-property-bare-name-search.md) | Retrieval | todo | — |
 
 ## Open work — Pillar 2 · Onboarding
