@@ -30,7 +30,7 @@ from code_atlas.config import Config
 from code_atlas.contract import CONTRACT_VERSION
 from code_atlas.enrichment import rules_drift
 from code_atlas.gitutil import dirty_paths
-from code_atlas.index_lock import build_holds_live_db, build_in_progress
+from code_atlas.index_lock import build_holds_live_db, build_in_progress, read_refresh_refused
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     COVERAGE_LOSS,
@@ -52,6 +52,7 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import claim, fit, schema_guard
+from code_atlas.tools.build_or_update_index import NO_USABLE_ADAPTER
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
@@ -134,6 +135,26 @@ RULES_ERROR_FIELD = "rules_error"
 RULES_STALE_LEAD = "rules changed since this build"
 # Per keyed_calls rule, the sites whose string key was not read (398).
 KEYS_UNREAD_FIELD = "keys_unread"
+# The last hook refresh that did not run, with its fix, until a build succeeds (401).
+REFRESH_REFUSED = "refresh_refused"
+REFRESH_REFUSED_LEAD = "last refresh refused"
+# The hook's own reason for an exception it swallowed, so the record has one shape (401).
+REFRESH_ERROR = "refresh_error"
+# Hints, never routes: no registered tool repairs an adapter or the hook (R5.4c).
+REFRESH_HINTS = {
+    NO_USABLE_ADAPTER: (
+        "fix the adapter `detail` names (its CA_<LANG>_CMD or its dependencies), "
+        "then run build_or_update_index"
+    ),
+    COVERAGE_LOSS: COVERAGE_LOSS_HINT,
+    REFRESH_ERROR: "run `code-atlas-refresh --verbose` to see the error",
+}
+REFRESH_HINT_DEFAULT = "run build_or_update_index to see why"
+# A refused reason another field already names on the summary is not said twice.
+REFRESH_REASON_NAMED_BY = {
+    COVERAGE_LOSS: COVERAGE_LOSS_PENDING,
+    CONTRACT_REBUILD_REQUIRED: FULL_REBUILD_REQUIRED,
+}
 
 
 def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str, object]]:
@@ -177,6 +198,8 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         index, saying ``fit_reset_skipped: true`` (400) — (documented reset; local counts are not
         telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
         ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
+        Every level carries ``refresh_refused`` when the last hook refresh did not run: its
+        ``reason``, ``at`` (UTC) and a ``hint`` or ``route``, until a build succeeds (401).
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
@@ -275,6 +298,38 @@ def _attach_rules_stale(status: dict[str, object], config: Config, store: GraphS
     status[RULES_DIGEST_FIELD] = {"built": drift.built, "current": drift.current}
     if drift.error is not None:
         status[RULES_ERROR_FIELD] = drift.error
+
+
+def _attach_refresh_refused(status: dict[str, object], config: Config) -> None:
+    """Name the last hook refresh that did not run — why, when, and the fix — or nothing (401).
+
+    The hook's own record, never a prediction: an adapter that fails its handshake is found only
+    by launching it, which a status call must not do. Every detail level, as the summary is.
+    """
+    record = read_refresh_refused(config.db_path)
+    if record is None:
+        return
+    reason = str(record.get("reason") or REFRESH_ERROR)
+    block: dict[str, object] = {"reason": reason, "at": record.get("at")}
+    if record.get("detail"):
+        block["detail"] = record["detail"]
+    if record.get("route"):
+        block["route"] = record["route"]
+    else:
+        block["hint"] = REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
+    status[REFRESH_REFUSED] = block
+
+
+def _refresh_refused_clause(payload: Mapping[str, object]) -> str:
+    """The summary's tail for a recorded refusal, unless another field already names it."""
+    block = payload.get(REFRESH_REFUSED)
+    if not isinstance(block, dict):
+        return ""
+    reason = str(block.get("reason"))
+    if REFRESH_REASON_NAMED_BY.get(reason) in payload:
+        return ""
+    fix = f"run `{block['route']}`" if block.get("route") else str(block.get("hint"))
+    return f" — {REFRESH_REFUSED_LEAD} at {block.get('at')}: {reason} — {fix}"
 
 
 def _attach_routes_ambiguous(status: dict[str, object], store: GraphStore) -> None:
@@ -410,6 +465,8 @@ def _compose_summary(payload: dict[str, object]) -> str:
     if payload.get("indexed") and isinstance(loss, dict):
         lost = ", ".join(str(name) for name in loss.get("lost_languages") or ())
         sentence += f" — {loss.get('reason')}: {lost} — {loss.get('hint')}"
+    if payload.get("indexed"):
+        sentence += _refresh_refused_clause(payload)
     return sentence
 
 
@@ -559,6 +616,7 @@ def _status(
     held = staleness == BEHIND and live_index_held(config, store)
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     _attach_rules_stale(status, config, store)
+    _attach_refresh_refused(status, config)
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal", index_held=held)
         _attach_rebuild_pending(status, store)

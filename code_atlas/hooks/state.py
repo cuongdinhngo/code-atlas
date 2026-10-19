@@ -17,7 +17,8 @@ No other occasion earns a line (R1.2 — 099 refused a third on the same ground)
 minute — a running build's live phase and the route to it.
 
 **Silent unless it changes something:** no index, or an index that is ``current`` with no build
-running, no full rebuild pending and no refresh refused for a missing adapter, prints nothing.
+running, no full rebuild pending and no refresh refused (a missing adapter, 355; a recorded
+refusal, 401), prints nothing.
 
 **Version skew (348, 374).** The hook table passes ``--expect-version`` and ``--expect-contract`` —
 the release and contract it was generated from. The adapter checkout is the third half: each
@@ -25,8 +26,9 @@ configured adapter is launched and read for its handshake (``adapter_skew``). Ev
 the newest is named with its fix, in the order they must run, in one line.
 
 **On screen (381).** SessionStart stdout reaches only the agent, so a line a person must act on —
-version skew, a pinned tool install, a pending rebuild — goes out as JSON: ``systemMessage`` for the
-developer, ``additionalContext`` carrying every line for the agent. PreCompact keeps plain text.
+version skew, a pinned tool install, a pending rebuild, a refused refresh (401) — goes out as
+JSON: ``systemMessage`` for the developer, ``additionalContext`` carrying every line for the agent.
+PreCompact keeps plain text.
 
 **Cardinal rule:** always exits 0 and never builds, reparses or takes the build lock; any error,
 broken stdin or unreadable index is silence. The host is never blocked.
@@ -210,11 +212,12 @@ def pinned_line(prefix: Path | None = None) -> str | None:
 
 
 def screen_lines(skew: str | None, pinned: str | None, line: str | None) -> list[str]:
-    """The lines a person must act on: the install's, and a pending rebuild (381 Scope 2)."""
-    from code_atlas.tools.get_index_status import REBUILD_LEAD
+    """The lines a person must act on: the install's, a pending rebuild (381 Scope 2), and a
+    refresh the hook could not run (401)."""
+    from code_atlas.tools.get_index_status import REBUILD_LEAD, REFRESH_REFUSED_LEAD
 
-    rebuild = line if line and line.startswith(PREFIX + REBUILD_LEAD) else None
-    return [text for text in (skew, pinned, rebuild) if text]
+    acted = line and (line.startswith(PREFIX + REBUILD_LEAD) or REFRESH_REFUSED_LEAD in line)
+    return [text for text in (skew, pinned, line if acted else None) if text]
 
 
 def _flag(args: list[str], flag: str) -> str | None:
@@ -270,13 +273,15 @@ def index_settled(payload: Mapping[str, object], db: Path) -> bool:
         COVERAGE_LOSS_PENDING,
         CURRENT,
         FULL_REBUILD_REQUIRED,
+        REFRESH_REFUSED,
     )
 
     if bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db):
         return False
     # An older-era index at an unmoved HEAD still reads `current` — that one must speak (347),
-    # and so must one whose every refresh refuses for a missing adapter (355).
-    pending = FULL_REBUILD_REQUIRED in payload or COVERAGE_LOSS_PENDING in payload
+    # and so must one whose refresh refuses for a missing adapter (355) or a broken one (401).
+    pending = any(key in payload for key in (FULL_REBUILD_REQUIRED, COVERAGE_LOSS_PENDING))
+    pending = pending or REFRESH_REFUSED in payload
     return payload.get("staleness") == CURRENT and not pending
 
 
