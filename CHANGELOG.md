@@ -17,6 +17,13 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.6.0 — 2026-10-19 · contract 17 · schema 8
+
+- **Full rebuild required.** Run `code-atlas-build --full`: a T-SQL view becomes a `View` node.
+- **Adapter checkout must be updated.** Every adapter speaks contract 17.
+- A T-SQL view (`CREATE`, `ALTER`, `CREATE OR ALTER VIEW`) is a `View` node: `search_symbol` finds
+  it, `read_symbol` returns its definition, its `FROM` / `JOIN` sources are `READS` from the view
+  rather than from its file, and a migration that redefines it is in its `altered_by` (402).
 - An answer read while an incremental build runs is the previous graph's, never a half-linked one:
   the build writes in one transaction, so a caller in a re-parsed file is no longer missing until the
   resolve, and a killed incremental leaves the index as it was. A call served meanwhile skips its fit
