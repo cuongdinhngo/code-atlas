@@ -47,6 +47,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
+
+- type: 2 (code) · handle: `a-guest-row-needs-its-own-language`
+- status: proposed · seen: 399
+- evidence: a PHP view's `<script>` functions written under the view would read as PHP to the resolver's same-language
+  bare-name gate (204), so a PHP call could link to a JS function and a unique PHP link go ambiguous. The exposure-checker
+  then listed every other `files.language` reader (census, filters). The row carries its own `language` (schema 9).
+- destination: first sighting.
+
 ### 400-C1 — one long writer transaction turns every reader-side write into a busy-timeout wait
 
 - type: 2 (code) · handle: `a-long-writer-makes-reader-writes-wait`
