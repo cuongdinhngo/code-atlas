@@ -499,6 +499,10 @@ SQL_R62_CASES = frozenset(
         "alter-table-dynamic",
         # v15 (390) — a SELECT's FROM / JOIN sources are READS.
         "select-sources",
+        # v17 (402) — a view is a View node reading its sources; ALTER and CREATE OR ALTER are the
+        # second spelling, and they are ALTERS.
+        "create-view",
+        "alter-view",
     }
 )
 
@@ -580,6 +584,23 @@ _SQL_ALTER_DYNAMIC_EDGE_SHAPES: list[EdgeShape] = [
     ("ALTERS", _F_ALTER_DYNAMIC, "dbo.Stamped", "DYNAMIC"),
     ("CALLS", _F_ALTER_DYNAMIC, "(dynamic)", "DYNAMIC"),
     ("CALLS", _F_ALTER_DYNAMIC, "(dynamic)", "DYNAMIC"),
+]
+
+# A view reads its sources as itself, never as the file (402); its redefinitions are ALTERS.
+_F_VIEW = "tests/fixtures/sql/create_view.sql"
+_F_ALTER_VIEW = "tests/fixtures/sql/alter_view.sql"
+_SQL_VIEW_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _F_VIEW, "dbo.ActiveOrders", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Customers", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Orders", "RESOLVED"),
+]
+_SQL_ALTER_VIEW_EDGE_SHAPES: list[EdgeShape] = [
+    ("ALTERS", _F_ALTER_VIEW, "dbo.ActiveOrders", "RESOLVED"),
+    ("ALTERS", _F_ALTER_VIEW, "dbo.OpenOrders", "RESOLVED"),
+    ("CONTAINS", _F_ALTER_VIEW, "dbo.ActiveOrders", "RESOLVED"),
+    ("CONTAINS", _F_ALTER_VIEW, "dbo.OpenOrders", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Orders", "RESOLVED"),
+    ("READS", "dbo.OpenOrders", "dbo.Orders", "RESOLVED"),
 ]
 
 SQL_CASES: dict[str, Case] = {
@@ -665,6 +686,18 @@ SQL_CASES: dict[str, Case] = {
     # v15 (390): every FROM / JOIN source a routine reads, once each — never a CTE or a #temp.
     "select-sources": Case(
         "select_sources.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "READS": 2}
+    ),
+    "create-view": Case(
+        "create_view.sql",
+        {"File": 1, "View": 1},
+        {"CONTAINS": 1, "READS": 2},
+        _SQL_VIEW_EDGE_SHAPES,
+    ),
+    "alter-view": Case(
+        "alter_view.sql",
+        {"File": 1, "View": 2},
+        {"ALTERS": 2, "CONTAINS": 2, "READS": 2},
+        _SQL_ALTER_VIEW_EDGE_SHAPES,
     ),
     "update-set-list": Case(
         "update_set_list.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "WRITES": 2}

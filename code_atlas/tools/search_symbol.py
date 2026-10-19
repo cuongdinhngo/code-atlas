@@ -66,8 +66,8 @@ from code_atlas.tools.symbol_pointers import (
 )
 
 _RESOLVED = CONFIDENCE_TIERS[0]
-# The kinds DDL changes (321): only their hits pay the ALTERS read.
-_ALTERED_KINDS: tuple[str, ...] = (contract.TABLE_KIND, "Function")
+# The kinds DDL changes (321, a view 402): only their hits pay the ALTERS read.
+_ALTERED_KINDS: tuple[str, ...] = (contract.TABLE_KIND, "Function", contract.VIEW_KIND)
 _ALTERED_BY_CAP = 32
 
 NAME = "search_symbol"

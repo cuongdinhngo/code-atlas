@@ -25,6 +25,8 @@ _TABLE_KIND = "Table"
 # The resolver's own set, not a contract subset: 022 AC3 keeps tier-2 words out of those (197-C3).
 _SCHEMA_OBJECT_KINDS: tuple[str, ...] = (contract.WRITES, contract.ALTERS)
 _COLUMN_KIND = "Column"
+# A view is a schema object (402): a case- or schema-mismatched ALTER VIEW links as a table's.
+_VIEW_KIND = contract.VIEW_KIND
 
 # ``\A::m()::b()::c`` is m's type, then b on that, then c on that — the separator between steps.
 _CHAIN_STEP = contract.TYPE_OF_SUFFIX + contract.MEMBER_SEPARATOR
@@ -257,7 +259,7 @@ def _link_writes_casefold(
 
     Unique means one qname, however many files declare it (334). Zero or two-or-more qnames
     leave the edge unlinked — ambiguity must not pick a twin.
-    Uses Table/Column kinds only (contract vocabulary); never a language branch (R1.1).
+    Uses Table/Column/View kinds only (contract vocabulary); never a language branch (R1.1).
     """
     if not writes_misses:
         return
@@ -267,7 +269,7 @@ def _link_writes_casefold(
     remaining: list[dict[str, object]] = []
     for edge, raw in zip(writes_misses, raws, strict=True):
         hits = ci_hits.get(raw, [])
-        if len(hits) == 1 and str(hits[0]["kind"]) in (_TABLE_KIND, _COLUMN_KIND):
+        if len(hits) == 1 and str(hits[0]["kind"]) in (_TABLE_KIND, _COLUMN_KIND, _VIEW_KIND):
             tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
             _queue_candidates(edge, hits, tier, links, siblings)
             continue
@@ -289,11 +291,18 @@ def _link_writes_casefold(
     table_hits = store.nodes_by_names_casefold(
         containers, kind=_TABLE_KIND, limit=2, distinct_qnames=True
     )
+    # A view has no columns, so only a whole-object target can name one.
+    whole = [bare for bare, col in zip(containers, members, strict=True) if col is None]
+    view_hits = (
+        store.nodes_by_names_casefold(whole, kind=_VIEW_KIND, limit=2, distinct_qnames=True)
+        if whole
+        else {}
+    )
     column_lookups: list[str] = []
     column_owners: list[tuple[dict[str, object], str]] = []
     for edge, bare, col in zip(remaining, containers, members, strict=True):
-        tables = table_hits.get(bare, [])
-        if len(tables) != 1:
+        tables = table_hits.get(bare, []) + (view_hits.get(bare, []) if col is None else [])
+        if len(_distinct_qnames(tables)) != 1:
             continue
         table_qname = str(tables[0]["qualified_name"])
         if col is None:

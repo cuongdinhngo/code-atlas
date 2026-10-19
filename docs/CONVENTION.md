@@ -28,7 +28,7 @@ code-atlas/
 │   ├── onboarding/                   # Phase-3 enrichment, deterministic — one module per concern
 │   ├── hooks/                        # opt-in: poke refresh signal state nudge
 │   └── tools/                        # one module per MCP tool
-├── onboarding_llm/  release_check/   # LLM implementers · plugin tag check (405): OUTSIDE the core, R4.1
+├── onboarding_llm/  release_check/   # LLM implementers · tag check (405): outside the core, R4.1
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
 ├── docker/                           # test image, runtime image, compose
 ├── contrib/                          # offered, never installed: skill/ (generated Agent Skill,
@@ -70,7 +70,7 @@ code-atlas/
 
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
-- **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column ForeignKey`.
+- **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column ForeignKey View`.
 - **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES ALTERS DELETES READS`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
@@ -84,7 +84,7 @@ code-atlas/
 - **`WRITES`:** a routine assigns a column (v9, 022). Target kind says whether columns were
   named: `Column` (`dbo.T::Col`) yes, `Table` no — *unmeasured*, never *writes none*.
   `Column.extra`: `data_type`, `default`.
-- **`ALTERS`:** a file's DDL changes a `Table`/`Function` (v11, 321) — `RESOLVED` literal /
+- **`ALTERS`:** a file's DDL changes a `Table`/`Function`/`View` (v11, 321) — `RESOLVED` literal /
   `DYNAMIC` string-run name. Never a writer. Read as `altered_by` / `altered_by_dynamic` (R5.6).
 - **`DELETES`:** row-removal onto a `Table` (v12, 328) — `DELETE`/`TRUNCATE`/`MERGE…DELETE`;
   never a Column, never a writer.

@@ -277,6 +277,9 @@ const BATCH_RE = /^\s*go\s*(?:\d+\s*)?$/i;
 // `object_type`. Tables and columns stay the same kinds; `REFERENCES` is existing contract vocabulary.
 const TRIGGER_RE =
   /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?trigger\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
+// A view is its own kind (402). `ALTER` and `CREATE OR ALTER` redefine one, so they are ALTERS.
+const VIEW_RE =
+  /\b(create|alter)\s+(or\s+alter\s+)?view\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 const TABLE_RE = /\b(?:create|alter)\s+table\b/i;
 const INSERT_RE = /\binsert\b/i;
 const UPDATE_RE = /\bupdate\b/i;
@@ -290,6 +293,7 @@ const SELECT_RE = /\bselect\b/i;
 // table body or a column list never splits the statement that contains it.
 const BOUNDARY_RE =
   /^\s*(go|create|alter|insert|update|delete|truncate|merge|if|while|begin|end|return|declare|exec|execute)\b|^\s*;/i;
+const VIEW_END_RE = /^\s*(go|create|alter)\b/i;
 const DYNAMIC_PROCS = new Set(["sp_executesql", "sp_execute", "dbo.sp_executesql"]);
 // DDL that changes an existing object, read inside a string literal (321). The name after it is
 // the whole claim: no concatenation is followed, and a constraint clause names no object of its own.
@@ -334,7 +338,7 @@ function parseFile(qpath) {
   let lineNo = 0;
   let lastLine = 0;
   const fingerprints = lineFingerprints();
-  /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean}|null} */
+  /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean, whole?: boolean}|null} */
   let pending = null;
   /** @type {Map<string, Node>} */
   const tables = new Map();
@@ -806,13 +810,16 @@ function parseFile(qpath) {
     }
 
     // A statement in progress absorbs the line unless a new one starts at paren depth 0.
-    if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)) flush();
+    // A view's batch is one statement, so a line-leading `END` of a CASE never closes it (402).
+    if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)
+        && (!pending.whole || VIEW_END_RE.test(code))) flush();
     if (pending) {
       // Keep newlines so Column line_start can count from the CREATE body's start (254).
       pending.buf += `\n${code}`;
       pending.depth += depthOf(code);
       if (pending.depth > 0) pending.opened = true;
-      if (pending.opened && pending.depth <= 0) flush();
+      // A view's body ends at its batch, not at a closing paren: a CTE closes one mid-body (402).
+      if (pending.opened && pending.depth <= 0 && !pending.whole) flush();
       else if (pending.buf.length > PENDING_CAP) flush();
       return;
     }
@@ -897,6 +904,34 @@ function parseFile(qpath) {
         });
         current = { qname, node };
       }
+      return;
+    }
+
+    const view = VIEW_RE.exec(code);
+    if (view) {
+      closeCurrent(lineNo - 1);
+      const qname = splitName(view[3]);
+      if (qname && ddl.isReservedObjectName(lastSegment(qname, "."), lastSegmentDelimited(view[3]))) {
+        refusedName = true;
+        return;
+      }
+      if (!qname) return;
+      /** @type {Node} */
+      const node = {
+        kind: "View", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
+        line_start: lineNo, line_end: lineNo, modifiers: [], params: [], extra: {},
+      };
+      nodes.push(node);
+      edges.push({
+        kind: "CONTAINS", source_qname: qpath, target_raw: qname,
+        file_path: qpath, line: lineNo, confidence_tier: "RESOLVED",
+      });
+      if (view[1].toLowerCase() === "alter" || view[2]) alters(qname, false, lineNo);
+      // The view's batch is its body, read whole from the header so a `WITH` CTE name is seen
+      // as one and never read as a table; its sources are READS from the view.
+      current = { qname, node };
+      const depth = depthOf(code);
+      pending = { kind: "select", buf: code, line: lineNo, depth, opened: depth > 0, whole: true };
       return;
     }
 
