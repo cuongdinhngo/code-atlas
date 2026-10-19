@@ -131,7 +131,7 @@ def test_copies_first(rows: Sequence[Row], *, complete: bool = True) -> tuple[li
 def _migration_version(row: Row) -> tuple[int, ...] | None:
     """The adapter-stamped migration version of a definition, trailing zero parts dropped (403).
 
-    ``1.0`` and ``1`` are one version, as the migration tool orders them; ``None`` when unstamped.
+    ``1.0`` and ``1`` are one version (trailing zero parts never count); ``None`` when unstamped.
     """
     raw = row.get("extra")
     try:
@@ -173,17 +173,18 @@ def latest_migration_first(
 
 
 def one_definition_first(
-    rows: Sequence[Row], *, complete: bool = True
+    rows: Sequence[Row], *, complete: bool = True, every_version: bool = True
 ) -> tuple[list[Row], str | None]:
     """The definition that answers first, and why the others do not compete — or ``None``.
 
     The one rule every reader of several definitions applies (R1.8): a production row over its test
-    copies (394), then the latest of a migration's redefinitions (403).
+    copies (394), then the latest of a migration's redefinitions (403). ``every_version=False``
+    (a page may hide a redefinition) never names a latest it cannot see.
     """
     ordered, held = test_copies_first(rows, complete=complete)
     if held:
         return ordered, TEST_COPIES
-    ordered, held = latest_migration_first(rows, complete=complete)
+    ordered, held = latest_migration_first(rows, complete=complete and every_version)
     return ordered, MIGRATION_REDEFINITIONS if held else None
 
 
