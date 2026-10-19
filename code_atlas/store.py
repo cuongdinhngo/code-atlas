@@ -505,22 +505,16 @@ def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
     if is_exact_or_prefix_match(query, name, qualified_name):
         return True
     folded = qualified_name.casefold()
-    forms = [folded]
-    if contract.NAME_SIGIL not in query:
-        # `C::prop` names `C::$prop`, as the bare name does (404).
-        sigiled = contract.MEMBER_SEPARATOR + contract.NAME_SIGIL
-        forms.append(folded.replace(sigiled, contract.MEMBER_SEPARATOR))
     # Member-separator suffix on a component boundary — not any substring (287/293).
     for cand, allow_colon in _member_boundary_candidates(query):
-        for form in forms:
-            if not form.endswith(cand):
-                continue
-            if len(form) == len(cand):
-                return True
-            # Native ``::`` keeps 287's charset; a variant also takes ``:`` (file::Class::method).
-            seps = "\\/.:" if allow_colon else "\\/."
-            if form[-len(cand) - 1] in seps:
-                return True
+        if not folded.endswith(cand):
+            continue
+        if len(folded) == len(cand):
+            return True
+        # Native ``::`` keeps 287's charset; variant arm also allows ``:`` (file::Class::method).
+        seps = "\\/.:" if allow_colon else "\\/."
+        if folded[-len(cand) - 1] in seps:
+            return True
     return False
 
 
@@ -602,6 +596,18 @@ def _piece_filter(
         return "1", (), ""
     scan = " OR ".join("instr(lower(nodes.name), ?) > 0" for _ in pieces)
     return f"({scan})", (*pieces,), ""
+
+
+def _short_prefix_clause(query: str) -> tuple[str, tuple[object, ...]]:
+    """The short-query prefix filter, reading a sigil-stored name as ``is_direct_match`` does
+    (404) — one clause for the page and its count, so the two cannot disagree."""
+    pattern = f"{_like_literal(query.lower())}%"
+    where = "LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!'"
+    params: tuple[object, ...] = (pattern, pattern)
+    if not query.startswith(contract.NAME_SIGIL):
+        where = f"{where} OR LOWER(name) LIKE ? ESCAPE '!'"
+        params = (*params, _like_literal(contract.NAME_SIGIL) + pattern)
+    return f"({where})", params
 
 
 def _direct_match_udf(query: object, name: object, qualified_name: object) -> int:
@@ -4617,9 +4623,7 @@ class GraphStore:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
-        pattern = f"{_like_literal(query.lower())}%"
-        where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
-        params: tuple[object, ...] = (pattern, pattern)
+        where, params = _short_prefix_clause(query)
         if kind is not None:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
@@ -4763,9 +4767,7 @@ class GraphStore:
         path_prefix: str | None = None,
         exclude_test_sources: bool = False,
     ) -> int:
-        pattern = f"{_like_literal(query.lower())}%"
-        where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
-        params: tuple[object, ...] = (pattern, pattern)
+        where, params = _short_prefix_clause(query)
         if kind is not None:
             where = f"{where} AND kind = ?"
             params = (*params, kind)

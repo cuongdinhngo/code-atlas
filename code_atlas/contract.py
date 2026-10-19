@@ -331,8 +331,8 @@ VIEW_DATA_PREFIX = "viewdata:"
 PROVIDES_VIEW_DATA = "PROVIDES_VIEW_DATA"
 
 MEMBER_SEPARATOR = "::"
-# A member name stored with its sigil (`\Ns\C::$prop`, CONVENTION §3): a search for the bare name
-# matches it as exactly as one spelled with it (404). The stored name is unchanged.
+# A name stored with a leading sigil (a PHP property, `\Ns\C::$prop`, CONVENTION §3; any `$`-led
+# name alike): a search for the bare name matches it as exactly as one spelled with it (404).
 NAME_SIGIL = "$"
 
 # A ``target_raw`` may name the type of a member instead of a type directly (137): the receiver of

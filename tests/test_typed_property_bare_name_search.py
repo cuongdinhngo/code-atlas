@@ -56,16 +56,20 @@ def test_ac2_the_sigil_spelling_is_unchanged(tmp_path: Path, store) -> None:  # 
     assert is_direct_match(f"${BARE}", f"${BARE}", PROPERTY)
 
 
-def test_the_member_spelling_without_the_sigil_is_direct() -> None:
-    """A stack-trace style `Stay::isInRespite` is the 287 suffix arm, with `$` read through."""
-    assert is_direct_match(f"Stay::{BARE}", f"${BARE}", PROPERTY)
-    assert is_direct_match(f"Stay.{BARE}", f"${BARE}", PROPERTY)
+def test_a_short_bare_name_finds_its_property(tmp_path: Path, store) -> None:  # noqa: F811
+    """The challenger's finding 1: under three characters search takes the LIKE path, not FTS."""
+    path = "src/Row.php"
+    qname = "\\App\\Row::$id"
+    seed_file(store, path, [node("Property", "$id", qname, path)], [], root=tmp_path)
+    payload = search_symbol.create(db_config(tmp_path))("id")
+
+    assert [hit["qname"] for hit in payload["results"]] == [qname], payload
+    assert payload["total_count"] == 1, "the page and its count read one clause"
 
 
 def test_the_sigil_is_never_a_wildcard() -> None:
     """Only a leading sigil reads through: a query naming another member still misses."""
     assert not is_direct_match("InRespite", f"${BARE}", PROPERTY)
-    assert not is_direct_match("Stay::$other", f"${BARE}", PROPERTY)
     assert not is_direct_match(f"${BARE}x", f"${BARE}", PROPERTY)
 
 
