@@ -37,7 +37,9 @@ from typing import Literal, get_args
 # v15: `READS` (390). A select's FROM / JOIN source: a table names its readers beside its writers.
 # v16: `arg_strings` / `kwarg_strings` (398). A string literal argument's value, so a rule reads its
 # key from the edge instead of the call's first source line; the `args` categories are unchanged.
-CONTRACT_VERSION = 16
+# v17: `View` (402). A view is a stored query, not a table: its source is its answer and it has no
+# columns of its own, so its own kind keeps every Table reader (columns, ER, writers) unchanged.
+CONTRACT_VERSION = 17
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -61,6 +63,8 @@ NodeKind = Literal[
     # table like a member (`dbo.MemberType::FK_x`); the child/referenced tables and columns ride
     # `extra`, since NODE_FIELDS is frozen.
     "ForeignKey",
+    # v17 (402): a view, schema-qualified like a table; its FROM / JOIN sources are READS from it.
+    "View",
 ]
 NODE_KINDS: tuple[str, ...] = get_args(NodeKind)
 
@@ -134,6 +138,7 @@ SUPERTYPE_SUBJECT_KINDS: tuple[str, ...] = ("Class", "Interface")
 # Schema container whose members ride CONTAINS — kind branch, never language (248 / R1.1).
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
+VIEW_KIND = "View"
 # A bare name re-points onto the one subject of these kinds (392, as 320); a table's own parts
 # sharing the name never compete with it.
 BARE_SUBJECT_KINDS: tuple[str, ...] = ("Table", "Function")

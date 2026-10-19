@@ -277,6 +277,9 @@ const BATCH_RE = /^\s*go\s*(?:\d+\s*)?$/i;
 // `object_type`. Tables and columns stay the same kinds; `REFERENCES` is existing contract vocabulary.
 const TRIGGER_RE =
   /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?trigger\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
+// A view is its own kind (402). `ALTER` and `CREATE OR ALTER` redefine one, so they are ALTERS.
+const VIEW_RE =
+  /\b(create|alter)\s+(or\s+(?:alter|replace)\s+)?view\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 const TABLE_RE = /\b(?:create|alter)\s+table\b/i;
 const INSERT_RE = /\binsert\b/i;
 const UPDATE_RE = /\bupdate\b/i;
@@ -896,6 +899,35 @@ function parseFile(qpath) {
           file_path: qpath, line: lineNo, confidence_tier: "RESOLVED",
         });
         current = { qname, node };
+      }
+      return;
+    }
+
+    const view = VIEW_RE.exec(code);
+    if (view) {
+      closeCurrent(lineNo - 1);
+      const qname = splitName(view[3]);
+      if (qname && ddl.isReservedObjectName(lastSegment(qname, "."), lastSegmentDelimited(view[3]))) {
+        refusedName = true;
+        return;
+      }
+      if (!qname) return;
+      /** @type {Node} */
+      const node = {
+        kind: "View", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
+        line_start: lineNo, line_end: lineNo, modifiers: [], params: [], extra: {},
+      };
+      nodes.push(node);
+      edges.push({
+        kind: "CONTAINS", source_qname: qpath, target_raw: qname,
+        file_path: qpath, line: lineNo, confidence_tier: "RESOLVED",
+      });
+      if (view[1].toLowerCase() === "alter" || view[2]) alters(qname, false, lineNo);
+      // The view's batch is its body: its SELECT, on this line or the next, reads from it.
+      current = { qname, node };
+      if (SELECT_RE.test(code)) {
+        const depth = depthOf(code);
+        pending = { kind: "select", buf: code, line: lineNo, depth, opened: depth > 0 };
       }
       return;
     }
