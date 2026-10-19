@@ -126,6 +126,9 @@ can't tell`. Fixed in d4d2ebbf:
 - **4, 5 (no change):** `read_symbol` / `find_references` resolve by qname, which the ticket does not scope. The
   PHP end-to-end test runs in Docker.
 
+**Docker (the full gate) found one more:** `NAME_SIGIL`'s comment named the language, which the R1.1 grep-gate
+(`test_no_core_module_names_a_language[contract.py]`) refuses in core comments too; reworded in 4b1d2ffe.
+
 **Scope reconciliation.** Rows 1–5. `SCOPE: S` holds.
 
 ## Phase 5 — finalise
