@@ -63,9 +63,6 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
-# A release is cut untagged; pushing the tag is the maintainer's (381 E3, 390). Strict: once the tag
-# is fetched this XPASSes and fails, so the marker cannot outlive the gap it names.
-@pytest.mark.xfail(_version() == "0.5.0", strict=True, reason="v0.5.0 not yet tagged (398)")
 def test_the_top_release_is_tagged() -> None:
     """381 AC3: a release is a tagged `vX.Y.Z`; commits after it are not a newer release."""
     top = HEADING.findall((REPO / "CHANGELOG.md").read_text(encoding="utf-8"))[0][0]
@@ -149,7 +146,7 @@ def _plugin_state_command(version: str) -> str:
         h["command"]
         for e in hooks["SessionStart"]
         for h in e["hooks"]
-        if state.EXPECT_FLAG in h["command"]
+        if gen_skill.ungate(h["command"]).startswith("code-atlas-state ")
     ]
     return command.replace(f"{state.EXPECT_FLAG} {_version()}", f"{state.EXPECT_FLAG} {version}")
 
