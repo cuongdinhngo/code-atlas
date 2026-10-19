@@ -1,4 +1,4 @@
-"""Task 399 — a PHP view's inline ``<script>`` is read by the JS adapter, at the view's own lines."""
+"""Task 399 — a PHP view's inline ``<script>`` is read by the JS adapter, at the view's lines."""
 
 from __future__ import annotations
 
@@ -32,9 +32,9 @@ VIEW = (
     "</script>\n"  # 9
     '<script src="x.js">function external(){}</script>\n'  # 10
     '<script type="module">export function fromModule() {}</script>\n'  # 11
-    "<!-- <script>function commented(){}</script> -->\n"  # 12
+    "<!-- <script>function hidden(){}</script> -->\n"  # 12
     "</head></html>\n"  # 13
-    "<?php function render() { onPick(); echo '<script>function inString(){}</script>'; } ?>\n"  # 14
+    "<?php function render() { onPick(); echo '<script>function inStr(){}</script>'; } ?>\n"  # 14
 )
 LIB_JS = "function helper(x) { return x; }\n"
 LIB_PHP = "<?php\nfunction helper($x) { return $x; }\nfunction caller() { helper(1); }\n"
@@ -106,7 +106,8 @@ def test_a_region_nothing_reads_is_named_on_the_file(tmp_path: Path) -> None:
     built = _build(tmp_path, PHP_CMD)
     with GraphStore(built.db_path) as store:
         files = store.nodes_by_qualified_name("web/view.php", kind="File", limit=5)
-    assert [json.loads(str(row["extra"])) for row in files] == [{"embedded_unread": [".js", ".mjs"]}]
+    extras = [json.loads(str(row["extra"])) for row in files]
+    assert extras == [{"embedded_unread": [".js", ".mjs"]}]
 
 
 def test_the_js_adapter_reads_only_the_spans_at_the_files_own_lines(tmp_path: Path) -> None:
@@ -127,3 +128,17 @@ def test_the_js_adapter_reads_only_the_spans_at_the_files_own_lines(tmp_path: Pa
     result = json.loads(out[1])
     rows = {(n["qualified_name"], n["line_start"]) for n in result["nodes"] if n["kind"] != "File"}
     assert rows == {("v.php::a", 3)}
+
+
+def test_challenger_a_script_inside_raw_text_is_text(tmp_path: Path) -> None:
+    from tests.php_adapter_cli import CLI
+
+    view = (
+        "<style>/*<script>*/</style><textarea><script>q()</script></textarea>"
+        "<script>h()</script>"
+    )
+    source = "<?php $a; ?>" + view
+    (tmp_path / "raw.php").write_text(source, encoding="utf-8")
+    result = CLI.parse_file(tmp_path / "raw.php")
+    [region] = result["embedded"]
+    assert [source[s:e] for s, e in region["spans"]] == ["h()"]

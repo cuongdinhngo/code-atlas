@@ -21,6 +21,8 @@ final class ScriptRegions
         'text/javascript1.5', 'text/jscript', 'text/livescript', 'text/x-ecmascript',
         'text/x-javascript',
     ];
+    /** Elements whose content the HTML parser reads as text, so a `<script` inside is no tag. */
+    private const RAW_TEXT = ['style', 'textarea', 'title'];
     private const CLASSIC = '.js';
     private const MODULE = '.mjs';
 
@@ -29,6 +31,9 @@ final class ScriptRegions
      */
     public static function find(string $source): array
     {
+        if (stripos($source, '<script') === false) {
+            return [];
+        }
         $html = [];
         foreach (\PhpToken::tokenize($source) as $token) {
             if ($token->id === T_INLINE_HTML) {
@@ -60,6 +65,13 @@ final class ScriptRegions
                     }
                     $state = 'text';
                     $at = $end + 3;
+                } elseif (str_starts_with($state, 'raw:')) {
+                    $end = self::endTag($text, $at, substr($state, 4));
+                    if ($end === null) {
+                        break;
+                    }
+                    $state = 'text';
+                    $at = $end + 2;
                 } elseif ($state === 'tag') {
                     $close = self::tagEnd($text, $at, $tag);
                     if ($close === null) {
@@ -71,7 +83,7 @@ final class ScriptRegions
                     $state = 'script';
                     $at = $close + 1;
                 } elseif ($state === 'script') {
-                    $end = self::endTag($text, $at);
+                    $end = self::endTag($text, $at, 'script');
                     $stop = $end ?? $length;
                     if ($suffix !== null && $stop > $at) {
                         $found[$suffix][] = [$base + $at, $base + $stop];
@@ -90,10 +102,13 @@ final class ScriptRegions
                     if ($kind === 'comment') {
                         $state = 'comment';
                         $at = $offset + 4;
-                    } else {
+                    } elseif ($kind === 'script') {
                         $state = 'tag';
                         $tag = '';
                         $at = $offset + 7;
+                    } else {
+                        $state = 'raw:' . $kind;
+                        $at = $offset + strlen($kind) + 1;
                     }
                 }
             }
@@ -110,23 +125,41 @@ final class ScriptRegions
         return $regions;
     }
 
-    /** The next `<!--` or `<script` start tag at or after `$at`, whichever comes first. */
+    /**
+     * The first `<!--`, `<script` or raw-text start tag at or after `$at`.
+     *
+     * @return array{string, int}|null the kind (`comment`, `script` or an element name) and offset
+     */
     private static function startOf(string $text, int $at): ?array
     {
+        $first = null;
         $comment = strpos($text, '<!--', $at);
-        $from = $at;
-        while (($open = stripos($text, '<script', $from)) !== false) {
-            $after = $text[$open + 7] ?? '';
-            if ($after === '' || $after === '>' || $after === '/' || ctype_space($after)) {
-                break;
-            }
-            $from = $open + 7;
+        if ($comment !== false) {
+            $first = ['comment', $comment];
         }
-        if ($open === false) {
-            return $comment === false ? null : ['comment', $comment];
+        foreach (['script', ...self::RAW_TEXT] as $name) {
+            $open = self::openTag($text, $at, $name);
+            if ($open !== null && ($first === null || $open < $first[1])) {
+                $first = [$name, $open];
+            }
         }
 
-        return $comment !== false && $comment < $open ? ['comment', $comment] : ['script', $open];
+        return $first;
+    }
+
+    /** Where a `<name` start tag begins (followed by whitespace, `/` or `>`), or null. */
+    private static function openTag(string $text, int $at, string $name): ?int
+    {
+        $width = strlen($name) + 1;
+        while (($open = stripos($text, '<' . $name, $at)) !== false) {
+            $after = $text[$open + $width] ?? '';
+            if ($after === '' || $after === '>' || $after === '/' || ctype_space($after)) {
+                return $open;
+            }
+            $at = $open + $width;
+        }
+
+        return null;
     }
 
     /** The `>` that closes a start tag, outside a quoted attribute value; null when this piece holds none. */
@@ -163,15 +196,16 @@ final class ScriptRegions
         return $quote;
     }
 
-    /** Where `</script` ends the element (followed by whitespace, `/` or `>`), or null. */
-    private static function endTag(string $text, int $at): ?int
+    /** Where `</name` ends the element (followed by whitespace, `/` or `>`), or null. */
+    private static function endTag(string $text, int $at, string $name): ?int
     {
-        while (($end = stripos($text, '</script', $at)) !== false) {
-            $after = $text[$end + 8] ?? '';
+        $width = strlen($name) + 2;
+        while (($end = stripos($text, '</' . $name, $at)) !== false) {
+            $after = $text[$end + $width] ?? '';
             if ($after === '' || $after === '>' || $after === '/' || ctype_space($after)) {
                 return $end;
             }
-            $at = $end + 8;
+            $at = $end + $width;
         }
 
         return null;

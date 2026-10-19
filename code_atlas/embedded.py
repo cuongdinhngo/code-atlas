@@ -1,8 +1,9 @@
 """A host file's embedded regions, read by the adapter that owns each region's suffix (399).
 
 A file may carry a region written in another language: the host adapter names its byte spans, the
-adapter owning the region's suffix reads them, and the rows land under the host file. Which adapter that is comes from the
-handshake (suffix + the ``spans`` capability), so no language is named here (R1.1).
+adapter owning the region's suffix reads them, and the rows land under the host file. Which adapter
+that is comes from the handshake (suffix + the ``spans`` capability), so no language is named here
+(R1.1).
 """
 
 from collections.abc import Callable, Mapping

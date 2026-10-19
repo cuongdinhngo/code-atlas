@@ -250,7 +250,9 @@ function regionText(buffer, spans) {
   for (let i = 0; i < buffer.length; i++) {
     if (buffer[i] === 0x0a || buffer[i] === 0x0d) out[i] = buffer[i];
   }
-  for (const [start, end] of spans) buffer.copy(out, start, start, Math.min(end, buffer.length));
+  for (const [start, end] of spans) {
+    if (start < buffer.length) buffer.copy(out, start, start, Math.min(end, buffer.length));
+  }
   return out.toString("utf8");
 }
 
