@@ -26,7 +26,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 | 399 | [PHP view scripts and template refs — evidence-gated](tasks/399_php-view-script-regions.md) | Coverage | deferred | 395 |
-| 402 | [A T-SQL view is not in the graph](tasks/402_sql-view-nodes.md) | Coverage | todo | 390 |
 | 403 | [`read_symbol` on a routine migrations redefine refuses instead of answering the latest](tasks/403_read-symbol-latest-routine-definition.md) | Retrieval | todo | 394 |
 | 404 | [A PHP property's bare name finds only near-misses](tasks/404_typed-property-bare-name-search.md) | Retrieval | todo | — |
 
@@ -83,6 +82,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
   subclass's `new` sites — 362.
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
+- **Onboarding's module facts do not order or count a `View`** (`module_facts._KIND_ORDER`), so a
+  view-only SQL module summarises as empty — 402.
 - **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
   misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
   match, and a procedure in another schema leaves an uncounted unresolved edge — 386.

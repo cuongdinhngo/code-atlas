@@ -4,7 +4,7 @@ slug: sql-view-nodes
 title: "A T-SQL view is not in the graph, so its definition, its predicate and its redefinitions answer nothing"
 phase: 2
 milestone: Coverage
-status: todo
+status: done
 depends_on: [390]
 ---
 
@@ -134,3 +134,48 @@ cut back. A PLAN §19 line for H1 put PLAN 49 tokens over its ceiling, so the de
 comment and here instead (R7.6).
 
 Axis 1 (the diff ⊆ the change list): rows 1–10. Axis 2: the approach as designed.
+
+## Phase 4 — review
+
+`REVIEWER: OFF` — waived by the run's "with skipped reviewer". `CHALLENGER: ON`.
+
+**Challenger** (ticket-blind `mango:challenger`, 98,719 tokens) on 2df3987d. It ran the scanner under Node on
+adversarial T-SQL. `CHALLENGE: 6 met · 0 not met · 2 can't tell` (AC3 and R1.1 were unrun, read from code only).
+Fixed in 17d56fc8, each new test observed red on the pre-fix code (`2 failed, 3 passed`):
+- **I1:** a multi-line CTE inside a view emitted `READS dbo.v c`, because the buffer started at the inner SELECT
+  and a CTE's closing paren flushed it. A view's body is now buffered whole from its header to its batch end.
+- **I2:** the resolver's case-insensitive link (215) took only `Table`/`Column`, so a write through a view named
+  in another case stayed unlinked. Its two passes now take `View`, and `BARE_SUBJECT_KINDS` names it.
+- **M1:** `OR REPLACE` is not T-SQL (R2.1). Dropped from `VIEW_RE`.
+- **M2:** TOOLS.md's `altered_by` row named `Table`/`Function` only. It now names `View`.
+- **M3 (follow-up, not fixed):** the onboarding module facts order `_KIND_ORDER` has no `View`. It is listed under
+  BACKLOG *Follow-ups*.
+- **M4 (intended):** a `CREATE OR ALTER VIEW` is an ALTERS from its own file, by H2.
+
+**Scope reconciliation.** Rows 1–10, plus `code_atlas/resolver.py` and `docs/TOOLS.md` from I2 and M2: the same
+concern. `SCOPE: M` holds.
+
+## Phase 5 — finalise
+
+**Durable lessons.** None new. 362-C1 gains 402 (P1, traced in Phase 2).
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 1 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+It cannot promote here: `/mango:promote` is the maintainer's pass between tickets.
+
+### Outward actions
+
+Under AGENTS.md's standing approval and the maintainer's handover of 2026-10-19: push `feat/402-sql-view-nodes`,
+then open the PR against `main`, marked stacked on 401's. Merging and tagging `v0.6.0` stay with the maintainer.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | `challenger` (ticket-blind) | 1 | 98,719 |
+
+`LEDGER TOTAL: 98,719 · top cost driver: challenger`
