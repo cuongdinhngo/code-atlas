@@ -129,7 +129,10 @@ def test_copies_first(rows: Sequence[Row], *, complete: bool = True) -> tuple[li
 
 
 def _migration_version(row: Row) -> tuple[int, ...] | None:
-    """The adapter-stamped migration version of a definition, or ``None`` (403)."""
+    """The adapter-stamped migration version of a definition, trailing zero parts dropped (403).
+
+    ``1.0`` and ``1`` are one version, as the migration tool orders them; ``None`` when unstamped.
+    """
     raw = row.get("extra")
     try:
         extra = json.loads(raw) if isinstance(raw, str) and raw else {}
@@ -139,27 +142,34 @@ def _migration_version(row: Row) -> tuple[int, ...] | None:
     if not isinstance(version, str):
         return None
     try:
-        return tuple(int(part) for part in version.split("."))
+        parts = [int(part) for part in version.split(".")]
     except ValueError:
         return None
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
 
 
 def latest_migration_first(
     rows: Sequence[Row], *, complete: bool = True
 ) -> tuple[list[Row], bool]:
-    """The highest migration version first when every definition is a versioned redefinition.
+    """The highest version first when every production definition is a redefinition in one
+    migration directory; test copies follow them and never answer (403).
 
-    Two unversioned files, or two definitions at one version, are a genuine ambiguity and are left
-    as they are; so is a cut fetch, which may hide an unversioned row (403).
+    An unversioned row, a tied version, two directories (two migration sets) or a cut fetch is a
+    genuine ambiguity: the rows are left as they are.
     """
-    if not complete or len(rows) < 2:
+    production = [row for row in rows if not row.get("is_test")]
+    copies = [row for row in rows if row.get("is_test")]
+    if not complete or len(rows) < 2 or not production:
         return list(rows), False
-    versions = [_migration_version(row) for row in rows]
+    versions = [_migration_version(row) for row in production]
     known = [version for version in versions if version is not None]
-    if len(known) != len(rows) or len(set(known)) != len(known):
+    folders = {str(row["file_path"]).rpartition("/")[0] for row in production}
+    if len(known) != len(production) or len(set(known)) != len(known) or len(folders) != 1:
         return list(rows), False
-    ranked = sorted(zip(known, rows, strict=True), key=lambda pair: pair[0], reverse=True)
-    return [row for _, row in ranked], True
+    ranked = sorted(zip(known, production, strict=True), key=lambda pair: pair[0], reverse=True)
+    return [row for _, row in ranked] + copies, True
 
 
 def one_definition_first(

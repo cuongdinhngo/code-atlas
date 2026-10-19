@@ -179,9 +179,9 @@ const CREATE_RE =
 // T-SQL's default schema when a CREATE names none and the creator's was never changed (386).
 const DEFAULT_SCHEMA = "dbo";
 
-// Flyway's versioned migration, `V<version>__<description>.sql`: the version's parts split on `.`
-// or `_`, and a higher one runs later, so its redefinition of an object is the live one (403).
-const MIGRATION_FILE_RE = /^V(\d+(?:[._]\d+)*)__.+\.sql$/i;
+// Flyway's versioned migration, `V<version>__<description>.sql`, cased as Flyway matches it: parts
+// split on `.` or `_`; a higher one runs later, so its redefinition is the live one (403).
+const MIGRATION_FILE_RE = /^V(\d+(?:[._]\d+)*)__.+\.sql$/;
 
 /**
  * @param {string} qpath
@@ -189,7 +189,8 @@ const MIGRATION_FILE_RE = /^V(\d+(?:[._]\d+)*)__.+\.sql$/i;
  */
 function migrationVersion(qpath) {
   const m = MIGRATION_FILE_RE.exec(qpath.slice(qpath.lastIndexOf("/") + 1));
-  return m ? m[1].split(/[._]/).map((part) => String(Number(part))).join(".") : null;
+  // Digit strings, never Number: a long timestamp version keeps every digit.
+  return m ? m[1].split(/[._]/).map((part) => part.replace(/^0+(?=\d)/, "")).join(".") : null;
 }
 
 // A routine header ends at AS or BEGIN; everything before it is the parameter list.

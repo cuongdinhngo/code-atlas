@@ -125,3 +125,36 @@ def test_search_lists_the_latest_first_with_the_same_label(tmp_path: Path) -> No
 
     assert [hit["file"] for hit in hits] == ["db/V7__p.sql", "db/V1__p.sql"]  # type: ignore[index]
     assert {hit["ambiguity"] for hit in hits} == {"migration_redefinitions"}  # type: ignore[index]
+
+
+@needs_node
+def test_a_test_copy_never_answers_over_the_migrations(tmp_path: Path) -> None:
+    """The challenger's finding 1: a fixture's higher version is a copy, not the live definition."""
+    config = _built(
+        tmp_path,
+        {
+            "db/V1__p.sql": _proc("one"),
+            "db/V7__p.sql": _proc("seven"),
+            "tests/fixtures/V99__p.sql": _proc("fixture"),
+        },
+    )
+    read = read_symbol.create(config)("dbo.P")
+
+    assert read["file"] == "db/V7__p.sql", read
+    assert _sites(read) == ["db/V1__p.sql", "tests/fixtures/V99__p.sql"]
+
+
+@needs_node
+def test_two_migration_directories_are_two_sets_and_refuse(tmp_path: Path) -> None:
+    """The challenger's finding 2: two Flyway locations carry no order between them."""
+    config = _built(tmp_path, {"a/V1__p.sql": _proc("a"), "b/V9__p.sql": _proc("b")})
+
+    assert read_symbol.create(config)("dbo.P")["reason"] == "subject_ambiguous"
+
+
+@needs_node
+def test_one_version_spelled_twice_is_a_tie(tmp_path: Path) -> None:
+    """`V1` and `V1.0` (and `V01`) are one version to the migration tool, so neither outranks."""
+    config = _built(tmp_path, {"db/V1__p.sql": _proc("a"), "db/V01.0__q.sql": _proc("b")})
+
+    assert read_symbol.create(config)("dbo.P")["reason"] == "subject_ambiguous"

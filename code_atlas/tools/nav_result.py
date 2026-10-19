@@ -1213,7 +1213,8 @@ def attach_ambiguous_definitions(
 
     Absent for a unique qname, so that payload is byte-identical to before. The list names every
     definition site and never picks one (R4) — binding may be load-order dependent. Body-returning
-    tools must not ship ``source``/site fields alongside this list (078).
+    tools must not ship ``source``/site fields alongside this list (078), except beside an
+    ``ambiguity`` label that says why one answered (394, 403).
     """
     if len(sites) > 1:
         payload[AMBIGUOUS_DEFINITIONS] = sites
