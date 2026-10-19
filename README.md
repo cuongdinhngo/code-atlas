@@ -258,8 +258,12 @@ ten minutes, and applies on `/reload-plugins` or the next launch. Turn it on per
 → Marketplaces → *Enable auto-update*. **Do not put it in a project's committed settings:** Claude
 Code registers and clones every `extraKnownMarketplaces` entry in the background for anyone who trusts
 the folder (`settings-reference.md`, `plugins/loading.md`, read 2026-10-10) — a network call on every
-teammate's machine, code-atlas or not (381; documented, not yet measured live). Auto-update makes the
-plugin the half that moves first.
+teammate's machine, code-atlas or not (381; documented, not yet measured live).
+
+**With auto-update off, the plugin still tells you a newer release is out** (405). Once a day, a
+background `SessionStart` hook lists the repository's `vX.Y.Z` tags into
+`~/.cache/code-atlas/release.json`. The next session start shows `release X.Y.Z is out` when that tag
+is newer than the plugin. It is silent offline. `CA_RELEASE_CHECK=0` turns it off.
 
 **The `SessionStart` hook names every half that lags** — the tool install, the plugin, and the adapter
 checkout, whose contract it reads by launching each configured adapter — on screen as well as to the
