@@ -237,7 +237,9 @@ PostToolUse hook under
 [`contrib/claude-code/`](../contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
 opt-in git refresh after pull, checkout, commit and rebase via [`contrib/git/`](../contrib/git/) (`code-atlas-refresh`,
 background — never auto-installed into `.git/hooks`); the plugin also runs it async at `SessionStart`.
-Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
+Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip. A refresh
+that is refused or errors is recorded as `.code-atlas/refresh.refused`, which `get_index_status`
+names as `refresh_refused` (with the time and the fix) until a build succeeds (401).
 
 ### The read-time signal — a line that rides along with a file you are already opening (opt-in)
 

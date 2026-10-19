@@ -18,15 +18,19 @@ covers the bytes ``publish``/``read`` touch — see the ``win32`` branch below.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 
 LOCK_NAME = "write.lock"
 # A request that found the lock held (357): a dirty flag, no owner, so nothing outlives a death.
 PENDING_NAME = "write.pending"
+# The last hook refresh that could not run, dated (401): a past event, not a liveness claim, so it
+# may outlive its writer; the next build that succeeds removes it.
+REFRESH_REFUSED_NAME = "refresh.refused"
 
 # One line, rewritten in place: the file never grows, and a reader never scans.
 _PROGRESS_WIDTH = 200
@@ -146,6 +150,39 @@ def clear_pending(db_path: Path) -> bool:
 def is_pending(db_path: Path) -> bool:
     """Is a request waiting for the next build?"""
     return pending_path_for(db_path).exists()
+
+
+def refresh_refused_path_for(db_path: Path) -> Path:
+    """Where the last refused hook refresh is recorded — the one definition site (401)."""
+    return db_path.parent / REFRESH_REFUSED_NAME
+
+
+def record_refresh_refused(db_path: Path, record: Mapping[str, object]) -> None:
+    """Replace the record with this refusal. Best-effort: never raises, never half-written."""
+    path = refresh_refused_path_for(db_path)
+    staged = path.with_name(path.name + ".tmp")
+    try:
+        staged.write_text(json.dumps(dict(record), sort_keys=True), encoding="utf-8")
+        os.replace(staged, path)
+    except OSError:
+        return
+
+
+def clear_refresh_refused(db_path: Path) -> None:
+    """A build ran, so the recorded refusal no longer describes this index. Never raises."""
+    try:
+        refresh_refused_path_for(db_path).unlink()
+    except OSError:
+        return
+
+
+def read_refresh_refused(db_path: Path) -> dict[str, object] | None:
+    """The recorded refusal, or ``None`` when there is none or it cannot be read."""
+    try:
+        raw = json.loads(refresh_refused_path_for(db_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return raw if isinstance(raw, dict) else None
 
 
 def build_holds_live_db(db_path: Path) -> bool:

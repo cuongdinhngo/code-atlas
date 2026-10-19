@@ -42,6 +42,8 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
 | `widen-every-query-that-shares-the-page` | 8 | 362, 364, 367, 389, 396, 397, 398, 400 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
 
@@ -94,7 +96,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 388-C1 — a status that names what a tool refuses must ask the tool's own predicate
 
 - type: 2 (code) · handle: `a-route-list-must-come-from-the-tools-verdict`
-- status: proposed · seen: 388, 396
+- status: proposed · seen: 388, 396, 401
 - evidence: `get_index_status` put `find_callers` / `find_references` under `behind_refuses` from a constant list
   whenever the index was behind, yet both answered `ok` for every unchanged subject (reproduced on `main` daa6baa0);
   six anchor PRs fell back to Grep. R1.8 covers two sites branching on one verdict; this site never consulted the
@@ -104,7 +106,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 387-C1 — a surface reached only from a shell is invisible to an agent until its brief names it
 
 - type: 2 (process) · handle: `a-shell-surface-needs-an-agent-channel`
-- status: proposed · seen: 387
+- status: proposed · seen: 387, 401
 - evidence: 382–384 shipped `code-atlas query` and its modes with README, design and CHANGELOG text, and 385
   `route=` with a waiver saying TOOLS.md teaches it; no surface an agent loads named any of them, so 387 was opened
   to add them. Tool params were gated (`test_agent_brief_usage_completeness`), CLI flags were not; 387's test now

@@ -21,6 +21,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   the build writes in one transaction, so a caller in a re-parsed file is no longer missing until the
   resolve, and a killed incremental leaves the index as it was. A call served meanwhile skips its fit
   and cost counts instead of waiting 5 s on each, and the poke hook skips its repair (400).
+- A refresh hook that is refused (an adapter failing its handshake, for one) or errors no longer
+  goes only to a log: `get_index_status` names it as `refresh_refused`, with the time and the fix,
+  and the session-start line shows it on screen, until a build succeeds (401).
 - The plugin says when a newer tagged release is out, even with marketplace auto-update off: a
   background hook caches the newest `vX.Y.Z` tag daily, and the next session start names it on
   screen. New console script `code-atlas-release-check`; `CA_RELEASE_CHECK=0` turns it off (405).

@@ -19,6 +19,7 @@ from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
 from code_atlas.index_lock import (
     clear_pending,
+    clear_refresh_refused,
     is_pending,
     mark_pending,
     publish_build_progress,
@@ -305,6 +306,8 @@ def _build(
         # both "nothing to do" and "could not act on the request" (task 172 / 060).
         result.update(scope)
         result["seconds"] = round(time.monotonic() - started, 3)
+        # The adapters answered and the index moved, so a recorded refusal is history (401).
+        clear_refresh_refused(config.db_path)
         return result
     finally:
         if store.is_shadow:
