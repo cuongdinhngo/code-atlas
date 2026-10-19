@@ -32,8 +32,9 @@ and building a whole-file tree over it is the failure mode the PHP adapter alrea
 | `INSERT` / `UPDATE` naming columns | `WRITES` edge per column | 2 |
 | `INSERT` / `UPDATE` naming none | one `WRITES` edge onto the **`Table`** | 2 |
 | `DELETE` / `TRUNCATE` / `MERGE…DELETE` | one `DELETES` edge onto the **`Table`** | 2 |
-| a `FROM` / `JOIN` source of a `SELECT`, `INSERT … SELECT`, `UPDATE … FROM` or `DELETE … FROM` | one `READS` edge per table, on its own line — never the statement's write target, `inserted`/`deleted`, a `#temp`/`@table`, a CTE name or a table-valued function; a `CREATE VIEW` body's reads are the file's, a view not being a node (390) | 2 |
+| a `FROM` / `JOIN` source of a `SELECT`, `INSERT … SELECT`, `UPDATE … FROM` or `DELETE … FROM` | one `READS` edge per table, on its own line — never the statement's write target, `inserted`/`deleted`, a `#temp`/`@table`, a CTE name or a table-valued function (390) | 2 |
 | `UPDATE c …` / `DELETE c …` `FROM dbo.T c` (an alias) | the edge lands on the top-level `FROM` / `JOIN` source `dbo.T`; a subquery's own `c` never shadows it (328, 333) | 2 |
+| `CREATE`/`ALTER`/`CREATE OR ALTER` `VIEW` | `View` node; its `FROM` / `JOIN` sources are `READS` from it, and `ALTER` / `CREATE OR ALTER` an `ALTERS` edge from the file (402) | 2 |
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `TRIGGER` | `Function` node, `extra.object_type = "trigger"` | 2 |
 | literal `ALTER TABLE` | `ALTERS` edge from the file onto the `Table` at `RESOLVED` (321) | 2 |
 | `ALTER TABLE` or `(CREATE OR) ALTER PROC`/`FUNCTION`/`TRIGGER` inside a string an `EXEC` / `sp_executesql` runs | `ALTERS` edge at **`DYNAMIC`** — a name read from a string, a claim, never a fact (321) | 2 |
@@ -43,7 +44,7 @@ A foreign key declared **inside a `CREATE TABLE` body** stays a `REFERENCES` edg
 **standalone `ALTER … ADD … FOREIGN KEY`** (the `_fk_constraints.sql` shape) is a `ForeignKey` node
 (task 236), so a table's DDL site and a constraint on it never collide as two `Table` rows.
 
-**Nothing else.** `CREATE VIEW`, `MERGE`, and the PHP↔SQL crossing are out of scope — see the task
+**Nothing else.** `MERGE` and the PHP↔SQL crossing are out of scope — see the task
 for the tier split and why each waits. A `MERGE` writes nothing the graph records; it is a feature
 bound, deliberately not a silent partial answer.
 
