@@ -21,6 +21,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   the build writes in one transaction, so a caller in a re-parsed file is no longer missing until the
   resolve, and a killed incremental leaves the index as it was. A call served meanwhile skips its fit
   and cost counts instead of waiting 5 s on each, and the poke hook skips its repair (400).
+- A refresh hook that is refused (an adapter failing its handshake, for one) or errors no longer
+  goes only to a log: `get_index_status` names it as `refresh_refused`, with the time and the fix,
+  and the session-start line shows it on screen, until a build succeeds (401).
 
 ## 0.5.0 — 2026-10-17 · contract 16 · schema 8
 
