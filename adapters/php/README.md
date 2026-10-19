@@ -61,10 +61,16 @@ per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — t
 See **Runtime** above for host vs Docker forms.
 
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":15,"symbol_shapes":[…]}
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{…},"contract_version":18,"symbol_shapes":[…]}
 → {"path":"src/Models/User.php"}
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}
 ```
+
+**Inline `<script>` (399).** A view's classic or module scripts come back as
+`"embedded":[{"suffix":".js","spans":[[start,end],…]}]` — byte ranges of the script's text, PHP inside
+it left out (`src/ScriptRegions.php`, read from `T_INLINE_HTML` tokens). The HTML standard decides what
+is code: a `text/ng-template` or other data block, and a `<script src>`'s content, are not. The core
+hands each region to the adapter owning its suffix.
 
 **Extensions.** `.php` is the language default. `.phtml` is announced too — it is a widely used PHP
 template suffix and still PHP source. Shared suffixes such as `.module` / `.inc` (also used by

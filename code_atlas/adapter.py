@@ -53,6 +53,8 @@ class ParseResult:
     nodes: tuple[dict[str, object], ...] = ()
     edges: tuple[dict[str, object], ...] = ()
     error: str | None = None
+    # v18 (399): regions another adapter reads — the core's to dispatch, never written as rows.
+    embedded: tuple[dict[str, object], ...] = ()
 
 
 @runtime_checkable
@@ -84,6 +86,8 @@ class LanguageAdapter(Protocol):
         *,
         declarations_only: bool = False,
         source_roots: tuple[str, ...] | None = None,
+        spans: list[list[int]] | None = None,
+        suffix: str | None = None,
     ) -> ParseResult:
         """Parse one repo-relative path.
 
@@ -96,6 +100,9 @@ class LanguageAdapter(Protocol):
         ``source_roots`` are optional repo-relative directories tried after the importer's
         ancestors when resolving absolute imports (task 230). Adapters that ignore the field
         keep today's behaviour.
+
+        ``spans`` + ``suffix`` (v18, 399) ask an adapter announcing ``spans`` to read only those
+        byte ranges of the file, as that suffix — an embedded region another adapter named.
         """
 
     def stop(self) -> None:
@@ -185,6 +192,8 @@ class SubprocessAdapter:
         *,
         declarations_only: bool = False,
         source_roots: tuple[str, ...] | None = None,
+        spans: list[list[int]] | None = None,
+        suffix: str | None = None,
     ) -> ParseResult:
         """Parse one path. Wire may be remapped; the result always keeps the caller's path (§9)."""
         process = self._running()
@@ -194,7 +203,12 @@ class SubprocessAdapter:
             # Bad absolute path under set roots — loud at the process boundary (R5.3).
             raise AdapterError(f"adapter {self._key!r}: {error}") from error
         self._request(
-            process, wire, declarations_only=declarations_only, source_roots=source_roots
+            process,
+            wire,
+            declarations_only=declarations_only,
+            source_roots=source_roots,
+            spans=spans,
+            suffix=suffix,
         )
         try:
             line = self._read_line(process)
@@ -281,6 +295,8 @@ class SubprocessAdapter:
         *,
         declarations_only: bool = False,
         source_roots: tuple[str, ...] | None = None,
+        spans: list[list[int]] | None = None,
+        suffix: str | None = None,
     ) -> None:
         assert process.stdin is not None
         payload: dict[str, object] = {"path": path}
@@ -288,6 +304,9 @@ class SubprocessAdapter:
             payload["declarations_only"] = True
         if source_roots:
             payload["source_roots"] = list(source_roots)
+        if spans is not None and suffix is not None:
+            payload["spans"] = spans
+            payload["suffix"] = suffix
         try:
             process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
             process.stdin.flush()
@@ -325,10 +344,14 @@ class SubprocessAdapter:
             return _failure(path, str(reply.get("error")))
         nodes = reply.get("nodes") or ()
         edges = reply.get("edges") or ()
+        embedded = reply.get("embedded") or ()
         assert isinstance(nodes, list | tuple)
         assert isinstance(edges, list | tuple)
+        assert isinstance(embedded, list | tuple)
         # Relative build path: no copy. Rebase already copied when wire != path.
-        return ParseResult(path=path, ok=True, nodes=tuple(nodes), edges=tuple(edges))
+        return ParseResult(
+            path=path, ok=True, nodes=tuple(nodes), edges=tuple(edges), embedded=tuple(embedded)
+        )
 
 
 def extension_index(adapters: Iterable[LanguageAdapter]) -> dict[str, LanguageAdapter]:

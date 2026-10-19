@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 
-from code_atlas import contract, gitutil
+from code_atlas import contract, embedded, gitutil
 from code_atlas.adapter import (
     AdapterContractError,
     AdapterError,
@@ -801,10 +801,13 @@ def parse_files(
             return found
         try:
             owners = _owners(announced)
+            guests = _Guests(
+                config, watchdog, _span_owners(announced, owners), _names(announced), announced
+            )
             for path in paths:
                 key = owners.get(_suffix(path))
                 if key is not None:
-                    found[path] = _parse_one(config, watchdog, announced[key], path)
+                    found[path] = _parse_one(config, watchdog, announced[key], path, guests)
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -814,7 +817,11 @@ def parse_files(
 
 
 def _parse_one(
-    config: Config, watchdog: "_Watchdog", adapter: SubprocessAdapter, path: str
+    config: Config,
+    watchdog: "_Watchdog",
+    adapter: SubprocessAdapter,
+    path: str,
+    guests: "_Guests",
 ) -> tuple[str, ParseResult]:
     stub = is_stub_path(path, config.stub_roots)
     try:
@@ -822,6 +829,7 @@ def _parse_one(
             result = adapter.parse(path, declarations_only=stub, source_roots=config.source_roots)
     except AdapterError as error:
         result = ParseResult(path=path, ok=False, error=str(error))
+    result = embedded.merge(result, guests.reader(path))
     if stub and result.ok:
         result = as_stub_result(result)
     return adapter.name, result
@@ -1183,6 +1191,85 @@ def _adapter(config: Config, key: str) -> SubprocessAdapter:
     )
 
 
+def _span_owners(
+    announced: Mapping[str, SubprocessAdapter], owners: Mapping[str, str]
+) -> dict[str, str]:
+    """Suffix -> key for the adapters that read an embedded region (capability ``spans``, 399)."""
+    return {
+        suffix: key
+        for suffix, key in owners.items()
+        if announced[key].capabilities.get("spans") is True
+    }
+
+
+def _names(announced: Mapping[str, SubprocessAdapter]) -> dict[str, str]:
+    """Key -> the name each adapter announced: the language its rows are stamped with."""
+    return {key: adapter.name for key, adapter in announced.items()}
+
+
+class _Guests:
+    """The adapters reading one worker's embedded regions, each started on its first region (399).
+
+    A worker owns its own processes, so no pipe is shared and a repo with no region starts none.
+    ``lent`` adapters (one-shot ``parse_files``) are used as they are and never stopped here.
+    """
+
+    def __init__(
+        self,
+        config: Config,
+        watchdog: "_Watchdog",
+        owners: Mapping[str, str],
+        languages: Mapping[str, str],
+        lent: Mapping[str, SubprocessAdapter] | None = None,
+    ) -> None:
+        self._config = config
+        self._watchdog = watchdog
+        self._owners = owners
+        self._languages = languages
+        self._lent = dict(lent or {})
+        self._own: dict[str, SubprocessAdapter] = {}
+
+    def reader(self, path: str) -> embedded.Reader:
+        stub = is_stub_path(path, self._config.stub_roots)
+
+        def read(region: Mapping[str, object]) -> tuple[str, ParseResult] | None:
+            key = self._owners.get(str(region.get("suffix")).lower())
+            spans = region.get("spans")
+            if key is None or not isinstance(spans, list):
+                return None
+            try:
+                adapter = self._adapter(key)
+                with self._watchdog.guard(adapter):
+                    result = adapter.parse(
+                        path,
+                        declarations_only=stub,
+                        spans=spans,
+                        suffix=str(region["suffix"]),
+                    )
+            except AdapterError:
+                self._drop(key)
+                return None
+            return self._languages[key], result
+
+        return read
+
+    def stop(self) -> None:
+        for key in list(self._own):
+            self._drop(key)
+
+    def _adapter(self, key: str) -> SubprocessAdapter:
+        if key in self._lent:
+            return self._lent[key]
+        if key not in self._own:
+            self._own[key] = _start(self._config, self._watchdog, key)
+        return self._own[key]
+
+    def _drop(self, key: str) -> None:
+        adapter = self._own.pop(key, None)
+        if adapter is not None:
+            adapter.stop()
+
+
 def _owners(announced: Mapping[str, SubprocessAdapter]) -> dict[str, str]:
     """Suffix -> configuration key, built through the driver's own duplicate-claim check."""
     index = extension_index(announced.values())
@@ -1259,7 +1346,8 @@ def _parse_all(
 ) -> dict[str, int]:
     """Fan each adapter's paths across its own workers, writing every result on this thread."""
     # Read the announced names now: an adapter that dies later can no longer say what it was.
-    languages = {key: adapter.name for key, adapter in announced.items()}
+    languages = _names(announced)
+    span_owners = _span_owners(announced, owners)
     tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
     pending = set(paths)
 
@@ -1278,6 +1366,8 @@ def _parse_all(
                 tally,
                 pending,
                 progress,
+                span_owners,
+                languages,
             )
 
     for path in sorted(pending):
@@ -1307,6 +1397,8 @@ def _parse_group(
     tally: dict[str, int],
     pending: set[str],
     progress: "_Progress | None" = None,
+    span_owners: Mapping[str, str] | None = None,
+    languages: Mapping[str, str] | None = None,
 ) -> None:
     """One adapter's whole share, on ``min(workers, len(group))`` processes and one writer."""
     work: queue.Queue[str] = queue.Queue()
@@ -1319,7 +1411,15 @@ def _parse_group(
     workers = [
         threading.Thread(
             target=_work,
-            args=(config, watchdog, key, work, results, first if index == 0 else None),
+            args=(
+                config,
+                watchdog,
+                key,
+                work,
+                results,
+                first if index == 0 else None,
+                _Guests(config, watchdog, span_owners or {}, languages or {}),
+            ),
             name=f"code-atlas-worker-{key}-{index}",
             daemon=True,
         )
@@ -1353,6 +1453,7 @@ def _work(
     work: queue.Queue[str],
     results: queue.Queue[_Outcome | None],
     started: SubprocessAdapter | None,
+    guests: _Guests,
 ) -> None:
     """One worker: own one adapter, drain the queue, report every outcome, then signal with None.
 
@@ -1383,12 +1484,14 @@ def _work(
                 result = ParseResult(path=path, ok=False, error=str(error))
                 adapter.stop()
                 adapter = None
+            result = embedded.merge(result, guests.reader(path))
             if is_stub_path(path, config.stub_roots) and result.ok:
                 result = as_stub_result(result)
             results.put((path, _digest(config.root / path), result))
     finally:
         if adapter is not None and adapter is not started:
             adapter.stop()
+        guests.stop()
         results.put(None)
 
 

@@ -66,12 +66,19 @@ final class Parser
             return self::failure($path, self::describe($errors));
         }
 
-        return [
+        $result = [
             'path' => $path,
             'ok' => true,
             'nodes' => BodyHash::stamp($source, $visitor->nodes),
             'edges' => $visitor->edges,
         ];
+        // A view's `<script>` is another language's: name its bytes, and the core asks that adapter (399).
+        $regions = ScriptRegions::find($source);
+        if ($regions !== []) {
+            $result['embedded'] = $regions;
+        }
+
+        return $result;
     }
 
     /** The first collected error plus a count — ordered by the handler, so it is deterministic. */

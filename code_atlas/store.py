@@ -30,7 +30,8 @@ from code_atlas.contract import CONFIDENCE_TIERS
 # (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
 _TOUR_SEED_BUDGET_DIVISOR = 4
 
-SCHEMA_VERSION = "8"
+# 9 (399): nullable `language` on nodes and edges — a row an embedded region produced keeps its own.
+SCHEMA_VERSION = "9"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -193,7 +194,7 @@ CREATE TABLE IF NOT EXISTS files (
 CREATE TABLE IF NOT EXISTS nodes (
   id INTEGER PRIMARY KEY, kind TEXT, name TEXT, qualified_name TEXT,
   file_path TEXT REFERENCES files(path), line_start INT, line_end INT,
-  modifiers TEXT, params TEXT, is_test INT DEFAULT 0, extra TEXT,
+  modifiers TEXT, params TEXT, is_test INT DEFAULT 0, extra TEXT, language TEXT,
   UNIQUE(qualified_name, file_path));
 CREATE INDEX IF NOT EXISTS idx_nodes_name ON nodes(name);
 CREATE INDEX IF NOT EXISTS idx_nodes_kind ON nodes(kind);
@@ -202,7 +203,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT,
-  kwargs TEXT, arg_strings TEXT, kwarg_strings TEXT);
+  kwargs TEXT, arg_strings TEXT, kwarg_strings TEXT, language TEXT);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
@@ -247,7 +248,22 @@ _EDGE_COLUMNS = ", ".join(contract.EDGE_FIELDS)
 _NODE_COLUMNS_JOINED = ", ".join(f"nodes.{field}" for field in contract.NODE_FIELDS)
 
 NODE_ROW_KEYS: tuple[str, ...] = ("id", *contract.NODE_FIELDS)
+# A row's own language (399): set only on rows an embedded region produced; NULL reads as the
+# file's. The core stamps it, never an adapter, so it is a store column and no contract field.
+ROW_LANGUAGE = "language"
+_STORED_NODE_FIELDS: tuple[str, ...] = (*contract.NODE_FIELDS, ROW_LANGUAGE)
+_STORED_EDGE_FIELDS: tuple[str, ...] = (*contract.EDGE_FIELDS, ROW_LANGUAGE)
+# The language a row is read in: its own, else its file's (`files` joined as `files`).
+_NODE_LANGUAGE = "COALESCE(nodes.language, files.language)"
+# The same rule on a single-table query (nodes or edges alone): two `?`, both the language.
+_OWN_OR_FILE_LANGUAGE = (
+    "(language = ? OR (language IS NULL"
+    " AND file_path IN (SELECT path FROM files WHERE language = ?)))"
+)
+_EDGE_LANGUAGE = "COALESCE(edges.language, files.language)"
 EDGE_ROW_KEYS: tuple[str, ...] = ("id", *contract.EDGE_FIELDS)
+# An unresolved edge carries its row language, so the resolver reads the call site's own (204).
+_UNRESOLVED_ROW_KEYS: tuple[str, ...] = (*EDGE_ROW_KEYS, ROW_LANGUAGE)
 
 NODES = "nodes"
 EDGES = "edges"
@@ -1197,8 +1213,8 @@ class GraphStore:
         Returns the number of duplicate nodes dropped.
         """
         kept_nodes, deduped = _dedupe_nodes(nodes)
-        node_groups = _grouped(contract.NODE_FIELDS, kept_nodes)
-        edge_groups = _grouped(contract.EDGE_FIELDS, edges)
+        node_groups = _grouped(_STORED_NODE_FIELDS, kept_nodes)
+        edge_groups = _grouped(_STORED_EDGE_FIELDS, edges)
         with self._tx():
             self._delete_rows(path)
             self._insert(NODES, node_groups)
@@ -1610,10 +1626,10 @@ class GraphStore:
         # "emitted nothing" rather than as "never measured" — the two are different claims (R5.6).
         kinds: dict[str, set[str]] = {name: set() for name in self.indexed_languages()}
         for language, kind, tier, count, found in self._conn.execute(
-            "SELECT files.language, edges.kind, edges.confidence_tier, COUNT(*), "
+            f"SELECT {_EDGE_LANGUAGE} AS lang, edges.kind, edges.confidence_tier, COUNT(*), "
             "SUM(CASE WHEN edges.target_qname IS NOT NULL THEN 1 ELSE 0 END) "
             "FROM edges LEFT JOIN files ON files.path = edges.file_path "
-            "GROUP BY files.language, edges.kind, edges.confidence_tier"
+            "GROUP BY lang, edges.kind, edges.confidence_tier"
         ):
             key = str(language) if language else ""
             bucket = tiers.setdefault(key, {})
@@ -1647,13 +1663,15 @@ class GraphStore:
         tiers: dict[str, int] = {}
         pairs: dict[str, int] = {}
         for source, target, tier, count in self._conn.execute(
-            "SELECT src.language, tgt.language, edges.confidence_tier, COUNT(DISTINCT edges.id) "
+            "SELECT COALESCE(edges.language, src.language) AS s, "
+            "COALESCE(nodes.language, tgt.language) AS t, edges.confidence_tier, "
+            "COUNT(DISTINCT edges.id) "
             "FROM edges "
             "JOIN files src ON src.path = edges.file_path "
             "JOIN nodes ON nodes.qualified_name = edges.target_qname "
             "JOIN files tgt ON tgt.path = nodes.file_path "
-            "WHERE edges.target_qname IS NOT NULL AND src.language <> tgt.language "
-            "GROUP BY src.language, tgt.language, edges.confidence_tier"
+            "WHERE edges.target_qname IS NOT NULL AND s <> t "
+            "GROUP BY s, t, edges.confidence_tier"
         ):
             tiers[str(tier)] = tiers.get(str(tier), 0) + int(count)
             key = f"{source}->{target}"
@@ -2923,10 +2941,8 @@ class GraphStore:
             clauses.append("kind = ?")
             params.append(kind)
         if language is not None:
-            clauses.append(
-                "file_path IN (SELECT path FROM files WHERE language = ?)"
-            )
-            params.append(language)
+            clauses.append(_OWN_OR_FILE_LANGUAGE)
+            params.extend((language, language))
         sql = f"SELECT COUNT(*) FROM nodes WHERE {' AND '.join(clauses)}"
         return int(self._conn.execute(sql, params).fetchone()[0])
 
@@ -2972,10 +2988,8 @@ class GraphStore:
             clauses.append(f"kind IN ({', '.join('?' for _ in kinds)})")
             params.extend(kinds)
         if language is not None:
-            clauses.append(
-                "file_path IN (SELECT path FROM files WHERE language = ?)"
-            )
-            params.append(language)
+            clauses.append(_OWN_OR_FILE_LANGUAGE)
+            params.extend((language, language))
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {' AND '.join(clauses)} "
             f"ORDER BY {_EDGE_ORDER}"
@@ -3105,7 +3119,7 @@ class GraphStore:
             )
             delta_params = tuple(delta.scoped_kinds)
         sql = (
-            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            f"SELECT id, {_EDGE_COLUMNS}, {ROW_LANGUAGE} FROM edges "
             f"WHERE target_qname IS NULL{dynamic_clause}{path_clause}{delta_clause} "
             f"AND id > ? ORDER BY id LIMIT ?"
         )
@@ -3115,7 +3129,7 @@ class GraphStore:
             while True:
                 head: tuple[object, ...] = () if file_path is None else (file_path,)
                 params = (*head, *delta_params, last_id, batch_size)
-                batch = self._rows(EDGE_ROW_KEYS, sql, params)
+                batch = self._rows(_UNRESOLVED_ROW_KEYS, sql, params)
                 if not batch:
                     return
                 last_id = int(str(batch[-1]["id"]))
@@ -3189,7 +3203,7 @@ class GraphStore:
                     [(qname, tier, edge_id) for edge_id, qname, tier in links],
                 )
             if siblings:
-                self._insert(EDGES, _grouped(contract.EDGE_FIELDS, siblings))
+                self._insert(EDGES, _grouped(_STORED_EDGE_FIELDS, siblings))
 
     def file_hash(self, path: str) -> str | None:
         """Content hash stored for ``path``, or ``None`` when the file is not indexed."""
@@ -4665,7 +4679,7 @@ class GraphStore:
         kind_sql = " AND nodes.kind = ?" if kind is not None else ""
         # The language predicate rides the same statement as the row limit, never a post-filter.
         source = "nodes JOIN files ON files.path = nodes.file_path" if language else "nodes"
-        language_sql = " AND files.language = ?" if language else ""
+        language_sql = f" AND {_NODE_LANGUAGE} = ?" if language else ""
         grouped: dict[str, list[Row]] = {key: [] for key in ordered_keys}
         # Full `_NODE_ORDER` inside the partition — required for `name` keys where
         # `qualified_name` still varies within the partition (R4.2 / AC1).

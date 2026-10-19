@@ -32,6 +32,12 @@ Configure the server launch via `CA_TYPESCRIPT_CMD` (the core resolves any `CA_<
 CA_TYPESCRIPT_CMD="node /abs/path/adapters/typescript/index.js --server"
 ```
 
+**Span requests (399).** The handshake announces `spans`. A request
+`{"path":"web/view.php","spans":[[s,e],…],"suffix":".js"}` reads only those bytes of the file as that
+suffix, every other byte blanked and every line break kept, so a symbol's line is the file's own. A
+host's code inside the region breaks statements, so a span request keeps TypeScript's recovered tree
+instead of failing on a syntax error.
+
 ## What it emits
 
 **Nodes** (contract kinds, keyed on TS syntax, never on an identifier — R2):

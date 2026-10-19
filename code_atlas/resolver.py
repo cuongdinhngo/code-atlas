@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import PurePosixPath
 
 from code_atlas import contract
-from code_atlas.store import DeltaScope, GraphStore
+from code_atlas.store import ROW_LANGUAGE, DeltaScope, GraphStore
 
 # RESOLVED is strongest; DYNAMIC is weakest — never promote a weaker incoming claim (R5.2).
 _TIER_STRENGTH = {tier: index for index, tier in enumerate(contract.CONFIDENCE_TIERS)}
@@ -353,7 +353,7 @@ def _link_by_unique_function(
     grouped: dict[str | None, list[str]] = {}
     for edge, name, incoming in bare_calls:
         if incoming != "HEURISTIC":
-            grouped.setdefault(file_languages.get(str(edge["file_path"])), []).append(name)
+            grouped.setdefault(_site_language(edge, file_languages), []).append(name)
     if not grouped:
         return list(bare_calls)
     hits_by_language = {
@@ -364,7 +364,7 @@ def _link_by_unique_function(
     }
     leftovers: list[tuple[dict[str, object], str, str]] = []
     for edge, name, incoming in bare_calls:
-        language = file_languages.get(str(edge["file_path"]))
+        language = _site_language(edge, file_languages)
         candidates = hits_by_language.get(language, {}).get(name, [])
         if incoming != "HEURISTIC" and len(candidates) == 1:
             _queue_candidates(
@@ -393,7 +393,7 @@ def _link_by_bare_name(
     for edge, name in by_name:
         # An unattributed call site is not KNOWN to cross a boundary, so it keeps the old,
         # unfiltered set rather than silently losing edges this ticket never measured.
-        language = file_languages.get(str(edge["file_path"]))
+        language = _site_language(edge, file_languages)
         grouped.setdefault(language, []).append((edge, name))
     for language, pairs in grouped.items():
         # Uniqueness from the batched fetch (283) — never one COUNT per edge. Probe at least
@@ -728,9 +728,17 @@ def _queue_candidates(
     links.append((int(str(edge["id"])), qnames[0], tier))
     for qname in qnames[1:]:
         sibling = {field: edge[field] for field in contract.EDGE_FIELDS if field in edge}
+        if edge.get(ROW_LANGUAGE):
+            sibling[ROW_LANGUAGE] = edge[ROW_LANGUAGE]
         sibling["target_qname"] = qname
         sibling["confidence_tier"] = tier
         siblings.append(sibling)
+
+
+def _site_language(edge: Mapping[str, object], file_languages: Mapping[str, str]) -> str | None:
+    """The call site's language: the row's own (an embedded region's, 399), else its file's."""
+    own = edge.get(ROW_LANGUAGE)
+    return str(own) if own else file_languages.get(str(edge["file_path"]))
 
 
 def _path_key(edge: Mapping[str, object]) -> str:
