@@ -27,6 +27,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - `read_symbol` on a routine or view that several Flyway versioned migrations (`V7__x.sql`) redefine
   answers the highest version and lists the others, instead of refusing as `subject_ambiguous`; two
   unversioned definitions still refuse. The SQL adapter stamps `extra.migration_version` (403).
+- `search_symbol` for a PHP property's bare name (`isInRespite`) ranks `C::$isInRespite` as an exact
+  match, as `$isInRespite` already did, and a two-letter `id` finds `$id`. The stored name is unchanged (404).
 - An answer read while an incremental build runs is the previous graph's, never a half-linked one:
   the build writes in one transaction, so a caller in a re-parsed file is no longer missing until the
   resolve, and a killed incremental leaves the index as it was. A call served meanwhile skips its fit

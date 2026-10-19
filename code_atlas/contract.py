@@ -331,6 +331,9 @@ VIEW_DATA_PREFIX = "viewdata:"
 PROVIDES_VIEW_DATA = "PROVIDES_VIEW_DATA"
 
 MEMBER_SEPARATOR = "::"
+# A name stored with a leading sigil (a property, `\Ns\C::$prop`, CONVENTION §3; any `$`-led name
+# alike): a search for the bare name matches it as exactly as one spelled with it (404).
+NAME_SIGIL = "$"
 
 # A ``target_raw`` may name the type of a member instead of a type directly (137): the receiver of
 # ``\A::m()::plus`` is whatever ``\A::m`` was declared to return. Adapters emit it when the file

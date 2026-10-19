@@ -479,10 +479,18 @@ def is_exact_or_prefix_match(query: str, name: str, qualified_name: str) -> bool
     exactly this half; a second copy there would drift the moment 167's arm changes.
     """
     q = query.casefold()
-    for candidate in (name.casefold(), qualified_name.casefold()):
+    for candidate in (name.casefold(), qualified_name.casefold(), *_unsigiled(query, name)):
         if candidate == q or candidate.startswith(q):
             return True
     return False
+
+
+def _unsigiled(query: str, name: str) -> tuple[str, ...]:
+    """``name`` without its sigil when the query has none: ``p`` as exact as ``$p`` (404)."""
+    sigil = contract.NAME_SIGIL
+    if name.startswith(sigil) and not query.startswith(sigil):
+        return (name[len(sigil) :].casefold(),)
+    return ()
 
 
 def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
@@ -588,6 +596,18 @@ def _piece_filter(
         return "1", (), ""
     scan = " OR ".join("instr(lower(nodes.name), ?) > 0" for _ in pieces)
     return f"({scan})", (*pieces,), ""
+
+
+def _short_prefix_clause(query: str) -> tuple[str, tuple[object, ...]]:
+    """The short-query prefix filter, reading a sigil-stored name as ``is_direct_match`` does
+    (404) — one clause for the page and its count, so the two cannot disagree."""
+    pattern = f"{_like_literal(query.lower())}%"
+    where = "LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!'"
+    params: tuple[object, ...] = (pattern, pattern)
+    if not query.startswith(contract.NAME_SIGIL):
+        where = f"{where} OR LOWER(name) LIKE ? ESCAPE '!'"
+        params = (*params, _like_literal(contract.NAME_SIGIL) + pattern)
+    return f"({where})", params
 
 
 def _direct_match_udf(query: object, name: object, qualified_name: object) -> int:
@@ -4603,9 +4623,7 @@ class GraphStore:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
-        pattern = f"{_like_literal(query.lower())}%"
-        where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
-        params: tuple[object, ...] = (pattern, pattern)
+        where, params = _short_prefix_clause(query)
         if kind is not None:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
@@ -4749,9 +4767,7 @@ class GraphStore:
         path_prefix: str | None = None,
         exclude_test_sources: bool = False,
     ) -> int:
-        pattern = f"{_like_literal(query.lower())}%"
-        where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
-        params: tuple[object, ...] = (pattern, pattern)
+        where, params = _short_prefix_clause(query)
         if kind is not None:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
