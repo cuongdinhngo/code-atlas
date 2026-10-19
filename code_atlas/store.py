@@ -479,10 +479,18 @@ def is_exact_or_prefix_match(query: str, name: str, qualified_name: str) -> bool
     exactly this half; a second copy there would drift the moment 167's arm changes.
     """
     q = query.casefold()
-    for candidate in (name.casefold(), qualified_name.casefold()):
+    for candidate in (name.casefold(), qualified_name.casefold(), *_unsigiled(query, name)):
         if candidate == q or candidate.startswith(q):
             return True
     return False
+
+
+def _unsigiled(query: str, name: str) -> tuple[str, ...]:
+    """``name`` without its sigil when the query has none: ``p`` as exact as ``$p`` (404)."""
+    sigil = contract.NAME_SIGIL
+    if name.startswith(sigil) and not query.startswith(sigil):
+        return (name[len(sigil) :].casefold(),)
+    return ()
 
 
 def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
@@ -497,16 +505,22 @@ def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
     if is_exact_or_prefix_match(query, name, qualified_name):
         return True
     folded = qualified_name.casefold()
+    forms = [folded]
+    if contract.NAME_SIGIL not in query:
+        # `C::prop` names `C::$prop`, as the bare name does (404).
+        sigiled = contract.MEMBER_SEPARATOR + contract.NAME_SIGIL
+        forms.append(folded.replace(sigiled, contract.MEMBER_SEPARATOR))
     # Member-separator suffix on a component boundary — not any substring (287/293).
     for cand, allow_colon in _member_boundary_candidates(query):
-        if not folded.endswith(cand):
-            continue
-        if len(folded) == len(cand):
-            return True
-        # Native ``::`` keeps 287's charset; variant arm also allows ``:`` (file::Class::method).
-        seps = "\\/.:" if allow_colon else "\\/."
-        if folded[-len(cand) - 1] in seps:
-            return True
+        for form in forms:
+            if not form.endswith(cand):
+                continue
+            if len(form) == len(cand):
+                return True
+            # Native ``::`` keeps 287's charset; a variant also takes ``:`` (file::Class::method).
+            seps = "\\/.:" if allow_colon else "\\/."
+            if form[-len(cand) - 1] in seps:
+                return True
     return False
 
 
