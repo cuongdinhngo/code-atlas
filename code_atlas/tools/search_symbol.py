@@ -60,9 +60,8 @@ from code_atlas.tools.nav_result import (
 from code_atlas.tools.symbol_pointers import (
     ALIASES_FIELD,
     AMBIGUITY_FIELD,
-    TEST_COPIES,
     aliases,
-    test_copies_first,
+    one_definition_first,
 )
 
 _RESOLVED = CONFIDENCE_TIERS[0]
@@ -390,13 +389,13 @@ def _search_one(
             offset=offset,
         )
     truncated = len(rows) > cap
-    page, held = _test_copies_first(rows[:cap])
+    page, held = _one_definition_first(rows[:cap])
     results = _suppress_redundant_file_hits(
         [_hit(row, store=store, detail_level=detail_level) for row in page]
     )
     for hit in results:
         if hit["qname"] in held:  # per row: a page can hold several names (394 review)
-            hit[AMBIGUITY_FIELD] = TEST_COPIES
+            hit[AMBIGUITY_FIELD] = held[str(hit["qname"])]
     if status == "stale":
         _mark_source_stale(results, guard)
     if truncated or offset > 0:
@@ -595,27 +594,29 @@ def _overlay_hits(
     )
 
 
-def _test_copies_first(rows: list[Row]) -> tuple[list[Row], frozenset[str]]:
-    """Each qname this page holds twice: its one production row leads its test copies (394).
+def _one_definition_first(rows: list[Row]) -> tuple[list[Row], dict[str, str]]:
+    """Each qname this page holds twice: the definition that answers leads the rest (394, 403).
 
-    Returns the reordered page and the qnames the rule held for.
+    Returns the reordered page and, per qname the rule held for, why the others do not compete.
     """
     groups: dict[str, list[Row]] = {}
     for row in rows:
         groups.setdefault(str(row["qualified_name"]), []).append(row)
     ordered: dict[str, Iterator[Row]] = {}
+    held: dict[str, str] = {}
     for qname, group in groups.items():
         if len(group) > 1:
-            first, held = test_copies_first(group)
-            if held:
+            first, ambiguity = one_definition_first(group)
+            if ambiguity is not None:
                 ordered[qname] = iter(first)
+                held[qname] = ambiguity
     if not ordered:
-        return rows, frozenset()
+        return rows, held
     page = [
         next(ordered[str(row["qualified_name"])]) if str(row["qualified_name"]) in ordered else row
         for row in rows
     ]
-    return page, frozenset(ordered)
+    return page, held
 
 
 def _mark_source_stale(results: list[dict[str, object]], guard: FreshnessGuard) -> None:

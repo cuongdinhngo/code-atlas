@@ -179,6 +179,19 @@ const CREATE_RE =
 // T-SQL's default schema when a CREATE names none and the creator's was never changed (386).
 const DEFAULT_SCHEMA = "dbo";
 
+// Flyway's versioned migration, `V<version>__<description>.sql`: the version's parts split on `.`
+// or `_`, and a higher one runs later, so its redefinition of an object is the live one (403).
+const MIGRATION_FILE_RE = /^V(\d+(?:[._]\d+)*)__.+\.sql$/i;
+
+/**
+ * @param {string} qpath
+ * @returns {string|null} the dotted version, leading zeros dropped, or null for any other name
+ */
+function migrationVersion(qpath) {
+  const m = MIGRATION_FILE_RE.exec(qpath.slice(qpath.lastIndexOf("/") + 1));
+  return m ? m[1].split(/[._]/).map((part) => String(Number(part))).join(".") : null;
+}
+
 // A routine header ends at AS or BEGIN; everything before it is the parameter list.
 const HEADER_END_RE = /\b(?:as|begin)\b/i;
 
@@ -337,6 +350,8 @@ function parseFile(qpath) {
   let lineNo = 0;
   let lastLine = 0;
   const fingerprints = lineFingerprints();
+  // A routine or view this file redefines carries the file's migration version (403).
+  const version = migrationVersion(qpath);
   /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean, whole?: boolean}|null} */
   let pending = null;
   /** @type {Map<string, Node>} */
@@ -848,6 +863,7 @@ function parseFile(qpath) {
           params: procedureParams(code),
           extra: { object_type: created[1].toLowerCase().startsWith("proc") ? "procedure" : "function" },
         };
+        if (version) node.extra.migration_version = version;
         nodes.push(node);
         edges.push({
           kind: "CONTAINS",
@@ -889,6 +905,7 @@ function parseFile(qpath) {
         const extra = { object_type: "trigger" };
         const hostQname = host ? splitName(host.name) : null;
         if (hostQname) extra["on"] = hostQname;
+        if (version) extra["migration_version"] = version;
         /** @type {Node} */
         const node = {
           kind: "Function", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
@@ -916,7 +933,8 @@ function parseFile(qpath) {
       /** @type {Node} */
       const node = {
         kind: "View", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
-        line_start: lineNo, line_end: lineNo, modifiers: [], params: [], extra: {},
+        line_start: lineNo, line_end: lineNo, modifiers: [], params: [],
+        extra: version ? { migration_version: version } : {},
       };
       nodes.push(node);
       edges.push({

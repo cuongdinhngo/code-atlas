@@ -28,6 +28,7 @@ from code_atlas.tools.freshness import (
     miss_subject_path,
 )
 from code_atlas.tools.nav_result import (
+    AMBIGUOUS_DEFINITIONS,
     CAVEAT_MIRROR_TWIN,
     REASON_INDEX_STALE,
     REASON_NAME_NOT_QUALIFIED,
@@ -61,10 +62,9 @@ from code_atlas.tools.search_symbol import _column_reference_targets
 from code_atlas.tools.symbol_pointers import (
     ALIASES_FIELD,
     AMBIGUITY_FIELD,
-    TEST_COPIES,
     aliases,
     implemented_by,
-    test_copies_first,
+    one_definition_first,
 )
 
 # Built from the one threshold site (288 / R6.7) — never a second numeric literal.
@@ -140,7 +140,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
         empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
         ignoring the list (070 warn; 078 refuse) — unless one is production and every other a
-        test copy: that one answers, with ``ambiguity: "test_copies"`` and the copies listed (394).
+        test copy: that one answers, with ``ambiguity: "test_copies"`` and the copies listed (394);
+        or every one a versioned migration's redefinition (``V7__x.sql``): the highest version
+        answers, ``ambiguity: "migration_redefinitions"``, the earlier ones listed (403).
         A found hit names where else its code lives (394): ``implemented_by`` — for an abstract
         method or one whose body reaches nothing, the overriding methods of linked subtypes,
         capped — and ``aliases`` — the names an ``ALIASES`` edge ties
@@ -288,8 +290,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if prefix_miss is not None:
                 return _stamp(prefix_miss)
-            rows, test_copies = test_copies_first(rows, complete=complete)
-            if len(rows) > 1 and not test_copies:
+            rows, ambiguity = one_definition_first(rows, complete=complete)
+            if len(rows) > 1 and ambiguity is None:
                 return _stamp(
                     _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
                 )
@@ -346,8 +348,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 if prefix_miss is not None:
                     return _stamp(prefix_miss)
-                rows, test_copies = test_copies_first(rows, complete=complete)
-                if len(rows) > 1 and not test_copies:
+                rows, ambiguity = one_definition_first(rows, complete=complete)
+                if len(rows) > 1 and ambiguity is None:
                     return _stamp(
                         _refuse_ambiguous(
                             qname, rows, detail_level=detail_level, config=config
@@ -417,7 +419,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 name=str(node["name"]),
             )
             attach_other_indexed_files_drifted(payload, guard)
-            _attach_pointers(payload, store, node, rows if test_copies else ())
+            _attach_pointers(payload, store, node, rows if ambiguity else (), ambiguity)
             if overlay is not None:
                 overlay.label(payload)
             return attach_next_tools(payload, str(node["kind"]))
@@ -430,15 +432,18 @@ def _attach_pointers(
     store: GraphStore,
     node: Mapping[str, object],
     candidates: Sequence[Mapping[str, object]],
+    ambiguity: str | None = None,
 ) -> None:
-    """Where else this code lives — overrides, aliases, test copies; omitted when empty (394)."""
+    """Where else this code lives — overrides, aliases, the definitions that did not answer (394,
+    403); omitted when empty."""
     payload.update(implemented_by(store, node))
     named = aliases(store, str(node["qualified_name"]))
     if named:
         payload[ALIASES_FIELD] = named
-    if candidates:
-        payload[AMBIGUITY_FIELD] = TEST_COPIES
-        attach_ambiguous_definitions(payload, definition_sites([dict(c) for c in candidates[1:]]))
+    if candidates and ambiguity:
+        payload[AMBIGUITY_FIELD] = ambiguity
+        # Labelled, so even one other definition is named: the >1 rule is for an unlabelled list.
+        payload[AMBIGUOUS_DEFINITIONS] = definition_sites([dict(c) for c in candidates[1:]])
 
 
 def _int(value: object) -> int:
