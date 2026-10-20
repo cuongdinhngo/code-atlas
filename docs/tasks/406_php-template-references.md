@@ -89,8 +89,9 @@ Out of scope: `.html` files (no adapter indexes them, so no File node to source 
 
 `.venv/bin/pytest -q` at 3635eeef, with this run's edits landing mid-run: `8 failed, 4860 passed, 4 skipped in 733.23s`.
 The eight re-run on a clean worktree of 3635eeef: `1 failed, 7 passed in 5.35s` — seven reds were the edits (the server
-saw its package bytes change). The one left, `test_the_top_release_is_tagged`, is pre-existing: 0.7.0 is untagged (399's
-deferred step). **Baseline exclusion** — outside this change; the DoD is a green delta. Ran at 3635eeef.
+saw its package bytes change). The one left, `test_the_top_release_is_tagged`, is pre-existing: `v0.7.0` is now tagged, so 399's strict
+xfail marker XPASSes, as its comment intends — the marker is due for removal. **Baseline exclusion**, outside this
+change and left to the maintainer; the DoD is a green delta. Ran at 3635eeef.
 
 ### Gap analysis (enhancement)
 
