@@ -63,6 +63,7 @@ class RecordSet:
     records: tuple[Record, ...]
     excluded: int
     skipped: int
+    files: int = 0  # files the globs matched: a typo'd glob reads as 0, not as silence
 
 
 def read_blocks(
@@ -99,7 +100,8 @@ def _read_block(
     records: list[Record] = []
     excluded: set[str] = set()
     skipped = 0
-    for relative in _matches(sources, where, root):
+    matched = _matches(sources, where, root)
+    for relative in matched:
         data = (root / relative).read_bytes()
         digest(relative.encode("utf-8") + b"\0" + data + b"\0")
         try:
@@ -119,7 +121,7 @@ def _read_block(
                 excluded.add(rid)
                 continue
             records.append(_record(entry, rid, fields, targets, kind))
-    return RecordSet(tuple(records), len(excluded), skipped)
+    return RecordSet(tuple(records), len(excluded), skipped, len(matched))
 
 
 def _fields(raw: object, where: str) -> tuple[dict[str, str], tuple[str, ...]]:
@@ -222,16 +224,18 @@ def resolve(
     stored: list[Record] = []
     dangling: list[dict[str, str]] = []
     seen: set[str] = set()
-    declared = excluded = skipped = attachments = 0
+    declared = excluded = skipped = attachments = files = untargeted = 0
     for block in sets:
         excluded += block.excluded
         skipped += block.skipped
+        files += block.files
         for record in block.records:
             if record.id in seen:
                 skipped += 1
                 continue
             seen.add(record.id)
             declared += 1
+            untargeted += not record.targets  # a field map naming the wrong key shows here
             found: list[str] = []
             for target in record.targets:
                 qname = locate(target)
@@ -245,7 +249,9 @@ def resolve(
                     Record(record.id, record.title, record.url, record.kind, tuple(found))
                 )
     counts: dict[str, object] = {
+        "files": files,
         "declared": declared,
+        "untargeted": untargeted,
         "attached": len(stored),
         "attachments": attachments,
         "dangling": len(dangling),

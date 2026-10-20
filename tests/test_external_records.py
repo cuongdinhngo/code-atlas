@@ -68,6 +68,8 @@ RECORD_FILES: dict[str, Any] = {
         {"key": "T-2", "summary": "Saved row lost its note", "code": {"symbols": [SAVE]}},
         {"key": "T-3", "summary": "Removed handler", "code": {"symbols": ["handlers.gone"]}},
         {"summary": "no id, skipped"},
+        {"key": "T-4", "summary": "names no code"},
+        {"key": "T-5", "summary": "a whole module", "code": {"symbols": ["handlers/repo.py"]}},
     ],
     "qa/SEC-9.json": {"key": SECRET, "summary": "open weakness", "code": {"symbols": [SAVE]}},
 }
@@ -170,8 +172,15 @@ def test_impact_lists_records_across_the_radius_with_the_carrying_node(repo: Con
     assert {(row["id"], row["via"]) for row in rows(answer)} == {
         ("T-2", SAVE),
         ("T-1", EDIT),
+        ("T-5", "handlers/repo.py"),  # a record on a file the radius reaches
     }
-    assert answer["records_total"] == 2
+    assert answer["records_total"] == 3
+
+
+def test_a_record_on_a_file_reaches_impact_on_that_file(repo: Config) -> None:
+    """A target may name an indexed file; impact by path carries it under the path."""
+    answer = impact.create(repo)(paths=["handlers/repo.py"])
+    assert ("T-5", "handlers/repo.py") in {(r["id"], r["via"]) for r in rows(answer)}
 
 
 def test_a_table_declared_in_two_files_carries_its_record(repo: Config) -> None:
@@ -194,7 +203,9 @@ def test_a_dangling_target_is_reported_never_attached(repo: Config) -> None:
         assert block["dangling_first"] == [
             {"id": "T-3", "target": "handlers.gone"}
         ]
-        assert block["attached"] == 2 and block["skipped"] == 2
+        assert block["attached"] == 3 and block["skipped"] == 2
+        # Four files matched; T-4 names nothing, so a wrong targets path is visible.
+        assert block["files"] == 4 and block["declared"] == 5 and block["untargeted"] == 1
     for answer in (
         find_references.create(repo)(qname=SAVE),
         impact.create(repo)(qnames=[SAVE]),

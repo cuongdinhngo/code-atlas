@@ -434,8 +434,10 @@ scanner masks literals) the call's first line is read, as before (398).
   them (strings or lists of strings, concatenated); `kind` sets one for every record. A target is a
   stored qname, an indexed file, or the one `Table` whose qname matches ignoring case; every
   definition of a qname carries it. `find_references`, `read_symbol` and `impact` list the attached
-  records (`HEURISTIC`, `rule: true`) and nothing else reads them. The build result and
-  `get_index_status` carry `records`: `declared`, `attached`, `attachments`, `dangling` (a target
+  records (`HEURISTIC`, `rule: true`; `impact` names each one's first carrier, a file record
+  under a path or row file) and nothing else reads them. The build result and
+  `get_index_status` carry `records`: `files` (the globs' matches), `declared`, `untargeted` (no
+  target read — a field map naming the wrong key), `attached`, `attachments`, `dangling` (a target
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
   `skipped` (an unreadable file, a record with no id, a repeated id — the first by path wins).
   `exclude` names a file of ids, one per line (`#` comments): they are dropped before anything else

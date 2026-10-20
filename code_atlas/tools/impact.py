@@ -281,12 +281,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if reached:
                 result["routes"] = [route.as_row() for route in reached]
         if stored_records:
-            # Seeds first (walked, ambiguous, twinned), then the radius in its own order (407).
+            # Seeds first (walked, ambiguous, twinned), the radius in its own order, then the
+            # files — a record may name a file rather than a symbol (407).
             carriers = [
                 *plan.walk_seeds,
                 *(qname for qname, _ in plan.ambiguous_sites),
                 *(qname for qname, _ in plan.twinned_sites),
                 *(str(row["qname"]) for row in results),
+                *(paths or []),
+                *(str(row["file"]) for row in results),
             ]
             record_rows = records.attached(stored_records, carriers, via=True)
             if record_rows:
