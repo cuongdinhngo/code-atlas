@@ -390,6 +390,19 @@ passes on both trees, because a path seed is the File node's qname, so it docume
 fix. Cannot promote: an unattended run. `seen:` now holds twelve keys, and `/mango:promote` is the maintainer's
 cross-ticket pass.
 
+**The final gate** (delta-green against B1; the only failure is the baseline's):
+
+```
+$ scripts/gate.sh
+  FAIL pytest -q
+      [XPASS(strict)] v0.7.0 not yet tagged (399)
+      FAILED tests/test_release_discipline.py::test_the_top_release_is_tagged - [XP...
+      1 failed, 4891 passed, 4 skipped in 644.96s (0:10:44)
+  20 passed · 1 failed · 0 skipped
+GATE RED — 1 check(s) failed
+Ran at 34f6e025807215bcf59482b856c616ebe017219b
+```
+
 Stale-review guard: after `cc0262fc`, only this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and
 `docs/LESSONS.md` change. Not stale.
 
