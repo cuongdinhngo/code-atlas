@@ -17,6 +17,13 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A rule file's `template_refs` reads references from file text, not from a call: a regex's named
+  groups, plus a `context_pattern` found once per file and `{path}`, fill a target. So
+  `ng-click="ctrl.save()"` under `ng-controller="EditCtrl as ctrl"` makes the view a `HEURISTIC`
+  caller of `EditCtrl::save`, and a reference naming nothing counts in `rule_keys_unresolved` (406).
+- `keyed_calls` takes `key_from: "list"`: each one-string entry of `loadScripts(['js/x.js'])` names
+  its target, such as the asset's File (406).
+
 ## 0.7.0 — 2026-10-19 · contract 18 · schema 9
 
 - **Full rebuild required.** Run `code-atlas-build --full`: a PHP view's `<script>` becomes symbols.
