@@ -4,7 +4,7 @@ slug: the-recognition-map-is-a-prompt-no-agent-can-read
 title: 'AC5 is the remaining recognition measurement — score today''s channels (24-tool surface + consumer brief), not the 2026-08 skill-shaped gap'
 phase: 1.5b
 milestone: Adoption
-status: blocked
+status: done
 depends_on: [081, 097, 036, 099, 260, 266, 268]
 ---
 
@@ -97,6 +97,7 @@ that way.
    **and** the occasion-fit set). Record `K / 24`, consumer-brief present/absent, skill
    installed/not, `CA_TOOLS` default vs FIELD18. **A round that does not move vs round 5 is a
    result**, not a failed run — write it down; do not keep the skill or the brief "for its own sake".
+   **Waived by the maintainer 2026-10-19** — see *Closed* below.
 6. Nothing in `contrib/` claims a language this repo cannot index. **Shipped.**
 
 ## References
@@ -114,6 +115,18 @@ External: principle 7 of the AXI skill, [kunchenguid/axi](https://github.com/kun
 source of the skill-plus-hook shape, taken here without its installer.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Closed 2026-10-19 — AC5 waived by the maintainer
+- **Why waived:** no decision hangs on the round (the runbook sets no recognition bar), and the value
+  shipped with ACs 1–4 and 6. The occasion gaps it could surface are cheaper as their own follow-ups.
+- **Evidence taken (protocol-invalid, recorded as found):** one Claude Code session, schemas deferred
+  (`K` unrecorded, every answer `name`, so `D = 0` → 081 `NOT OBSERVED`); the 24 surface questions
+  sent in one message, the six occasion questions after them in the same session.
+  name-inclusive **24/24**; occasion-fit **5/6** — O5 picked `impact_modules` (acceptable:
+  `find_callers`, `impact`, `get_index_status`); O6 hit, but after the agent had seen Q6.
+- **Follow-ups filed** (BACKLOG): O5 `impact` vs `impact_modules`; the brief names no contract-change occasion (O6).
+- **Spend this close:** 1 dispatch (`claude-code-guide`, 37,697 — how to load MCP schemas upfront);
+  main-loop unmeasured. The 2026-09 run's 130,348 is in its Phase 5 above.
 
 ## Session status — protocol refresh 2026-09-18
 - **Still `blocked` on AC5.** ACs 1–4 and 6 remain shipped. PR #243 merged; the "merge then probe"

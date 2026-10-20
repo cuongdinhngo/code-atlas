@@ -31,7 +31,8 @@ discussion. One question at a time; record the first tool named; no retries, no 
    product — do not strip it unless you are running an explicit no-brief control arm.
 2. **Before scoring**, record **resident descriptions:** `K / 24`. This harness often defers MCP
    schemas — a name list is not a description set. A round with deferred names and `K = 0` cannot
-   score 081 (write `NOT OBSERVED`); it also cannot close 200.
+   score 081 (write `NOT OBSERVED`). In Claude Code, `ENABLE_TOOL_SEARCH=false` loads MCP schemas
+   upfront ([docs](https://code.claude.com/docs/en/mcp.md), *Configure tool search*).
 3. Ask each question in the **surface set** (one per tool) verbatim. Then ask the **occasion-fit
    set**. For each, record:
    - the **first** tool the agent says it would call (or "none / unsure");
