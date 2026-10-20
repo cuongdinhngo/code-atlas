@@ -280,7 +280,8 @@ def test_a_gitignored_source_is_read_and_its_rewrite_reaches_the_next_refresh(
     (config.root / "qa" / "export.json").write_text(json.dumps(export), encoding="utf-8")
     assert status_of(config)()["rules_stale"] is True
     stale = find_references.create(config)(qname=SAVE)
-    assert ids(stale) == ["T-2"] and stale["rules_stale"] is True and stale["reason"] != "rules_stale"
+    assert ids(stale) == ["T-2"] and stale["rules_stale"] is True
+    assert stale["reason"] != "rules_stale"  # records are a side-field: flagged, not relabelled
     with GraphStore(config.db_path) as store:
         assert incremental_update(config, store, []).rules_reapplied
     assert "records" not in find_references.create(config)(qname=SAVE)
