@@ -60,7 +60,7 @@ RECORD_FILES: dict[str, Any] = {
     "qa/T-1.json": {
         "key": "T-1",
         "summary": "Order edit could not save",
-        "link": "https://tracker.example/T-1",
+        "link": ["", "https://tracker.example/T-1", "https://tracker.example/T-1#note"],
         "code": {"symbols": [EDIT], "tables": ["dbo.orders"]},
     },
     # A consumer-side export: a list of records in one file.
@@ -99,7 +99,7 @@ def make_repo(root: Path, *, block: dict[str, object] | None = BLOCK) -> Config:
     for path, body in RECORD_FILES.items():
         write(root, path, json.dumps(body))
     write(root, "qa/broken.json", "{not json")
-    write(root, "qa.exclude", f"# kept off every answer\n{SECRET}\n")
+    write(root, "qa.exclude", f"# kept off every answer\n{SECRET}  # open weakness\n")
     # The export and the exclusion list are regenerated, never committed (Scope 1, AC6).
     write(root, ".gitignore", "qa/export.json\nqa.exclude\n")
     env = {

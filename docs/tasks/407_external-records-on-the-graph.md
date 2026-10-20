@@ -411,6 +411,17 @@ Stale-review guard: after `cc0262fc`, only this file, `docs/BACKLOG.md`, `docs/T
 Under the handover: push `feat/407-external-records-on-the-graph`; open its PR against `main`.
 Deferred to the maintainer: ratify W1–W3, E1 on the anchor, merge, `/mango:promote` for 362-C1.
 
+### After the PR opened (2026-10-21)
+
+Two input shapes that the authored fixture lacked were fixed in a follow-up commit. Each has a test, seen red on the
+old module:
+
+- **F1.** A `url` field holding a list was dropped. A list now serves its first link.
+- **F2.** The exclude file ignored only whole-line comments, so `ID  # note` let the record through: an AC4 leak.
+  A `#` now starts a comment anywhere on the line.
+
+E1 stays open. Its figures are kept outside the repo (R2.4).
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |

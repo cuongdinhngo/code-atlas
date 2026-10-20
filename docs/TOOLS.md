@@ -430,7 +430,7 @@ scanner masks literals) the call's first line is read, as before (398).
 - **Records written about code (407).** `records` attaches a consumer's own records — a QA ticket,
   an incident, an ADR — to the symbols they name. `sources` are repo-relative globs of JSON files,
   each holding one record or a list, read straight off disk (an untracked or gitignored export
-  counts). `fields` maps `id`, `title`, `url`, `kind` to dotted paths and `targets` to a list of
+  counts). `fields` maps `id`, `title`, `url` (a list serves its first link), `kind` to dotted paths and `targets` to a list of
   them (strings or lists of strings, concatenated); `kind` sets one for every record. A target is a
   stored qname, an indexed file, or the one `Table` whose qname matches ignoring case; every
   definition of a qname carries it. `find_references`, `read_symbol` and `impact` list the attached
@@ -440,7 +440,7 @@ scanner masks literals) the call's first line is read, as before (398).
   target read — a field map naming the wrong key), `attached`, `attachments`, `dangling` (a target
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
   `skipped` (an unreadable file, a record with no id, a repeated id — the first by path wins).
-  `exclude` names a file of ids, one per line (`#` comments): they are dropped before anything else
+  `exclude` names a file of ids, one per line (`#` starts a comment, inline too): they are dropped before anything else
   reads them, so only their count is served — and a missing file fails the build rather than serve
   them. The files join the rules digest, so an edit reads `rules_stale` until the next refresh.
 

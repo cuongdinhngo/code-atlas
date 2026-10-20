@@ -149,8 +149,8 @@ def _fields(raw: object, where: str) -> tuple[dict[str, str], tuple[str, ...]]:
 def _excluded(
     raw: object, where: str, root: Path, digest: Callable[[bytes], None]
 ) -> frozenset[str]:
-    """Ids never to serve: one per line, ``#`` comments and blanks ignored. A named file that
-    is absent fails the build — serving everything would publish what it keeps off (W2)."""
+    """Ids never to serve: one per line, a ``#`` and the rest of its line ignored. A named file
+    that is absent fails the build — serving everything would publish what it keeps off (W2)."""
     if raw is None:
         return frozenset()
     if not isinstance(raw, str) or not raw:
@@ -161,9 +161,9 @@ def _excluded(
     data = full.read_bytes()
     digest(data)
     lines = data.decode("utf-8-sig", errors="replace").splitlines()
-    return frozenset(
-        line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")
-    )
+    # `KEY-1  # why` names KEY-1: an inline comment left on the id would let the record through.
+    ids = (line.split("#", 1)[0].strip() for line in lines)
+    return frozenset(rid for rid in ids if rid)
 
 
 def _matches(globs: Sequence[str], where: str, root: Path) -> list[str]:
@@ -187,6 +187,8 @@ def _record(
 ) -> Record:
     title = _dig(entry, fields["title"])
     url = _dig(entry, fields["url"])
+    if isinstance(url, list):  # a record keeping several links serves its first
+        url = next((link for link in url if isinstance(link, str) and link.strip()), None)
     declared_kind = _dig(entry, fields["kind"])
     named: list[str] = []
     for path in targets:
