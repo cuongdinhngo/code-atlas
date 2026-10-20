@@ -23,7 +23,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
-from code_atlas import routes
+from code_atlas import records, routes
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
@@ -647,6 +647,9 @@ def _status(
     }
     _attach_build_state(enriched, config, store)
     _attach_routes_ambiguous(enriched, store)
+    record_status = records.status_block(store.get_meta(records.RECORDS_STATUS_META_KEY))
+    if record_status is not None:
+        enriched["records"] = record_status  # counts only: never an excluded id (407)
     unread = keys_unread(store)
     if unread:
         # Rule coverage the line read could not see, per keyed_calls rule (398).

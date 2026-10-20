@@ -45,6 +45,7 @@ from code_atlas.enrichment import (
     count_unresolved_keyed_calls,
     count_unresolved_keyed_sites,
     load_indirection_rules,
+    publish_records,
     publish_routes,
     rules_digest,
 )
@@ -765,6 +766,7 @@ def _count_late_writes(
         store, enriched.keyed_call_sites
     )
     counts["routes_unresolved"] = publish_routes(store, rules)
+    publish_records(store, rules)
     store.set_meta(RULES_DIGEST_KEY, rules_digest(rules))
     if enriched.keys_unread:
         store.set_meta(KEYS_UNREAD_KEY, json.dumps(list(enriched.keys_unread), sort_keys=True))

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Literal
 
+from code_atlas import records
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
     BARE_SUBJECT_KINDS,
@@ -406,6 +407,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             stamped = store.stamped_unmodelled_resolution_by_language()
             emitted_kinds = store.stamped_emitted_kinds_by_language()
             about_ref = answered_about_ref_for(store)
+            stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
             # A caller in another worktree reads that worktree, not this checkout's drift (389).
             overlay = active_overlay(config, store)
             read = read_subject(
@@ -750,8 +752,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 subject_removed=read.removed,
             )
         labelled = attach_try_instead(labelled, try_instead, try_instead_hint)
+        record_rows = records.attached(stored_records or [], [lookup], via=False)
+        if record_rows:
+            labelled["records"] = record_rows  # declared records on the subject (407)
         if has_rule_hit(results):
             attach_rules_stale(labelled, config)
+        elif record_rows:
+            attach_rules_stale(labelled, config, relabel=False)  # a side-field: flag only
         attach_coverage_edge_route(
             labelled,
             stamped,

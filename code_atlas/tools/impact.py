@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Literal, NamedTuple
 
+from code_atlas import records
 from code_atlas import routes as route_table
 from code_atlas.config import Config
 from code_atlas.contract import BARE_SUBJECT_KINDS, CALLER_KINDS
@@ -236,6 +237,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
             table = route_table.load(store.get_meta(route_table.ROUTES_META_KEY))
+            stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
             matched = [route_table.match(table or [], url) for url in routes or []]
             routed = [route for route in matched if route is not None]
             plan = plan_seeds(
@@ -278,8 +280,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if reached:
                 result["routes"] = [route.as_row() for route in reached]
+        if stored_records:
+            # Seeds first (walked, ambiguous, twinned), then the radius in its own order (407).
+            carriers = [
+                *plan.walk_seeds,
+                *(qname for qname, _ in plan.ambiguous_sites),
+                *(qname for qname, _ in plan.twinned_sites),
+                *(str(row["qname"]) for row in results),
+            ]
+            record_rows = records.attached(stored_records, carriers, via=True)
+            if record_rows:
+                result["records"] = record_rows[: config.page_limit]
+                result["records_total"] = len(record_rows)
         _attach_freshness(result, staleness)
-        if routes or "routes" in result:
+        if routes or "routes" in result or "records" in result:
             # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
             attach_rules_stale(result, config, relabel=bool(routes))
         attach_seed_expansion(result, plan, paths)
