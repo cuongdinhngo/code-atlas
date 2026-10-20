@@ -34,6 +34,7 @@ EDIT = (
     "  self.pick = function () {};\n"  # 10
     "}\n"  # 11
     "</script>\n"  # 12
+    '<a ng-click="$ctrl.save(); vm.ctrl.save()">other scopes</a>\n'  # 13
 )
 # Two controllers bound to `ctrl` in one file: which one a reference names cannot be told.
 TWO = (
@@ -50,6 +51,10 @@ PAGE = (
     "  function head() {\n"
     "    $this->loadScripts(['js/app.js', $dynamic, 'js/' . $x, \"js/gone.js\"]);\n"
     "    $this->loadScripts(array('js/app.js'));\n"
+    "    $this->loadScripts([\n"
+    "      'js/app.js',\n"
+    "    ]);\n"
+    "    $this->loadScripts( ARRAY ('js/app.js'));\n"
     "  }\n"
     "}\n"
 )
@@ -62,7 +67,7 @@ RULES = {
         {
             "files": ["web/*.php"],
             "context_pattern": CONTEXT,
-            "pattern": "\\bctrl\\.(?P<member>[\\w$]+)\\(",
+            "pattern": "(?<![\\w$.])ctrl\\.(?P<member>[\\w$]+)\\(",
             "target_template": "{path}::{ctrl}::{member}",
         },
         {
@@ -139,18 +144,21 @@ def test_an_undecidable_controller_links_neither(tmp_path: Path) -> None:
 
 
 def test_a_list_of_asset_paths_names_each_file_once_per_site(tmp_path: Path) -> None:
-    config, _ = _build(tmp_path, RULES)
+    config, report = _build(tmp_path, RULES)
     refs = find_references.create(config)("web/js/app.js", detail_level="standard")
     assert refs["reason"] == "ok", refs
     rows = refs["results"]
     assert isinstance(rows, list)
-    assert _rows(refs) == [("\\Page::head", "HEURISTIC", True)] * 2
+    assert _rows(refs) == [("\\Page::head", "HEURISTIC", True)] * 3
     with GraphStore(config.db_path) as store:
         lines = store._conn.execute(
             "SELECT line FROM edges WHERE target_qname = 'web/js/app.js' ORDER BY line"
         ).fetchall()
-    # `[…]` and `array(…)` each name it once; `$dynamic`, a concatenation and `gone.js` do not.
-    assert [row[0] for row in lines] == [4, 5]
+    # `[…]`, `array(…)` and `ARRAY (…)` each name it once; `$dynamic`, a concatenation and
+    # `gone.js` do not, and a list split over lines is read as nothing and counted.
+    assert [row[0] for row in lines] == [4, 5, 9]
+    unread = {"setter": "loadScripts", "kind": "CALLS", "key_arg": 1, "keys_unread": 1}
+    assert report.keys_unread == (unread,)
 
 
 def test_ac2_no_rule_writes_the_same_rows(tmp_path: Path) -> None:

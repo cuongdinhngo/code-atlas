@@ -383,14 +383,15 @@ scanner masks literals) the call's first line is read, as before (398).
   an object key is still read from the call's first line only.
 - **A list of keys (406).** `key_from: "list"` reads a `[…]` / `array(…)` argument: each top-level
   entry that is one string literal is a key (`loadScripts(['js/x.js'])` → `"public/{key}"`, a File).
-  A variable, a concatenation or a keyed entry names nothing; read from the call's first line.
+  A variable, a concatenation or a keyed entry names nothing; read from the call's first line, so a
+  list split over lines names nothing and counts in `keys_unread`.
 - **A reference in a file's text (406).** `template_refs` entries are not calls: `files` (globs over
   the repo-relative path, `*` crossing `/`) picks indexed files, and every match of `pattern` is a
   `HEURISTIC` edge (`kind` `CALLS` or `REFERENCES`) from the file's File node at its line. Its named
   groups fill `target_template`, with `{path}` and the groups of `context_pattern`, which must take
   one value in the file — none or two, and the file's matches link nothing:
   `{"files": ["views/*.php"], "context_pattern": "ng-controller=\"(?P<ctrl>\\w+) as ctrl\"",
-  "pattern": "\\bctrl\\.(?P<member>\\w+)\\(", "target_template": "{path}::{ctrl}::{member}"}`.
+  "pattern": "(?<![\\w$.])ctrl\\.(?P<member>\\w+)\\(", "target_template": "{path}::{ctrl}::{member}"}`.
   A match that links nothing counts in `rule_keys_unresolved`. The whole file is searched, script
   included, and only a file an adapter indexes is read.
 - **A table named by a string (364).** `kind: "WRITES"` or `"DELETES"` emits that edge instead of a

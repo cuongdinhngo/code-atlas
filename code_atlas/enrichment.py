@@ -6,6 +6,7 @@ Rules live **outside** ``adapters/`` (R2.2). The core applies them generically �
 
 from __future__ import annotations
 
+import bisect
 import fnmatch
 import hashlib
 import json
@@ -44,6 +45,8 @@ _LITERAL_FIELD = re.compile(
 # The callee's own name, the last identifier of its qname: where its argument list starts (352).
 _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
 _OPENERS = {"(": ")", "[": "]", "{": "}"}
+# The long form of an array literal, `array (…)` with any case and spacing (406).
+_ARRAY_CALL = re.compile(r"array\s*\(", re.IGNORECASE)
 
 
 # One keyed_calls edge as the census sees it: (source, target_raw, line, kind) — 222/352/364.
@@ -446,6 +449,7 @@ def _template_ref_edges(
     if not rules:
         return [], (), ()
     paths = sorted(store.file_paths())
+    texts: dict[str, tuple[str, list[int]] | None] = {}
     out: list[dict[str, object]] = []
     groups: list[tuple[Stamp, ...]] = []
     sites: dict[tuple[str, int, str], list[Stamp]] = {}
@@ -455,12 +459,15 @@ def _template_ref_edges(
         for rel in paths:
             if not any(fnmatch.fnmatchcase(rel, glob) for glob in rule.files):
                 continue
-            text = _file_text(config.root, rel)
-            if text is None:
+            if rel not in texts:
+                texts[rel] = _file_text(config.root, rel)
+            read = texts[rel]
+            if read is None:
                 continue
+            text, newlines = read
             context = _file_context(rule.context, text)
             for match in rule.pattern.finditer(text):
-                line = text.count("\n", 0, match.start()) + 1
+                line = bisect.bisect_right(newlines, match.start()) + 1
                 site = sites.setdefault((rel, line, match.group(0)), [])
                 named = match.groupdict()
                 if context is None or any(not value for value in named.values()):
@@ -486,7 +493,12 @@ def _template_ref_edges(
         if group:
             groups.append(tuple(group))
     out.sort(
-        key=lambda row: (str(row["source_qname"]), str(row["target_raw"]), int(str(row["line"])))
+        key=lambda row: (
+            str(row["source_qname"]),
+            str(row["target_raw"]),
+            int(str(row["line"])),
+            str(row["kind"]),
+        )
     )
     return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
 
@@ -503,11 +515,13 @@ def _file_context(pattern: re.Pattern[str] | None, text: str) -> dict[str, str] 
     return dict(found.pop()) if len(found) == 1 else None
 
 
-def _file_text(root: Path, rel: str) -> str | None:
+def _file_text(root: Path, rel: str) -> tuple[str, list[int]] | None:
+    """A file's text and its newline offsets, so a match's line is a bisect, not a count."""
     try:
-        return (root / rel).read_text(encoding="utf-8", errors="replace")
+        text = (root / rel).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
+    return text, [index for index, char in enumerate(text) if char == "\n"]
 
 
 def _rule_census(rule: KeyedCall, missed: int) -> dict[str, object]:
@@ -531,8 +545,14 @@ def _key_unread(
 ) -> bool:
     """A string literal sat where the rule's key is, yet no key was read from it (398).
 
-    A key read but refused by ``key_pattern`` is no route and is not counted (361).
+    A key read but refused by ``key_pattern`` is no route and is not counted (361). A list
+    argument the line read cannot split, or that holds no one-string entry, counts too (406).
     """
+    if rule.key_from == "list":
+        argument = _array_argument(config, edge, rule.key_arg, rel, line, line_cache)
+        typed = _parse_args(edge.get("args")) or []
+        is_array = 1 <= rule.key_arg <= len(typed) and typed[rule.key_arg - 1] == "array"
+        return is_array and not _list_strings(argument)
     if rule.key_from != "string":
         return False
     passed = _parse_mapping(edge.get(contract.KWARGS_FIELD))
@@ -624,8 +644,9 @@ def _list_strings(argument: str | None) -> list[str]:
     A variable, a concatenation, a keyed entry or a double-quoted ``$`` names nothing.
     """
     text = (argument or "").strip()
-    if text[:6].lower() == "array(" and text.endswith(")"):
-        body = text[6:-1]
+    opener = _ARRAY_CALL.match(text)
+    if opener is not None and text.endswith(")"):
+        body = text[opener.end() : -1]
     elif len(text) >= 2 and text[0] == "[" and text[-1] == "]":
         body = text[1:-1]
     else:
