@@ -19,8 +19,10 @@ const META = {
     modifiers: true,
     declared_types: true,
     inheritance: true,
+    // A request's `spans` of any file are read as its `suffix` — a PHP view's `<script>` (399).
+    spans: true,
   },
-  contract_version: 17,
+  contract_version: 18,
   // What a grep for a TS/JS symbol looks like (345): a declaration, a member call or import, a bare call.
   symbol_shapes: [
     {
@@ -58,7 +60,11 @@ function serve() {
       process.stderr.write("code-atlas typescript adapter: skipped an unusable request line\n");
       return;
     }
-    emit(parseFile(path, request.declarations_only === true));
+    const region =
+      Array.isArray(request.spans) && typeof request.suffix === "string"
+        ? { spans: request.spans, suffix: request.suffix }
+        : null;
+    emit(parseFile(path, request.declarations_only === true, region));
   });
 }
 

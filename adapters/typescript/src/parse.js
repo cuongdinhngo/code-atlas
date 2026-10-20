@@ -243,21 +243,56 @@ function argKeys(call) {
   });
 }
 
-function parseFile(path, declarationsOnly) {
+// Only a region's bytes survive; every other byte is a space and every line break stays, so a line
+// of the result is the file's own line (399). Bytes, never UTF-16 offsets: the host counts bytes.
+function regionText(buffer, spans) {
+  const out = Buffer.alloc(buffer.length, 0x20);
+  for (let i = 0; i < buffer.length; i++) {
+    if (buffer[i] === 0x0a || buffer[i] === 0x0d) out[i] = buffer[i];
+  }
+  for (const [start, end] of spans) {
+    if (start < buffer.length) buffer.copy(out, start, start, Math.min(end, buffer.length));
+  }
+  return out.toString("utf8");
+}
+
+function validSpans(spans) {
+  let last = 0;
+  return (
+    spans.length > 0 &&
+    spans.every((span) => {
+      const ok = Array.isArray(span) && Number.isInteger(span[0]) && Number.isInteger(span[1]) && span[0] >= last && span[1] > span[0];
+      if (ok) last = span[1];
+      return ok;
+    })
+  );
+}
+
+/**
+ * @param {string} path
+ * @param {boolean} declarationsOnly
+ * @param {{spans: number[][], suffix: string} | null} [region] another language's file, read in part
+ */
+function parseFile(path, declarationsOnly, region = null) {
   const qpath = toPosix(path);
+  if (region !== null && !validSpans(region.spans)) {
+    return { path: qpath, ok: false, error: "spans must be ascending, disjoint [start, end) pairs" };
+  }
   let text;
   try {
-    text = fs.readFileSync(path, "utf8");
+    text = region === null ? fs.readFileSync(path, "utf8") : regionText(fs.readFileSync(path), region.spans);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { path: qpath, ok: false, error: `cannot read file: ${message}` };
   }
 
-  const sf = ts.createSourceFile(qpath, text, ts.ScriptTarget.Latest, true, scriptKindFor(qpath));
+  const kind = scriptKindFor(region === null ? qpath : region.suffix);
+  const sf = ts.createSourceFile(qpath, text, ts.ScriptTarget.Latest, true, kind);
   // `parseDiagnostics` is an internal SourceFile field, absent from the public type — read it via a
   // documented cast rather than suppress the whole file (task 150 / R6.6).
   const diagnostics = /** @type {any} */ (sf).parseDiagnostics || [];
-  if (diagnostics.length > 0) {
+  // A region's holes (the host's own code) break statements, not declarations: keep the recovered tree.
+  if (diagnostics.length > 0 && region === null) {
     const message = ts.flattenDiagnosticMessageText(diagnostics[0].messageText, " ");
     return { path: qpath, ok: false, error: `syntax error: ${message}` };
   }

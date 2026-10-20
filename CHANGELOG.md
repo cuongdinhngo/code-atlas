@@ -17,6 +17,18 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.7.0 — 2026-10-19 · contract 18 · schema 9
+
+- **Full rebuild required.** Run `code-atlas-build --full`: a PHP view's `<script>` becomes symbols.
+- **Adapter checkout must be updated.** Every adapter speaks contract 18.
+- A function or member in a `.php` / `.phtml` view's inline `<script>` is a symbol of the view at its
+  own line: `file_outline`, `search_symbol` and `read_symbol` find it. The PHP adapter names each
+  classic or module script's bytes (PHP inside it is skipped); the JS adapter reads them. A
+  `text/ng-template` or other data block, and a `<script src>`'s content, are not code (399).
+- A script's calls link in JavaScript and a PHP call never links to a script's function: a row from a
+  region keeps its own language (schema 9). A view whose script no adapter read says so on its file,
+  as `embedded_unread`.
+
 ## 0.6.0 — 2026-10-19 · contract 17 · schema 8
 
 - **Full rebuild required.** Run `code-atlas-build --full`: a T-SQL view becomes a `View` node.

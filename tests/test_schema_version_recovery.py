@@ -33,7 +33,7 @@ from code_atlas.tools.schema_guard import SCHEMA_MISMATCH
 from tests.test_mcp_server import CALLS, call
 
 OLDER = "1"
-NEWER = "9"
+NEWER = "10"
 GIBBERISH = "2.0-rc1"
 FAKE = Path(__file__).resolve().parent / "fixtures" / "adapter" / "fake_adapter.py"
 

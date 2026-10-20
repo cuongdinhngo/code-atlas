@@ -153,11 +153,12 @@ def test_foreign_keys_are_enforced(store: GraphStore) -> None:
 
 
 def test_node_columns_are_the_contract_node_fields(store: GraphStore, db_path: Path) -> None:
-    assert columns(db_path, "nodes") == ("id", *contract.NODE_FIELDS)
+    # `language` is the store's own (399): set on a row an embedded region produced, never emitted.
+    assert columns(db_path, "nodes") == ("id", *contract.NODE_FIELDS, "language")
 
 
 def test_edge_columns_are_the_contract_edge_fields(store: GraphStore, db_path: Path) -> None:
-    assert columns(db_path, "edges") == ("id", *contract.EDGE_FIELDS)
+    assert columns(db_path, "edges") == ("id", *contract.EDGE_FIELDS, "language")
 
 
 @pytest.mark.parametrize(

@@ -68,6 +68,7 @@ def test_the_handshake_announces_capabilities_as_an_object() -> None:
             "modifiers": True,
             "declared_types": True,
             "inheritance": True,
+            "spans": True,
         }
 
 

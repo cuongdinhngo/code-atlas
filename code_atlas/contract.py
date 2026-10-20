@@ -40,7 +40,9 @@ from typing import Literal, get_args
 # v17: `View` (402). A view is a stored query, not a table: its source is its answer and it has no
 # columns of its own, so its own kind keeps every Table reader (columns, ER, writers) unchanged.
 # Also v17: `extra.migration_version` (403), so the latest of a migration's redefinitions answers.
-CONTRACT_VERSION = 17
+# v18: `embedded` on a result, `spans` + `suffix` on a request, the `spans` capability (399). A
+# region of one language inside another's file is named by its host, read by its suffix's owner.
+CONTRACT_VERSION = 18
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -247,7 +249,12 @@ ARG_ABSENT = "absent"
 ARG_DYNAMIC = "dynamic"
 ARG_SELECTORS: tuple[str, ...] = (*ARG_LITERALS, ARG_ABSENT, ARG_DYNAMIC)
 
-RESULT_FIELDS: tuple[str, ...] = ("path", "ok", "nodes", "edges", "error")
+RESULT_FIELDS: tuple[str, ...] = ("path", "ok", "nodes", "edges", "error", "embedded")
+
+# v18 (399): a region of the file in another language — the suffix that language owns, and byte
+# ``[start, end)`` spans of the file as read, ascending and disjoint. The core sends each one to the
+# adapter owning the suffix as a request carrying ``spans`` and ``suffix``.
+EMBEDDED_FIELDS: tuple[str, ...] = ("suffix", "spans")
 
 # The handshake an adapter announces itself with, before any result (§4.1).
 META_FIELDS: tuple[str, ...] = (
@@ -295,6 +302,9 @@ KNOWN_CAPABILITIES: tuple[str, ...] = (
     "modifiers",
     "declared_types",
     "inheritance",
+    # v18 (399): the adapter reads a request's `spans` of a file as its `suffix`, every other byte
+    # blank and every line the file's own. Only an adapter announcing it is sent one.
+    "spans",
 )
 
 # ``extra`` / tool-payload key for declarations-only stub nodes (task 039). Not a contract bump.
@@ -325,6 +335,12 @@ UNMODELLED_RESOLUTION_STRATEGIES: tuple[str, ...] = (
     RESOLUTION_DYNAMIC_IMPORT,
     RESOLUTION_DYNAMIC_SQL,
 )
+
+# File.extra key (v18, 399): the suffixes of embedded regions no adapter read — the index never
+# looked inside them, which is not "nothing there".
+EMBEDDED_UNREAD_KEY = "embedded_unread"
+# The node kind whose qname is the file's own path (CONVENTION §3).
+FILE_KIND = "File"
 
 # Synthetic target_raw for PROVIDES_VIEW_DATA (task 062) — not an FQN; never resolved.
 VIEW_DATA_PREFIX = "viewdata:"
@@ -444,6 +460,8 @@ def validate(result: object) -> list[str]:
     if result.get("ok") is False:
         return errors + _check_failed_result(result)
 
+    if "embedded" in result:
+        errors += _check_embedded(result["embedded"])
     for name, fields, required, kinds, label in (
         ("nodes", NODE_FIELDS, REQUIRED_NODE_FIELDS, NODE_KINDS, "node kind"),
         ("edges", EDGE_FIELDS, REQUIRED_EDGE_FIELDS, EDGE_KINDS, "edge kind"),
@@ -455,6 +473,43 @@ def validate(result: object) -> list[str]:
         for index, row in enumerate(rows):
             errors += _check_row(f"{name}[{index}]", row, fields, required, kinds, label)
     return errors
+
+
+def _check_embedded(regions: object) -> list[str]:
+    """``embedded``: a list of ``{suffix, spans}``; spans ascending, disjoint, non-empty ranges."""
+    if not isinstance(regions, list):
+        return [_wrong_type("result.embedded", regions, "a list of regions")]
+    errors: list[str] = []
+    for index, region in enumerate(regions):
+        path = f"result.embedded[{index}]"
+        if not isinstance(region, dict):
+            errors.append(_wrong_type(path, region, "an object"))
+            continue
+        errors += _check_keys(path, region, EMBEDDED_FIELDS, EMBEDDED_FIELDS)
+        suffix = region.get("suffix")
+        if "suffix" in region and (not isinstance(suffix, str) or not suffix.startswith(".")):
+            errors.append(_wrong_type(f"{path}.suffix", suffix, "a suffix starting with '.'"))
+        if "spans" in region and not _ordered_spans(region["spans"]):
+            errors.append(
+                _wrong_type(f"{path}.spans", region["spans"], "ascending disjoint [start, end)")
+            )
+    return errors
+
+
+def _ordered_spans(spans: object) -> bool:
+    if not isinstance(spans, list) or not spans:
+        return False
+    last = 0
+    for span in spans:
+        if not (isinstance(span, list) and len(span) == 2):
+            return False
+        start, end = span
+        if not all(isinstance(v, int) and not isinstance(v, bool) for v in span):
+            return False
+        if start < last or end <= start:
+            return False
+        last = end
+    return True
 
 
 def validate_meta(meta: object) -> list[str]:

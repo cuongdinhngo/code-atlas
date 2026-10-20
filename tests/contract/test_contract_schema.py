@@ -192,7 +192,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 17
+    assert CONTRACT_VERSION == 18
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:
@@ -455,3 +455,28 @@ def test_kwarg_strings_malformations_are_each_named() -> None:
     assert any("kwarg_strings" in e for e in _call_errors(kwarg_strings=["k"]))
     assert any("keyword name" in e for e in _call_errors(kwarg_strings={"": "k"}))
     assert any("at most" in e for e in _call_errors(kwarg_strings={"table": 3}))
+
+
+# --- embedded regions (v18, 399) ----------------------------------------------------------------
+
+
+def _with_regions(regions: object) -> dict[str, object]:
+    return {"path": "web/view.php", "ok": True, "nodes": [], "edges": [], "embedded": regions}
+
+
+def test_a_result_may_name_embedded_regions_by_suffix_and_byte_spans() -> None:
+    assert validate(_with_regions([{"suffix": ".js", "spans": [[3, 9], [12, 40]]}])) == []
+    assert "spans" in KNOWN_CAPABILITIES
+
+
+def test_a_region_needs_a_suffix_and_ascending_disjoint_spans() -> None:
+    for bad in (
+        [{"spans": [[0, 1]]}],
+        [{"suffix": "js", "spans": [[0, 1]]}],
+        [{"suffix": ".js", "spans": []}],
+        [{"suffix": ".js", "spans": [[5, 9], [7, 12]]}],
+        [{"suffix": ".js", "spans": [[4, 4]]}],
+        [{"suffix": ".js", "spans": [[0, 1]], "lang": "js"}],
+        {"suffix": ".js"},
+    ):
+        assert validate(_with_regions(bad)), bad
