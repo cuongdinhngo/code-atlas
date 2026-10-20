@@ -1489,9 +1489,11 @@ def _work(
                 result = as_stub_result(result)
             results.put((path, _digest(config.root / path), result))
     finally:
-        if adapter is not None and adapter is not started:
-            adapter.stop()
-        guests.stop()
+        try:
+            if adapter is not None and adapter is not started:
+                adapter.stop()
+        finally:
+            guests.stop()
         results.put(None)
 
 

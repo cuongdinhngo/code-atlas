@@ -388,11 +388,12 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"8"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"9"` and enforced loud.** On open, a database carrying a different value raises
 — the DB is a derived cache, so there is no migration runner. Each bump names the task that
 holds it: **2** `nodes_fts` trigram (camelCase substring search); **3** `edges.args` (049); **4**
 `edges.arg_keys` (063); **5** `files.fingerprint` (213); **6** one unresolved site per call in place
-of materialised Method-name siblings (258); **7** `edges.kwargs` (372); **8** string values (398).
+of materialised Method-name siblings (258); **7** `edges.kwargs` (372); **8** string values (398); **9**
+`nodes.language` / `edges.language`, a region row's own language (399).
 
 **The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
 is read *before* the DDL runs, so a database this build cannot read is never written to, and
