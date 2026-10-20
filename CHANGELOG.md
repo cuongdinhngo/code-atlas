@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A `records` block in the rule file attaches a consumer's records — a QA ticket, an incident — to
+  the symbols they name: `find_references`, `read_symbol` and `impact` list them, and the build and
+  `get_index_status` report dangling targets and how many ids the block's exclusion list kept off.
+  Sources may be gitignored exports; an edit reads `rules_stale` until the next refresh (407).
+
 ## 0.7.0 — 2026-10-19 · contract 18 · schema 9
 
 - **Full rebuild required.** Run `code-atlas-build --full`: a PHP view's `<script>` becomes symbols.
