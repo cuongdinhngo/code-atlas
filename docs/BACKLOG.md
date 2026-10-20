@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 |---|---|---|---|---|
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
-| 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 | 406 | [PHP template refs (`ctrl.X(`, `ng-model`, asset lists) — evidence-gated](tasks/406_php-template-references.md) | Coverage | deferred | 399 |
 
@@ -85,6 +84,10 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
   misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
   match, and a procedure in another schema leaves an uncounted unresolved edge — 386.
+- **`impact_modules` reads as the PR blast-radius tool** — a name-only probe picked it for
+  *"a blast-radius sentence I can paste on the PR"*; `impact` and `find_callers` are the answer — 200.
+- **The consumer brief names no contract-change occasion** — its first occasion is a rename; a widened
+  return contract under the same name is the field 16–30 miss (probe O6) — 200.
 - **The PreCompact state line reaches no one** — Claude Code adds no PreCompact stdout to context and
   discards its `systemMessage` (`hooks.md`, read 2026-10-10); the hook still runs there — 381.
 
