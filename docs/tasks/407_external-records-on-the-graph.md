@@ -83,7 +83,7 @@ parse.
 
 ## Session status
 
-- **KEY:** 407 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 407 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · Run mode: `autorun 407 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/407-external-records-on-the-graph` from `main` (`4c3a3659`, #96 merged). Contract `.mango/run-contract-407.txt`.
@@ -136,7 +136,7 @@ relabel on it must read absence as `ok`.
 
 `PREMISE: 6 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
 `RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
-`SECTIONS: 4 found (Why this exists · Scope · Assumptions to prove at design · Acceptance criteria) | 4 decomposed | ROWS: C=4 R=5 G=1 AC=9`
+`SECTIONS: 4 found (Why this exists · Scope · Assumptions to prove at design · Acceptance criteria) | 4 decomposed | ROWS: C=4 R=5 G=1 AC=10`
 `CLARIFICATION: 25 raised | 25 self-resolved (cited) | 0 for human decision`
 `TRACK: backend — 0/14 touched files under UI paths`
 `SCOPE: M`
@@ -169,6 +169,7 @@ decisions"): each stands `ASSUMED (awaiting ratification)` for the maintainer at
 | AC4a | AC4 | an excluded id appears in no tool answer and no CLI output | per-surface inventory below, N = 5 | ✅ |
 | AC4b | AC4 | status reports only how many were excluded | `excluded: n`, no ids | ✅ |
 | AC5 | AC5 | no declared source → byte-identical answers | per-surface inventory below, N = 5 | ✅ |
+| AC6 | AC6 (added 2026-10-20) | a gitignored source is read; its rewrite moves the records on the next refresh; `rules_stale` until then | the glob reads disk, not `git ls-files`; the digest covers the file | ✅ |
 
 ### AC validation
 
@@ -179,6 +180,7 @@ decisions"): each stands `ASSUMED (awaiting ratification)` for the maintainer at
 | AC2 | yes | `impact` on a callee lists a record attached to its caller with `via == caller` |
 | AC3 | yes | `dangling == 1` and the pair is listed in the build result and status; the id is absent from the target's answers |
 | AC4 | yes | the excluded id's string occurs in none of the five answers' JSON (nor the CLI's stdout); `excluded == 1` |
+| AC6 | yes | `qa/export.json` is gitignored and absent from `git ls-files`, yet served; rewritten, `rules_stale` is true until `incremental_update`, then the records move |
 | AC5 | yes | with no block, none of the five answers carries a `records` key and the index has no records meta key; a rule file without the block answers equal to no rule file |
 
 **Universal inventory — AC4a / AC5 (N = 5):** 1 `find_references` · 2 `read_symbol` · 3 `impact` · 4 `get_index_status`
@@ -292,6 +294,7 @@ R7.5 (≤ 3-line comments) and R7.6 (prune as you add) bind every change and are
 | AC3a–c | integration | a record naming a removed symbol: build result, status, the tools | n/a | ✅ |
 | AC4a–b | integration | an excluded id: its string in none of the five answers, the CLI stdout; `excluded == 1` | n/a | ✅ |
 | AC5 | integration | no block: no `records` key in the five answers, no meta key; rule file without the block answers equal to none | n/a | ✅ |
+| AC6 | integration | a gitignored export, rewritten; status and the tool before and after an incremental | n/a | ✅ |
 | C2 | integration | a SQL table in two files carries one record on both `find_references` and an ambiguous `impact` | n/a | ✅ |
 | C3 | runtime (anchor) | — | n/a | excluded (W3) |
 
@@ -311,3 +314,56 @@ has run `impact` with a `records` block on the anchor index · seen: 407.
 `git revert`; the records are two meta keys, dropped by the next build without the block. One repo, no porting.
 
 `SCOPE: M` — unchanged.
+
+## Phase 3 — execute
+
+**The ticket moved mid-run (2026-10-20).** The maintainer de-identified the Why text and added to Scope 1 that a
+source may be untracked or gitignored, with **AC6**. The approach already read sources from disk through the glob,
+never `git ls-files`, and an incremental always compares the rules digest, so AC6 needed a test, not a design
+change: a row each in the matrix, the AC table and the verification plan above. The fixture now gitignores its
+export and its exclusion list, so every test proves the untracked read.
+
+Commits `c66b94d9` (ticket), `6a678001` (core, tools, tests, module pins 104 → 105), `6a34e56d` (TOOLS.md,
+CHANGELOG), `f2011141` (a split assertion).
+
+**Red first** (R6.5) — on `4c3a3659`, before `records.py` existed:
+
+```
+$ .venv/bin/python -m pytest -q tests/test_external_records.py
+ERROR tests/test_external_records.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+Ran at 4c3a36594dfd4993e8a4666f941c71fde28af392
+```
+
+**Green:**
+
+```
+$ .venv/bin/python -m pytest -q tests/test_external_records.py
+17 passed in 4.86s
+$ .venv/bin/python -m pytest -q -s tests/test_external_records.py -k thousand
+1000 records read and resolved in 0.060s
+$ .venv/bin/python -m pytest -q tests/test_impact*.py tests/test_find_references*.py tests/test_read_symbol*.py \
+    tests/test_get_index_status_health.py tests/test_index_status_summary.py tests/test_rules_stale.py \
+    tests/test_route_table.py tests/test_routes_from_json.py tests/test_indirection_enrichment.py \
+    tests/test_build_report_counts.py tests/test_build_cli.py tests/test_agent_brief_usage_completeness.py \
+    tests/test_tool_descriptions.py tests/test_payload_weight.py tests/test_mcp_server.py tests/test_incremental.py \
+    tests/test_noop_incremental.py tests/test_claim_signing.py tests/test_keyed_calls_rule.py
+758 passed in 87.78s (0:01:27)
+$ .venv/bin/ruff check .
+All checks passed!
+$ .venv/bin/mypy code_atlas onboarding_llm
+Success: no issues found in 113 source files
+Ran at f20111416d748e5b97ded8a3bc94f51752728da1
+```
+
+The 758-test run ran at `6a678001`; nothing under `code_atlas/` changed after it.
+
+**Verification sweep.** File axis: `git diff --stat 4c3a3659..HEAD` lists 15 files, all on the change list except
+**D1**. `docs/PLAN.md` is untouched because it never described 385's route table, so it had nothing to update. No
+language branch: `grep -n 'if .*language ==' code_atlas/records.py` exits 1. Behaviour axis: Approach 1–3 are
+implemented as approved. In Approach 4, PLAN is D1. C4's overhead is 0.060 s for 1,000 records read and resolved,
+on synthetic data.
+
+| # | Deviation | Trace | Effect |
+|---|---|---|---|
+| D1 | `docs/PLAN.md` not edited | change list row 6 | none: PLAN names no route table, so it had no line for records to extend |
