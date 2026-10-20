@@ -4,7 +4,7 @@ slug: external-records-on-the-graph
 title: 'A record written about code (a QA ticket, an incident) cannot be attached to a symbol, so `impact` stops at code and the consumer keeps a copy that goes stale'
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [382, 384, 385]
 ---
 
@@ -83,7 +83,7 @@ parse.
 
 ## Session status
 
-- **KEY:** 407 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 407 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W3, runs E1 on the anchor, and merges. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · Run mode: `autorun 407 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/407-external-records-on-the-graph` from `main` (`4c3a3659`, #96 merged). Contract `.mango/run-contract-407.txt`.
@@ -202,16 +202,9 @@ stale with no new code.
 
 `BASELINE: red — tests/test_release_discipline.py::test_the_top_release_is_tagged (399's strict xfail XPASSes now that v0.7.0 is tagged; recorded baseline exclusion B1, outside this change)`
 
-```
-$ scripts/gate.sh
-  FAIL pytest -q
-      [XPASS(strict)] v0.7.0 not yet tagged (399)
-      FAILED tests/test_release_discipline.py::test_the_top_release_is_tagged - [XP...
-      1 failed, 4869 passed, 4 skipped in 653.77s (0:10:53)
-  20 passed · 1 failed · 0 skipped
-GATE RED — 1 check(s) failed
-Ran at 4c3a36594dfd4993e8a4666f941c71fde28af392
-```
+`scripts/gate.sh` on the untouched checkout: `FAIL pytest -q` — `[XPASS(strict)] v0.7.0 not yet tagged (399)`,
+`1 failed, 4869 passed, 4 skipped in 653.77s`; `20 passed · 1 failed · 0 skipped`, `GATE RED`. Ran at 4c3a3659
+(log `.mango/baseline-407.log`, untracked).
 
 DoD: prove the delta green — B1 is the only failure allowed after the change.
 
@@ -326,37 +319,14 @@ export and its exclusion list, so every test proves the untracked read.
 Commits `c66b94d9` (ticket), `6a678001` (core, tools, tests, module pins 104 → 105), `6a34e56d` (TOOLS.md,
 CHANGELOG), `f2011141` (a split assertion).
 
-**Red first** (R6.5) — on `4c3a3659`, before `records.py` existed:
+**Red first** (R6.5): on `4c3a3659`, before `records.py` existed, `tests/test_external_records.py` errored at
+collection (`Interrupted: 1 error during collection`). Ran at 4c3a3659.
 
-```
-$ .venv/bin/python -m pytest -q tests/test_external_records.py
-ERROR tests/test_external_records.py
-!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
-Ran at 4c3a36594dfd4993e8a4666f941c71fde28af392
-```
-
-**Green:**
-
-```
-$ .venv/bin/python -m pytest -q tests/test_external_records.py
-17 passed in 4.86s
-$ .venv/bin/python -m pytest -q -s tests/test_external_records.py -k thousand
-1000 records read and resolved in 0.060s
-$ .venv/bin/python -m pytest -q tests/test_impact*.py tests/test_find_references*.py tests/test_read_symbol*.py \
-    tests/test_get_index_status_health.py tests/test_index_status_summary.py tests/test_rules_stale.py \
-    tests/test_route_table.py tests/test_routes_from_json.py tests/test_indirection_enrichment.py \
-    tests/test_build_report_counts.py tests/test_build_cli.py tests/test_agent_brief_usage_completeness.py \
-    tests/test_tool_descriptions.py tests/test_payload_weight.py tests/test_mcp_server.py tests/test_incremental.py \
-    tests/test_noop_incremental.py tests/test_claim_signing.py tests/test_keyed_calls_rule.py
-758 passed in 87.78s (0:01:27)
-$ .venv/bin/ruff check .
-All checks passed!
-$ .venv/bin/mypy code_atlas onboarding_llm
-Success: no issues found in 113 source files
-Ran at f20111416d748e5b97ded8a3bc94f51752728da1
-```
-
-The 758-test run ran at `6a678001`; nothing under `code_atlas/` changed after it.
+**Green at execute:** the proving test `17 passed`; the 1,000-record load `0.060s`; the neighbouring files
+(impact, find_references, read_symbol, status, rules-stale, routes, enrichment, build report and CLI, agent-brief
+completeness, tool descriptions, payload weight, MCP server, incremental, claim signing, keyed calls) `758 passed in
+87.78s`; `ruff check .` and `mypy code_atlas onboarding_llm` clean. Ran at 6a678001 / f2011141, both superseded by the
+final gate in Phase 5.
 
 **Verification sweep.** File axis: `git diff --stat 4c3a3659..HEAD` lists 15 files, all on the change list except
 **D1**. `docs/PLAN.md` is untouched because it never described 385's route table, so it had nothing to update. No
@@ -367,3 +337,72 @@ on synthetic data.
 | # | Deviation | Trace | Effect |
 |---|---|---|---|
 | D1 | `docs/PLAN.md` not edited | change list row 6 | none: PLAN names no route table, so it had no line for records to extend |
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 56,811 tokens; raw ticket only, read from a file holding the text above the
+  separator): 12 met · 0 not met · 3 can't tell (AC5 byte-identity: it did not run a before/after diff; A2 and A3:
+  the measurements live in this doc). It flagged S2b, "a record is a node", as the deviation W1 records. Its six
+  edge cases, settled in `cc0262fc`:
+  1. A record naming a file was stored but never reached `impact`, whose carriers were qnames only — **fixed**:
+     the seed paths and the row files carry too (`test_a_record_on_a_file_reaches_impact_on_that_file`).
+     This is 362-C1's class again (a widened target must widen every query behind the answer).
+  2. A glob that matches nothing was silent — **fixed**: `files` counts the matches.
+  3. A field map naming the wrong key was invisible — **fixed**: `untargeted` counts records with no target.
+  4–6. A duplicate id is unnamed, a record shared by carriers names its first carrier, and a malformed file is
+  unnamed. All three are by design (H11, H6, H10), each counted, and documented in TOOLS.md.
+- **Round 2: verify-only, main loop.** Every fix stays inside the named findings and the approved files, so nothing
+  was re-dispatched. The fixes are present as described, and the affected proof re-ran:
+
+`tests/test_external_records.py` `18 passed in 6.49s`; `ruff` and `mypy` clean over `code_atlas` and the test.
+Ran at cc0262fc, superseded by the final gate in Phase 5.
+
+**AC5 (the challenger's can't-tell).** Every surface's addition sits behind a meta key that only a declared block
+writes, and the block's removal deletes it. Two tests drive this: no block, and a block removed then refreshed. The
+five surfaces' unchanged neighbours (758 tests in Phase 3) pass byte-for-byte, so no golden moved.
+
+Verdict: clean (challenger only — REVIEWER: OFF), with W1–W3 standing for ratification and E1 deferred.
+`Ph3/4 proven by`: R1, R4, R5, AC1–AC6, C2, C4 → `tests/test_external_records.py`; R3 and the AC4a/AC5 inventory
+(5/5: find_references · read_symbol · impact · get_index_status · build result, CLI included) → its two all-surface
+tests; R2 → W1; C1 → the R1.1 module pin; C3 → E1; G1 → TOOLS.md.
+
+Reviewed at cc0262fc165e1657cdf49413f5d10de2d85c0aec. Files: `code_atlas/records.py`, `code_atlas/enrichment.py`,
+`code_atlas/indexer.py`, the five tools, `tests/test_external_records.py`, the two module pins, `docs/TOOLS.md`,
+`CHANGELOG.md`. Working doc: this file.
+
+## Phase 5 — finalise
+
+**Durable lesson.** A target widened from qnames to files reached the stored records but not one of the readers
+behind `impact`'s answer: the row files. This is 362-C1 (`widen-every-query-that-shares-the-page`) seen again, not a
+new claim.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 1 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+
+Falsify: `test_impact_lists_records_across_the_radius_with_the_carrying_node`, run against `f2011141`'s `impact.py`,
+gives `1 failed` (`('T-5', 'handlers/repo.py')` missing). It is the guard. `test_a_record_on_a_file_reaches_impact_on_that_file`
+passes on both trees, because a path seed is the File node's qname, so it documents behaviour rather than guarding the
+fix. Cannot promote: an unattended run. `seen:` now holds twelve keys, and `/mango:promote` is the maintainer's
+cross-ticket pass.
+
+Stale-review guard: after `cc0262fc`, only this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and
+`docs/LESSONS.md` change. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/407-external-records-on-the-graph`; open its PR against `main`.
+Deferred to the maintainer: ratify W1–W3, E1 on the anchor, merge, `/mango:promote` for 362-C1.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 44,959 |
+| 4 review | ticket-blind `challenger` | 1 | 56,811 |
+
+`LEDGER TOTAL: 101,770 · top cost driver: 4 review / challenger` — main loop unmeasured.
