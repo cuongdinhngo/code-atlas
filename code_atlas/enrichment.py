@@ -6,6 +6,8 @@ Rules live **outside** ``adapters/`` (R2.2). The core applies them generically �
 
 from __future__ import annotations
 
+import bisect
+import fnmatch
 import hashlib
 import json
 import re
@@ -43,6 +45,8 @@ _LITERAL_FIELD = re.compile(
 # The callee's own name, the last identifier of its qname: where its argument list starts (352).
 _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
 _OPENERS = {"(": ")", "[": "]", "{": "}"}
+# The long form of an array literal, `array (…)` with any case and spacing (406).
+_ARRAY_CALL = re.compile(r"array\s*\(", re.IGNORECASE)
 
 
 # One keyed_calls edge as the census sees it: (source, target_raw, line, kind) — 222/352/364.
@@ -64,6 +68,17 @@ class KeyedCall(NamedTuple):
     key_kw: str | None = None
 
 
+class TemplateRef(NamedTuple):
+    """One ``template_refs`` rule: a reference read from a file's text, not from a call (406)."""
+
+    files: tuple[str, ...]
+    pattern: re.Pattern[str]
+    template: str
+    # Its named groups, found once per file, fill the template too; two values or none link nothing.
+    context: re.Pattern[str] | None = None
+    kind: str = "CALLS"
+
+
 @dataclass(frozen=True, slots=True)
 class RulesPayload:
     """Validated aliases/calls/view_data/keyed_calls plus a content digest (load before parse)."""
@@ -73,6 +88,8 @@ class RulesPayload:
     view_data: tuple[tuple[str, int, str], ...]
     keyed_calls: tuple[KeyedCall, ...]
     digest: str
+    # Text references the core reads from indexed files (406).
+    template_refs: tuple[TemplateRef, ...] = ()
     # Declared route tables (385): a lookup the build resolves into meta, never edges.
     routes: tuple[routes.RouteBlock, ...] = ()
     # Declared record sources (407): read here so their bytes join the digest; resolved into meta.
@@ -93,6 +110,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     calls: list[tuple[str, str, int]] = []
     view_data: list[tuple[str, int, str]] = []
     keyed_calls: list[KeyedCall] = []
+    template_refs: list[TemplateRef] = []
     route_blocks: list[routes.RouteBlock] = []
     record_sets: list[records.RecordSet] = []
     digester = hashlib.sha256()
@@ -118,7 +136,8 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         view_data.extend(parsed[2])
         keyed_calls.extend(parsed[3])
         route_blocks.extend(routes.read_blocks(parsed[4], relative, config.root, digester.update))
-        record_sets.extend(records.read_blocks(parsed[5], relative, config.root, digester.update))
+        template_refs.extend(parsed[5])
+        record_sets.extend(records.read_blocks(parsed[6], relative, config.root, digester.update))
 
     return RulesPayload(
         aliases=tuple(aliases),
@@ -127,6 +146,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         keyed_calls=tuple(keyed_calls),
         digest=digester.hexdigest(),
         routes=tuple(route_blocks),
+        template_refs=tuple(template_refs),
         records=tuple(record_sets),
     )
 
@@ -221,13 +241,15 @@ def apply_indirection_rules(
         config, store, loaded.keyed_calls
     )
     edges.extend(keyed_edges)
+    text_edges, text_groups, text_sites = _template_ref_edges(config, store, loaded.template_refs)
+    edges.extend(text_edges)
 
     store.replace_file_rows(INDIRECTION_FILE, [], edges)
     return Enriched(
         nodes=0,
         edges=len(edges),
-        keyed_call_groups=keyed_groups,
-        keyed_call_sites=keyed_sites,
+        keyed_call_groups=keyed_groups + text_groups,
+        keyed_call_sites=keyed_sites + text_sites,
         keys_unread=unread,
     )
 
@@ -454,6 +476,92 @@ def _keyed_calls_edges(
     return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites)), tuple(unread)
 
 
+def _template_ref_edges(
+    config: Config, store: GraphStore, rules: tuple[TemplateRef, ...]
+) -> tuple[list[dict[str, object]], tuple[tuple[Stamp, ...], ...], tuple[tuple[Stamp, ...], ...]]:
+    """Edges from each match of a rule's ``pattern`` in the indexed files its globs name (406).
+
+    The edge is sourced at the File, at the match's line. Every match is a site for the census;
+    one whose groups or file context fill no template carries no stamp, so it counts unresolved.
+    """
+    if not rules:
+        return [], (), ()
+    paths = sorted(store.file_paths())
+    texts: dict[str, tuple[str, list[int]] | None] = {}
+    out: list[dict[str, object]] = []
+    groups: list[tuple[Stamp, ...]] = []
+    sites: dict[tuple[str, int, str], list[Stamp]] = {}
+    seen: set[Stamp] = set()
+    for rule in rules:
+        group: list[Stamp] = []
+        for rel in paths:
+            if not any(fnmatch.fnmatchcase(rel, glob) for glob in rule.files):
+                continue
+            if rel not in texts:
+                texts[rel] = _file_text(config.root, rel)
+            read = texts[rel]
+            if read is None:
+                continue
+            text, newlines = read
+            context = _file_context(rule.context, text)
+            for match in rule.pattern.finditer(text):
+                line = bisect.bisect_right(newlines, match.start()) + 1
+                site = sites.setdefault((rel, line, match.group(0)), [])
+                named = match.groupdict()
+                if context is None or any(not value for value in named.values()):
+                    continue
+                target = _fill(rule.template, {**context, **named, "path": rel})
+                stamp = (rel, target, line, rule.kind)
+                if stamp not in site:
+                    site.append(stamp)
+                if stamp in seen:
+                    continue
+                seen.add(stamp)
+                group.append(stamp)
+                out.append(
+                    {
+                        "kind": rule.kind,
+                        "source_qname": rel,
+                        "target_raw": target,
+                        "file_path": INDIRECTION_FILE,
+                        "line": line,
+                        "confidence_tier": _HEURISTIC,
+                    }
+                )
+        if group:
+            groups.append(tuple(group))
+    out.sort(
+        key=lambda row: (
+            str(row["source_qname"]),
+            str(row["target_raw"]),
+            int(str(row["line"])),
+            str(row["kind"]),
+        )
+    )
+    return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
+
+
+def _file_context(pattern: re.Pattern[str] | None, text: str) -> dict[str, str] | None:
+    """The one value set ``pattern``'s named groups take in ``text``; ``None`` for zero or two."""
+    if pattern is None:
+        return {}
+    found = {
+        tuple(sorted((name, str(value)) for name, value in match.groupdict().items()))
+        for match in pattern.finditer(text)
+        if all(match.groupdict().values())
+    }
+    return dict(found.pop()) if len(found) == 1 else None
+
+
+def _file_text(root: Path, rel: str) -> tuple[str, list[int]] | None:
+    """A file's text and its newline offsets, so a match's line is a bisect, not a count."""
+    try:
+        text = (root / rel).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return text, [index for index, char in enumerate(text) if char == "\n"]
+
+
 def _rule_census(rule: KeyedCall, missed: int) -> dict[str, object]:
     """One rule's ``keys_unread`` row, named the way the rule file names it (398)."""
     row: dict[str, object] = {"setter": rule.setter, "kind": rule.kind}
@@ -475,8 +583,14 @@ def _key_unread(
 ) -> bool:
     """A string literal sat where the rule's key is, yet no key was read from it (398).
 
-    A key read but refused by ``key_pattern`` is no route and is not counted (361).
+    A key read but refused by ``key_pattern`` is no route and is not counted (361). A list
+    argument the line read cannot split, or that holds no one-string entry, counts too (406).
     """
+    if rule.key_from == "list":
+        argument = _array_argument(config, edge, rule.key_arg, rel, line, line_cache)
+        typed = _parse_args(edge.get("args")) or []
+        is_array = 1 <= rule.key_arg <= len(typed) and typed[rule.key_arg - 1] == "array"
+        return is_array and not _list_strings(argument)
     if rule.key_from != "string":
         return False
     passed = _parse_mapping(edge.get(contract.KWARGS_FIELD))
@@ -504,6 +618,9 @@ def _keyed_values(
     group 1 as ``key``); an ``object`` key is the literal's string fields the template names.
     """
     args = edge.get("args")
+    if rule.key_from == "list":
+        argument = _array_argument(config, edge, rule.key_arg, rel, line, line_cache)
+        return [(key, {"key": key}) for key in _list_strings(argument)]
     if rule.key_from == "object":
         parsed = _parse_args(args)
         if parsed is None or not 1 <= rule.key_arg <= len(parsed):
@@ -541,6 +658,46 @@ def _keyed_values(
             if value:
                 found.append((key, {"key": value}))
     return found
+
+
+def _array_argument(
+    config: Config,
+    edge: dict[str, object],
+    key_arg: int,
+    rel: str,
+    line: int,
+    line_cache: dict[tuple[str, int], str | None],
+) -> str | None:
+    """The source text of argument ``key_arg`` when the adapter typed it an array (361/406)."""
+    parsed = _parse_args(edge.get("args"))
+    if parsed is None or not 1 <= key_arg <= len(parsed) or parsed[key_arg - 1] != "array":
+        return None
+    text = _line_text(config.root, rel, line, line_cache)
+    return _call_argument(text, edge.get("target_raw"), key_arg) if text is not None else None
+
+
+def _list_strings(argument: str | None) -> list[str]:
+    """Each top-level entry of a ``[…]`` / ``array(…)`` literal that is exactly one string (406).
+
+    A variable, a concatenation, a keyed entry or a double-quoted ``$`` names nothing.
+    """
+    text = (argument or "").strip()
+    opener = _ARRAY_CALL.match(text)
+    if opener is not None and text.endswith(")"):
+        body = text[opener.end() : -1]
+    elif len(text) >= 2 and text[0] == "[" and text[-1] == "]":
+        body = text[1:-1]
+    else:
+        return []
+    keys: list[str] = []
+    for entry in _top_level_entries(body):
+        literal = entry.strip()
+        if _STRING_LIT.fullmatch(literal) is None or (literal[0] == '"' and "$" in literal):
+            continue
+        value = _nth_string_literal(literal, 1)
+        if value and value not in keys:
+            keys.append(value)
+    return keys
 
 
 def _fill(template: str, values: dict[str, str]) -> str:
@@ -842,6 +999,7 @@ def _load_rules(
     list[tuple[str, int, str]],
     list[KeyedCall],
     object,
+    list[TemplateRef],
     object,
 ]:
     try:
@@ -892,7 +1050,21 @@ def _load_rules(
             raise ConfigError(f"indirection_rules: {label!r} keyed_calls entries must be objects")
         keyed_calls.append(_keyed_call(item, label))
 
-    return aliases, calls, view_data, keyed_calls, raw.get("routes"), raw.get("records")
+    template_refs: list[TemplateRef] = []
+    for item in _as_list(raw.get("template_refs"), label, "template_refs"):
+        if not isinstance(item, dict):
+            raise ConfigError(f"indirection_rules: {label!r} template_refs entries must be objects")
+        template_refs.append(_template_ref(item, label))
+
+    return (
+        aliases,
+        calls,
+        view_data,
+        keyed_calls,
+        raw.get("routes"),
+        template_refs,
+        raw.get("records"),
+    )
 
 
 def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
@@ -906,8 +1078,8 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
     if type(key_arg) is not int or key_arg < (0 if key_kw is not None else 1):
         raise ConfigError(f"{where}.key_arg must be an int >= 1")
     key_from = item.get("key_from", "string")
-    if key_from not in ("string", "array_keys", "object"):
-        raise ConfigError(f"{where}.key_from must be 'string', 'array_keys' or 'object'")
+    if key_from not in ("string", "array_keys", "object", "list"):
+        raise ConfigError(f"{where}.key_from must be 'string', 'array_keys', 'object' or 'list'")
     if key_kw is not None and key_from != "string":
         raise ConfigError(f"{where}.key_kw names a string key, so key_from must be 'string'")
     template = item.get("target_template")
@@ -947,6 +1119,51 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
         # A rule names the table, never its columns: the write stays unmeasured (CONVENTION §3).
         raise ConfigError(f"{where}.target_template of a {kind} rule must name a Table, no member")
     return KeyedCall(setter, key_arg, key_from, template, pattern, kind, key_kw)
+
+
+def _template_ref(item: dict[str, Any], label: str) -> TemplateRef:
+    """Validate one ``template_refs`` entry: globs, regexes, a fillable template (406, R5.3)."""
+    where = f"indirection_rules: {label!r} template_refs"
+    files = item.get("files")
+    if not isinstance(files, list) or not files or not all(
+        isinstance(glob, str) and glob.strip() for glob in files
+    ):
+        raise ConfigError(f"{where}.files must be a non-empty list of globs")
+    pattern = _rule_regex(item.get("pattern"), f"{where}.pattern")
+    if pattern is None:
+        raise ConfigError(f"{where}.pattern must be a non-empty regex")
+    context = _rule_regex(item.get("context_pattern"), f"{where}.context_pattern")
+    groups = set(pattern.groupindex)
+    context_groups = set(context.groupindex) if context is not None else set()
+    if groups & context_groups or "path" in groups | context_groups:
+        raise ConfigError(
+            f"{where}: a group name may come from pattern or context_pattern, not both"
+        )
+    template = item.get("target_template")
+    if not isinstance(template, str) or not template.strip():
+        raise ConfigError(f"{where}.target_template must be a non-empty string")
+    template = template.strip()
+    names = set(_TEMPLATE_PLACEHOLDER.findall(template))
+    if not names <= groups | context_groups | {"path"}:
+        raise ConfigError(
+            f"{where}.target_template placeholder(s) {sorted(names)!r} must be named groups "
+            "or 'path'"
+        )
+    kind = item.get("kind", "CALLS")
+    if kind not in ("CALLS", "REFERENCES"):
+        raise ConfigError(f"{where}.kind must be 'CALLS' or 'REFERENCES'")
+    return TemplateRef(tuple(glob.strip() for glob in files), pattern, template, context, kind)
+
+
+def _rule_regex(raw: object, where: str) -> re.Pattern[str] | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw:
+        raise ConfigError(f"{where} must be a non-empty regex")
+    try:
+        return re.compile(raw)
+    except re.error as error:
+        raise ConfigError(f"{where} does not compile ({error})") from error
 
 
 def _as_list(raw: object, label: str, field: str) -> list[Any]:

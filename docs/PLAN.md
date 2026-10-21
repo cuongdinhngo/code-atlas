@@ -457,7 +457,7 @@ is missing, not a directory, or overlapping git-collected source fails loud (R5.
 counts them so a zero is visible.
 
 **Indirection rules (040 / 062 / 063 / 222).** `CA_INDIRECTION_RULES` names repo-relative JSON files
-**outside** `adapters/` (R2.2), each listing `aliases`, `calls`, `view_data` and/or `keyed_calls`
+**outside** `adapters/` (R2.2), each listing `aliases`, `calls`, `view_data`, `keyed_calls`, `template_refs`
 entries that become HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges — or, for a
 `keyed_calls` rule of that `kind`, `WRITES` / `DELETES` (364). `keyed_calls` is the string-argument
 case — a class, proc or table named by a literal (352); the file format is in
