@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from typing import Literal
 
-from code_atlas import contract, gitutil
+from code_atlas import contract, gitutil, records
 from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
 from code_atlas.index_lock import (
@@ -522,6 +522,9 @@ def _result(
         "schema_rebuilt": rebuilt_schema,
         "index_root": config.index_root,
     }
+    record_status = records.status_block(store.get_meta(records.RECORDS_STATUS_META_KEY))
+    if record_status is not None:
+        result["records"] = record_status  # counts only: never an excluded id (407)
     if detail_level == "minimal":
         return result
     # ``graph`` is standard-only — not on the cheap path (counts() can scan stubs at scale).

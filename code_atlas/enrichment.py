@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from code_atlas import contract, routes
+from code_atlas import contract, records, routes
 from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.store import GraphStore
@@ -92,6 +92,8 @@ class RulesPayload:
     template_refs: tuple[TemplateRef, ...] = ()
     # Declared route tables (385): a lookup the build resolves into meta, never edges.
     routes: tuple[routes.RouteBlock, ...] = ()
+    # Declared record sources (407): read here so their bytes join the digest; resolved into meta.
+    records: tuple[records.RecordSet, ...] = ()
 
 
 def load_indirection_rules(config: Config) -> RulesPayload | None:
@@ -110,6 +112,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     keyed_calls: list[KeyedCall] = []
     template_refs: list[TemplateRef] = []
     route_blocks: list[routes.RouteBlock] = []
+    record_sets: list[records.RecordSet] = []
     digester = hashlib.sha256()
     for relative in sorted(paths):
         full = config.root / relative
@@ -134,6 +137,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         keyed_calls.extend(parsed[3])
         route_blocks.extend(routes.read_blocks(parsed[4], relative, config.root, digester.update))
         template_refs.extend(parsed[5])
+        record_sets.extend(records.read_blocks(parsed[6], relative, config.root, digester.update))
 
     return RulesPayload(
         aliases=tuple(aliases),
@@ -143,6 +147,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         digest=digester.hexdigest(),
         routes=tuple(route_blocks),
         template_refs=tuple(template_refs),
+        records=tuple(record_sets),
     )
 
 
@@ -295,6 +300,39 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     else:
         store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
     return unresolved
+
+
+def publish_records(store: GraphStore, payload: RulesPayload | None) -> None:
+    """Store the declared records with the targets the index holds, and their counts (407).
+
+    A target is a stored qname, an indexed file, or — failing both — the one ``Table`` whose
+    qname matches it ignoring case (215's writer rule); anything else is a dangling pair.
+    """
+    if payload is None or not payload.records:
+        store.delete_meta(records.RECORDS_META_KEY)
+        store.delete_meta(records.RECORDS_STATUS_META_KEY)
+        return
+    files = set(store.file_paths())
+    named = sorted({t for block in payload.records for r in block.records for t in r.targets})
+    exact = store.nodes_by_qualified_names(named, limit=1)
+    misses = [target for target in named if target not in files and not exact.get(target)]
+    folded = (
+        store.nodes_by_qualified_names_casefold(
+            misses, kind=contract.TABLE_KIND, limit=2, distinct_qnames=True
+        )
+        if misses
+        else {}
+    )
+
+    def locate(target: str) -> str | None:
+        if target in files or exact.get(target):
+            return target
+        rows = folded.get(target) or []
+        return str(rows[0]["qualified_name"]) if len(rows) == 1 else None
+
+    stored, counts = records.resolve(payload.records, locate)
+    store.set_meta(records.RECORDS_META_KEY, records.dump(stored))
+    store.set_meta(records.RECORDS_STATUS_META_KEY, json.dumps(counts, sort_keys=True))
 
 
 def is_rule_edge_path(path: object) -> bool:
@@ -962,6 +1000,7 @@ def _load_rules(
     list[KeyedCall],
     object,
     list[TemplateRef],
+    object,
 ]:
     try:
         raw = json.loads(raw_bytes.decode("utf-8"))
@@ -1017,7 +1056,15 @@ def _load_rules(
             raise ConfigError(f"indirection_rules: {label!r} template_refs entries must be objects")
         template_refs.append(_template_ref(item, label))
 
-    return aliases, calls, view_data, keyed_calls, raw.get("routes"), template_refs
+    return (
+        aliases,
+        calls,
+        view_data,
+        keyed_calls,
+        raw.get("routes"),
+        template_refs,
+        raw.get("records"),
+    )
 
 
 def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:

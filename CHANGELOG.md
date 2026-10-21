@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A `records` block in the rule file attaches a consumer's records — a QA ticket, an incident — to
+  the symbols they name: `find_references`, `read_symbol` and `impact` list them, and the build and
+  `get_index_status` report dangling targets and how many ids the block's exclusion list kept off.
+  Sources are JSON or JSON Lines and may be gitignored exports; an edit reads `rules_stale` until
+  the next refresh (407).
 - A rule file's `template_refs` reads references from file text, not from a call: a regex's named
   groups, plus a `context_pattern` found once per file and `{path}`, fill a target. So
   `ng-click="ctrl.save()"` under `ng-controller="EditCtrl as ctrl"` makes the view a `HEURISTIC`

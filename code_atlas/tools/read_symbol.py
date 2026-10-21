@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal, NamedTuple
 
-from code_atlas import contract
+from code_atlas import contract, records
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
 from code_atlas.containment import resolves_inside
@@ -50,6 +50,7 @@ from code_atlas.tools.nav_result import (
     attach_name_not_qualified,
     attach_next_tools,
     attach_result_kinds,
+    attach_rules_stale,
     attach_try_instead,
     classify_missing_subject,
     definition_sites,
@@ -227,6 +228,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     if detail_level == "standard":
                         _attach_params(payload, store, dict(worktree_node), rel)
+                    _attach_records(payload, store, qname, config)
                     overlay.label(payload)
                     return attach_next_tools(payload, str(worktree_node["kind"]))
                 if built_file is not None:
@@ -292,9 +294,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 return _stamp(prefix_miss)
             rows, ambiguity = one_definition_first(rows, complete=complete)
             if len(rows) > 1 and ambiguity is None:
-                return _stamp(
-                    _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
-                )
+                refused = _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                return _stamp(_attach_records(refused, store, qname, config))
             node = rows[0]
             rel = str(node["file_path"])
             if not resolves_inside(config.root, config.root / rel):
@@ -350,11 +351,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     return _stamp(prefix_miss)
                 rows, ambiguity = one_definition_first(rows, complete=complete)
                 if len(rows) > 1 and ambiguity is None:
-                    return _stamp(
-                        _refuse_ambiguous(
-                            qname, rows, detail_level=detail_level, config=config
-                        )
+                    refused = _refuse_ambiguous(
+                        qname, rows, detail_level=detail_level, config=config
                     )
+                    return _stamp(_attach_records(refused, store, qname, config))
                 node = rows[0]
                 rel = str(node["file_path"])
             if overlay is not None and overlay.changes(rel):
@@ -419,12 +419,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 name=str(node["name"]),
             )
             attach_other_indexed_files_drifted(payload, guard)
+            _attach_records(payload, store, str(node["qualified_name"]), config)
             _attach_pointers(payload, store, node, rows if ambiguity else (), ambiguity)
             if overlay is not None:
                 overlay.label(payload)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _attach_records(
+    payload: dict[str, object], store: GraphStore, qname: str, config: Config
+) -> dict[str, object]:
+    """The declared records on the subject, labelled stale when their files moved (407)."""
+    stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
+    rows = records.attached(stored_records or [], [qname], via=False)
+    if rows:
+        payload["records"] = rows
+        attach_rules_stale(payload, config, relabel=False)
+    return payload
 
 
 def _attach_pointers(

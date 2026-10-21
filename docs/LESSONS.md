@@ -220,10 +220,11 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404
+- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
-  rows only. The challenger found both; enumerate every read the payload is built from.
+  rows only. The challenger found both; enumerate every read the payload is built from. 407 — a
+  record target widened to a file reached the stored records but not `impact`'s row-file carriers.
 - destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
 
 ### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
