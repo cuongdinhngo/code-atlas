@@ -381,6 +381,19 @@ scanner masks literals) the call's first line is read, as before (398).
   A nested, concatenated, shorthand, template or double-quoted `$` value names nothing, as does a
   repeated field; a spread voids the whole literal. A placeholder no field fills yields nothing, and
   an object key is still read from the call's first line only.
+- **A list of keys (406).** `key_from: "list"` reads a `[…]` / `array(…)` argument: each top-level
+  entry that is one string literal is a key (`loadScripts(['js/x.js'])` → `"public/{key}"`, a File).
+  A variable, a concatenation or a keyed entry names nothing; read from the call's first line, so a
+  list split over lines names nothing and counts in `keys_unread`.
+- **A reference in a file's text (406).** `template_refs` entries are not calls: `files` (globs over
+  the repo-relative path, `*` crossing `/`) picks indexed files, and every match of `pattern` is a
+  `HEURISTIC` edge (`kind` `CALLS` or `REFERENCES`) from the file's File node at its line. Its named
+  groups fill `target_template`, with `{path}` and the groups of `context_pattern`, which must take
+  one value in the file — none or two, and the file's matches link nothing:
+  `{"files": ["views/*.php"], "context_pattern": "ng-controller=\"(?P<ctrl>\\w+) as ctrl\"",
+  "pattern": "(?<![\\w$.])ctrl\\.(?P<member>\\w+)\\(", "target_template": "{path}::{ctrl}::{member}"}`.
+  A match that links nothing counts in `rule_keys_unresolved`. The whole file is searched, script
+  included, and only a file an adapter indexes is read.
 - **A table named by a string (364).** `kind: "WRITES"` or `"DELETES"` emits that edge instead of a
   `CALLS`, onto the `Table` the template spells (`"dbo.{key}"` — a `::` member is refused): a writer
   with no column list, so `check_column_defaults` reads it as unmeasured. A `WRITES` key links
@@ -393,7 +406,7 @@ scanner masks literals) the call's first line is read, as before (398).
   under whichever one names a real symbol.
 - **Nothing is invented:** only an argument that is one whole literal names a key — a variable or a
   concatenation emits nothing. A literal that names no indexed symbol stays unlinked. The build
-  report counts three misses: `rule_keys_unresolved` (call sites linked under no rule),
+  report counts three misses: `rule_keys_unresolved` (call sites and text matches linked under no rule),
   `rules_unresolved` (rules that linked nothing at all) and, per rule, `keys_unread` (a string
   literal where the key is, yet no key read — an interpolated `"x$v"`, or one over 256 characters);
   `get_index_status` (standard) repeats `keys_unread`.
