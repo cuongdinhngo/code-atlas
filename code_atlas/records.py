@@ -2,9 +2,9 @@
 
 A consumer keeps records about its code — a QA ticket, an incident, an ADR — each naming the
 symbols it is about. A ``records`` block in a ``CA_INDIRECTION_RULES`` file declares where they
-live (globs of JSON files) and how to read them (a dotted field map), and the build resolves each
-target and stores the attached records in the index's meta, so a tool answers at the revision the
-index describes (R4.2) — 385's route-table shape.
+live (globs of JSON or JSON Lines files) and how to read them (a dotted field map), and the
+build resolves each target and stores the attached records in the index's meta, so a tool
+answers at the revision the index describes (R4.2) — 385's route-table shape.
 
 A record is a declared lookup beside the graph, never a node or an edge, so the contract does not
 move. Every row it shapes says ``tier: HEURISTIC``, ``rule: true`` — declared, not resolved (R5.2).
@@ -30,6 +30,7 @@ RECORD_TIER = contract.CONFIDENCE_TIERS[1]  # HEURISTIC
 DANGLING_FIRST = 10
 TITLE_MAX = 200
 _DEFAULT_FIELDS = {"id": "id", "title": "title", "url": "url", "kind": "kind"}
+_LINE_SUFFIXES = frozenset({".jsonl", ".ndjson"})
 
 
 @dataclass(frozen=True)
@@ -104,12 +105,9 @@ def _read_block(
     for relative in matched:
         data = (root / relative).read_bytes()
         digest(relative.encode("utf-8") + b"\0" + data + b"\0")
-        try:
-            document: object = json.loads(data.decode("utf-8-sig"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            skipped += 1  # a data error fails soft (R5.3); the file is not named
-            continue
-        for entry in document if isinstance(document, list) else [document]:
+        entries, bad = _entries(relative, data)
+        skipped += bad
+        for entry in entries:
             rid = _dig(entry, fields["id"])
             if isinstance(rid, int) and not isinstance(rid, bool):
                 rid = str(rid)
@@ -122,6 +120,26 @@ def _read_block(
                 continue
             records.append(_record(entry, rid, fields, targets, kind))
     return RecordSet(tuple(records), len(excluded), skipped, len(matched))
+
+
+def _entries(relative: str, data: bytes) -> tuple[list[object], int]:
+    """A file's entries and how many failed to parse: a JSON document (one record or a list),
+    or JSON Lines (``.jsonl``/``.ndjson``), where a bad line costs only that line (R5.3)."""
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return [], 1
+    by_line = Path(relative).suffix.lower() in _LINE_SUFFIXES
+    entries: list[object] = []
+    bad = 0
+    for chunk in (line for line in text.splitlines() if line.strip()) if by_line else [text]:
+        try:
+            document: object = json.loads(chunk)
+        except json.JSONDecodeError:
+            bad += 1  # the file is not named
+            continue
+        entries.extend(document if isinstance(document, list) and not by_line else [document])
+    return entries, bad
 
 
 def _fields(raw: object, where: str) -> tuple[dict[str, str], tuple[str, ...]]:

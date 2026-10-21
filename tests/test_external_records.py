@@ -362,3 +362,20 @@ def test_a_thousand_records_load_quickly(tmp_path: Path) -> None:
     print(f"1000 records read and resolved in {elapsed:.3f}s")
     assert counts["attached"] == 1000 and counts["dangling"] == 1000
     assert elapsed < 5.0
+
+
+def test_json_lines_sources_read_one_record_per_line(tmp_path: Path) -> None:
+    """A consumer's sharded JSON Lines export: a bad line costs that line only, not the file."""
+    lines = [
+        json.dumps({"key": "L-1", "summary": "first", "code": {"symbols": [SAVE]}}),
+        "",
+        "{not json",
+        json.dumps({"key": "L-2", "summary": "second", "code": {"tables": [TABLE]}}),
+    ]
+    write(tmp_path, "qa/2026-08.jsonl", "\n".join(lines) + "\n")
+    write(tmp_path, "qa/2026-09.ndjson", json.dumps({"key": "L-3", "summary": "third"}) + "\n")
+    block = {"sources": ["qa/*.jsonl", "qa/*.ndjson"], "fields": BLOCK["fields"]}
+    (only,) = records.read_blocks(block, "rules.json", tmp_path, lambda _: None)
+    assert [record.id for record in only.records] == ["L-1", "L-2", "L-3"]
+    assert (only.files, only.skipped) == (2, 1)
+    assert only.records[1].targets == (TABLE,)

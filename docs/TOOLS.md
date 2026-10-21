@@ -429,7 +429,8 @@ scanner masks literals) the call's first line is read, as before (398).
   ```
 - **Records written about code (407).** `records` attaches a consumer's own records — a QA ticket,
   an incident, an ADR — to the symbols they name. `sources` are repo-relative globs of JSON files,
-  each holding one record or a list, read straight off disk (an untracked or gitignored export
+  each holding one record or a list, or JSON Lines (`.jsonl`/`.ndjson`, a record per line, a bad line
+  skipped alone), read straight off disk (an untracked or gitignored export
   counts). `fields` maps `id`, `title`, `url` (a list serves its first link), `kind` to dotted paths and `targets` to a list of
   them (strings or lists of strings, concatenated); `kind` sets one for every record. A target is a
   stored qname, an indexed file, or the one `Table` whose qname matches ignoring case; every

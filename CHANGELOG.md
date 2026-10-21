@@ -20,7 +20,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - A `records` block in the rule file attaches a consumer's records — a QA ticket, an incident — to
   the symbols they name: `find_references`, `read_symbol` and `impact` list them, and the build and
   `get_index_status` report dangling targets and how many ids the block's exclusion list kept off.
-  Sources may be gitignored exports; an edit reads `rules_stale` until the next refresh (407).
+  Sources are JSON or JSON Lines and may be gitignored exports; an edit reads `rules_stale` until the next refresh (407).
 
 ## 0.7.0 — 2026-10-19 · contract 18 · schema 9
 

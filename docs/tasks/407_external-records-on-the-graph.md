@@ -419,6 +419,9 @@ old module:
 - **F1.** A `url` field holding a list was dropped. A list now serves its first link.
 - **F2.** The exclude file ignored only whole-line comments, so `ID  # note` let the record through: an AC4 leak.
   A `#` now starts a comment anywhere on the line.
+- **F3.** The consumer's planned layout keeps its records as JSON Lines, which the reader parsed as one
+  document and skipped whole. A `.jsonl`/`.ndjson` source is now read a record per line, a bad line
+  skipped alone.
 
 E1 stays open. Its figures are kept outside the repo (R2.4).
 
