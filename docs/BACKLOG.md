@@ -87,6 +87,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   *"a blast-radius sentence I can paste on the PR"*; `impact` and `find_callers` are the answer — 200.
 - **The consumer brief names no contract-change occasion** — its first occasion is a rename; a widened
   return contract under the same name is the field 16–30 miss (probe O6) — 200.
+- **`impact` on a table defined in several files walks nothing** — a schema file plus migrations make
+  it `subject_ambiguous`, so the writers' records never surface; 407 lists only the seed's own, and
+  403's fix covers `read_symbol` on routines. Every `Table` definition of one qname as one seed — 407.
 - **The PreCompact state line reaches no one** — Claude Code adds no PreCompact stdout to context and
   discards its `systemMessage` (`hooks.md`, read 2026-10-10); the hook still runs there — 381.
 
