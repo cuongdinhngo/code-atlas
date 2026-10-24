@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `read_symbol`, `file_outline`, `search_symbol`, `find_callers` and `find_references` take
+  `caller_root`: a subagent in a worktree, sharing its parent's roots, names that worktree for the
+  call and is answered from it rather than the main checkout. A path outside this repository is
+  refused; the skill and agent brief say when to pass it (408).
 - A `records` block in the rule file attaches a consumer's records — a QA ticket, an incident — to
   the symbols they name: `find_references`, `read_symbol` and `impact` list them, and the build and
   `get_index_status` report dangling targets and how many ids the block's exclusion list kept off.
