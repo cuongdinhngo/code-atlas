@@ -353,7 +353,8 @@ python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 ### Indirection rule files
 
 A call whose target is a **string argument** — `Widget::make('SaveButton')`, `$db->runProc('Insert_Order')`
-— has no edge to that target, so `find_callers` on it answers zero or `relation_unmodelled_for_language`.
+— has no edge to that target, so `find_callers` on it answers `relation_unmodelled_for_language` when
+another language names it as an unlinked callee or a literal argument, else zero (409).
 A `keyed_calls` rule models it: every call to `setter` whose argument `key_arg` is a string literal
 gets a HEURISTIC `CALLS` edge (or the rule's `kind`) to `target_template` with `{key}` replaced by
 the literal. Hits carry `rule: true`. The key is read from the edge (`arg_strings`, contract 16), so

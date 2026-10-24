@@ -2768,6 +2768,44 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (*kinds, *cleaned)).fetchone()[0])
 
+    def named_from_another_language(
+        self, raws: Sequence[str], *, language: str, kinds: Sequence[str]
+    ) -> bool:
+        """Does a call in a language other than ``language`` name one of ``raws`` (409)?
+
+        An unlinked call names it as its ``target_raw``; any call — a linked helper too — names it
+        as a literal argument (``arg_strings`` / ``kwarg_strings``, 398) that is the name or ends
+        in it after a separator: ``$db->querySP('name')``, ``'dbo.name'``. Indexed read first.
+        """
+        cleaned = tuple(raw for raw in raws if raw)
+        if not cleaned or not kinds:
+            return False
+        kind_marks = ",".join("?" * len(kinds))
+        other = (
+            "SELECT 1 FROM edges e JOIN files f ON f.path = e.file_path "
+            f"WHERE e.kind IN ({kind_marks}) AND COALESCE(e.language, f.language) <> ? AND "
+        )
+        raw_marks = ",".join("?" * len(cleaned))
+        callee = (
+            f"{other}(e.target_qname IS NULL OR e.target_qname = '') "
+            f"AND e.target_raw IN ({raw_marks}) LIMIT 1"
+        )
+        if self._conn.execute(callee, (*kinds, language, *cleaned)).fetchone() is not None:
+            return True
+        patterns = [
+            f"%{_like_literal(lead)}{_like_literal(json.dumps(raw)[1:-1])}\"%"
+            for raw in cleaned
+            for lead in ('"', ".", ":", "@", ">", "/", "\\\\")
+        ]
+        matched = " OR ".join(
+            f"e.{column} LIKE ? ESCAPE '!'"
+            for column in (contract.ARG_STRINGS_FIELD, contract.KWARG_STRINGS_FIELD)
+            for _ in patterns
+        )
+        literal = f"{other}({matched}) LIMIT 1"
+        params = (*kinds, language, *patterns, *patterns)
+        return self._conn.execute(literal, params).fetchone() is not None
+
     def unlinked_kinds_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]
     ) -> list[str]:

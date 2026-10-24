@@ -47,6 +47,7 @@ from code_atlas.tools.nav_result import (
     CAVEAT_SIBLING_DEFINITIONS,
     CAVEAT_TIER_PARTITION,
     CAVEAT_UNLINKED_SAME_NAME_SITES,
+    CROSS_LANGUAGE_UNMEASURED,
     REASON_BARE_NAME_TRUNCATED,
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
@@ -197,7 +198,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         drops test callers from it too (393).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
-        language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
+        language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language`` only
+        if another language names the subject — as an unlinked call's callee, or as a literal
+        argument of any call that is the name or ends in it (``querySP('dbo.name')``). Otherwise it
+        stays ``no_matches`` and lists those languages in ``cross_language_unmeasured`` (409).
         Hits carry ``authoritative: false`` only when the stamped census has cross-language
         edges (276); an empty census is status-only. ``caveat_limits`` states the cost (251).
 
@@ -271,6 +275,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         shared_honesty_reason = REASON_NO_MATCHES
         unlinked_edge_kinds: list[str] = []
         cross_lang_census: dict[str, object] | None = None
+        crossing_named = False
+        own_language: str | None = None
         args_capture_absent = False
         proximity_used = False
         subject_file: str | None = None
@@ -587,6 +593,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 cross_lang_census = cross_language_relation_unmodelled(
                     store, file_path=subject_file
                 )
+            own_language = store.language_of_file(subject_file) if subject_file else None
+            if (
+                cross_lang_census is not None
+                and outcome.total_count == 0
+                and own_language is not None
+                and subject_nodes
+            ):
+                # The census says no crossing into this language is linked; only an edge that
+                # names this subject makes the zero unmeasured (409).
+                crossing_named = store.named_from_another_language(
+                    (lookup, str(subject_nodes[0]["name"])),
+                    language=own_language,
+                    kinds=CALLER_KINDS,
+                )
             # Handshake stamp (231): read before the store closes. Null args is not "no capture".
             if args_at is not None and subject_file is not None:
                 caps_stamp = store.stamped_capabilities_by_language()
@@ -605,9 +625,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason = REASON_BARE_NAME_TRUNCATED
         elif reason == REASON_NO_MATCHES and unlinked_calls > 0:
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
-        elif reason == REASON_NO_MATCHES and cross_lang_census is not None:
-            # No linked edge from any other language reaches this one — the zero is unmeasured,
-            # not empty (221). Carries authoritative:false + the census below.
+        elif reason == REASON_NO_MATCHES and cross_lang_census is not None and crossing_named:
+            # Another language names this subject and nothing links it — unmeasured, not empty
+            # (221/409). Carries authoritative:false + the census below.
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
         elif reason == REASON_NO_MATCHES and shared_unlinked:
             reason = shared_honesty_reason
@@ -685,17 +705,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             # The cross-language case (221) rides the census + authoritative:false; the 214
             # SQL-side path (unlinked_calls > 0) is left exactly as it was.
-            if unlinked_calls == 0 and cross_lang_census is not None:
+            if unlinked_calls == 0 and cross_lang_census is not None and crossing_named:
                 attach_cross_language_census(result, cross_lang_census)
                 attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        elif cross_lang_census is not None and cross_language_census_has_edges(
-            cross_lang_census
+        elif (
+            cross_lang_census is not None
+            and (outcome.total_count > 0 or reason != REASON_NO_MATCHES)
+            and cross_language_census_has_edges(cross_lang_census)
         ):
             # Hits whose *->L crossing the index cannot measure (238), and only when the
             # census counted a cross-language edge (276) — an empty census is status, not a
             # per-answer partition.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
+        if cross_lang_census is not None and reason == REASON_NO_MATCHES and not crossing_named:
+            # A measured zero: nothing elsewhere names the subject. Which languages no linked
+            # crossing reaches stays a field, never the reason (409).
+            result[CROSS_LANGUAGE_UNMEASURED] = sorted(
+                name for name in (covered or "").split(",") if name and name != own_language
+            )
         if overlay is not None:
             labelled = overlay_inbound(
                 overlay, result, lookup, CALLER_KINDS, depth=depth, offset=offset

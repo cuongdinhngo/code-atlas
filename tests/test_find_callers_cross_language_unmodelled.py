@@ -30,6 +30,7 @@ from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
     CAVEAT_SIBLING_DEFINITIONS,
+    CROSS_LANGUAGE_UNMEASURED,
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_NO_MATCHES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
@@ -73,9 +74,12 @@ def _config(root: Path, db_path: Path) -> Config:
     return load_config(root, {"CA_DB_PATH": str(db_path)})
 
 
-def _cross_language_repo(root: Path, db_path: Path, *, link_the_crossing: bool) -> Config:
+def _cross_language_repo(
+    root: Path, db_path: Path, *, link_the_crossing: bool, named: bool = True
+) -> Config:
     """A proc (`sql`) and a caller (`php`) that reaches it only by a string argument.
 
+    ``named=False`` drops that argument, as no adapter emitted one before 398 (409).
     ``link_the_crossing`` seeds a genuine linked ``php->sql`` edge to a *second* proc, so the census
     records that the crossing into ``sql`` IS modelled — the AC2 control where a zero stays honest.
     """
@@ -89,11 +93,12 @@ def _cross_language_repo(root: Path, db_path: Path, *, link_the_crossing: bool) 
              node("Function", "otherProc", "dbo.otherProc", PROC_FILE)],
             [],
         )
-        php_edges = [
-            # `querySP('getUnplannedChange')` — the proc name is an ARGUMENT, so the edge's
-            # target_raw is the helper and target_qname stays NULL (the crossing is unmodelled).
-            edge("CALLS", f"{PHP_FILE}::loadChange", "querySP", PHP_FILE, tier="DYNAMIC"),
-        ]
+        # `querySP('getUnplannedChange')` — the proc name is an ARGUMENT, so the edge's
+        # target_raw is the helper and target_qname stays NULL (the crossing is unmodelled).
+        query_sp = edge("CALLS", f"{PHP_FILE}::loadChange", "querySP", PHP_FILE, tier="DYNAMIC")
+        if named:
+            query_sp["arg_strings"] = ["getUnplannedChange"]
+        php_edges = [query_sp]
         if link_the_crossing:
             php_edges.append(
                 edge("CALLS", f"{PHP_FILE}::loadOther", "dbo.otherProc", PHP_FILE,
@@ -536,3 +541,139 @@ def test_the_crossing_caveat_does_not_erase_the_args_partition(tmp_path: Path) -
     assert CAVEAT_CROSS_LANGUAGE_UNMODELLED not in (
         payload.get("authoritative_caveats") or []
     )
+
+
+# Task 409: a PHP method nothing calls, on an index where no language links into PHP.
+METHOD_QNAME = "\\App\\Mailer::sendAlert"
+METHOD_FILE = "src/Mailer.php"
+SQL_FILE = "src/reports.sql"
+
+
+def _measured_zero_repo(root: Path, db_path: Path, sql_edges: list, php_edges: list) -> Config:
+    """A caller-less PHP method beside SQL; ``*_edges`` add what the other language says."""
+    with GraphStore(db_path) as store:
+        _seed(
+            store,
+            root,
+            METHOD_FILE,
+            "php",
+            [node("Method", "sendAlert", METHOD_QNAME, METHOD_FILE),
+             node("Method", "other", "\\App\\Mailer::other", METHOD_FILE)],
+            php_edges,
+        )
+        _seed(
+            store,
+            root,
+            SQL_FILE,
+            "sql",
+            [node("Function", "monthly", "dbo.monthly", SQL_FILE)],
+            sql_edges,
+        )
+        _stamp_census(store)
+    return _config(root, db_path)
+
+
+def test_a_caller_less_method_nothing_names_is_a_measured_zero(tmp_path: Path) -> None:
+    """409 AC1: no other language names it, so the zero is `no_matches`, the crossing a field."""
+    config = _measured_zero_repo(tmp_path, tmp_path / "graph.db", [], [])
+    payload = find_callers.create(config)(qname=METHOD_QNAME)
+    assert payload["total_count"] == 0
+    assert payload["reason"] == REASON_NO_MATCHES
+    assert payload[CROSS_LANGUAGE_UNMEASURED] == ["sql"]
+    assert "authoritative" not in payload
+    assert "cross_language" not in payload
+    minimal = find_callers.create(config)(qname=METHOD_QNAME, detail_level="minimal")
+    assert minimal[CROSS_LANGUAGE_UNMEASURED] == ["sql"]
+
+
+def test_another_language_naming_the_subject_keeps_it_unmeasured(tmp_path: Path) -> None:
+    """409 AC2: by callee name, or by a whole literal argument, the zero stays unmodelled."""
+    by_callee = [edge("CALLS", "dbo.monthly", "sendAlert", SQL_FILE, tier="DYNAMIC")]
+    by_argument = edge("CALLS", "dbo.monthly", "invoke", SQL_FILE, tier="DYNAMIC")
+    by_argument["arg_strings"] = ["sendAlert", None]
+    for i, sql_edges in enumerate(([*by_callee], [by_argument])):
+        root = tmp_path / str(i)
+        config = _measured_zero_repo(root, root / "graph.db", sql_edges, [])
+        payload = find_callers.create(config)(qname=METHOD_QNAME)
+        assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE, sql_edges
+        assert payload["authoritative"] is False
+        assert CROSS_LANGUAGE_UNMEASURED not in payload
+
+
+def test_a_partial_string_or_a_same_language_mention_is_not_evidence(tmp_path: Path) -> None:
+    """409: a substring is not the name, and the subject's own language is measured already."""
+    partial = edge("CALLS", "dbo.monthly", "invoke", SQL_FILE, tier="DYNAMIC")
+    partial["arg_strings"] = ["sendAlerts", "x_sendAlert"]
+    own = edge("CALLS", "\\App\\Mailer::other", "invoke", METHOD_FILE, tier="DYNAMIC")
+    own["arg_strings"] = ["sendAlert"]
+    config = _measured_zero_repo(tmp_path, tmp_path / "graph.db", [partial], [own])
+    payload = find_callers.create(config)(qname=METHOD_QNAME)
+    assert payload["reason"] == REASON_NO_MATCHES
+    assert payload[CROSS_LANGUAGE_UNMEASURED] == ["sql"]
+
+
+def test_221_without_its_argument_is_a_measured_zero(tmp_path: Path) -> None:
+    """409 AC3, re-decided: a caller naming the proc nowhere is no evidence of a crossing."""
+    config = _cross_language_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, named=False
+    )
+    payload = find_callers.create(config)(qname=PROC_QNAME)
+    assert payload["reason"] == REASON_NO_MATCHES
+    assert payload[CROSS_LANGUAGE_UNMEASURED] == ["php"]
+    assert "authoritative" not in payload
+
+
+def test_a_qualified_or_keyword_literal_names_the_subject(tmp_path: Path) -> None:
+    """409 (challenger F3): `'Mailer::sendAlert'`, `'dbo.sendAlert'` and a keyword value count."""
+    shapes: list[tuple[str, object]] = [
+        ("arg_strings", ["App\\Mailer::sendAlert"]),
+        ("arg_strings", ["dbo.sendAlert"]),
+        ("kwarg_strings", {"proc": "sendAlert"}),
+    ]
+    for i, (column, value) in enumerate(shapes):
+        call = edge("CALLS", "dbo.monthly", "invoke", SQL_FILE, tier="DYNAMIC")
+        call[column] = value
+        root = tmp_path / str(i)
+        config = _measured_zero_repo(root, root / "graph.db", [call], [])
+        payload = find_callers.create(config)(qname=METHOD_QNAME)
+        assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE, (column, value)
+
+
+def test_like_wildcards_in_the_name_match_only_themselves(tmp_path: Path) -> None:
+    """`_` and `%` in a name are literal: `send_alert` is not named by `sendXalert`."""
+    call = edge("CALLS", "dbo.monthly", "invoke", SQL_FILE, tier="DYNAMIC")
+    call["arg_strings"] = ["sendXalert", "send%alert"]
+    with GraphStore(tmp_path / "graph.db") as store:
+        _seed(store, tmp_path, SQL_FILE, "sql", [], [call])
+        assert not store.named_from_another_language(
+            ("send_alert",), language="php", kinds=("CALLS",)
+        )
+        assert store.named_from_another_language(
+            ("send%alert",), language="php", kinds=("CALLS",)
+        )
+
+
+def test_the_field_rides_only_a_no_matches_answer(tmp_path: Path) -> None:
+    """409 (challenger F1): another reason's zero is not called measured."""
+    own = edge("CALLS", "dbo.monthly", "monthly", SQL_FILE, tier="DYNAMIC")
+    config = _measured_zero_repo(tmp_path, tmp_path / "graph.db", [own], [])
+    payload = find_callers.create(config)(qname="dbo.monthly")
+    # 214: an unlinked same-name EXEC in its own language — unmodelled, not a measured zero.
+    assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+    assert CROSS_LANGUAGE_UNMEASURED not in payload
+
+
+def test_a_linked_helper_call_still_names_the_subject_by_its_argument(tmp_path: Path) -> None:
+    """409 (gate): `$db->querySP('name')` links to `Db::querySP`; its argument names the proc."""
+    config = _cross_language_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, named=False
+    )
+    with GraphStore(config.db_path) as store:
+        helper = edge("CALLS", f"{PHP_FILE}::loadChange", "\\\\App\\\\Db::querySP", PHP_FILE,
+                      target_qname="\\\\App\\\\Db::querySP")
+        helper["arg_strings"] = ["getUnplannedChange"]
+        _seed(store, tmp_path, PHP_FILE, "php",
+              [node("Function", "loadChange", f"{PHP_FILE}::loadChange", PHP_FILE)], [helper])
+        _stamp_census(store)
+    payload = find_callers.create(config)(qname=PROC_QNAME)
+    assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE

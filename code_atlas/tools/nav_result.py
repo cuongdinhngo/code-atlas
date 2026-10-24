@@ -990,6 +990,8 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 # The caller is in another language whose crossing into the subject's language the index never
 # modelled — the zero is a partition, not the whole (task 221). Rides the cross-language census.
 CAVEAT_CROSS_LANGUAGE_UNMODELLED = "cross_language_relation_unmodelled"
+# A measured zero beside languages no linked crossing reaches — a field, not the reason (409).
+CROSS_LANGUAGE_UNMEASURED = "cross_language_unmeasured"
 # Page shows one tier of a multi-tier hit set (or none of the filtered tier) — 251/265.
 CAVEAT_TIER_PARTITION = "tier_partition"
 # Table/Column writer answer is only languages that emit WRITES (278/281) — covered
