@@ -21,6 +21,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   `caller_root`: a subagent in a worktree, sharing its parent's roots, names that worktree for the
   call and is answered from it rather than the main checkout. A path outside this repository is
   refused; the skill and agent brief say when to pass it (408).
+- An empty `find_callers` on a multi-language index answers `relation_unmodelled_for_language` only
+  when another language names the subject — as a callee or as a literal argument, `querySP('name')`.
+  Otherwise it is `no_matches`, with the unreached languages in `cross_language_unmeasured` (409).
 - A `records` block in the rule file attaches a consumer's records — a QA ticket, an incident — to
   the symbols they name: `find_references`, `read_symbol` and `impact` list them, and the build and
   `get_index_status` report dangling targets and how many ids the block's exclusion list kept off.
