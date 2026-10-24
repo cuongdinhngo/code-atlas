@@ -2768,6 +2768,35 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (*kinds, *cleaned)).fetchone()[0])
 
+    def named_from_another_language(
+        self, raws: Sequence[str], *, language: str, kinds: Sequence[str]
+    ) -> bool:
+        """Does an unlinked edge in a language other than ``language`` name one of ``raws`` (409)?
+
+        It names it as its ``target_raw``, or as a whole string among its literal arguments
+        (``arg_strings``, 398) — a stored proc reached through ``querySP('name')``. One read.
+        """
+        cleaned = tuple(raw for raw in raws if raw)
+        if not cleaned or not kinds:
+            return False
+        kind_marks = ",".join("?" * len(kinds))
+        raw_marks = ",".join("?" * len(cleaned))
+        # Each raw as the JSON string it is stored as, with LIKE's own wildcards escaped.
+        patterns = [
+            "%" + json.dumps(raw).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            + "%"
+            for raw in cleaned
+        ]
+        named = " OR ".join(["e.target_raw IN (" + raw_marks + ")"]
+                            + ["e.arg_strings LIKE ? ESCAPE '\\'"] * len(patterns))
+        sql = (
+            "SELECT 1 FROM edges e JOIN files f ON f.path = e.file_path "
+            f"WHERE e.kind IN ({kind_marks}) AND (e.target_qname IS NULL OR e.target_qname = '') "
+            f"AND COALESCE(e.language, f.language) <> ? AND ({named}) LIMIT 1"
+        )
+        params = (*kinds, language, *cleaned, *patterns)
+        return self._conn.execute(sql, params).fetchone() is not None
+
     def unlinked_kinds_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]
     ) -> list[str]:
