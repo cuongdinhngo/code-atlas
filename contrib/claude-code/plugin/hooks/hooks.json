@@ -512,7 +512,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || { echo 'code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: uv tool install git+https://github.com/cuongdinhngo/code-atlas.git'; exit 0; }; exec code-atlas-state --expect-contract 18 --expect-version 0.7.0",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || { echo 'code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: uv tool install git+https://github.com/cuongdinhngo/code-atlas.git'; exit 0; }; exec code-atlas-state --expect-contract 19 --expect-version 0.8.0",
             "timeout": 10
           }
         ]
@@ -531,7 +531,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-release-check >/dev/null 2>&1 || exit 0; exec code-atlas-release-check --expect-version 0.7.0",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-release-check >/dev/null 2>&1 || exit 0; exec code-atlas-release-check --expect-version 0.8.0",
             "timeout": 10
           }
         ]
@@ -552,7 +552,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || exit 0; exec code-atlas-state --expect-contract 18 --expect-version 0.7.0",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || exit 0; exec code-atlas-state --expect-contract 19 --expect-version 0.8.0",
             "timeout": 10
           }
         ]

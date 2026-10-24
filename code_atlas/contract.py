@@ -42,7 +42,9 @@ from typing import Literal, get_args
 # Also v17: `extra.migration_version` (403), so the latest of a migration's redefinitions answers.
 # v18: `embedded` on a result, `spans` + `suffix` on a request, the `spans` capability (399). A
 # region of one language inside another's file is named by its host, read by its suffix's owner.
-CONTRACT_VERSION = 18
+# v19: `READS` onto a Column, `Table::column` (410). A statement names the columns it reads, so a
+# pre-410 index — which would answer "no readers" for every column — rebuilds instead.
+CONTRACT_VERSION = 19
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -99,8 +101,8 @@ EDGE_KINDS: tuple[str, ...] = (
     # v12 (328): a routine removes rows from a Table. Never a Column list — the statement names
     # none to write — so check_column_defaults keeps reading WRITES only.
     "DELETES",
-    # v15 (390): a routine or a host string reads a Table — a select's FROM / JOIN source. Opt-in
-    # on find_references (kinds=), so a table's default answer stays its writers.
+    # v15 (390): a routine or a host string reads a Table — a select's FROM / JOIN source; v19
+    # (410) also each Column it names. Opt-in on find_references (kinds=), so writers stay default.
     "READS",
 )
 

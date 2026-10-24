@@ -17,6 +17,14 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.8.0 — 2026-10-24 · contract 19 · schema 9
+
+- **Full rebuild required.** Run `code-atlas-build --full`: a statement now names the columns it reads.
+- **Adapter checkout must be updated.** Every adapter speaks contract 19.
+- `find_references(<Table::Column>, kinds=["READS"])` lists who reads a column: a T-SQL routine or
+  view naming it as `alias.col`, or bare beside its one source (`RESOLVED`), and a host string's
+  `SELECT … FROM t` doing the same (`HEURISTIC`). A table's readers that named none of its columns —
+  a `select *` — are counted in `column_reads_unknown`; a table's own `READS` row lists `columns` (410).
 - `read_symbol`, `file_outline`, `search_symbol`, `find_callers` and `find_references` take
   `caller_root`: a subagent in a worktree, sharing its parent's roots, names that worktree for the
   call and is answered from it rather than the main checkout. A path outside this repository is
