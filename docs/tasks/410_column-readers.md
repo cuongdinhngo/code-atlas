@@ -318,6 +318,24 @@ spell like them; read a word by its place (a call's first argument, after `AS`) 
 spawned the SQL adapter in `--file` mode itself; it now goes through `tests.adapter_cli.run_adapter_file`, the one
 module allowed to. Test-only; the reviewed code is unchanged.
 
+**The final gate:**
+
+```
+$ scripts/gate.sh
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at aaa374e4e52bb5e67ec1dc7ad74ca7fe3a9c6226
+```
+
+**P8** (`scripts/cross_repo_validate.py --public-only --skip-clone`, same tree): `public_ok: 11, public_failed: 0`.
+The SQL samples read 336,391 edges against a pre-410 build of 330,867 on this host (the cached `adventureworks_oltp`
+index before this run): +5,524, the column `READS` (the first, pre-review binder gave +6,052). Every floor still
+holds; the SQL floors (1,040 / 1,003 edges) sit far below either build, and a rise cannot cross a minimum, so no floor
+was moved (W8). Not re-floored: no floor moved.
+
+Stale-review guard: after `2358e94c` only tests (the guardrail fix) and bookkeeping changed; the code under review is
+unchanged. The commit recording this block touches this file alone.
+
 ### Outward actions
 
 Under the handover: push `feat/410-column-readers`; open its PR against `feat/409-measured-zero-callers`.
