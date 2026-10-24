@@ -314,6 +314,10 @@ listed the shapes the code was written for (R6.3's `fixture-shape-begs-the-quest
 410-C1 (`a-word-list-is-not-a-grammar`): a stop-word list chosen to drop non-columns also drops real columns that
 spell like them; read a word by its place (a call's first argument, after `AS`) before its spelling.
 
+**The first full gate** (`f6bd8129`): `1 failed, 4930 passed` — `test_guardrail_gates.py` (147 AC4): the review test
+spawned the SQL adapter in `--file` mode itself; it now goes through `tests.adapter_cli.run_adapter_file`, the one
+module allowed to. Test-only; the reviewed code is unchanged.
+
 ### Outward actions
 
 Under the handover: push `feat/410-column-readers`; open its PR against `feat/409-measured-zero-callers`.
