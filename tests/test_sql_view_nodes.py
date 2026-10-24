@@ -125,7 +125,8 @@ def test_a_line_leading_end_never_cuts_a_view_s_reads(tmp_path: Path) -> None:
     config = _built(tmp_path)
     with GraphStore(config.db_path) as store:
         reads = store.edges_by_source("dbo.Labelled", kinds=("READS",), limit=10)
-    assert {str(edge["target_raw"]) for edge in reads} == {"dbo.Orders", "dbo.Cust"}
+    tables = {str(edge["target_raw"]) for edge in reads if "::" not in str(edge["target_raw"])}
+    assert tables == {"dbo.Orders", "dbo.Cust"}  # 410's column reads ride beside them
 
 
 @needs_node

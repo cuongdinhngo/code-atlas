@@ -106,4 +106,163 @@ function unquote(part) {
   return part;
 }
 
-module.exports = { readSqlLiteral };
+// Reserved words a SELECT uses that never name a column of its source (410), plus the table hints.
+// A date part, `Path` or `Rows` is a common column name, so those are read by place instead. A
+// delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+const NOT_A_COLUMN = new Set(`select from where and or not null is in like between as on join inner
+  left right full outer cross apply order by group having union all distinct top percent case when
+  then else end asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast into
+  values set insert update delete merge using output declare begin return returns if while go
+  create alter view procedure proc function table trigger for of over escape collate pivot unpivot
+  except intersect default any some current_timestamp current_user session_user system_user
+  identity partition interval`.split(/\s+/));
+const STRING = /N?'(?:[^']|'')*'?/gi;
+// A regular identifier: a letter, `_`, `@` or `#`, then letters, digits and `@#$_` — Unicode ones too.
+const COLUMN_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}_@#][\p{L}\p{N}_@#$]*)`;
+const CHAIN = new RegExp(String.raw`${COLUMN_PART}(?:\s*\.\s*(?:${COLUMN_PART}|\*))*`, "gu");
+const BARE_STAR =
+  /(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i;
+const DOTTED_STAR = new RegExp(String.raw`(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)\s*\.\s*\*`, "gu");
+const SECOND_SOURCE = /\bjoin\b|\bapply\b/i;
+// Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` table hint.
+const NOT_NAMES =
+  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)/gi;
+// The first argument of a date function is a date part, of CONVERT a type: never a column.
+const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket|convert|try_convert)\s*\(\s*$/i;
+// A top-N count precedes the select list; any other number or name before a bare word aliases it.
+const TOP_N = /\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
+const AFTER_EXPRESSION = /(?:\)|\bend)$/i;
+const PRIOR = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}\p{N}_@#$]+)$/u;
+const ORDER_BY = /\border\s+by\b/gi;
+const ITEM = new RegExp(
+  String.raw`\b(?:from|join|apply)\s+(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)(?:\s+(?:as\s+)?(${COLUMN_PART}))?`,
+  "giu",
+);
+const PLACEHOLDER = [".", ":", "%", "$", "{"];
+const blank = (/** @type {string} */ m) => " ".repeat(m.length);
+
+// The columns a SELECT literal reads of its first FROM's table, first seen, once each (410):
+// `alias.col` / `table.col` always — unless another source in the string shares that name; a bare
+// name only when that table is the string's one source, and never a keyword, call, date part,
+// alias, parameter or temp. A `*` on the table gives none: which columns it reads is not known.
+function readSqlColumns(text, closed) {
+  const found = readSqlLiteral(text, closed);
+  if (!found || found.kind !== KINDS.select) return [];
+  const target = found.target;
+  const masked = text.replace(STRING, blank).replace(NOT_NAMES, blank);
+  const head = HEAD.exec(masked);
+  if (!head) return [];
+  const start = head[0].length;
+  FROM.lastIndex = start;
+  let source = FROM.exec(masked);
+  while (source && !topLevel(masked, start, source.index)) source = FROM.exec(masked);
+  if (!source) return [];
+  const sourceAt = source.index;
+  NAME.lastIndex = source.index + source[0].length;
+  const name = NAME.exec(masked);
+  if (!name) return [];
+  const names = new Set([target.toLowerCase(), (target.split(".").pop() ?? target).toLowerCase()]);
+  let after = NAME.lastIndex;
+  ALIAS.lastIndex = after;
+  const alias = ALIAS.exec(masked);
+  if (alias) {
+    const tokens = alias[0].match(PART) || [];
+    const token = tokens[tokens.length - 1] ?? "";
+    if (/^[["]/.test(token) || !NOT_A_COLUMN.has(unquote(token).toLowerCase())) {
+      names.add(unquote(token).toLowerCase());
+      after = ALIAS.lastIndex;
+    }
+  }
+  for (const other of shared(masked, target)) names.delete(other);
+  if (stars(masked, names)) return [];
+  const single =
+    !SECOND_SOURCE.test(masked) &&
+    (masked.match(FROM) || []).length === 1 &&
+    !masked.slice(after).trimStart().startsWith(",");
+  // A select-list alias may be an ORDER BY key (the one clause that sees it): never a column there.
+  let order = -1;
+  ORDER_BY.lastIndex = start;
+  for (let m = ORDER_BY.exec(masked); m; m = ORDER_BY.exec(masked)) {
+    if (topLevel(masked, start, m.index)) order = m.index;
+  }
+  const aliases = new Set();
+  /** @type {string[]} */
+  const out = [];
+  const seen = new Set();
+  CHAIN.lastIndex = start;
+  for (let m = CHAIN.exec(masked); m; m = CHAIN.exec(masked)) {
+    const before = masked.slice(0, m.index).trimEnd();
+    if (PLACEHOLDER.some((mark) => before.endsWith(mark)) || /[0-9]$/.test(masked.slice(0, m.index))) {
+      continue;
+    }
+    const parts = m[0].split(/\s*\.\s*/).map(unquote);
+    const column = parts[parts.length - 1] ?? "";
+    if (parts.length > 1) {
+      if (!names.has(parts.slice(0, -1).join(".").toLowerCase()) || column === "*") continue;
+    } else if (!single || (m.index >= sourceAt && m.index < after)) {
+      continue;
+    } else {
+      const rest = masked.slice(m.index + m[0].length);
+      if (excluded(m[0], rest, before)) continue;
+      if (aliasPlace(rest, before)) {
+        if (m.index < sourceAt) aliases.add(column.toLowerCase());
+        continue;
+      }
+      if (order >= 0 && m.index > order && aliases.has(column.toLowerCase())) continue;
+    }
+    if (!seen.has(column.toLowerCase())) {
+      seen.add(column.toLowerCase());
+      out.push(column);
+    }
+  }
+  return out;
+}
+
+// Names another FROM / JOIN item also goes by — an alias reused in a subquery binds neither.
+function shared(masked, target) {
+  const other = new Set();
+  ITEM.lastIndex = 0;
+  for (let m = ITEM.exec(masked); m; m = ITEM.exec(masked)) {
+    const table = (m[1] ?? "").split(/\s*\.\s*/).map(unquote).join(".");
+    if (table.toLowerCase() === target.toLowerCase()) continue;
+    other.add(table.toLowerCase());
+    other.add((table.split(".").pop() ?? table).toLowerCase());
+    if (m[2]) other.add(unquote(m[2]).toLowerCase());
+  }
+  return other;
+}
+
+// A bare word that is never a column: a keyword, call, parameter, temp, date part, CONVERT type or
+// collation name.
+function excluded(token, after, before) {
+  const lower = unquote(token).toLowerCase();
+  if (/^[@#]/.test(token) || (!/^[["]/.test(token) && NOT_A_COLUMN.has(lower))) return true;
+  return after.trimStart().startsWith("(") || DATE_PART_ARG.test(before) || /\bcollate$/i.test(before);
+}
+
+// A word where an alias stands: `x = expr` opening a select item, after `AS`, `)` or `END`, or
+// straight after another name or number — never a top-N count's next word.
+function aliasPlace(after, before) {
+  if (/^\s*=(?!=)/.test(after) && (/(?:,|\bselect|\bdistinct)$/i.test(before) || TOP_N.test(before))) {
+    return true;
+  }
+  if (/\bas$/i.test(before)) return true;
+  if (TOP_N.test(before)) return false;
+  if (AFTER_EXPRESSION.test(before)) return true;
+  const prior = PRIOR.exec(before);
+  if (!prior) return false;
+  return /^[["0-9]/.test(prior[0]) || !NOT_A_COLUMN.has(prior[0].toLowerCase());
+}
+
+// Does the select list read the source with `*` — bare, or `t.*` naming it?
+function stars(masked, names) {
+  if (BARE_STAR.test(masked)) return true;
+  DOTTED_STAR.lastIndex = 0;
+  for (let m = DOTTED_STAR.exec(masked); m; m = DOTTED_STAR.exec(masked)) {
+    const key = (m[1] ?? "").split(/\s*\.\s*/).map(unquote).join(".").toLowerCase();
+    if (names.has(key)) return true;
+  }
+  return false;
+}
+
+module.exports = { readSqlLiteral, readSqlColumns };

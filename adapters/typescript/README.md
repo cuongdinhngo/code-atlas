@@ -85,7 +85,7 @@ a scope; properties and consts only declare). `tests/contract/` freezes that sou
 
 A string or template literal that begins a T-SQL write or `EXEC` emits that edge onto the named
 object at `HEURISTIC` (371, PHP's 335 shape): `INSERT INTO`/`UPDATE`/`MERGE INTO` → `WRITES`, `DELETE
-FROM` → `DELETES`, `SELECT … FROM` → `READS` (390), `EXEC` → `CALLS`, only when the clause T-SQL requires follows the name. A
+FROM` → `DELETES`, `SELECT … FROM` → `READS` (390) and onto each column it names (410), `EXEC` → `CALLS`, only when the clause T-SQL requires follows the name. A
 template's head before `${…}` and a literal before `+` are cut short; the `EXEC` guard also reads
 `$1`, and an unqualified `EXEC P` names `dbo.P`, T-SQL's default schema (386). A type, a module specifier and a member's name are not read: no driver runs them. `tests/contract/sql_literal_cases.json` keeps the three copies in step.
 

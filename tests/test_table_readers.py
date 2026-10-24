@@ -146,8 +146,10 @@ def test_challenger_a_comma_join_a_self_read_and_a_one_line_function_are_reads(
         for edge in json.loads(done.stdout)["edges"]
         if edge["kind"] == "READS"
     }
+    # 410: F's one source binds its bare `Id`; P's INSERT column list is the target's, not read.
     assert reads == {
         ("dbo.F", "dbo.T"),
+        ("dbo.F", "dbo.T::Id"),
         ("dbo.P", "dbo.T"),
         ("dbo.Q", "dbo.A"),
         ("dbo.Q", "dbo.B"),
@@ -170,6 +172,6 @@ def test_review_a_call_s_from_is_no_source_and_one_table_is_read_once(tmp_path: 
     reads = [
         (edge["source_qname"], edge["target_raw"])
         for edge in json.loads(done.stdout)["edges"]
-        if edge["kind"] == "READS"
+        if edge["kind"] == "READS" and "::" not in edge["target_raw"]
     ]
     assert reads == [("dbo.R", "dbo.T"), ("dbo.R", "dbo.U")]

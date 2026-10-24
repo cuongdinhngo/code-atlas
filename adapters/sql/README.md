@@ -32,7 +32,7 @@ and building a whole-file tree over it is the failure mode the PHP adapter alrea
 | `INSERT` / `UPDATE` naming columns | `WRITES` edge per column | 2 |
 | `INSERT` / `UPDATE` naming none | one `WRITES` edge onto the **`Table`** | 2 |
 | `DELETE` / `TRUNCATE` / `MERGE…DELETE` | one `DELETES` edge onto the **`Table`** | 2 |
-| a `FROM` / `JOIN` source of a `SELECT`, `INSERT … SELECT`, `UPDATE … FROM` or `DELETE … FROM` | one `READS` edge per table, on its own line — never the statement's write target, `inserted`/`deleted`, a `#temp`/`@table`, a CTE name or a table-valued function (390) | 2 |
+| a `FROM` / `JOIN` source of a `SELECT`, `INSERT … SELECT`, `UPDATE … FROM` or `DELETE … FROM` | one `READS` edge per table, on its own line — never the statement's write target, `inserted`/`deleted`, a `#temp`/`@table`, a CTE name or a table-valued function (390); plus a `READS` onto `T::col` for each column it names as `alias.col`, or bare beside its one source in a pure `SELECT` — never after `select *` (410) | 2 |
 | `UPDATE c …` / `DELETE c …` `FROM dbo.T c` (an alias) | the edge lands on the top-level `FROM` / `JOIN` source `dbo.T`; a subquery's own `c` never shadows it (328, 333) | 2 |
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `VIEW` | `View` node; its `FROM` / `JOIN` sources are `READS` from it, and `ALTER` / `CREATE OR ALTER` an `ALTERS` edge from the file (402) | 2 |
 | a routine or view in a Flyway versioned migration, `V<version>__<description>.sql` | `extra.migration_version`, the version dotted (`V1_5__x.sql` → `1.5`), so the highest one answers `read_symbol` (403) | 2 |

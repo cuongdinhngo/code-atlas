@@ -16,6 +16,7 @@ from src.loads import (
     exec_file_path,
     file_relative_target,
 )
+from src.sql_literal import columns as read_sql_columns
 from src.sql_literal import read as read_sql_literal
 from src.types import (
     bound_class,
@@ -1136,16 +1137,19 @@ def parse_file(
         keyword = text[offset:].split(None, 1)[0].lower()
         at = source.lower().find(keyword)
         line = (getattr(node, "lineno", 1) or 1) + source.count("\n", 0, max(at, 0))
-        edges.append(
-            {
-                "kind": kind,
-                "source_qname": scope,
-                "target_raw": target,
-                "file_path": qpath,
-                "line": line,
-                "confidence_tier": "HEURISTIC",
-            }
-        )
+        # A SELECT's columns ride its table's line, so one statement stays one row (410).
+        reads = [f"{target}{MEMBER_SEP}{col}" for col in read_sql_columns(text, closed)]
+        for raw in (target, *reads):
+            edges.append(
+                {
+                    "kind": kind,
+                    "source_qname": scope,
+                    "target_raw": raw,
+                    "file_path": qpath,
+                    "line": line,
+                    "confidence_tier": "HEURISTIC",
+                }
+            )
 
     def _walk_targets(target: ast.expr, scope: str, enclosing_class: str | None) -> None:
         # An assignment target is a write, never a call site: only its attribute refs are read.

@@ -428,8 +428,8 @@ USAGE_RULES: tuple[str, ...] = (
     "- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus"
     " `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method"
     " when the question is *what writes this column*. Pass `kinds: [\"READS\"]` for who"
-    " reads the table instead — routines that `SELECT` from it and strings that begin"
-    " `SELECT … FROM` it (390).",
+    " reads it instead — on a Column, the statements naming it; `column_reads_unknown`"
+    " counts the table's readers that named no column, such as `select *` (390/410).",
     "- **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the"
     " index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when"
     " a language stamped `dynamic_sql` (296).",

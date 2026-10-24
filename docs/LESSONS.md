@@ -47,6 +47,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 410-C1 — a stop-word list drops the real names that spell like its words
+
+- type: 2 (code) · handle: `a-word-list-is-not-a-grammar`
+- status: proposed · seen: 410
+- evidence: the column binder skipped `day`, `year`, `path`, `rows` as keywords; `SELECT Year, Path FROM S` read no
+  column and the statement counted as a `select *`. The challenger probed it; the fix reads a date part by its place
+  (a date function's first argument) and keeps only reserved words in the list.
+- destination: first sighting.
+
 ### 408-C1 — a BACKLOG row is charged to the tier-1 budget, which `test_doc_size_budget.py` does not check
 
 - type: 2 (process) · handle: `a-docs-change-runs-every-doc-budget`

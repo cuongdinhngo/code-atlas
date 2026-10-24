@@ -97,6 +97,8 @@ _MEMBER_WALK = 10_000
 _UNION_SUBJECT_KINDS = frozenset({"Class"})
 UNLINKED_WRITES_COUNT = "unlinked_writes_count"
 UNLINKED_READS_COUNT = "unlinked_reads_count"
+# A column's readers the statements could not name: they read its table, no column of it (410).
+COLUMN_READS_UNKNOWN = "column_reads_unknown"
 # Table → Column CONTAINS walk for the writer-set union (248/278); same ballpark as read_symbol.
 _WRITES_CONTAINS_WALK = 10_000
 
@@ -137,9 +139,11 @@ def _table_kinds(kinds: list[str] | None) -> tuple[str, ...]:
 def _unlinked_counts(
     store: GraphStore, lookup: str, subject_kind: str, kinds: tuple[str, ...]
 ) -> dict[str, int]:
-    """Unlinked edges of each asked kind that still name the subject's table (215/278/390).
+    """What an asked kind's answer cannot list: unlinked edges still naming the table (215/278/390).
 
-    READS target a Table only, so a Column subject never counts them.
+    A Column asked ``READS`` counts instead the statements that read its table and named no column
+    of it (410): a ``select *``, or bare names nothing could bind. A statement that named one column
+    and left a bare name beside several sources unbound is not counted — a documented limit.
     """
     table_key = (
         lookup.rsplit("::", 1)[0] if subject_kind == COLUMN_KIND and "::" in lookup else lookup
@@ -149,17 +153,16 @@ def _unlinked_counts(
         counts[UNLINKED_WRITES_COUNT] = store.count_unlinked_relating_to(table_key, kind=WRITES)
     if READS in kinds and subject_kind == TABLE_KIND:
         counts[UNLINKED_READS_COUNT] = store.count_unlinked_relating_to(table_key, kind=READS)
+    if READS in kinds and subject_kind == COLUMN_KIND:
+        counts[COLUMN_READS_UNKNOWN] = store.count_reads_naming_no_column(table_key)
     return counts
 
 
 def _kinds_ignored(kinds: list[str] | None, subject_kind: str | None) -> list[str]:
-    """The asked kinds this subject cannot hold: all off a Table/Column, READS on a Column."""
-    if kinds is None:
+    """The asked kinds this subject cannot hold: all of them off a Table/Column (390)."""
+    if kinds is None or subject_kind is not None:
         return []
-    asked = list(dict.fromkeys(kinds))
-    if subject_kind is None:
-        return asked
-    return [kind for kind in asked if kind == READS and subject_kind == COLUMN_KIND]
+    return list(dict.fromkeys(kinds))
 
 
 def _writes_targets(store: GraphStore, lookup: str, subject_kind: str) -> list[str]:
@@ -303,8 +306,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
         only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
         lists the routines a ``select`` reads the table from (RESOLVED) and host strings that
-        begin one (HEURISTIC) — 390. ``kinds_ignored`` lists the asked kinds the subject cannot
-        hold: all of them off a Table/Column, ``READS`` on a Column (a read targets the Table).
+        begin one (HEURISTIC) — 390 — and on a Column the statements naming that column, by
+        ``alias.col`` or, beside one source, a bare name (410); a Table's row then lists them
+        in ``columns``. ``column_reads_unknown`` counts its table's readers that named no column
+        of it (a ``select *``); a bare name beside several sources is never bound.
+        ``kinds_ignored`` lists asked kinds a non-Table/Column subject ignores.
         Unlinked edges of an asked kind that still name the table are counted as
         ``unlinked_writes_count`` / ``unlinked_reads_count``. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language
@@ -735,7 +741,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ):
             # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
             caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
-        if table_subject_kind == TABLE_KIND and READS in table_kinds and _writes_answer_is_partial(
+        if table_subject_kind is not None and READS in table_kinds and _writes_answer_is_partial(
             covered, emitted_kinds, READS
         ):
             caveats.append(CAVEAT_READS_EMITTERS_ONLY)

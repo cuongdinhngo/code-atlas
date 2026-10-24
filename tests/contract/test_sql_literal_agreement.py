@@ -85,6 +85,8 @@ def test_every_adapter_reads_the_shared_literal_table(adapter: str, tmp_path: Pa
         if only and only != adapter:
             continue
         want = [(expect["kind"], expect["target"])] if expect else []
+        # 410: a SELECT's columns follow its table, in the order the literal names them.
+        want += [("READS", f"{expect['target']}::{c}") for c in (expect or {}).get("columns", [])]
         if found.get(line, []) != want:
             wrong.append((text, want, found.get(line, [])))
     assert wrong == []

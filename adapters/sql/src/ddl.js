@@ -670,6 +670,241 @@ function readSources(code) {
   return out;
 }
 
+// Reserved words a statement uses that never name a column of its source (410), plus the table
+// hints. A date part, `Path` or `Rows` is a common column name, so those are read by place instead.
+// A delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+const NOT_A_COLUMN_READ = new Set([
+  "select", "from", "where", "and", "or", "not", "null", "is", "in", "like", "between", "as", "on",
+  "join", "inner", "left", "right", "full", "outer", "cross", "apply", "order", "by", "group",
+  "having", "union", "all", "distinct", "top", "percent", "case", "when", "then", "else", "end",
+  "asc", "desc", "exists", "with", "nolock", "readuncommitted", "holdlock", "updlock", "rowlock",
+  "readpast", "into", "values", "set", "insert", "update", "delete", "merge", "using", "output",
+  "declare", "begin", "return", "returns", "if", "while", "go", "create", "alter", "view",
+  "procedure", "proc", "function", "table", "trigger", "for", "of", "over", "escape", "collate",
+  "pivot", "unpivot", "except", "intersect", "default", "any", "some", "current_timestamp",
+  "current_user", "session_user", "system_user", "identity", "partition",
+]);
+// A regular identifier: a letter, `_`, `@` or `#`, then letters, digits and `@#$_` — Unicode ones too.
+const PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}_@#][\p{L}\p{N}_@#$]*)`;
+// A name and its dotted tail; `t.*` keeps its star so it is seen, then never bound.
+const CHAIN = new RegExp(String.raw`${PART}(?:\s*\.\s*(?:${PART}|\*))*`, "gu");
+// Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` table hint.
+const NOT_NAMES =
+  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)/gi;
+// The first argument of a date function is a date part, of CONVERT a type: never a column.
+const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket|convert|try_convert)\s*\(\s*$/i;
+// A top-N count precedes the select list; any other number or name before a bare word aliases it.
+const TOP_N = /\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
+const PRIOR = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}\p{N}_@#$]+)$/u;
+const ORDER_BY = /\border\s+by\b/gi;
+
+/** @param {string} part */
+function unbracket(part) {
+  return part.replace(/^\[|\]$/g, "").replace(/^"|"$/g, "");
+}
+
+/**
+ * Every FROM / JOIN / APPLY item of a statement, a skipped one included (a #temp, `inserted`, a
+ * CTE name, a derived table), with its alias and the span its name and alias cover (410).
+ * @param {string} code
+ * @returns {{name: string|null, alias: string|null, from: number, to: number}[]}
+ */
+function sourceItems(code) {
+  /** @type {{name: string|null, alias: string|null, from: number, to: number}[]} */
+  const items = [];
+  const keyword = /\b(?:from|join|apply)\s+/gi;
+  const open = [];
+  let seen = 0;
+  for (let m = keyword.exec(code); m; m = keyword.exec(code)) {
+    for (; seen < m.index; seen++) {
+      if (code[seen] === "(") open.push(seen);
+      else if (code[seen] === ")") open.pop();
+    }
+    const inner = open.length ? open[open.length - 1] ?? -1 : -1;
+    if (inner >= 0 && !/^\s*(?:select|with)\b/i.test(code.slice(inner + 1))) continue;
+    let at = m.index + m[0].length;
+    for (;;) {
+      if (/^\s*\(/.test(code.slice(at))) {
+        items.push({ name: null, alias: null, from: at, to: at });  // a derived table or a call
+        break;
+      }
+      const table = readQualified(code, at);
+      if (!table) break;
+      const named = /^\s+(?:as\s+)?/i.exec(code.slice(table.next));
+      const alias = named ? readIdent(code, table.next + named[0].length) : null;
+      const word = alias && (alias.delimited || !NOT_A_COLUMN_READ.has(alias.name.toLowerCase()))
+        ? alias : null;
+      const to = word ? word.next : table.next;
+      items.push({ name: table.name, alias: word ? word.name : null, from: at, to });
+      const more = /^\s*,\s*/.exec(code.slice(to));
+      if (/^\s*\(/.test(code.slice(table.next)) || !more) break;
+      at = to + more[0].length;
+    }
+  }
+  return items;
+}
+
+/**
+ * The names a statement may qualify each real source by — alias, own name, last part — lower-cased
+ * (410). A name two sources share (an alias reused in a subquery) binds neither: never a guess.
+ * @param {{name: string|null, alias: string|null}[]} items
+ * @param {{name: string}[]} sources
+ * @returns {Map<string, string>}
+ */
+function sourceNames(items, sources) {
+  /** @type {Map<string, string|null>} */
+  const names = new Map();
+  const bind = (/** @type {string} */ key, /** @type {string} */ table) => {
+    const had = names.get(key);
+    names.set(key, had === undefined || had === table ? table : null);
+  };
+  for (const item of items) {
+    const source = sources.find((s) => s.name === item.name);
+    if (!source) continue;
+    bind(source.name.toLowerCase(), source.name);
+    bind((source.name.split(".").pop() ?? source.name).toLowerCase(), source.name);
+    if (item.alias) bind(item.alias.toLowerCase(), source.name);
+  }
+  /** @type {Map<string, string>} */
+  const bound = new Map();
+  for (const [key, table] of names) if (table !== null) bound.set(key, table);
+  return bound;
+}
+
+/**
+ * The columns a statement reads, each with its table (410): `alias.col` / `table.col` against its
+ * sources; and, when `bare` and the statement has exactly one FROM item and no CTE, a bare name
+ * that is no keyword, call, date part, alias, parameter or temp. First seen, once each. A source
+ * read by `*` (or `t.*`) gives no column at all: which columns it reads is not known.
+ * @param {string} raw
+ * @param {boolean} bare
+ * @returns {{table: string, column: string}[]}
+ */
+function readColumnReads(raw, bare) {
+  const code = raw.replace(NOT_NAMES, (m) => " ".repeat(m.length));
+  const items = sourceItems(code);
+  const names = sourceNames(items, readSources(code));
+  const sources = [...new Set(names.values())];
+  if (sources.length === 0) return [];
+  // A CTE or a derived table answers its outer query's bare names, never the base table (W5).
+  CTE_NAME.lastIndex = 0;
+  const cte = CTE_NAME.test(code);
+  CTE_NAME.lastIndex = 0;
+  const only = bare && items.length === 1 && !cte && sources.length === 1 ? sources[0] : null;
+  const select = /\bselect\b/i.exec(code);
+  // A select-list alias may be an ORDER BY key (the one clause that sees it): never a column there.
+  const list = only === null ? -1 : (items[0]?.from ?? -1);
+  const order = select ? lastTopLevel(code, select.index, ORDER_BY) : -1;
+  const aliases = new Set();
+  /** @type {{table: string, column: string}[]} */
+  const out = [];
+  const seen = new Set();
+  const add = (/** @type {string} */ table, /** @type {string} */ column) => {
+    const key = `${table}::${column}`.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); out.push({ table, column }); }
+  };
+  CHAIN.lastIndex = 0;
+  for (let m = CHAIN.exec(code); m; m = CHAIN.exec(code)) {
+    const before = code.slice(0, m.index).trimEnd();
+    if (before.endsWith(".") || before.endsWith(":") || /[0-9]$/.test(code.slice(0, m.index))) {
+      continue;
+    }
+    const parts = m[0].split(/\s*\.\s*/).map(unbracket);
+    const column = parts[parts.length - 1] ?? "";
+    if (parts.length > 1) {
+      const table = names.get(parts.slice(0, -1).join(".").toLowerCase());
+      if (table && column !== "*") add(table, column);
+      continue;
+    }
+    if (only === null || !select || m.index < select.index + select[0].length) continue;
+    if (items.some((item) => m.index >= item.from && m.index < item.to)) continue;
+    const rest = code.slice(m.index + m[0].length);
+    if (rest.startsWith("'")) continue;  // `N'…'`: a literal's prefix
+    if (excluded(m[0], rest, before)) continue;
+    const lower = column.toLowerCase();
+    if (aliasPlace(rest, before)) {
+      if (m.index < list) aliases.add(lower);
+      continue;
+    }
+    if (!(order >= 0 && m.index > order && aliases.has(lower))) add(only, column);
+  }
+  const starred = starredSources(code, names);
+  return starred === null ? [] : out.filter(({ table }) => !starred.has(table));
+}
+
+/**
+ * A bare word that is never a column (410): a keyword, call, parameter, temp, date part, CONVERT
+ * type or collation name.
+ * @param {string} token
+ * @param {string} after
+ * @param {string} before
+ */
+function excluded(token, after, before) {
+  const delimited = /^[[\"]/.test(token);
+  if (/^[@#]/.test(token) || (!delimited && NOT_A_COLUMN_READ.has(unbracket(token).toLowerCase()))) {
+    return true;
+  }
+  return /^\s*\(/.test(after) || DATE_PART_ARG.test(before) || /\bcollate$/i.test(before);
+}
+
+/**
+ * Does a word stand where an alias does (410)? `x = expr` opening a select item, a word after `AS`,
+ * after `)` or `END`, or straight after another name or number — never a top-N count's next word.
+ * @param {string} after
+ * @param {string} before
+ */
+function aliasPlace(after, before) {
+  if (/^\s*=(?!=)/.test(after) && (/(?:,|\bselect|\bdistinct)$/i.test(before) || TOP_N.test(before))) {
+    return true;
+  }
+  if (/\bas$/i.test(before)) return true;
+  if (TOP_N.test(before)) return false;
+  if (/(?:\)|\bend)$/i.test(before)) return true;
+  const prior = PRIOR.exec(before);
+  if (!prior) return false;
+  return /^[[\"0-9]/.test(prior[0]) || !NOT_A_COLUMN_READ.has(prior[0].toLowerCase());
+}
+
+/**
+ * Where the last match of `pattern` outside every parenthesis opened since `start` begins, or -1.
+ * @param {string} code
+ * @param {number} start
+ * @param {RegExp} pattern
+ */
+function lastTopLevel(code, start, pattern) {
+  let found = -1;
+  let depth = 0;
+  let seen = start;
+  pattern.lastIndex = start;
+  for (let m = pattern.exec(code); m; m = pattern.exec(code)) {
+    for (; seen < m.index; seen++) depth += code[seen] === "(" ? 1 : code[seen] === ")" ? -1 : 0;
+    if (depth === 0) found = m.index;
+  }
+  pattern.lastIndex = 0;
+  return found;
+}
+
+/**
+ * The sources a statement selects with `*` — `t.*` names one; a bare `*` in a select list all
+ * of them, signalled by null (410). `count(*)` is a call, not a select list.
+ * @param {string} code
+ * @param {Map<string, string>} names
+ * @returns {Set<string>|null}
+ */
+function starredSources(code, names) {
+  if (/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i.test(code)) {
+    return null;
+  }
+  const starred = new Set();
+  const dotted = new RegExp(String.raw`(${PART}(?:\s*\.\s*${PART})*)\s*\.\s*\*`, "gu");
+  for (let m = dotted.exec(code); m; m = dotted.exec(code)) {
+    const key = (m[1] ?? "").split(/\s*\.\s*/).map(unbracket);
+    const table = names.get(key.join(".").toLowerCase());
+    if (table) starred.add(table);
+  }
+  return starred;
+}
+
 /**
  * TRUNCATE TABLE t (328).
  * @param {string} code
@@ -703,6 +938,6 @@ module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readDelete, readTruncate, readMergeDeletes, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
   readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
-  readIdent, readQualified, readParens, readSources, splitTopLevel, splitTopLevelPieces,
+  readIdent, readQualified, readParens, readSources, readColumnReads, splitTopLevel, splitTopLevelPieces,
   isReservedObjectName, NOT_A_COLUMN,
 };

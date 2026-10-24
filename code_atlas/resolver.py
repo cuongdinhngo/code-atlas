@@ -170,7 +170,9 @@ def resolve_edges(
                     edge, hits, _weaker_tier(incoming, "RESOLVED"), links, siblings
                 )
                 continue
-            if edge["kind"] in _SCHEMA_OBJECT_KINDS:
+            # A column read takes the same rule (410): `t.id` reads `T::Id`. Table READS keep 390's.
+            column_read = edge["kind"] == contract.READS and contract.split_qname(lookup)[0]
+            if edge["kind"] in _SCHEMA_OBJECT_KINDS or column_read:
                 # Case / schema mismatch: exact FQN missed; unique CI link is T-SQL's rule (215).
                 writes_misses.append(edge)
                 continue

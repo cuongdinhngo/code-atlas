@@ -132,3 +132,181 @@ def _unquote(part: str) -> str:
     if part.startswith('"'):
         return part[1:-1].replace('""', '"')
     return part
+
+
+# Reserved words a SELECT uses that never name a column of its source (410), plus the table hints.
+# A date part, `Path` or `Rows` is a common column name, so those are read by place instead. A
+# delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+_NOT_A_COLUMN = frozenset(
+    """select from where and or not null is in like between as on join inner left right full
+    outer cross apply order by group having union all distinct top percent case when then else end
+    asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast into values set
+    insert update delete merge using output declare begin return returns if while go create alter
+    view procedure proc function table trigger for of over escape collate pivot unpivot except
+    intersect default any some current_timestamp current_user session_user system_user identity
+    partition interval""".split()
+)
+_STRING = re.compile(r"N?'(?:[^']|'')*'?", re.IGNORECASE)
+# A regular identifier: a letter, `_`, `@` or `#`, then letters, digits and `@#$_` — Unicode too.
+_COLUMN_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|(?:[^\W\d]|[@#])[\w@#$]*)'
+_CHAIN = re.compile(_COLUMN_PART + r"(?:\s*\.\s*(?:" + _COLUMN_PART + r"|\*))*")
+_BARE_STAR = re.compile(
+    r"(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?"
+    r"|,\s*)\*",
+    re.IGNORECASE,
+)
+_DOTTED_STAR = re.compile("(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)\s*\.\s*\*")
+_SECOND_SOURCE = re.compile(r"\bjoin\b|\bapply\b", re.IGNORECASE)
+# Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` table hint.
+_NOT_NAMES = re.compile(
+    r"\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?"
+    r"|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)",
+    re.IGNORECASE,
+)
+# The first argument of a date function is a date part, of CONVERT a type: never a column.
+_DATE_PART_ARG = re.compile(
+    r"\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket|convert"
+    r"|try_convert)\s*\(\s*\Z",
+    re.IGNORECASE,
+)
+# A top-N count precedes the select list; any other number or name before a bare word aliases it.
+_TOP_N = re.compile(
+    r"\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\Z", re.IGNORECASE
+)
+_AFTER_EXPRESSION = re.compile(r"(?:\)|\bend)\Z", re.IGNORECASE)
+_PRIOR = re.compile(r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)\Z')
+_ORDER_BY = re.compile(r"\border\s+by\b", re.IGNORECASE)
+_ASSIGNED = re.compile(r"\A\s*=(?!=)")
+_ITEM_START = re.compile(r"(?:,|\bselect|\bdistinct)\Z", re.IGNORECASE)
+_AS = re.compile(r"\bas\Z", re.IGNORECASE)
+_COLLATE = re.compile(r"\bcollate\Z", re.IGNORECASE)
+_ITEM = re.compile(
+    r"\b(?:from|join|apply)\s+(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)"
+    r"(?:\s+(?:as\s+)?(" + _COLUMN_PART + r"))?",
+    re.IGNORECASE,
+)
+_PLACEHOLDER = (".", ":", "%", "$", "{")
+
+
+def columns(text: str, closed: bool) -> list[str]:
+    """The columns a SELECT literal reads of its first FROM's table, first seen, once each (410).
+
+    ``alias.col`` / ``table.col`` always — unless another source in the string shares that name;
+    a bare name only when that table is the string's one source, and never a keyword, call, date
+    part, alias, parameter or temp. A ``*`` on the table gives none: which columns is not known.
+    """
+    found = read(text, closed)
+    if found is None or found[0] != KINDS["select"]:
+        return []
+    target = found[1]
+    masked = _STRING.sub(lambda m: " " * len(m.group(0)), text)
+    masked = _NOT_NAMES.sub(lambda m: " " * len(m.group(0)), masked)
+    head = _HEAD.match(masked)
+    if head is None:
+        return []
+    start = head.end()
+    source = next(
+        (m for m in _FROM.finditer(masked, start) if _top_level(masked, start, m.start())), None
+    )
+    name = _NAME.match(masked, source.end()) if source else None
+    if source is None or name is None:
+        return []
+    names = {target.lower(), target.split(".")[-1].lower()}
+    after = name.end()
+    alias = _ALIAS.match(masked, name.end())
+    if alias is not None:
+        token = _PART.findall(alias.group(0))[-1]
+        if token[:1] in '["' or _unquote(token).lower() not in _NOT_A_COLUMN:
+            names.add(_unquote(token).lower())
+            after = alias.end()
+    names -= _shared(masked, target)
+    if _stars(masked, names):
+        return []
+    single = (
+        _SECOND_SOURCE.search(masked) is None
+        and len(_FROM.findall(masked)) == 1
+        and not masked[after:].lstrip().startswith(",")
+    )
+    # A select-list alias may be an ORDER BY key (the one clause that sees it): never a column.
+    keys = (m.start() for m in _ORDER_BY.finditer(masked, start))
+    order = max((at for at in keys if _top_level(masked, start, at)), default=-1)
+    aliases: set[str] = set()
+    out: list[str] = []
+    seen: set[str] = set()
+    for match in _CHAIN.finditer(masked, start):
+        before = masked[: match.start()].rstrip()
+        if before.endswith(_PLACEHOLDER) or masked[: match.start()][-1:].isdigit():
+            continue
+        parts = [_unquote(part) for part in re.split(r"\s*\.\s*", match.group(0))]
+        column = parts[-1]
+        if len(parts) > 1:
+            if ".".join(parts[:-1]).lower() not in names or column == "*":
+                continue
+        elif not single or source.start() <= match.start() < after:
+            continue
+        else:
+            rest = masked[match.end() :]
+            if _excluded(match.group(0), rest, before):
+                continue
+            if _alias_place(rest, before):
+                if match.start() < source.start():
+                    aliases.add(column.lower())
+                continue
+            if 0 <= order < match.start() and column.lower() in aliases:
+                continue
+        if column.lower() not in seen:
+            seen.add(column.lower())
+            out.append(column)
+    return out
+
+
+def _shared(masked: str, target: str) -> set[str]:
+    """Names another FROM / JOIN item also goes by — an alias reused in a subquery binds neither."""
+    other: set[str] = set()
+    for item in _ITEM.finditer(masked):
+        table = ".".join(_unquote(part) for part in re.split(r"\s*\.\s*", item.group(1)))
+        if table.lower() == target.lower():
+            continue
+        other |= {table.lower(), table.split(".")[-1].lower()}
+        if item.group(2):
+            other.add(_unquote(item.group(2)).lower())
+    return other
+
+
+def _excluded(token: str, after: str, before: str) -> bool:
+    """A word never a column: keyword, call, parameter, temp, date part, CONVERT type, collation."""
+    lower = _unquote(token).lower()
+    if token.startswith(("@", "#")) or (token[:1] not in '["' and lower in _NOT_A_COLUMN):
+        return True
+    return (
+        after.lstrip().startswith("(")
+        or _DATE_PART_ARG.search(before) is not None
+        or _COLLATE.search(before) is not None
+    )
+
+
+def _alias_place(after: str, before: str) -> bool:
+    """A word where an alias stands: ``x = expr`` opening an item, after AS, ``)``, END, a name."""
+    if _ASSIGNED.match(after) and (_ITEM_START.search(before) or _TOP_N.search(before)):
+        return True
+    if _AS.search(before):
+        return True
+    if _TOP_N.search(before):
+        return False
+    if _AFTER_EXPRESSION.search(before):
+        return True
+    prior = _PRIOR.search(before)
+    if prior is None:
+        return False
+    word = prior.group(0)
+    return word[:1] in '["0123456789' or word.lower() not in _NOT_A_COLUMN
+
+
+def _stars(masked: str, names: set[str]) -> bool:
+    """Does the select list read the source with ``*`` — bare, or ``t.*`` naming it?"""
+    if _BARE_STAR.search(masked):
+        return True
+    return any(
+        ".".join(_unquote(part) for part in re.split(r"\s*\.\s*", m.group(1))).lower() in names
+        for m in _DOTTED_STAR.finditer(masked)
+    )

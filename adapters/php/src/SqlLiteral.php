@@ -160,6 +160,298 @@ final class SqlLiteral
         return $rest === '' ? $closed : preg_match('/\A\s*(?:;|\z)/', $rest) === 1;
     }
 
+    /**
+     * Reserved words a SELECT uses that never name a column of its source (410), plus the table
+     * hints. A date part, `Path` or `Rows` is a common column name, so those are read by place.
+     * A delimited `[Status]` is a name however it is spelled, so only bare words count.
+     */
+    private const NOT_A_COLUMN = 'select from where and or not null is in like between as on join'
+        . ' inner left right full outer cross apply order by group having union all distinct top'
+        . ' percent case when then else end asc desc exists with nolock readuncommitted holdlock'
+        . ' updlock rowlock readpast into values set insert update delete merge using output'
+        . ' declare begin return returns if while go create alter view procedure proc function'
+        . ' table trigger for of over escape collate pivot unpivot except intersect default any'
+        . ' some current_timestamp current_user session_user system_user identity partition interval';
+
+    /** A regular identifier: a letter, `_`, `@` or `#`, then letters, digits, `@#$_` — Unicode too. */
+    private const COLUMN_PART = '(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}_@#][\p{L}\p{N}_@#$]*)';
+
+    /** Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` hint. */
+    private const NOT_NAMES = '/\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?'
+        . '|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)/i';
+
+    /** The first argument of a date function is a date part, of CONVERT a type: never a column. */
+    private const DATE_PART_ARG = '/\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc'
+        . '|date_bucket|convert|try_convert)\s*\(\s*\z/i';
+
+    /** A top-N count precedes the select list; any other number or name before a word aliases it. */
+    private const TOP_N = '/\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\z/i';
+
+    /**
+     * The columns a SELECT literal reads of its first FROM's table, first seen, once each (410).
+     *
+     * ``alias.col`` / ``table.col`` always — unless another source in the string shares that
+     * name; a bare name only when that table is the string's one source, never a keyword, call,
+     * date part, alias, parameter or temp. A ``*`` on the table gives none.
+     *
+     * @return list<string>
+     */
+    public static function columns(string $text, bool $closed): array
+    {
+        $found = self::read($text, $closed);
+        if ($found === null || $found['kind'] !== self::KINDS['select']) {
+            return [];
+        }
+        $target = $found['target'];
+        $masked = preg_replace_callback("/N?'(?:[^']|'')*'?/i", self::blank(...), $text) ?? '';
+        $masked = preg_replace_callback(self::NOT_NAMES, self::blank(...), $masked) ?? '';
+        if (preg_match('/\A\s*select\s+/i', $masked, $h) !== 1) {
+            return [];
+        }
+        $start = strlen($h[0]);
+        $at = null;
+        preg_match_all('/\bfrom\s+/i', $masked, $froms, PREG_OFFSET_CAPTURE, $start);
+        foreach ($froms[0] as [$word, $pos]) {
+            if (self::topLevel($masked, $start, $pos)) {
+                $at = [$pos, $pos + strlen($word)];
+                break;
+            }
+        }
+        $name = '/\G' . self::NAME_PART . '(?:\s*\.\s*' . self::NAME_PART . ')*/';
+        if ($at === null || preg_match($name, $masked, $n, 0, $at[1]) !== 1) {
+            return [];
+        }
+        $words = self::words();
+        $parts = explode('.', $target);
+        $names = [strtolower($target) => true, strtolower(self::last($parts)) => true];
+        $after = $at[1] + strlen($n[0]);
+        if (preg_match('/\G\s+(?:as\s+)?' . self::NAME_PART . '/i', $masked, $alias, 0, $after) === 1) {
+            $tokens = self::tokens($alias[0], self::NAME_PART);
+            $token = self::last($tokens);
+            if (in_array($token[0], ['[', '"'], true) || !isset($words[strtolower(self::unquote($token))])) {
+                $names[strtolower(self::unquote($token))] = true;
+                $after += strlen($alias[0]);
+            }
+        }
+        $names = array_diff_key($names, self::shared($masked, $target));
+        if (self::stars($masked, $names)) {
+            return [];
+        }
+        $single = preg_match('/\bjoin\b|\bapply\b/i', $masked) !== 1
+            && preg_match_all('/\bfrom\s+/i', $masked) === 1
+            && !str_starts_with(ltrim(substr($masked, $after)), ',');
+        $chain = '/' . self::COLUMN_PART . '(?:\s*\.\s*(?:' . self::COLUMN_PART . '|\*))*/' . self::utf($masked);
+        preg_match_all($chain, $masked, $all, PREG_OFFSET_CAPTURE, $start);
+        // A select-list alias may be an ORDER BY key (the one clause that sees it): never a column there.
+        $order = -1;
+        preg_match_all('/\border\s+by\b/i', $masked, $orders, PREG_OFFSET_CAPTURE, $start);
+        foreach ($orders[0] as [, $pos]) {
+            if (self::topLevel($masked, $start, $pos)) {
+                $order = $pos;
+            }
+        }
+        $aliases = [];
+        $out = [];
+        $seen = [];
+        foreach ($all[0] as [$match, $pos]) {
+            $before = rtrim(substr($masked, 0, $pos));
+            $previous = $pos > 0 ? $masked[$pos - 1] : '';
+            if (($before !== '' && str_contains('.:%${', substr($before, -1))) || ctype_digit($previous)) {
+                continue;
+            }
+            $chainParts = array_map(self::unquote(...), self::dotted($match));
+            $column = self::last($chainParts);
+            if (count($chainParts) > 1) {
+                $qualifier = strtolower(implode('.', array_slice($chainParts, 0, -1)));
+                if (!isset($names[$qualifier]) || $column === '*') {
+                    continue;
+                }
+            } elseif (!$single || ($pos >= $at[0] && $pos < $after)) {
+                continue;
+            } else {
+                $rest = substr($masked, $pos + strlen($match));
+                if (self::excluded($match, $rest, $before, $words)) {
+                    continue;
+                }
+                if (self::aliasPlace($rest, $before, $words)) {
+                    if ($pos < $at[0]) {
+                        $aliases[strtolower($column)] = true;
+                    }
+                    continue;
+                }
+                if ($order >= 0 && $pos > $order && isset($aliases[strtolower($column)])) {
+                    continue;
+                }
+            }
+            if (!isset($seen[strtolower($column)])) {
+                $seen[strtolower($column)] = true;
+                $out[] = $column;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Names another FROM / JOIN item also goes by — an alias reused in a subquery binds neither.
+     *
+     * @return array<string, true>
+     */
+    private static function shared(string $masked, string $target): array
+    {
+        $item = '/\b(?:from|join|apply)\s+(' . self::COLUMN_PART . '(?:\s*\.\s*' . self::COLUMN_PART
+            . ')*)(?:\s+(?:as\s+)?(' . self::COLUMN_PART . '))?/i' . self::utf($masked);
+        preg_match_all($item, $masked, $all, PREG_SET_ORDER);
+        $other = [];
+        foreach ($all as $m) {
+            $table = implode('.', array_map(self::unquote(...), self::dotted($m[1])));
+            if (strtolower($table) === strtolower($target)) {
+                continue;
+            }
+            $parts = explode('.', $table);
+            $other[strtolower($table)] = true;
+            $other[strtolower(self::last($parts))] = true;
+            if (($m[2] ?? '') !== '') {
+                $other[strtolower(self::unquote($m[2]))] = true;
+            }
+        }
+
+        return $other;
+    }
+
+    /**
+     * A word that is never a column: keyword, call, parameter, temp, date part, CONVERT type, collation.
+     *
+     * @param array<string, true> $words
+     */
+    private static function excluded(string $token, string $after, string $before, array $words): bool
+    {
+        $lower = strtolower(self::unquote($token));
+        $delimited = in_array($token[0], ['[', '"'], true);
+        if (in_array($token[0], ['@', '#'], true) || (!$delimited && isset($words[$lower]))) {
+            return true;
+        }
+
+        return str_starts_with(ltrim($after), '(') || preg_match(self::DATE_PART_ARG, $before) === 1
+            || preg_match('/\bcollate\z/i', $before) === 1;
+    }
+
+    /**
+     * A word where an alias stands: `x = expr` opening a select item, after `AS`, `)` or `END`, or
+     * straight after another name or number — never a top-N count's next word.
+     *
+     * @param array<string, true> $words
+     */
+    private static function aliasPlace(string $after, string $before, array $words): bool
+    {
+        $opens = preg_match('/(?:,|\bselect|\bdistinct)\z/i', $before) === 1
+            || preg_match(self::TOP_N, $before) === 1;
+        if (preg_match('/\A\s*=(?!=)/', $after) === 1 && $opens) {
+            return true;
+        }
+        if (preg_match('/\bas\z/i', $before) === 1) {
+            return true;
+        }
+        if (preg_match(self::TOP_N, $before) === 1) {
+            return false;
+        }
+        if (preg_match('/(?:\)|\bend)\z/i', $before) === 1) {
+            return true;
+        }
+        $prior = '/(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}\p{N}_@#$]+)\z/' . self::utf($before);
+        if (preg_match($prior, $before, $word) !== 1) {
+            return false;
+        }
+
+        return in_array($word[0][0], ['[', '"'], true) || ctype_digit($word[0][0])
+            || !isset($words[strtolower($word[0])]);
+    }
+
+    /** `u` when the text is valid UTF-8, so a letter is a Unicode letter; else bytes, never an error. */
+    private static function utf(string $text): string
+    {
+        return preg_match('//u', $text) === 1 ? 'u' : '';
+    }
+
+    /**
+     * Does the select list read the source with ``*`` — bare, or ``t.*`` naming it?
+     *
+     * @param array<string, true> $names
+     */
+    private static function stars(string $masked, array $names): bool
+    {
+        $bare = '/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i';
+        if (preg_match($bare, $masked) === 1) {
+            return true;
+        }
+        $dotted = '/(' . self::COLUMN_PART . '(?:\s*\.\s*' . self::COLUMN_PART . ')*)\s*\.\s*\*/'
+            . self::utf($masked);
+        preg_match_all($dotted, $masked, $all);
+        foreach ($all[1] as $qualifier) {
+            $key = implode('.', array_map(self::unquote(...), self::dotted($qualifier)));
+            if (isset($names[strtolower($key)])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return array<string, true> */
+    private static function words(): array
+    {
+        $words = [];
+        foreach (preg_split('/\s+/', self::NOT_A_COLUMN) ?: [] as $word) {
+            $words[$word] = true;
+        }
+
+        return $words;
+    }
+
+    /**
+     * A match blanked to spaces of its own length, so every later offset still holds.
+     *
+     * @param array<array-key, string> $match
+     */
+    private static function blank(array $match): string
+    {
+        return str_repeat(' ', strlen($match[0] ?? ''));
+    }
+
+    /** @param list<string> $list */
+    private static function last(array $list): string
+    {
+        return $list === [] ? '' : $list[count($list) - 1];
+    }
+
+    /** @return list<string> a dotted chain's parts, delimiters kept */
+    private static function dotted(string $chain): array
+    {
+        $parts = preg_split('/\s*\.\s*/', $chain);
+
+        return $parts === false ? [] : $parts;
+    }
+
+    /** @return list<string> */
+    private static function tokens(string $text, string $part): array
+    {
+        preg_match_all('/' . $part . '/', $text, $all);
+
+        return $all[0];
+    }
+
+    private static function unquote(string $part): string
+    {
+        if ($part !== '' && $part[0] === '[') {
+            return str_replace(']]', ']', substr($part, 1, -1));
+        }
+        if ($part !== '' && $part[0] === '"') {
+            return str_replace('""', '"', substr($part, 1, -1));
+        }
+
+        return $part;
+    }
+
     /** @return list<string> the dotted name's parts, delimiters removed */
     private static function parts(string $name): array
     {
