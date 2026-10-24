@@ -260,11 +260,21 @@ are deviations below. Behaviour axis: Approach 1–4 implemented as approved.
   cross-language / claim / reason / empty-answer neighbour `135 passed in 13.78s`; `ruff`, `mypy` clean. Ran at
   54a13feb, superseded by the final gate below.
 
+- **The final gate caught two more** (`scripts/gate.sh` at 43db674b: `2 failed, 4923 passed, 4 skipped`, GATE RED):
+  - `test_keyed_calls_rule.py::test_keyed_calls_without_rule_keeps_221_answer` — with the real PHP adapter,
+    `$db->querySP('getUnplannedChange')` **links** to `Db::querySP`, so the literal read, limited to unlinked calls,
+    missed it: 221's field case answered `no_matches`. The fixture's DYNAMIC unlinked caller had hidden it. **Fixed**
+    in `3e8823d0`: any call's literal argument names the subject; only the callee match needs an unlinked call
+    (`test_a_linked_helper_call_still_names_the_subject_by_its_argument`, red on the previous store).
+  - `test_contract_sole_source.py` — the store spelled `arg_strings` / `kwarg_strings` itself; it now reads
+    `contract.ARG_STRINGS_FIELD` / `KWARG_STRINGS_FIELD` (R3.2).
+  Verify-only, main loop: the two files and the 221/238 file `73 passed`. Reviewed tree moves to 3e8823d0d6f9c78dbd5ddf60c17cad60558872b3.
+
 Verdict: clean (challenger only — REVIEWER: OFF), W1–W4 standing for ratification.
 `Ph3/4 proven by`: R1, AC2 → the naming and qualified-literal tests; R2, AC1, C1 → the measured-zero and field tests;
 AC3 → the 221/238 file with and without the argument; R3 (3/3) and AC4 → H1 and H8; G1 → all of them.
 
-Reviewed at 54a13febacf111a825242365458aa634fdac169a. Files: `code_atlas/store.py`, `code_atlas/tools/find_callers.py`,
+Reviewed at 3e8823d0d6f9c78dbd5ddf60c17cad60558872b3. Files: `code_atlas/store.py`, `code_atlas/tools/find_callers.py`,
 `code_atlas/tools/nav_result.py`, `tests/test_find_callers_cross_language_unmodelled.py`, `docs/design/payload.md`,
 `docs/TOOLS.md`, `CHANGELOG.md`. Working doc: this file.
 
