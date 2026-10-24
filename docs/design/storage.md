@@ -75,8 +75,8 @@ table per file: **189 ms × 24,569 files = 77 minutes** — of a 76-minute rebui
 ## What the schema cannot express
 
 - **No project column.** By design, above.
-- **No `READS`.** `WRITES` has no counterpart — `SELECT … FROM` and `JOIN` emit no edge. *Which
-  routine writes this table* is answerable; *which routine reads it* is not.
+- **`READS` since 390, onto columns since 410.** A `SELECT … FROM` / `JOIN` reads its tables, and
+  each column it names through an alias — or bare beside its one source — on that table's line.
 
 Declared foreign keys are modelled: the T-SQL adapter emits `REFERENCES` edges (Column → Column at
 `RESOLVED`, or Column → Table at `HEURISTIC` when the target column list is omitted). The overview's
