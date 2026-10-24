@@ -293,6 +293,21 @@ qualified ones.
 Falsify: `test_a_qualified_or_keyword_literal_names_the_subject` on `a7448648`'s store fails — the guard. Cannot
 promote: an unattended run; `/mango:promote` is the maintainer's pass (363-C1 now at four tickets).
 
+A second sighting of R6.3's class (`fixture-shape-begs-the-question`) sits beside it: the authored caller was
+DYNAMIC and unlinked, the real adapter's is linked, and only the full gate's real-adapter test could see the
+difference. R6.3 carries it; no new claim.
+
+**The final gate:**
+
+```
+$ scripts/gate.sh
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 9b9c25e754d4fdec4f3c8b3c60c2d644d6ee1736
+```
+
+Stale-review guard: the reviewed tree is the gate's tree; the commit recording this block touches this file alone.
+
 ### Outward actions
 
 Under the handover: push `feat/409-measured-zero-callers`; open its PR against `feat/408-per-call-caller-root`.
