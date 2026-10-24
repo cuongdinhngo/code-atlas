@@ -132,3 +132,107 @@ def _unquote(part: str) -> str:
     if part.startswith('"'):
         return part[1:-1].replace('""', '"')
     return part
+
+
+# Words a SELECT uses that never name a column of its source (410): T-SQL keywords, table hints and
+# date parts. A delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+_NOT_A_COLUMN = frozenset(
+    """select from where and or not null is in like between as on join inner left right full
+    outer cross apply order by group having union all distinct top percent ties case when then else
+    end asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast offset fetch
+    next first rows row only into values set insert update delete merge using matched output
+    declare begin return returns if while go create alter view procedure proc function table
+    trigger for after instead of over partition escape collate pivot unpivot xml path json auto
+    except intersect default any some current_timestamp current_user session_user system_user
+    identity day month year hour minute second millisecond week weekday quarter dayofyear dd mm yy
+    yyyy hh mi ss ms wk dw qq dy""".split()
+)
+_STRING = re.compile(r"N?'(?:[^']|'')*'?", re.IGNORECASE)
+_COLUMN_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)'
+_CHAIN = re.compile(_COLUMN_PART + r"(?:\s*\.\s*(?:" + _COLUMN_PART + r"|\*))*")
+_BARE_STAR = re.compile(
+    r"(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*",
+    re.IGNORECASE,
+)
+_DOTTED_STAR = re.compile("(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)\s*\.\s*\*")
+_SECOND_SOURCE = re.compile(r"\bjoin\b|\bapply\b", re.IGNORECASE)
+_PLACEHOLDER = (".", ":", "%", "$", "{")
+
+
+def columns(text: str, closed: bool) -> list[str]:
+    """The columns a SELECT literal reads of its first FROM's table, first seen, once each (410).
+
+    ``alias.col`` / ``table.col`` always; a bare name only when that table is the string's one
+    source, and never a keyword, call, alias, parameter, temp or the source's own name. A ``*`` on
+    the table gives none: which columns it reads is not known.
+    """
+    found = read(text, closed)
+    if found is None or found[0] != KINDS["select"]:
+        return []
+    target = found[1]
+    masked = _STRING.sub(lambda m: " " * len(m.group(0)), text)
+    head = _HEAD.match(masked)
+    if head is None:
+        return []
+    start = head.end()
+    source = next(
+        (m for m in _FROM.finditer(masked, start) if _top_level(masked, start, m.start())), None
+    )
+    name = _NAME.match(masked, source.end()) if source else None
+    if name is None:
+        return []
+    names = {target.lower(), target.split(".")[-1].lower()}
+    alias = _ALIAS.match(masked, name.end())
+    after = name.end()
+    if alias is not None:
+        token = _PART.findall(alias.group(0))[-1]
+        word = _unquote(token)
+        if token[:1] in '["' or word.lower() not in _NOT_A_COLUMN:
+            names.add(word.lower())
+            after = alias.end()
+    if _stars(masked, names):
+        return []
+    single = (
+        _SECOND_SOURCE.search(masked) is None
+        and len(_FROM.findall(masked)) == 1
+        and not masked[after:].lstrip().startswith(",")
+    )
+    out: list[str] = []
+    seen: set[str] = set()
+    for match in _CHAIN.finditer(masked, head.end()):
+        before = masked[: match.start()].rstrip()
+        if before.endswith(_PLACEHOLDER):
+            continue
+        parts = [_unquote(part) for part in re.split(r"\s*\.\s*", match.group(0))]
+        column = parts[-1]
+        if len(parts) > 1:
+            if ".".join(parts[:-1]).lower() not in names or column == "*":
+                continue
+        elif not single or not _bare_column(match, masked, column, names):
+            continue
+        if column.lower() not in seen:
+            seen.add(column.lower())
+            out.append(column)
+    return out
+
+
+def _bare_column(match: re.Match[str], masked: str, column: str, names: set[str]) -> bool:
+    """A bare name that can only be a column: no keyword, call, alias, parameter, temp, source."""
+    lower = column.lower()
+    if column.startswith(("@", "#")) or lower in names:
+        return False
+    if match.group(0)[:1] not in '["' and lower in _NOT_A_COLUMN:
+        return False
+    if masked[match.end() :].lstrip().startswith("("):
+        return False
+    return re.search(r"\bas$", masked[: match.start()].rstrip(), re.IGNORECASE) is None
+
+
+def _stars(masked: str, names: set[str]) -> bool:
+    """Does the select list read the source with ``*`` — bare, or ``t.*`` naming it?"""
+    if _BARE_STAR.search(masked):
+        return True
+    return any(
+        ".".join(_unquote(part) for part in re.split(r"\s*\.\s*", m.group(1))).lower() in names
+        for m in _DOTTED_STAR.finditer(masked)
+    )

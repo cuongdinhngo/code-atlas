@@ -106,4 +106,102 @@ function unquote(part) {
   return part;
 }
 
-module.exports = { readSqlLiteral };
+// Words a SELECT uses that never name a column of its source (410): T-SQL keywords, table hints and
+// date parts. A delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+const NOT_A_COLUMN = new Set(`select from where and or not null is in like between as on join inner
+  left right full outer cross apply order by group having union all distinct top percent ties case
+  when then else end asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast
+  offset fetch next first rows row only into values set insert update delete merge using matched
+  output declare begin return returns if while go create alter view procedure proc function table
+  trigger for after instead of over partition escape collate pivot unpivot xml path json auto except
+  intersect default any some current_timestamp current_user session_user system_user identity day
+  month year hour minute second millisecond week weekday quarter dayofyear dd mm yy yyyy hh mi ss ms
+  wk dw qq dy`.split(/\s+/));
+const STRING = /N?'(?:[^']|'')*'?/gi;
+const COLUMN_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)`;
+const CHAIN = new RegExp(String.raw`${COLUMN_PART}(?:\s*\.\s*(?:${COLUMN_PART}|\*))*`, "g");
+const BARE_STAR =
+  /(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i;
+const DOTTED_STAR = new RegExp(String.raw`(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)\s*\.\s*\*`, "g");
+const SECOND_SOURCE = /\bjoin\b|\bapply\b/i;
+const PLACEHOLDER = [".", ":", "%", "$", "{"];
+
+// The columns a SELECT literal reads of its first FROM's table, first seen, once each (410):
+// `alias.col` / `table.col` always; a bare name only when that table is the string's one source,
+// never a keyword, call, alias, parameter, temp or the source's own name. A `*` on it gives none.
+function readSqlColumns(text, closed) {
+  const found = readSqlLiteral(text, closed);
+  if (!found || found.kind !== KINDS.select) return [];
+  const target = found.target;
+  const masked = text.replace(STRING, (m) => " ".repeat(m.length));
+  const head = HEAD.exec(masked);
+  if (!head) return [];
+  const start = head[0].length;
+  FROM.lastIndex = start;
+  let source = FROM.exec(masked);
+  while (source && !topLevel(masked, start, source.index)) source = FROM.exec(masked);
+  if (!source) return [];
+  NAME.lastIndex = source.index + source[0].length;
+  const name = NAME.exec(masked);
+  if (!name) return [];
+  const names = new Set([target.toLowerCase(), (target.split(".").pop() ?? target).toLowerCase()]);
+  let after = NAME.lastIndex;
+  ALIAS.lastIndex = after;
+  const alias = ALIAS.exec(masked);
+  if (alias) {
+    const tokens = alias[0].match(PART) || [];
+    const token = tokens[tokens.length - 1] ?? "";
+    const word = unquote(token);
+    if (/^[["]/.test(token) || !NOT_A_COLUMN.has(word.toLowerCase())) {
+      names.add(word.toLowerCase());
+      after = ALIAS.lastIndex;
+    }
+  }
+  if (stars(masked, names)) return [];
+  const single =
+    !SECOND_SOURCE.test(masked) &&
+    (masked.match(FROM) || []).length === 1 &&
+    !masked.slice(after).trimStart().startsWith(",");
+  /** @type {string[]} */
+  const out = [];
+  const seen = new Set();
+  CHAIN.lastIndex = start;
+  for (let m = CHAIN.exec(masked); m; m = CHAIN.exec(masked)) {
+    const before = masked.slice(0, m.index).trimEnd();
+    if (PLACEHOLDER.some((mark) => before.endsWith(mark))) continue;
+    const parts = m[0].split(/\s*\.\s*/).map(unquote);
+    const column = parts[parts.length - 1] ?? "";
+    if (parts.length > 1) {
+      if (!names.has(parts.slice(0, -1).join(".").toLowerCase()) || column === "*") continue;
+    } else if (!single || !bareColumn(m, masked, column, names)) {
+      continue;
+    }
+    if (!seen.has(column.toLowerCase())) {
+      seen.add(column.toLowerCase());
+      out.push(column);
+    }
+  }
+  return out;
+}
+
+// A bare name that can only be a column: no keyword, call, alias, parameter, temp, source.
+function bareColumn(match, masked, column, names) {
+  const lower = column.toLowerCase();
+  if (/^[@#]/.test(column) || names.has(lower)) return false;
+  if (!/^[["]/.test(match[0]) && NOT_A_COLUMN.has(lower)) return false;
+  if (masked.slice(match.index + match[0].length).trimStart().startsWith("(")) return false;
+  return !/\bas$/i.test(masked.slice(0, match.index).trimEnd());
+}
+
+// Does the select list read the source with `*` — bare, or `t.*` naming it?
+function stars(masked, names) {
+  if (BARE_STAR.test(masked)) return true;
+  DOTTED_STAR.lastIndex = 0;
+  for (let m = DOTTED_STAR.exec(masked); m; m = DOTTED_STAR.exec(masked)) {
+    const key = (m[1] ?? "").split(/\s*\.\s*/).map(unquote).join(".").toLowerCase();
+    if (names.has(key)) return true;
+  }
+  return false;
+}
+
+module.exports = { readSqlLiteral, readSqlColumns };

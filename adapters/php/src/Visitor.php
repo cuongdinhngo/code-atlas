@@ -358,6 +358,11 @@ final class Visitor extends NodeVisitorAbstract
         $line = $node->getStartLine() + ($heredoc ? 1 : 0)
             + substr_count(substr($text, 0, $statement['offset']), "\n");
         $this->edge($statement['kind'], $this->container(), $statement['target'], $line, 'HEURISTIC');
+        // A SELECT's columns ride its table's line, so one statement stays one row (410).
+        foreach (SqlLiteral::columns($text, $closed) as $column) {
+            $target = $statement['target'] . '::' . $column;
+            $this->edge($statement['kind'], $this->container(), $target, $line, 'HEURISTIC');
+        }
     }
 
     /** ``Foo::class`` is a textual class mention — not a call and not ``new`` (task 094). */

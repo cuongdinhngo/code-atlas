@@ -14,7 +14,7 @@ const {
   pathBuiltRequire,
   pathModuleNames,
 } = require("./imports");
-const { readSqlLiteral } = require("./sqlLiteral");
+const { readSqlLiteral, readSqlColumns } = require("./sqlLiteral");
 const { stamp: stampBodyHashes } = require("./bodyHash");
 const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
@@ -634,14 +634,18 @@ function parseFile(path, declarationsOnly, region = null) {
     // The keyword's place in the source, not in the cooked text: a cooked `\r\n` or escape is shorter.
     const keyword = text.slice(statement.offset).split(/\s/)[0].toLowerCase();
     const offset = node.getStart(sf) + Math.max(node.getText(sf).toLowerCase().indexOf(keyword), 0);
-    edges.push({
-      kind: statement.kind,
-      source_qname: scope,
-      target_raw: statement.target,
-      file_path: qpath,
-      line: lineOf(offset),
-      confidence_tier: "HEURISTIC",
-    });
+    // A SELECT's columns ride its table's line, so one statement stays one row (410).
+    const columns = readSqlColumns(text, closed).map((col) => `${statement.target}::${col}`);
+    for (const target of [statement.target, ...columns]) {
+      edges.push({
+        kind: statement.kind,
+        source_qname: scope,
+        target_raw: target,
+        file_path: qpath,
+        line: lineOf(offset),
+        confidence_tier: "HEURISTIC",
+      });
+    }
   };
 
   const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
