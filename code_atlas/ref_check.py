@@ -192,6 +192,9 @@ def require_caller_root(config: Config, caller_root: str | None) -> Path | None:
         raise ValueError(
             f"caller_root {caller_root!r} is a checkout of another repository than the index root"
         )
+    if theirs[0] != mine[0] and gitutil.head_commit(theirs[0]) is None:
+        # A worktree whose HEAD no longer reads would answer about the index checkout instead.
+        raise ValueError(f"caller_root {caller_root!r} is a checkout whose HEAD does not resolve")
     return path
 
 

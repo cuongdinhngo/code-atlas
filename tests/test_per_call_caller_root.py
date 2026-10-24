@@ -130,6 +130,16 @@ def test_ac2_a_root_outside_this_repository_is_refused_with_its_cause(tmp_path: 
 
 
 @needs_php
+def test_a_worktree_whose_head_does_not_resolve_is_refused(tmp_path: Path) -> None:
+    """C1 (challenger D3): no overlay can be built there, so the call must not answer about main."""
+    main, worktree = _subagent(tmp_path)
+    (main / ".git" / "worktrees" / worktree.name / "HEAD").write_text("ref: refs/heads/gone\n")
+    config = _in(main, None)
+    with pytest.raises(ValueError, match="HEAD|git checkout"):
+        guard(read_symbol.create(config), config)(RUN, caller_root=str(worktree))
+
+
+@needs_php
 def test_the_index_checkout_and_a_worktree_subdirectory_are_accepted(tmp_path: Path) -> None:
     main, worktree = _subagent(tmp_path)
     config = _in(main, None)
