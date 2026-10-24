@@ -140,6 +140,10 @@ def render_skill() -> str:
     lines.extend(
         [
             "",
+            "## From a worktree",
+            "",
+            *WORKTREE_ROUTE,
+            "",
             "## From a shell",
             "",
             *SHELL_ROUTE,
@@ -355,6 +359,14 @@ SHELL_ROUTE: tuple[str, ...] = (
     " `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.",
 )
 
+# A subagent's worktree shares its parent's server and roots (408); only the call can name it.
+WORKTREE_ROUTE: tuple[str, ...] = (
+    "- **Working in a git worktree of the indexed repo?** Pass `caller_root` = your"
+    " `git rev-parse --show-toplevel` to `read_symbol`, `file_outline`, `search_symbol`,"
+    " `find_callers` and `find_references`: they then answer from your worktree's files"
+    " (`overlay: worktree`), not the main checkout's. Other tools answer about the built index.",
+)
+
 # Usage rules, not a second copy of the recognition map (R6.7): the map says WHICH tool, these say
 # how to spend the calls. Each line is charged to every session in the consuming repo — 300's H4
 # (one index call, then 29 greps) and the field retros are what earn them a place.
@@ -371,6 +383,7 @@ USAGE_RULES: tuple[str, ...] = (
     " still refuses `index_stale` (`read_symbol` too); a caller's hint names the"
     " `serve_behind: true` call to copy.",
     "- **Prefer one call over a sweep of ten.** `search_symbol` takes a list of `queries`.",
+    *WORKTREE_ROUTE,
     "",
     "### Read what the answer says about itself",
     "",

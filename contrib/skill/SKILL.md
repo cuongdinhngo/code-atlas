@@ -72,6 +72,10 @@ Call `get_index_status` first whenever you are unsure the index is current.
 23. `diff_architecture`
 24. `class_diagram`
 
+## From a worktree
+
+- **Working in a git worktree of the indexed repo?** Pass `caller_root` = your `git rev-parse --show-toplevel` to `read_symbol`, `file_outline`, `search_symbol`, `find_callers` and `find_references`: they then answer from your worktree's files (`overlay: worktree`), not the main checkout's. Other tools answer about the built index.
+
 ## From a shell
 
 - **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.
