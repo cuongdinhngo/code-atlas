@@ -45,7 +45,7 @@ Out of scope: calls from file-scope code in `include`d scripts (anchor #3679).
 
 ## Session status
 
-- **KEY:** 409 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 409 · **work_doc_mode:** embed · **Current phase:** 4 review · **Next action:** the ticket-blind challenger. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · Run mode: `autorun 408 - 409 - 410 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/409-measured-zero-callers`, **stacked on `feat/408-per-call-caller-root`** (#104). Contract `.mango/run-contract-409.txt`.
@@ -214,3 +214,24 @@ The six sections of Phase 1 bind the design unchanged. R7.5 binds every comment.
 `git revert`; no stored state. One repo.
 
 `SCOPE: M` — unchanged.
+
+## Phase 3 — execute
+
+Implemented in the main loop (the arm and the read are a dozen lines each; the reason ladder is the judgment).
+Commits `fd0bd379` (store, tool, tests), `a7448648` (docs).
+
+**Red first** (R6.5): with `store.py` and `find_callers.py` stashed back to `03e979c6`, the test file gives
+`3 failed, 17 passed` — AC1's measured zero, the partial-string/same-language control and 221-without-its-argument.
+AC2 passes on both trees, by design: the old arm upgraded every such zero. Ran at fd0bd379.
+
+**Green at execute:** the proving test `20 passed in 3.21s`; every `*caller*` / `*cross_language*` / claim test,
+reason codes, doc size and tokens-to-answer `160 passed in 14.20s`; `ruff check .` clean; `mypy` `Success: no issues
+found in 105 source files`. Ran at fd0bd379.
+
+**Verification sweep.** File axis: `git diff --name-only feat/408-per-call-caller-root..HEAD` lists 8 files; two
+are deviations below. Behaviour axis: Approach 1–4 implemented as approved.
+
+| # | Deviation | Trace | Effect |
+|---|---|---|---|
+| D1 | `code_atlas/tools/nav_result.py` gains `CROSS_LANGUAGE_UNMEASURED` | change list row 2 | the field's name sits beside its caveat sibling, where every payload key constant lives |
+| D2 | `docs/design/payload.md` documents the field, not `docs/TOOLS.md` | change list row 4 | payload fields are listed there; TOOLS.md's one mention ("answers zero or `relation_unmodelled_for_language`") stays true |
