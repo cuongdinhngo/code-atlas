@@ -134,18 +134,17 @@ def _unquote(part: str) -> str:
     return part
 
 
-# Words a SELECT uses that never name a column of its source (410): T-SQL keywords, table hints and
-# date parts. A delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+# Reserved words a SELECT uses that never name a column of its source (410), plus the table hints.
+# A date part, `Path` or `Rows` is a common column name, so those are read by place instead. A
+# delimited `[Status]` is a name however it is spelled, so only bare words are kept.
 _NOT_A_COLUMN = frozenset(
     """select from where and or not null is in like between as on join inner left right full
-    outer cross apply order by group having union all distinct top percent ties case when then else
-    end asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast offset fetch
-    next first rows row only into values set insert update delete merge using matched output
-    declare begin return returns if while go create alter view procedure proc function table
-    trigger for after instead of over partition escape collate pivot unpivot xml path json auto
-    except intersect default any some current_timestamp current_user session_user system_user
-    identity day month year hour minute second millisecond week weekday quarter dayofyear dd mm yy
-    yyyy hh mi ss ms wk dw qq dy""".split()
+    outer cross apply order by group having union all distinct top percent case when then else end
+    asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast into values set
+    insert update delete merge using output declare begin return returns if while go create alter
+    view procedure proc function table trigger for of over escape collate pivot unpivot except
+    intersect default any some current_timestamp current_user session_user system_user identity
+    partition""".split()
 )
 _STRING = re.compile(r"N?'(?:[^']|'')*'?", re.IGNORECASE)
 _COLUMN_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)'
@@ -156,21 +155,44 @@ _BARE_STAR = re.compile(
 )
 _DOTTED_STAR = re.compile("(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)\s*\.\s*\*")
 _SECOND_SOURCE = re.compile(r"\bjoin\b|\bapply\b", re.IGNORECASE)
+# Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`.
+_NOT_NAMES = re.compile(
+    r"\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?"
+    r"|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b",
+    re.IGNORECASE,
+)
+# The first argument of a date function is a date part, never a column.
+_DATE_PART_ARG = re.compile(
+    r"\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*\Z",
+    re.IGNORECASE,
+)
+# A top-N count precedes the select list; any other number or name before a bare word aliases it.
+_TOP_N = re.compile(
+    r"\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\Z", re.IGNORECASE
+)
+_AFTER_EXPRESSION = re.compile(r"(?:\)|\bend)\Z", re.IGNORECASE)
+_PRIOR = re.compile(r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)\Z')
+_ITEM = re.compile(
+    r"\b(?:from|join|apply)\s+(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)"
+    r"(?:\s+(?:as\s+)?(" + _COLUMN_PART + r"))?",
+    re.IGNORECASE,
+)
 _PLACEHOLDER = (".", ":", "%", "$", "{")
 
 
 def columns(text: str, closed: bool) -> list[str]:
     """The columns a SELECT literal reads of its first FROM's table, first seen, once each (410).
 
-    ``alias.col`` / ``table.col`` always; a bare name only when that table is the string's one
-    source, and never a keyword, call, alias, parameter, temp or the source's own name. A ``*`` on
-    the table gives none: which columns it reads is not known.
+    ``alias.col`` / ``table.col`` always — unless another source in the string shares that name;
+    a bare name only when that table is the string's one source, and never a keyword, call, date
+    part, alias, parameter or temp. A ``*`` on the table gives none: which columns is not known.
     """
     found = read(text, closed)
     if found is None or found[0] != KINDS["select"]:
         return []
     target = found[1]
     masked = _STRING.sub(lambda m: " " * len(m.group(0)), text)
+    masked = _NOT_NAMES.sub(lambda m: " " * len(m.group(0)), masked)
     head = _HEAD.match(masked)
     if head is None:
         return []
@@ -179,17 +201,17 @@ def columns(text: str, closed: bool) -> list[str]:
         (m for m in _FROM.finditer(masked, start) if _top_level(masked, start, m.start())), None
     )
     name = _NAME.match(masked, source.end()) if source else None
-    if name is None:
+    if source is None or name is None:
         return []
     names = {target.lower(), target.split(".")[-1].lower()}
-    alias = _ALIAS.match(masked, name.end())
     after = name.end()
+    alias = _ALIAS.match(masked, name.end())
     if alias is not None:
         token = _PART.findall(alias.group(0))[-1]
-        word = _unquote(token)
-        if token[:1] in '["' or word.lower() not in _NOT_A_COLUMN:
-            names.add(word.lower())
+        if token[:1] in '["' or _unquote(token).lower() not in _NOT_A_COLUMN:
+            names.add(_unquote(token).lower())
             after = alias.end()
+    names -= _shared(masked, target)
     if _stars(masked, names):
         return []
     single = (
@@ -199,16 +221,18 @@ def columns(text: str, closed: bool) -> list[str]:
     )
     out: list[str] = []
     seen: set[str] = set()
-    for match in _CHAIN.finditer(masked, head.end()):
+    for match in _CHAIN.finditer(masked, start):
         before = masked[: match.start()].rstrip()
-        if before.endswith(_PLACEHOLDER):
+        if before.endswith(_PLACEHOLDER) or masked[: match.start()][-1:].isdigit():
             continue
         parts = [_unquote(part) for part in re.split(r"\s*\.\s*", match.group(0))]
         column = parts[-1]
         if len(parts) > 1:
             if ".".join(parts[:-1]).lower() not in names or column == "*":
                 continue
-        elif not single or not _bare_column(match, masked, column, names):
+        elif not single or source.start() <= match.start() < after:
+            continue
+        elif not _bare_column(match.group(0), masked[match.end() :], before):
             continue
         if column.lower() not in seen:
             seen.add(column.lower())
@@ -216,16 +240,37 @@ def columns(text: str, closed: bool) -> list[str]:
     return out
 
 
-def _bare_column(match: re.Match[str], masked: str, column: str, names: set[str]) -> bool:
-    """A bare name that can only be a column: no keyword, call, alias, parameter, temp, source."""
-    lower = column.lower()
-    if column.startswith(("@", "#")) or lower in names:
+def _shared(masked: str, target: str) -> set[str]:
+    """Names another FROM / JOIN item also goes by — an alias reused in a subquery binds neither."""
+    other: set[str] = set()
+    for item in _ITEM.finditer(masked):
+        table = ".".join(_unquote(part) for part in re.split(r"\s*\.\s*", item.group(1)))
+        if table.lower() == target.lower():
+            continue
+        other |= {table.lower(), table.split(".")[-1].lower()}
+        if item.group(2):
+            other.add(_unquote(item.group(2)).lower())
+    return other
+
+
+def _bare_column(token: str, after: str, before: str) -> bool:
+    """A bare word that is only a column: no keyword, call, date part, parameter, temp, alias."""
+    lower = _unquote(token).lower()
+    if token.startswith(("@", "#")) or (token[:1] not in '["' and lower in _NOT_A_COLUMN):
         return False
-    if match.group(0)[:1] not in '["' and lower in _NOT_A_COLUMN:
+    if after.lstrip().startswith("(") or _DATE_PART_ARG.search(before):
         return False
-    if masked[match.end() :].lstrip().startswith("("):
+    if re.search(r"\bas\Z", before, re.IGNORECASE):
         return False
-    return re.search(r"\bas$", masked[: match.start()].rstrip(), re.IGNORECASE) is None
+    if _TOP_N.search(before):
+        return True
+    if _AFTER_EXPRESSION.search(before):
+        return False
+    prior = _PRIOR.search(before)
+    if prior is None:
+        return True
+    word = prior.group(0)
+    return word[:1] not in '["0123456789' and word.lower() in _NOT_A_COLUMN
 
 
 def _stars(masked: str, names: set[str]) -> bool:

@@ -138,3 +138,51 @@ def test_the_default_column_answer_is_still_its_writers(tmp_path: Path) -> None:
     answer = find_references.create(_built(tmp_path))("dbo.T::Flag")
     assert set(_readers(answer)) == {"dbo.pWrite"}
     assert "column_reads_unknown" not in answer
+
+
+@needs_adapters
+def test_review_names_a_keyword_list_would_drop_and_aliases_it_would_misread(
+    tmp_path: Path,
+) -> None:
+    """410 review (challenger F1, F2, F5, F8): bind by place, never guess across scopes."""
+    body = """CREATE PROCEDURE dbo.pDates AS
+  SELECT Year, Path FROM dbo.S WHERE Day = 1 AND Rows > 2;
+GO
+CREATE PROCEDURE dbo.pReused AS
+  SELECT a.Id FROM dbo.T a WHERE EXISTS (SELECT 1 FROM dbo.U a WHERE a.Flag = 1);
+GO
+CREATE PROCEDURE dbo.pAliases AS
+  SELECT ROW_NUMBER() OVER (ORDER BY Id) rn, Other g, 1.5e3 FROM dbo.T;
+GO
+CREATE TRIGGER dbo.trT ON dbo.T AFTER UPDATE AS
+  SELECT Name FROM inserted i JOIN dbo.T t ON t.Id = i.Id;
+GO
+CREATE PROCEDURE dbo.pSelf AS
+  SELECT Status FROM dbo.Status WHERE DATEDIFF(day, Created, GETDATE()) > 1;
+GO
+"""
+    _write(tmp_path / "db" / "more.sql", body)
+    done = subprocess.run(
+        [str(NODE), str(SQL_ENTRY), "--file", "db/more.sql"],
+        cwd=tmp_path, capture_output=True, text=True, check=True,
+    )
+    import json
+
+    reads = {
+        (edge["source_qname"], edge["target_raw"])
+        for edge in json.loads(done.stdout)["edges"]
+        if edge["kind"] == "READS" and "::" in edge["target_raw"]
+    }
+    assert reads == {
+        ("dbo.pDates", "dbo.S::Year"),
+        ("dbo.pDates", "dbo.S::Path"),
+        ("dbo.pDates", "dbo.S::Day"),
+        ("dbo.pDates", "dbo.S::Rows"),
+        # `a` names two sources, so neither binds: no false RESOLVED `U::Id`.
+        ("dbo.pAliases", "dbo.T::Id"),
+        ("dbo.pAliases", "dbo.T::Other"),
+        # `inserted` is a second item, so the trigger's bare `Name` binds to neither.
+        ("dbo.trT", "dbo.T::Id"),
+        ("dbo.pSelf", "dbo.Status::Status"),
+        ("dbo.pSelf", "dbo.Status::Created"),
+    }, reads

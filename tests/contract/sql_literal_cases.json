@@ -395,6 +395,67 @@
           "created"
         ]
       }
+    },
+    {
+      "text": "SELECT Year, Path FROM t WHERE Day = 1 AND Rows > 2 ORDER BY Year OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "t",
+        "columns": [
+          "Year",
+          "Path",
+          "Day",
+          "Rows"
+        ]
+      }
+    },
+    {
+      "text": "SELECT a.Id FROM dbo.T a WHERE EXISTS (SELECT 1 FROM dbo.U a WHERE a.Flag = 1)",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "dbo.T",
+        "columns": []
+      }
+    },
+    {
+      "text": "SELECT ROW_NUMBER() OVER (ORDER BY Id) rn, Other g, 1.5e3, 0x1F FROM t",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "t",
+        "columns": [
+          "Id",
+          "Other"
+        ]
+      }
+    },
+    {
+      "text": "SELECT Status, DATEADD(day, 1, Created) FROM dbo.Status WHERE Status = 1",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "dbo.Status",
+        "columns": [
+          "Status",
+          "Created"
+        ]
+      }
+    },
+    {
+      "text": "SELECT TOP 10 Flag, CASE WHEN Flag = 1 THEN Other ELSE Name END AS lbl FROM t WHERE Id > 0 FOR JSON PATH",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "t",
+        "columns": [
+          "Flag",
+          "Other",
+          "Name",
+          "Id"
+        ]
+      }
     }
   ],
   "markers": [

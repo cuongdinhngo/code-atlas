@@ -161,28 +161,37 @@ final class SqlLiteral
     }
 
     /**
-     * Words a SELECT uses that never name a column of its source (410): T-SQL keywords, table hints
-     * and date parts. A delimited `[Status]` is a name however it is spelled, so only bare words count.
+     * Reserved words a SELECT uses that never name a column of its source (410), plus the table
+     * hints. A date part, `Path` or `Rows` is a common column name, so those are read by place.
+     * A delimited `[Status]` is a name however it is spelled, so only bare words count.
      */
     private const NOT_A_COLUMN = 'select from where and or not null is in like between as on join'
         . ' inner left right full outer cross apply order by group having union all distinct top'
-        . ' percent ties case when then else end asc desc exists with nolock readuncommitted holdlock'
-        . ' updlock rowlock readpast offset fetch next first rows row only into values set insert'
-        . ' update delete merge using matched output declare begin return returns if while go create'
-        . ' alter view procedure proc function table trigger for after instead of over partition'
-        . ' escape collate pivot unpivot xml path json auto except intersect default any some'
-        . ' current_timestamp current_user session_user system_user identity day month year hour'
-        . ' minute second millisecond week weekday quarter dayofyear dd mm yy yyyy hh mi ss ms wk dw'
-        . ' qq dy';
+        . ' percent case when then else end asc desc exists with nolock readuncommitted holdlock'
+        . ' updlock rowlock readpast into values set insert update delete merge using output'
+        . ' declare begin return returns if while go create alter view procedure proc function'
+        . ' table trigger for of over escape collate pivot unpivot except intersect default any'
+        . ' some current_timestamp current_user session_user system_user identity partition';
 
     private const COLUMN_PART = '(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)';
+
+    /** Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`. */
+    private const NOT_NAMES = '/\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?'
+        . '|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b/i';
+
+    /** The first argument of a date function is a date part, never a column. */
+    private const DATE_PART_ARG =
+        '/\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*\z/i';
+
+    /** A top-N count precedes the select list; any other number or name before a word aliases it. */
+    private const TOP_N = '/\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\z/i';
 
     /**
      * The columns a SELECT literal reads of its first FROM's table, first seen, once each (410).
      *
-     * ``alias.col`` / ``table.col`` always; a bare name only when that table is the string's one
-     * source, never a keyword, call, alias, parameter, temp or the source's own name. A ``*`` on
-     * the table gives none: which columns it reads is not known.
+     * ``alias.col`` / ``table.col`` always — unless another source in the string shares that
+     * name; a bare name only when that table is the string's one source, never a keyword, call,
+     * date part, alias, parameter or temp. A ``*`` on the table gives none.
      *
      * @return list<string>
      */
@@ -193,13 +202,9 @@ final class SqlLiteral
             return [];
         }
         $target = $found['target'];
-        $masked = (string) preg_replace_callback(
-            "/N?'(?:[^']|'')*'?/i",
-            static fn (array $m): string => str_repeat(' ', strlen($m[0])),
-            $text,
-        );
-        $head = '/\A\s*select\s+/i';
-        if (preg_match($head, $masked, $h) !== 1) {
+        $masked = preg_replace_callback("/N?'(?:[^']|'')*'?/i", self::blank(...), $text) ?? '';
+        $masked = preg_replace_callback(self::NOT_NAMES, self::blank(...), $masked) ?? '';
+        if (preg_match('/\A\s*select\s+/i', $masked, $h) !== 1) {
             return [];
         }
         $start = strlen($h[0]);
@@ -207,27 +212,27 @@ final class SqlLiteral
         preg_match_all('/\bfrom\s+/i', $masked, $froms, PREG_OFFSET_CAPTURE, $start);
         foreach ($froms[0] as [$word, $pos]) {
             if (self::topLevel($masked, $start, $pos)) {
-                $at = $pos + strlen($word);
+                $at = [$pos, $pos + strlen($word)];
                 break;
             }
         }
         $name = '/\G' . self::NAME_PART . '(?:\s*\.\s*' . self::NAME_PART . ')*/';
-        if ($at === null || preg_match($name, $masked, $n, 0, $at) !== 1) {
+        if ($at === null || preg_match($name, $masked, $n, 0, $at[1]) !== 1) {
             return [];
         }
         $words = self::words();
         $parts = explode('.', $target);
-        $names = [strtolower($target) => true, strtolower((string) end($parts)) => true];
-        $after = $at + strlen($n[0]);
+        $names = [strtolower($target) => true, strtolower(self::last($parts)) => true];
+        $after = $at[1] + strlen($n[0]);
         if (preg_match('/\G\s+(?:as\s+)?' . self::NAME_PART . '/i', $masked, $alias, 0, $after) === 1) {
             $tokens = self::tokens($alias[0], self::NAME_PART);
-            $token = (string) end($tokens);
-            $word = self::unquote($token);
-            if (in_array($token[0], ['[', '"'], true) || !isset($words[strtolower($word)])) {
-                $names[strtolower($word)] = true;
+            $token = self::last($tokens);
+            if (in_array($token[0], ['[', '"'], true) || !isset($words[strtolower(self::unquote($token))])) {
+                $names[strtolower(self::unquote($token))] = true;
                 $after += strlen($alias[0]);
             }
         }
+        $names = array_diff_key($names, self::shared($masked, $target));
         if (self::stars($masked, $names)) {
             return [];
         }
@@ -240,17 +245,20 @@ final class SqlLiteral
         $seen = [];
         foreach ($all[0] as [$match, $pos]) {
             $before = rtrim(substr($masked, 0, $pos));
-            if ($before !== '' && str_contains('.:%${', substr($before, -1))) {
+            $previous = $pos > 0 ? $masked[$pos - 1] : '';
+            if (($before !== '' && str_contains('.:%${', substr($before, -1))) || ctype_digit($previous)) {
                 continue;
             }
             $chainParts = array_map(self::unquote(...), self::dotted($match));
-            $column = (string) end($chainParts);
+            $column = self::last($chainParts);
             if (count($chainParts) > 1) {
                 $qualifier = strtolower(implode('.', array_slice($chainParts, 0, -1)));
                 if (!isset($names[$qualifier]) || $column === '*') {
                     continue;
                 }
-            } elseif (!$single || !self::bareColumn($match, $pos, $masked, $column, $names, $words)) {
+            } elseif (!$single || ($pos >= $at[0] && $pos < $after)) {
+                continue;
+            } elseif (!self::bareColumn($match, substr($masked, $pos + strlen($match)), $before, $words)) {
                 continue;
             }
             if (!isset($seen[strtolower($column)])) {
@@ -263,31 +271,62 @@ final class SqlLiteral
     }
 
     /**
-     * A bare name that can only be a column: no keyword, call, alias, parameter, temp, source.
+     * Names another FROM / JOIN item also goes by — an alias reused in a subquery binds neither.
      *
-     * @param array<string, true> $names
-     * @param array<string, true> $words
+     * @return array<string, true>
      */
-    private static function bareColumn(
-        string $match,
-        int $pos,
-        string $masked,
-        string $column,
-        array $names,
-        array $words,
-    ): bool {
-        $lower = strtolower($column);
-        if (in_array($column[0], ['@', '#'], true) || isset($names[$lower])) {
-            return false;
-        }
-        if (!in_array($match[0], ['[', '"'], true) && isset($words[$lower])) {
-            return false;
-        }
-        if (str_starts_with(ltrim(substr($masked, $pos + strlen($match))), '(')) {
-            return false;
+    private static function shared(string $masked, string $target): array
+    {
+        $item = '/\b(?:from|join|apply)\s+(' . self::COLUMN_PART . '(?:\s*\.\s*' . self::COLUMN_PART
+            . ')*)(?:\s+(?:as\s+)?(' . self::COLUMN_PART . '))?/i';
+        preg_match_all($item, $masked, $all, PREG_SET_ORDER);
+        $other = [];
+        foreach ($all as $m) {
+            $table = implode('.', array_map(self::unquote(...), self::dotted($m[1])));
+            if (strtolower($table) === strtolower($target)) {
+                continue;
+            }
+            $parts = explode('.', $table);
+            $other[strtolower($table)] = true;
+            $other[strtolower(self::last($parts))] = true;
+            if (($m[2] ?? '') !== '') {
+                $other[strtolower(self::unquote($m[2]))] = true;
+            }
         }
 
-        return preg_match('/\bas\z/i', rtrim(substr($masked, 0, $pos))) !== 1;
+        return $other;
+    }
+
+    /**
+     * A bare word that is only a column: no keyword, call, date part, parameter, temp, alias.
+     *
+     * @param array<string, true> $words
+     */
+    private static function bareColumn(string $token, string $after, string $before, array $words): bool
+    {
+        $lower = strtolower(self::unquote($token));
+        $delimited = in_array($token[0], ['[', '"'], true);
+        if (in_array($token[0], ['@', '#'], true) || (!$delimited && isset($words[$lower]))) {
+            return false;
+        }
+        if (str_starts_with(ltrim($after), '(') || preg_match(self::DATE_PART_ARG, $before) === 1) {
+            return false;
+        }
+        if (preg_match('/\bas\z/i', $before) === 1) {
+            return false;
+        }
+        if (preg_match(self::TOP_N, $before) === 1) {
+            return true;
+        }
+        if (preg_match('/(?:\)|\bend)\z/i', $before) === 1) {
+            return false;
+        }
+        if (preg_match('/(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)\z/', $before, $prior) !== 1) {
+            return true;
+        }
+
+        return !in_array($prior[0][0], ['[', '"'], true) && !ctype_digit($prior[0][0])
+            && isset($words[strtolower($prior[0])]);
     }
 
     /**
@@ -317,11 +356,27 @@ final class SqlLiteral
     private static function words(): array
     {
         $words = [];
-        foreach (explode(' ', self::NOT_A_COLUMN) as $word) {
+        foreach (preg_split('/\s+/', self::NOT_A_COLUMN) ?: [] as $word) {
             $words[$word] = true;
         }
 
         return $words;
+    }
+
+    /**
+     * A match blanked to spaces of its own length, so every later offset still holds.
+     *
+     * @param array<array-key, string> $match
+     */
+    private static function blank(array $match): string
+    {
+        return str_repeat(' ', strlen($match[0] ?? ''));
+    }
+
+    /** @param list<string> $list */
+    private static function last(array $list): string
+    {
+        return $list === [] ? '' : $list[count($list) - 1];
     }
 
     /** @return list<string> a dotted chain's parts, delimiters kept */

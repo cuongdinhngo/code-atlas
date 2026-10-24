@@ -142,7 +142,8 @@ def _unlinked_counts(
     """What an asked kind's answer cannot list: unlinked edges still naming the table (215/278/390).
 
     A Column asked ``READS`` counts instead the statements that read its table and named no column
-    of it — a ``select *``, a bare name beside several sources (410) — so a zero is a real zero.
+    of it (410): a ``select *``, or bare names nothing could bind. A statement that named one column
+    and left a bare name beside several sources unbound is not counted — a documented limit.
     """
     table_key = (
         lookup.rsplit("::", 1)[0] if subject_kind == COLUMN_KIND and "::" in lookup else lookup
@@ -308,7 +309,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         begin one (HEURISTIC) — 390 — and on a Column the statements naming that column, by
         ``alias.col`` or, beside one source, a bare name (410); a Table's row then lists them
         in ``columns``. ``column_reads_unknown`` counts its table's readers that named no column
-        (``select *``). ``kinds_ignored`` lists asked kinds a non-Table/Column subject ignores.
+        of it (a ``select *``); a bare name beside several sources is never bound.
+        ``kinds_ignored`` lists asked kinds a non-Table/Column subject ignores.
         Unlinked edges of an asked kind that still name the table are counted as
         ``unlinked_writes_count`` / ``unlinked_reads_count``. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language

@@ -106,17 +106,16 @@ function unquote(part) {
   return part;
 }
 
-// Words a SELECT uses that never name a column of its source (410): T-SQL keywords, table hints and
-// date parts. A delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+// Reserved words a SELECT uses that never name a column of its source (410), plus the table hints.
+// A date part, `Path` or `Rows` is a common column name, so those are read by place instead. A
+// delimited `[Status]` is a name however it is spelled, so only bare words are kept.
 const NOT_A_COLUMN = new Set(`select from where and or not null is in like between as on join inner
-  left right full outer cross apply order by group having union all distinct top percent ties case
-  when then else end asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast
-  offset fetch next first rows row only into values set insert update delete merge using matched
-  output declare begin return returns if while go create alter view procedure proc function table
-  trigger for after instead of over partition escape collate pivot unpivot xml path json auto except
-  intersect default any some current_timestamp current_user session_user system_user identity day
-  month year hour minute second millisecond week weekday quarter dayofyear dd mm yy yyyy hh mi ss ms
-  wk dw qq dy`.split(/\s+/));
+  left right full outer cross apply order by group having union all distinct top percent case when
+  then else end asc desc exists with nolock readuncommitted holdlock updlock rowlock readpast into
+  values set insert update delete merge using output declare begin return returns if while go
+  create alter view procedure proc function table trigger for of over escape collate pivot unpivot
+  except intersect default any some current_timestamp current_user session_user system_user
+  identity partition`.split(/\s+/));
 const STRING = /N?'(?:[^']|'')*'?/gi;
 const COLUMN_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)`;
 const CHAIN = new RegExp(String.raw`${COLUMN_PART}(?:\s*\.\s*(?:${COLUMN_PART}|\*))*`, "g");
@@ -124,16 +123,31 @@ const BARE_STAR =
   /(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i;
 const DOTTED_STAR = new RegExp(String.raw`(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)\s*\.\s*\*`, "g");
 const SECOND_SOURCE = /\bjoin\b|\bapply\b/i;
+// Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`.
+const NOT_NAMES =
+  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b/gi;
+// The first argument of a date function is a date part, never a column.
+const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*$/i;
+// A top-N count precedes the select list; any other number or name before a bare word aliases it.
+const TOP_N = /\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
+const AFTER_EXPRESSION = /(?:\)|\bend)$/i;
+const PRIOR = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)$/;
+const ITEM = new RegExp(
+  String.raw`\b(?:from|join|apply)\s+(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)(?:\s+(?:as\s+)?(${COLUMN_PART}))?`,
+  "gi",
+);
 const PLACEHOLDER = [".", ":", "%", "$", "{"];
+const blank = (/** @type {string} */ m) => " ".repeat(m.length);
 
 // The columns a SELECT literal reads of its first FROM's table, first seen, once each (410):
-// `alias.col` / `table.col` always; a bare name only when that table is the string's one source,
-// never a keyword, call, alias, parameter, temp or the source's own name. A `*` on it gives none.
+// `alias.col` / `table.col` always — unless another source in the string shares that name; a bare
+// name only when that table is the string's one source, and never a keyword, call, date part,
+// alias, parameter or temp. A `*` on the table gives none: which columns it reads is not known.
 function readSqlColumns(text, closed) {
   const found = readSqlLiteral(text, closed);
   if (!found || found.kind !== KINDS.select) return [];
   const target = found.target;
-  const masked = text.replace(STRING, (m) => " ".repeat(m.length));
+  const masked = text.replace(STRING, blank).replace(NOT_NAMES, blank);
   const head = HEAD.exec(masked);
   if (!head) return [];
   const start = head[0].length;
@@ -141,6 +155,7 @@ function readSqlColumns(text, closed) {
   let source = FROM.exec(masked);
   while (source && !topLevel(masked, start, source.index)) source = FROM.exec(masked);
   if (!source) return [];
+  const sourceAt = source.index;
   NAME.lastIndex = source.index + source[0].length;
   const name = NAME.exec(masked);
   if (!name) return [];
@@ -151,12 +166,12 @@ function readSqlColumns(text, closed) {
   if (alias) {
     const tokens = alias[0].match(PART) || [];
     const token = tokens[tokens.length - 1] ?? "";
-    const word = unquote(token);
-    if (/^[["]/.test(token) || !NOT_A_COLUMN.has(word.toLowerCase())) {
-      names.add(word.toLowerCase());
+    if (/^[["]/.test(token) || !NOT_A_COLUMN.has(unquote(token).toLowerCase())) {
+      names.add(unquote(token).toLowerCase());
       after = ALIAS.lastIndex;
     }
   }
+  for (const other of shared(masked, target)) names.delete(other);
   if (stars(masked, names)) return [];
   const single =
     !SECOND_SOURCE.test(masked) &&
@@ -168,12 +183,16 @@ function readSqlColumns(text, closed) {
   CHAIN.lastIndex = start;
   for (let m = CHAIN.exec(masked); m; m = CHAIN.exec(masked)) {
     const before = masked.slice(0, m.index).trimEnd();
-    if (PLACEHOLDER.some((mark) => before.endsWith(mark))) continue;
+    if (PLACEHOLDER.some((mark) => before.endsWith(mark)) || /[0-9]$/.test(masked.slice(0, m.index))) {
+      continue;
+    }
     const parts = m[0].split(/\s*\.\s*/).map(unquote);
     const column = parts[parts.length - 1] ?? "";
     if (parts.length > 1) {
       if (!names.has(parts.slice(0, -1).join(".").toLowerCase()) || column === "*") continue;
-    } else if (!single || !bareColumn(m, masked, column, names)) {
+    } else if (!single || (m.index >= sourceAt && m.index < after)) {
+      continue;
+    } else if (!bareColumn(m[0], masked.slice(m.index + m[0].length), before)) {
       continue;
     }
     if (!seen.has(column.toLowerCase())) {
@@ -184,13 +203,32 @@ function readSqlColumns(text, closed) {
   return out;
 }
 
-// A bare name that can only be a column: no keyword, call, alias, parameter, temp, source.
-function bareColumn(match, masked, column, names) {
-  const lower = column.toLowerCase();
-  if (/^[@#]/.test(column) || names.has(lower)) return false;
-  if (!/^[["]/.test(match[0]) && NOT_A_COLUMN.has(lower)) return false;
-  if (masked.slice(match.index + match[0].length).trimStart().startsWith("(")) return false;
-  return !/\bas$/i.test(masked.slice(0, match.index).trimEnd());
+// Names another FROM / JOIN item also goes by — an alias reused in a subquery binds neither.
+function shared(masked, target) {
+  const other = new Set();
+  ITEM.lastIndex = 0;
+  for (let m = ITEM.exec(masked); m; m = ITEM.exec(masked)) {
+    const table = (m[1] ?? "").split(/\s*\.\s*/).map(unquote).join(".");
+    if (table.toLowerCase() === target.toLowerCase()) continue;
+    other.add(table.toLowerCase());
+    other.add((table.split(".").pop() ?? table).toLowerCase());
+    if (m[2]) other.add(unquote(m[2]).toLowerCase());
+  }
+  return other;
+}
+
+// A bare word that is only a column: no keyword, call, date part, parameter, temp, alias.
+function bareColumn(token, after, before) {
+  const lower = unquote(token).toLowerCase();
+  if (/^[@#]/.test(token) || (!/^[["]/.test(token) && NOT_A_COLUMN.has(lower))) return false;
+  if (after.trimStart().startsWith("(") || DATE_PART_ARG.test(before)) return false;
+  if (/\bas$/i.test(before)) return false;
+  if (TOP_N.test(before)) return true;
+  if (AFTER_EXPRESSION.test(before)) return false;
+  const prior = PRIOR.exec(before);
+  if (!prior) return true;
+  const word = prior[0];
+  return !/^[["0-9]/.test(word) && NOT_A_COLUMN.has(word.toLowerCase());
 }
 
 // Does the select list read the source with `*` — bare, or `t.*` naming it?
