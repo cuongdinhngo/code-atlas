@@ -263,8 +263,8 @@ def test_unlinked_counts_follow_the_asked_kinds(tmp_path: Path, store: GraphStor
     assert (both["unlinked_writes_count"], both["unlinked_reads_count"]) == (1, 2)
 
 
-def test_reads_on_a_column_is_labelled_ignored(tmp_path: Path, store: GraphStore) -> None:
-    """390 review — a read targets the Table, so READS on a Column is named, not silently empty."""
+def test_reads_on_a_column_is_answered_not_ignored(tmp_path: Path, store: GraphStore) -> None:
+    """390 review, reversed by 410: a Column holds READS now, so it is answered, never ignored."""
     _seed(
         store,
         tmp_path,
@@ -284,10 +284,11 @@ def test_reads_on_a_column_is_labelled_ignored(tmp_path: Path, store: GraphStore
     _stamp_langs(store, "sql")
     tool = find_references.create(db_config(tmp_path))
     reads = tool(COLUMN, kinds=["READS"])
-    assert reads["kinds_ignored"] == ["READS"]
+    # 410 reopened 390 W3: a Column answers READS — here none name it, so none are listed.
+    assert "kinds_ignored" not in reads
     assert reads["total_count"] == 0
     assert "unlinked_reads_count" not in reads
     mixed = tool(COLUMN, kinds=["WRITES", "READS"])
-    assert mixed["kinds_ignored"] == ["READS"]
+    assert "kinds_ignored" not in mixed
     assert [row["kind"] for row in mixed["results"]] == ["WRITES"]
     assert "kinds_ignored" not in tool(TABLE, kinds=["READS"])

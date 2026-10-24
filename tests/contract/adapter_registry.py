@@ -592,7 +592,13 @@ _F_ALTER_VIEW = "tests/fixtures/sql/alter_view.sql"
 _SQL_VIEW_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _F_VIEW, "dbo.ActiveOrders", "RESOLVED"),
     ("READS", "dbo.ActiveOrders", "dbo.Customers", "RESOLVED"),
+    # v19 (410): each `alias.col` it names, on its table — the select list, ON and WHERE alike.
+    ("READS", "dbo.ActiveOrders", "dbo.Customers::Id", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Customers::Name", "RESOLVED"),
     ("READS", "dbo.ActiveOrders", "dbo.Orders", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Orders::Active", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Orders::CustomerId", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Orders::Id", "RESOLVED"),
 ]
 _SQL_ALTER_VIEW_EDGE_SHAPES: list[EdgeShape] = [
     ("ALTERS", _F_ALTER_VIEW, "dbo.ActiveOrders", "RESOLVED"),
@@ -601,6 +607,22 @@ _SQL_ALTER_VIEW_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _F_ALTER_VIEW, "dbo.OpenOrders", "RESOLVED"),
     ("READS", "dbo.ActiveOrders", "dbo.Orders", "RESOLVED"),
     ("READS", "dbo.OpenOrders", "dbo.Orders", "RESOLVED"),
+    # v19 (410): one source, so a bare name is its column.
+    ("READS", "dbo.ActiveOrders", "dbo.Orders::Active", "RESOLVED"),
+    ("READS", "dbo.OpenOrders", "dbo.Orders::Closed", "RESOLVED"),
+    ("READS", "dbo.ActiveOrders", "dbo.Orders::Id", "RESOLVED"),
+    ("READS", "dbo.OpenOrders", "dbo.Orders::Id", "RESOLVED"),
+]
+# v19 (410): `o.Id` / `c.Name` bind through their aliases; `r.Id` names a CTE and `s.Id` a #temp,
+# and a bare `Id` beside two sources binds to neither.
+_SQL_SELECT_COLUMN_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", "tests/fixtures/sql/select_sources.sql", "dbo.ReportOrders", "RESOLVED"),
+    ("READS", "dbo.ReportOrders", "dbo.Customers", "RESOLVED"),
+    ("READS", "dbo.ReportOrders", "dbo.Customers::Id", "RESOLVED"),
+    ("READS", "dbo.ReportOrders", "dbo.Customers::Name", "RESOLVED"),
+    ("READS", "dbo.ReportOrders", "dbo.Orders", "RESOLVED"),
+    ("READS", "dbo.ReportOrders", "dbo.Orders::CustomerId", "RESOLVED"),
+    ("READS", "dbo.ReportOrders", "dbo.Orders::Id", "RESOLVED"),
 ]
 
 SQL_CASES: dict[str, Case] = {
@@ -685,18 +707,21 @@ SQL_CASES: dict[str, Case] = {
     ),
     # v15 (390): every FROM / JOIN source a routine reads, once each — never a CTE or a #temp.
     "select-sources": Case(
-        "select_sources.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "READS": 2}
+        "select_sources.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1, "READS": 6},
+        _SQL_SELECT_COLUMN_SHAPES,
     ),
     "create-view": Case(
         "create_view.sql",
         {"File": 1, "View": 1},
-        {"CONTAINS": 1, "READS": 2},
+        {"CONTAINS": 1, "READS": 7},
         _SQL_VIEW_EDGE_SHAPES,
     ),
     "alter-view": Case(
         "alter_view.sql",
         {"File": 1, "View": 2},
-        {"ALTERS": 2, "CONTAINS": 2, "READS": 2},
+        {"ALTERS": 2, "CONTAINS": 2, "READS": 6},
         _SQL_ALTER_VIEW_EDGE_SHAPES,
     ),
     "update-set-list": Case(

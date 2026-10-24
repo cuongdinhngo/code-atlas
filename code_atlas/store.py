@@ -2768,6 +2768,22 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (*kinds, *cleaned)).fetchone()[0])
 
+    def count_reads_naming_no_column(self, table: str) -> int:
+        """Statements that read ``table`` and name none of its columns (410): a ``select *``.
+
+        A statement is its source, file and line — a column read rides its table read's line.
+        """
+        prefix = f"{table}{contract.MEMBER_SEPARATOR}"
+        sql = (
+            "SELECT COUNT(*) FROM (SELECT DISTINCT t.source_qname, t.file_path, t.line "
+            "FROM edges t WHERE t.kind = ? AND t.target_qname = ? AND NOT EXISTS ("
+            "SELECT 1 FROM edges c WHERE c.kind = t.kind AND c.source_qname = t.source_qname "
+            "AND c.file_path = t.file_path AND c.line = t.line "
+            "AND substr(c.target_qname, 1, ?) = ?))"
+        )
+        params = (contract.READS, table, len(prefix), prefix)
+        return int(self._conn.execute(sql, params).fetchone()[0])
+
     def named_from_another_language(
         self, raws: Sequence[str], *, language: str, kinds: Sequence[str]
     ) -> bool:
