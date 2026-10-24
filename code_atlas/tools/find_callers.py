@@ -199,8 +199,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language`` only
-        if an unlinked call in another language names the subject — as its callee, or as a
-        literal argument that is the name or ends in it (``querySP('dbo.name')``). Otherwise it
+        if another language names the subject — as an unlinked call's callee, or as a literal
+        argument of any call that is the name or ends in it (``querySP('dbo.name')``). Otherwise it
         stays ``no_matches`` and lists those languages in ``cross_language_unmeasured`` (409).
         Hits carry ``authoritative: false`` only when the stamped census has cross-language
         edges (276); an empty census is status-only. ``caveat_limits`` states the cost (251).
