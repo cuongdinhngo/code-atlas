@@ -47,6 +47,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 408-C1 — a BACKLOG row is charged to the tier-1 budget, which `test_doc_size_budget.py` does not check
+
+- type: 2 (process) · handle: `a-docs-change-runs-every-doc-budget`
+- status: proposed · seen: 408
+- evidence: #103 added three BACKLOG rows after running only the bookkeeping and doc-size tests, and `main` went red on
+  `test_agent_chain_budget.py` (19,906 of 19,900 tokens), found by 408's baseline. A docs-only change still runs every
+  test that reads the doc it touched — `--fast` gate at least.
+- destination: first sighting.
+
 ### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
 
 - type: 2 (code) · handle: `a-guest-row-needs-its-own-language`

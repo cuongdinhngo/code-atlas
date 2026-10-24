@@ -4,7 +4,7 @@ slug: per-call-caller-root
 title: "A subagent in a session-spawned worktree gets answers about `main` with `reason: ok` — a per-call `caller_root`"
 phase: 2
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [389, 366]
 ---
 
@@ -45,7 +45,7 @@ the optional "subject file differs in a known worktree" caveat.
 
 ## Session status
 
-- **KEY:** 408 · **work_doc_mode:** embed · **Current phase:** 4 review · **Next action:** the ticket-blind challenger. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 408 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W4 and merges. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · Run mode: `autorun 408 - 409 - 410 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/408-per-call-caller-root` from `main` (`191b7a8f`, #103 merged). Contract `.mango/run-contract-408.txt`.
@@ -262,3 +262,58 @@ asserts that case, and `find_implementations` shows what the roots alone would s
 | # | Deviation | Trace | Effect |
 |---|---|---|---|
 | — | none | — | — |
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 74,806 tokens; raw ticket only, read from a file holding the text above the
+  separator; the task file excluded from its diff): 8 met · 0 not met · 0 can't tell. Findings:
+  - D1 (Major) — `test_tier_one_stays_under_its_total_budget` red at the tip: B1, #103's rows, cleared at finalise
+    when this row leaves BACKLOG.
+  - D2 (Minor) — a refusal is a raised error, not a `reason`: W1, as designed; the docstrings say "refused as an error".
+  - D3 (Minor) — a worktree whose HEAD no longer reads passed validation, then `other_checkout` dropped it and the call
+    answered about main unlabelled — **fixed** in `824e75a3`: refused, with
+    `test_a_worktree_whose_head_does_not_resolve_is_refused`, seen red with only that check removed (`DID NOT RAISE`).
+  - D4 (Minor) — a signed claim replays `caller_root`: H12, as designed.
+  - D5 (Minor) — the guard and the tool both validate (cached git identity); a bad root on a schema-mismatched index
+    raises rather than answering the mismatch. Left: an input error before the index is read is R5.3's order.
+- **Round 2: verify-only, main loop.** The fix stays inside D3 and the approved files. The affected proof re-ran:
+  `tests/test_per_call_caller_root.py`, `test_worktree_overlay.py`, `test_ref_mismatch.py` `33 passed in 11.05s`;
+  `ruff`, `mypy` clean. Ran at 824e75a3, superseded by the final gate below.
+
+Verdict: clean (challenger only — REVIEWER: OFF), with W1–W4 standing for ratification.
+`Ph3/4 proven by`: R1 and the inventory (5/5: read_symbol · file_outline · search_symbol · find_callers ·
+find_references) → `test_each_of_the_five_tools_honours_caller_root`; R2 → the label and AC3 tests; R3, C1 → the
+refusal, HEAD and never-reaches-the-index tests; R4 → the skill drift test and `test_agent_brief_usage_completeness`;
+AC1–AC4 → their named tests; G1 → all of them.
+
+Reviewed at 824e75a3520e36bc8d6e85384de96184f5330d4b. Files: `code_atlas/ref_check.py`, `code_atlas/overlay.py`,
+`code_atlas/tools/schema_guard.py`, the five tools, `tests/test_per_call_caller_root.py`, `scripts/gen_skill.py`, the
+three generated files, `docs/TOOLS.md`, `docs/runbooks/parallel-agents.md`, `CHANGELOG.md`. Working doc: this file.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 408-C1 (`a-docs-change-runs-every-doc-budget`, first sighting): #103 ran two doc tests, not the
+tier-1 budget, and turned `main` red.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/408-per-call-caller-root`; open its PR against `main`.
+Deferred to the maintainer: ratify W1–W4, merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 57,725 |
+| 3 execute | `implementer` — not dispatched (high-stakes: a path-access boundary); main loop implemented | — | unmeasured (main-loop spend, not a dispatch) |
+| 4 review | ticket-blind `challenger` | 1 | 74,806 |
+
+`LEDGER TOTAL: 132,531 · top cost driver: 4 review / challenger` — main loop unmeasured.
