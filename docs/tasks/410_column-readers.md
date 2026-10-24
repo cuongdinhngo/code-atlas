@@ -4,7 +4,7 @@ slug: column-readers
 title: "`READS` onto a `Table::Column` — who reads this column (reopens 390 W3)"
 phase: 2
 milestone: Coverage
-status: in-progress
+status: done
 depends_on: [390, 329]
 ---
 
@@ -44,7 +44,7 @@ bump (R3). Out of scope: runtime-built SQL; PHP views reading `$row['col']` (a m
 
 ## Session status
 
-- **KEY:** 410 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits (a contract bump: an index built at 19 needs a full rebuild after a revert).
+- **KEY:** 410 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W8, merges after #105, tags v0.8.0, runs E1. **Revert path:** `git revert` the branch's commits (a contract bump: an index built at 19 needs a full rebuild after a revert).
 - `TRACK: backend` · Run mode: `autorun 408 - 409 - 410 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/410-column-readers`, **stacked on `feat/409-measured-zero-callers`** (#105). Contract `.mango/run-contract-410.txt`.
@@ -239,3 +239,92 @@ three columns on a contract-19 anchor index · seen: 410.
 `git revert`; a contract-19 index needs a full rebuild after a revert. One repo; the adapters ship in it.
 
 `SCOPE: L` — the analysis baseline; the realized scope is the ticket's own (three host readers named in Scope 2).
+
+## Phase 3 — execute
+
+Implemented in the main loop: a contract change across four adapters. Commits `5aa36f5a` (T-SQL), `f4ca44fe` (host
+readers + shared cases), `5db3fb05` (core + tests), `a8e432a6` (contract 19, release 0.8.0), `f49a713c` (docs).
+
+**Red first** (R6.5): with the four adapters' `src/`, `find_references.py` and `store.py` stashed back to `74a65006`,
+`tests/test_column_readers.py` + the agreement test give `7 failed, 1 passed` (the one pass: the default Column
+answer, unchanged by design). Ran at f49a713c.
+
+**Green at execute:** the proving tests `8 passed`; `tests/contract` `360 passed`; every sql / reads / table / column
+/ release / skill / brief / references / contract / literal / writer / version / adapter / view / impact / orphan /
+onboarding / map test `2386 passed, 1 skipped, 2547 deselected, 1 xfailed in 186.29s` (the xfail: v0.8.0's tag);
+`tsc --noEmit` clean on both JS adapters; PHPStan max `[OK] No errors`; the Python adapter's `ruff` + `mypy --strict`
+clean; core `ruff`, `mypy` clean. Ran at f49a713c.
+
+**Verification sweep.** File axis: every touched file is on the change list or below. Behaviour axis: Approach 1–6
+implemented as approved; 7 (P8) runs after review.
+
+| # | Deviation | Trace | Effect |
+|---|---|---|---|
+| D1 | a CTE or a derived table turns bare binding off, and CTE names are never columns | Approach 1 | `test_a_cte_inside_a_view_is_never_read_as_a_table` caught `WITH c AS (…) SELECT Id FROM c` reading `c` and the CTE's `Id` as `Orders` columns — W5 applied to the binder, not only to sources |
+| D2 | three 390-era tests rewritten: `test_table_readers.py` (two), `test_table_writer_set_via_find_references.py` (`READS` on a Column was "ignored") | change list row 4's blast radius missed them (P5) | they pinned the behaviour this ticket reverses; each keeps its intent (no table dropped, `TRIM(' ' FROM …)` no source) and now also states the 410 shape |
+| D3 | `tests/test_sql_view_nodes.py`'s CASE/END test filters to table reads | row 1's blast radius | its assertion is about the view's FROM not being cut, which still holds |
+| D4 | the four adapter READMEs and `docs/design/storage.md` ("No `READS`") edited | row 7 named TOOLS/PLAN/playbook | the design note was already stale since 390; the playbook pins no version |
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 75,712 tokens; raw ticket only, the task file excluded from its diff): 8 met ·
+  2 partly met · 1 can't tell (AC4's P8 — recorded below) · 0 not met. It probed each adapter with its own literals:
+  the three host readers agreed on every input. Findings, settled in `2358e94c`:
+  - F1 (Major) — date parts and words such as `Year`, `Day`, `Path`, `Rows` were dropped as keywords and the
+    statement then read as a `select *` — **fixed**: the word list keeps reserved words only; a date part is
+    skipped as a date function's first argument, paging and `FOR XML/JSON` clauses are blanked first.
+  - F2 (Major) — one alias map per statement: `FROM dbo.T a … EXISTS (SELECT 1 FROM dbo.U a WHERE a.Flag = 1)` gave a
+    false RESOLVED `U::Id` — **fixed**: a name two sources share binds neither (all four readers).
+  - F5 (Minor) — phantom names: an alias without `AS` (`… OVER (…) rn`, `Other g`), `1.5e3`, `0x1F`, and a
+    trigger's `FROM inserted i JOIN dbo.T t` binding bare names to `T` — **fixed**: a word after `)`, `END`, a name
+    or a number is an alias; a word glued to a digit is a number; bare binding needs exactly one FROM item, a
+    skipped one (`inserted`, a #temp, a derived table) included.
+  - F8 (Minor) — a column named like its table (`Status` in `dbo.Status`) — **fixed**: only the FROM item's own span
+    is skipped, not every word equal to a source name.
+  - F3 (Minor) — the docstring's "so a zero is a real zero" over-promised — **fixed** wording (W2's limit stated).
+  - F4, F6, F7 (Minor) — `select *` with a `WHERE t.Flag` lists nothing (AC3 as written); a trigger's `inserted`
+    columns are not credited to its table; a host string's second comma source — accepted as W3/W6 limits.
+- `test_review_names_a_keyword_list_would_drop_and_aliases_it_would_misread` and five new shared literal cases fail
+  on `f49a713c`'s adapters (`4 failed, 5 passed`). Ran at 2358e94c.
+- **Round 2: verify-only, main loop.** The fixes stay inside the four readers, their tests and two wording lines.
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W8 standing for ratification, E1 deferred.
+`Ph3/4 proven by`: R1, AC1 → `test_ac1_ac2…`, the conformance shapes and the review test; R2 (3/3: PHP · TS · Python)
+and AC2 → the shared literal table; R3, AC4 → `test_ac4…` and the default-answer test; R4, AC3 → `test_ac3…`; C1 →
+contract 19 + release-discipline; G1 → all of them.
+
+Reviewed at 2358e94c0799fcd451d53aedb3119716b3be925d. Files: the four adapters' readers and callers, `find_references.py`, `store.py`, `contract.py`, the
+handshakes, the tests listed above, CHANGELOG, `pyproject.toml`, `gen_skill.py` and its generated files, TOOLS.md,
+PLAN, `design/storage.md`, the adapter READMEs. Working doc: this file.
+
+## Phase 5 — finalise
+
+**Durable lesson.** The binder's first cut was correct on every authored fixture and wrong on the challenger's
+real-shaped probes: common column names in the keyword list, a reused alias, an alias without `AS`. The fixture
+listed the shapes the code was written for (R6.3's `fixture-shape-begs-the-question`); a second claim is new —
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+
+410-C1 (`a-word-list-is-not-a-grammar`): a stop-word list chosen to drop non-columns also drops real columns that
+spell like them; read a word by its place (a call's first argument, after `AS`) before its spelling.
+
+### Outward actions
+
+Under the handover: push `feat/410-column-readers`; open its PR against `feat/409-measured-zero-callers`.
+Deferred to the maintainer: ratify W1–W8, merge after #105, push `v0.8.0` (the strict xfail flips), E1.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 72,335 |
+| 3 execute | `implementer` — not dispatched (a contract change across four adapters); main loop implemented | — | unmeasured (main-loop spend, not a dispatch) |
+| 4 review | ticket-blind `challenger` | 1 | 75,712 |
+
+`LEDGER TOTAL: 148,047 · top cost driver: 4 review / challenger` — main loop unmeasured.
