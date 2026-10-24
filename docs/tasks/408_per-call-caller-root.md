@@ -45,7 +45,7 @@ the optional "subject file differs in a known worktree" caveat.
 
 ## Session status
 
-- **KEY:** 408 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 408 · **work_doc_mode:** embed · **Current phase:** 4 review · **Next action:** the ticket-blind challenger. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · Run mode: `autorun 408 - 409 - 410 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/408-per-call-caller-root` from `main` (`191b7a8f`, #103 merged). Contract `.mango/run-contract-408.txt`.
@@ -237,3 +237,28 @@ The eight sections of Phase 1 bind the design unchanged. R7.5 (≤ 3-line commen
 `git revert`; no stored state changes. One repo, no porting.
 
 `SCOPE: M` — unchanged.
+
+## Phase 3 — execute
+
+Implemented in the main loop: the change sets which paths the server may read (W3), an access boundary. Commits
+`9c5c46b5` (core, tools, test), `d1feb2d1` (skill and brief), `1c25cc0a` (docs).
+
+**Red first** (R6.5): with `code_atlas/` stashed back to `55b1f415`, `tests/test_per_call_caller_root.py` gives
+`8 failed in 4.20s` (the tools reject the unknown keyword). With only `schema_guard.py` stashed: `2 failed, 6 passed`
+— the label test and the index-checkout test, so the guard half is guarded on its own. Ran at 9c5c46b5.
+
+**Green at execute:** the proving test `8 passed in 2.90s`; the neighbours (worktree overlay, ref mismatch, brief
+completeness, skill drift, shell route, tool descriptions, MCP server, claim signing, batched sweep, schema recovery,
+path prefix, filter values, doc size, config, nav tools) `309 passed in 27.21s`; `ruff check .` clean; `mypy`
+`Success: no issues found in 113 source files`. Ran at 9c5c46b5 (the two later commits touch no Python under test).
+
+**Verification sweep.** File axis: `git diff --name-only 55b1f415..HEAD` lists 16 files, all on the change list.
+No language branch: `grep -n 'if .*language ==' code_atlas/ref_check.py` exits 1. Behaviour axis: Approach 1–5
+implemented as approved. One finding while writing the test: a worktree that differs from the built commit labels
+every overlaid answer `overlay: worktree` (389), so the 366 label never reaches those five tools from a worktree; the
+guard half matters when the call names the **index** checkout while the session's roots name a worktree. The test
+asserts that case, and `find_implementations` shows what the roots alone would say.
+
+| # | Deviation | Trace | Effect |
+|---|---|---|---|
+| — | none | — | — |
