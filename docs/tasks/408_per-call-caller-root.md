@@ -303,6 +303,19 @@ tier-1 budget, and turned `main` red.
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
 
+**The final gate** (B1 cleared — this row left BACKLOG):
+
+```
+$ scripts/gate.sh
+== summary ==
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at c733cedfec3a774aee526756ab632466b1f35640
+```
+
+Stale-review guard: after `824e75a3`, only this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`
+change. Not stale. The commit recording this block touches this file alone.
+
 ### Outward actions
 
 Under the handover: push `feat/408-per-call-caller-root`; open its PR against `main`.
