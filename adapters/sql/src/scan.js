@@ -640,23 +640,35 @@ function parseFile(qpath) {
   };
 
   /**
-   * Every table the statement reads, bar the one it writes (390).
+   * Every table the statement reads, bar the one it writes (390), and the columns it reads of each
+   * (410) on that table's line. `bare` lets a lone source take unqualified names: only a pure SELECT
+   * — an INSERT's column list names its target's columns, not its source's.
    * @param {string} buf
    * @param {number} line
    * @param {string|null} written
+   * @param {boolean} [bare]
    */
-  const reads = (buf, line, written) => {
+  const reads = (buf, line, written, bare = false) => {
     const source = current ? current.qname : qpath;
-    const emitted = new Set(); // `dbo.T` and `[dbo].[t]` are one table, read once
+    /** @type {Map<string, {target: string, own: number}>} */
+    const emitted = new Map(); // `dbo.T` and `[dbo].[t]` are one table, read once
     for (const { name, at } of ddl.readSources(buf)) {
       const target = splitName(name);
       if (!target || target === written || emitted.has(target.toLowerCase())) continue;
-      emitted.add(target.toLowerCase());
       // The buffer keeps its newlines (254), so the keyword's own line is countable.
       const own = line + (buf.slice(0, at).match(/\n/g) ?? []).length;
+      emitted.set(target.toLowerCase(), { target, own });
       edges.push({
         kind: "READS", source_qname: source, target_raw: target,
         file_path: qpath, line: own, confidence_tier: "RESOLVED",
+      });
+    }
+    for (const { table, column } of ddl.readColumnReads(buf, bare)) {
+      const read = emitted.get((splitName(table) ?? "").toLowerCase());
+      if (!read) continue;
+      edges.push({
+        kind: "READS", source_qname: source, target_raw: `${read.target}::${column}`,
+        file_path: qpath, line: read.own, confidence_tier: "RESOLVED",
       });
     }
   };
@@ -666,7 +678,7 @@ function parseFile(qpath) {
     const { kind, buf, line } = pending;
     pending = null;
     if (kind === "select") {
-      reads(buf, line, null);
+      reads(buf, line, null, true);
       return;
     }
     if (buf.length > PENDING_CAP) {
@@ -891,7 +903,7 @@ function parseFile(qpath) {
         current = { qname, node };
         paramScan = HEADER_END_RE.test(code) ? null : node;
         // `CREATE FUNCTION f() RETURNS TABLE AS RETURN (SELECT … FROM t)` on one line (390).
-        if (SELECT_RE.test(code)) reads(code, lineNo, null);
+        if (SELECT_RE.test(code)) reads(code, lineNo, null, true);
       }
       return;
     }

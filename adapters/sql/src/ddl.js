@@ -670,6 +670,135 @@ function readSources(code) {
   return out;
 }
 
+// Words a statement uses that never name a column of its source (410): T-SQL keywords, table hints
+// and date parts. A delimited `[Status]` is a name however it is spelled, so only bare words are kept.
+const NOT_A_COLUMN_READ = new Set([
+  "select", "from", "where", "and", "or", "not", "null", "is", "in", "like", "between", "as", "on",
+  "join", "inner", "left", "right", "full", "outer", "cross", "apply", "order", "by", "group",
+  "having", "union", "all", "distinct", "top", "percent", "ties", "case", "when", "then", "else",
+  "end", "asc", "desc", "exists", "with", "nolock", "readuncommitted", "holdlock", "updlock",
+  "rowlock", "readpast", "offset", "fetch", "next", "first", "rows", "row", "only", "into",
+  "values", "set", "insert", "update", "delete", "merge", "using", "matched", "output", "declare",
+  "begin", "return", "returns", "if", "while", "go", "create", "alter", "view", "procedure", "proc",
+  "function", "table", "trigger", "for", "after", "instead", "of", "over", "partition", "escape",
+  "collate", "pivot", "unpivot", "xml", "path", "json", "auto", "except", "intersect", "default",
+  "any", "some", "current_timestamp", "current_user", "session_user", "system_user", "identity",
+  "day", "month", "year", "hour", "minute", "second", "millisecond", "week", "weekday", "quarter",
+  "dayofyear", "dd", "mm", "yy", "yyyy", "hh", "mi", "ss", "ms", "wk", "dw", "qq", "dy",
+]);
+const PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)`;
+// A name and its dotted tail; `t.*` keeps its star so it is seen, then never bound.
+const CHAIN = new RegExp(String.raw`${PART}(?:\s*\.\s*(?:${PART}|\*))*`, "g");
+
+/**
+ * Every FROM / JOIN source and the names a statement may qualify it by: its alias, its own
+ * name, its last part (410). Keys are lower-cased; the value is the source as `readSources` names it.
+ * @param {string} code
+ * @returns {Map<string, string>}
+ */
+function sourceNames(code) {
+  /** @type {Map<string, string>} */
+  const names = new Map();
+  const sources = readSources(code);
+  for (const { name } of sources) {
+    names.set(name.toLowerCase(), name);
+    names.set((name.split(".").pop() ?? name).toLowerCase(), name);
+  }
+  const keyword = /\b(?:from|join)\s+/gi;
+  for (let m = keyword.exec(code); m; m = keyword.exec(code)) {
+    let at = m.index + m[0].length;
+    for (;;) {
+      const table = readQualified(code, at);
+      if (!table || !sources.some((s) => s.name === table.name)) break;
+      const named = /^\s+(?:as\s+)?/i.exec(code.slice(table.next));
+      const alias = named ? readIdent(code, table.next + named[0].length) : null;
+      const word = alias ? alias.name.toLowerCase() : "";
+      let next = table.next;
+      if (alias && (alias.delimited || !NOT_A_COLUMN_READ.has(word))) {
+        names.set(word, table.name);
+        next = alias.next;
+      }
+      const more = /^\s*,\s*/.exec(code.slice(next));
+      if (!more) break;
+      at = next + more[0].length;
+    }
+  }
+  return names;
+}
+
+/**
+ * The columns a statement reads, each with its table (410): `alias.col` / `table.col` against its
+ * sources, and — when `bare` and the statement has one source — a bare name from its first SELECT
+ * on that is no keyword, call, alias, parameter, temp or source name. First seen, once each. A
+ * source read by `*` (or `t.*`) gives no column at all: which columns it reads is not known.
+ * @param {string} code
+ * @param {boolean} bare
+ * @returns {{table: string, column: string}[]}
+ */
+function readColumnReads(code, bare) {
+  const names = sourceNames(code);
+  const sources = [...new Set(names.values())];
+  if (sources.length === 0) return [];
+  // A CTE or a derived table answers its outer query's bare names, never the base table (W5).
+  const ctes = new Set();
+  for (let m = CTE_NAME.exec(code); m; m = CTE_NAME.exec(code)) {
+    ctes.add((m[1] ?? "").replace(/^\[|\]$/g, "").toLowerCase());
+  }
+  CTE_NAME.lastIndex = 0;
+  const derived = /\b(?:from|join|apply)\s*\(\s*select\b/i.test(code);
+  const only = bare && sources.length === 1 && ctes.size === 0 && !derived ? sources[0] : null;
+  const select = /\bselect\b/i.exec(code);
+  /** @type {{table: string, column: string}[]} */
+  const out = [];
+  const seen = new Set();
+  const add = (/** @type {string} */ table, /** @type {string} */ column) => {
+    const key = `${table}::${column}`.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); out.push({ table, column }); }
+  };
+  CHAIN.lastIndex = 0;
+  for (let m = CHAIN.exec(code); m; m = CHAIN.exec(code)) {
+    const before = code.slice(0, m.index).trimEnd();
+    if (before.endsWith(".") || before.endsWith(":")) continue;
+    const parts = m[0].split(/\s*\.\s*/).map((p) => p.replace(/^\[|\]$/g, "").replace(/^"|"$/g, ""));
+    const column = parts[parts.length - 1] ?? "";
+    if (parts.length > 1) {
+      const table = names.get(parts.slice(0, -1).join(".").toLowerCase());
+      if (table && column !== "*") add(table, column);
+      continue;
+    }
+    if (only === null || !select || m.index < select.index + select[0].length) continue;
+    const delimited = /^[[\"]/.test(m[0]);
+    const lower = column.toLowerCase();
+    if (/^[@#]/.test(column) || names.has(lower) || ctes.has(lower)) continue;
+    if (!delimited && NOT_A_COLUMN_READ.has(lower)) continue;
+    if (/^\s*\(/.test(code.slice(m.index + m[0].length)) || /\bas$/i.test(before)) continue;
+    add(only, column);
+  }
+  const starred = starredSources(code, names);
+  return starred === null ? [] : out.filter(({ table }) => !starred.has(table));
+}
+
+/**
+ * The sources a statement selects with `*` — `t.*` names one; a bare `*` in a select list all
+ * of them, signalled by null (410). `count(*)` is a call, not a select list.
+ * @param {string} code
+ * @param {Map<string, string>} names
+ * @returns {Set<string>|null}
+ */
+function starredSources(code, names) {
+  if (/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i.test(code)) {
+    return null;
+  }
+  const starred = new Set();
+  const dotted = new RegExp(String.raw`(${PART}(?:\s*\.\s*${PART})*)\s*\.\s*\*`, "g");
+  for (let m = dotted.exec(code); m; m = dotted.exec(code)) {
+    const key = (m[1] ?? "").split(/\s*\.\s*/).map((p) => p.replace(/^\[|\]$/g, "").replace(/^"|"$/g, ""));
+    const table = names.get(key.join(".").toLowerCase());
+    if (table) starred.add(table);
+  }
+  return starred;
+}
+
 /**
  * TRUNCATE TABLE t (328).
  * @param {string} code
@@ -703,6 +832,6 @@ module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readDelete, readTruncate, readMergeDeletes, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
   readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
-  readIdent, readQualified, readParens, readSources, splitTopLevel, splitTopLevelPieces,
+  readIdent, readQualified, readParens, readSources, readColumnReads, splitTopLevel, splitTopLevelPieces,
   isReservedObjectName, NOT_A_COLUMN,
 };
