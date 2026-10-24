@@ -171,20 +171,21 @@ final class SqlLiteral
         . ' updlock rowlock readpast into values set insert update delete merge using output'
         . ' declare begin return returns if while go create alter view procedure proc function'
         . ' table trigger for of over escape collate pivot unpivot except intersect default any'
-        . ' some current_timestamp current_user session_user system_user identity partition';
+        . ' some current_timestamp current_user session_user system_user identity partition interval';
 
-    private const COLUMN_PART = '(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)';
+    /** A regular identifier: a letter, `_`, `@` or `#`, then letters, digits, `@#$_` — Unicode too. */
+    private const COLUMN_PART = '(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}_@#][\p{L}\p{N}_@#$]*)';
 
-    /** Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`. */
+    /** Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` hint. */
     private const NOT_NAMES = '/\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?'
-        . '|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b/i';
+        . '|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)/i';
 
-    /** The first argument of a date function is a date part, never a column. */
-    private const DATE_PART_ARG =
-        '/\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*\z/i';
+    /** The first argument of a date function is a date part, of CONVERT a type: never a column. */
+    private const DATE_PART_ARG = '/\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc'
+        . '|date_bucket|convert|try_convert)\s*\(\s*\z/i';
 
     /** A top-N count precedes the select list; any other number or name before a word aliases it. */
-    private const TOP_N = '/\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\z/i';
+    private const TOP_N = '/\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\z/i';
 
     /**
      * The columns a SELECT literal reads of its first FROM's table, first seen, once each (410).
@@ -239,8 +240,17 @@ final class SqlLiteral
         $single = preg_match('/\bjoin\b|\bapply\b/i', $masked) !== 1
             && preg_match_all('/\bfrom\s+/i', $masked) === 1
             && !str_starts_with(ltrim(substr($masked, $after)), ',');
-        $chain = '/' . self::COLUMN_PART . '(?:\s*\.\s*(?:' . self::COLUMN_PART . '|\*))*/';
+        $chain = '/' . self::COLUMN_PART . '(?:\s*\.\s*(?:' . self::COLUMN_PART . '|\*))*/' . self::utf($masked);
         preg_match_all($chain, $masked, $all, PREG_OFFSET_CAPTURE, $start);
+        // A select-list alias may be an ORDER BY key (the one clause that sees it): never a column there.
+        $order = -1;
+        preg_match_all('/\border\s+by\b/i', $masked, $orders, PREG_OFFSET_CAPTURE, $start);
+        foreach ($orders[0] as [, $pos]) {
+            if (self::topLevel($masked, $start, $pos)) {
+                $order = $pos;
+            }
+        }
+        $aliases = [];
         $out = [];
         $seen = [];
         foreach ($all[0] as [$match, $pos]) {
@@ -258,8 +268,20 @@ final class SqlLiteral
                 }
             } elseif (!$single || ($pos >= $at[0] && $pos < $after)) {
                 continue;
-            } elseif (!self::bareColumn($match, substr($masked, $pos + strlen($match)), $before, $words)) {
-                continue;
+            } else {
+                $rest = substr($masked, $pos + strlen($match));
+                if (self::excluded($match, $rest, $before, $words)) {
+                    continue;
+                }
+                if (self::aliasPlace($rest, $before, $words)) {
+                    if ($pos < $at[0]) {
+                        $aliases[strtolower($column)] = true;
+                    }
+                    continue;
+                }
+                if ($order >= 0 && $pos > $order && isset($aliases[strtolower($column)])) {
+                    continue;
+                }
             }
             if (!isset($seen[strtolower($column)])) {
                 $seen[strtolower($column)] = true;
@@ -278,7 +300,7 @@ final class SqlLiteral
     private static function shared(string $masked, string $target): array
     {
         $item = '/\b(?:from|join|apply)\s+(' . self::COLUMN_PART . '(?:\s*\.\s*' . self::COLUMN_PART
-            . ')*)(?:\s+(?:as\s+)?(' . self::COLUMN_PART . '))?/i';
+            . ')*)(?:\s+(?:as\s+)?(' . self::COLUMN_PART . '))?/i' . self::utf($masked);
         preg_match_all($item, $masked, $all, PREG_SET_ORDER);
         $other = [];
         foreach ($all as $m) {
@@ -298,35 +320,57 @@ final class SqlLiteral
     }
 
     /**
-     * A bare word that is only a column: no keyword, call, date part, parameter, temp, alias.
+     * A word that is never a column: keyword, call, parameter, temp, date part, CONVERT type, collation.
      *
      * @param array<string, true> $words
      */
-    private static function bareColumn(string $token, string $after, string $before, array $words): bool
+    private static function excluded(string $token, string $after, string $before, array $words): bool
     {
         $lower = strtolower(self::unquote($token));
         $delimited = in_array($token[0], ['[', '"'], true);
         if (in_array($token[0], ['@', '#'], true) || (!$delimited && isset($words[$lower]))) {
-            return false;
-        }
-        if (str_starts_with(ltrim($after), '(') || preg_match(self::DATE_PART_ARG, $before) === 1) {
-            return false;
-        }
-        if (preg_match('/\bas\z/i', $before) === 1) {
-            return false;
-        }
-        if (preg_match(self::TOP_N, $before) === 1) {
-            return true;
-        }
-        if (preg_match('/(?:\)|\bend)\z/i', $before) === 1) {
-            return false;
-        }
-        if (preg_match('/(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)\z/', $before, $prior) !== 1) {
             return true;
         }
 
-        return !in_array($prior[0][0], ['[', '"'], true) && !ctype_digit($prior[0][0])
-            && isset($words[strtolower($prior[0])]);
+        return str_starts_with(ltrim($after), '(') || preg_match(self::DATE_PART_ARG, $before) === 1
+            || preg_match('/\bcollate\z/i', $before) === 1;
+    }
+
+    /**
+     * A word where an alias stands: `x = expr` opening a select item, after `AS`, `)` or `END`, or
+     * straight after another name or number — never a top-N count's next word.
+     *
+     * @param array<string, true> $words
+     */
+    private static function aliasPlace(string $after, string $before, array $words): bool
+    {
+        $opens = preg_match('/(?:,|\bselect|\bdistinct)\z/i', $before) === 1
+            || preg_match(self::TOP_N, $before) === 1;
+        if (preg_match('/\A\s*=(?!=)/', $after) === 1 && $opens) {
+            return true;
+        }
+        if (preg_match('/\bas\z/i', $before) === 1) {
+            return true;
+        }
+        if (preg_match(self::TOP_N, $before) === 1) {
+            return false;
+        }
+        if (preg_match('/(?:\)|\bend)\z/i', $before) === 1) {
+            return true;
+        }
+        $prior = '/(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}\p{N}_@#$]+)\z/' . self::utf($before);
+        if (preg_match($prior, $before, $word) !== 1) {
+            return false;
+        }
+
+        return in_array($word[0][0], ['[', '"'], true) || ctype_digit($word[0][0])
+            || !isset($words[strtolower($word[0])]);
+    }
+
+    /** `u` when the text is valid UTF-8, so a letter is a Unicode letter; else bytes, never an error. */
+    private static function utf(string $text): string
+    {
+        return preg_match('//u', $text) === 1 ? 'u' : '';
     }
 
     /**
@@ -336,11 +380,12 @@ final class SqlLiteral
      */
     private static function stars(string $masked, array $names): bool
     {
-        $bare = '/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i';
+        $bare = '/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i';
         if (preg_match($bare, $masked) === 1) {
             return true;
         }
-        $dotted = '/(' . self::COLUMN_PART . '(?:\s*\.\s*' . self::COLUMN_PART . ')*)\s*\.\s*\*/';
+        $dotted = '/(' . self::COLUMN_PART . '(?:\s*\.\s*' . self::COLUMN_PART . ')*)\s*\.\s*\*/'
+            . self::utf($masked);
         preg_match_all($dotted, $masked, $all);
         foreach ($all[1] as $qualifier) {
             $key = implode('.', array_map(self::unquote(...), self::dotted($qualifier)));

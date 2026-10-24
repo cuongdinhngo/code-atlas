@@ -144,34 +144,42 @@ _NOT_A_COLUMN = frozenset(
     insert update delete merge using output declare begin return returns if while go create alter
     view procedure proc function table trigger for of over escape collate pivot unpivot except
     intersect default any some current_timestamp current_user session_user system_user identity
-    partition""".split()
+    partition interval""".split()
 )
 _STRING = re.compile(r"N?'(?:[^']|'')*'?", re.IGNORECASE)
-_COLUMN_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)'
+# A regular identifier: a letter, `_`, `@` or `#`, then letters, digits and `@#$_` — Unicode too.
+_COLUMN_PART = r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|(?:[^\W\d]|[@#])[\w@#$]*)'
 _CHAIN = re.compile(_COLUMN_PART + r"(?:\s*\.\s*(?:" + _COLUMN_PART + r"|\*))*")
 _BARE_STAR = re.compile(
-    r"(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*",
+    r"(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?"
+    r"|,\s*)\*",
     re.IGNORECASE,
 )
 _DOTTED_STAR = re.compile("(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)\s*\.\s*\*")
 _SECOND_SOURCE = re.compile(r"\bjoin\b|\bapply\b", re.IGNORECASE)
-# Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`.
+# Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` table hint.
 _NOT_NAMES = re.compile(
     r"\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?"
-    r"|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b",
+    r"|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)",
     re.IGNORECASE,
 )
-# The first argument of a date function is a date part, never a column.
+# The first argument of a date function is a date part, of CONVERT a type: never a column.
 _DATE_PART_ARG = re.compile(
-    r"\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*\Z",
+    r"\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket|convert"
+    r"|try_convert)\s*\(\s*\Z",
     re.IGNORECASE,
 )
 # A top-N count precedes the select list; any other number or name before a bare word aliases it.
 _TOP_N = re.compile(
-    r"\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\Z", re.IGNORECASE
+    r"\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?\Z", re.IGNORECASE
 )
 _AFTER_EXPRESSION = re.compile(r"(?:\)|\bend)\Z", re.IGNORECASE)
 _PRIOR = re.compile(r'(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)\Z')
+_ORDER_BY = re.compile(r"\border\s+by\b", re.IGNORECASE)
+_ASSIGNED = re.compile(r"\A\s*=(?!=)")
+_ITEM_START = re.compile(r"(?:,|\bselect|\bdistinct)\Z", re.IGNORECASE)
+_AS = re.compile(r"\bas\Z", re.IGNORECASE)
+_COLLATE = re.compile(r"\bcollate\Z", re.IGNORECASE)
 _ITEM = re.compile(
     r"\b(?:from|join|apply)\s+(" + _COLUMN_PART + r"(?:\s*\.\s*" + _COLUMN_PART + r")*)"
     r"(?:\s+(?:as\s+)?(" + _COLUMN_PART + r"))?",
@@ -219,6 +227,10 @@ def columns(text: str, closed: bool) -> list[str]:
         and len(_FROM.findall(masked)) == 1
         and not masked[after:].lstrip().startswith(",")
     )
+    # A select-list alias may be an ORDER BY key (the one clause that sees it): never a column.
+    keys = (m.start() for m in _ORDER_BY.finditer(masked, start))
+    order = max((at for at in keys if _top_level(masked, start, at)), default=-1)
+    aliases: set[str] = set()
     out: list[str] = []
     seen: set[str] = set()
     for match in _CHAIN.finditer(masked, start):
@@ -232,8 +244,16 @@ def columns(text: str, closed: bool) -> list[str]:
                 continue
         elif not single or source.start() <= match.start() < after:
             continue
-        elif not _bare_column(match.group(0), masked[match.end() :], before):
-            continue
+        else:
+            rest = masked[match.end() :]
+            if _excluded(match.group(0), rest, before):
+                continue
+            if _alias_place(rest, before):
+                if match.start() < source.start():
+                    aliases.add(column.lower())
+                continue
+            if 0 <= order < match.start() and column.lower() in aliases:
+                continue
         if column.lower() not in seen:
             seen.add(column.lower())
             out.append(column)
@@ -253,24 +273,33 @@ def _shared(masked: str, target: str) -> set[str]:
     return other
 
 
-def _bare_column(token: str, after: str, before: str) -> bool:
-    """A bare word that is only a column: no keyword, call, date part, parameter, temp, alias."""
+def _excluded(token: str, after: str, before: str) -> bool:
+    """A word never a column: keyword, call, parameter, temp, date part, CONVERT type, collation."""
     lower = _unquote(token).lower()
     if token.startswith(("@", "#")) or (token[:1] not in '["' and lower in _NOT_A_COLUMN):
-        return False
-    if after.lstrip().startswith("(") or _DATE_PART_ARG.search(before):
-        return False
-    if re.search(r"\bas\Z", before, re.IGNORECASE):
-        return False
-    if _TOP_N.search(before):
         return True
-    if _AFTER_EXPRESSION.search(before):
+    return (
+        after.lstrip().startswith("(")
+        or _DATE_PART_ARG.search(before) is not None
+        or _COLLATE.search(before) is not None
+    )
+
+
+def _alias_place(after: str, before: str) -> bool:
+    """A word where an alias stands: ``x = expr`` opening an item, after AS, ``)``, END, a name."""
+    if _ASSIGNED.match(after) and (_ITEM_START.search(before) or _TOP_N.search(before)):
+        return True
+    if _AS.search(before):
+        return True
+    if _TOP_N.search(before):
         return False
+    if _AFTER_EXPRESSION.search(before):
+        return True
     prior = _PRIOR.search(before)
     if prior is None:
-        return True
+        return False
     word = prior.group(0)
-    return word[:1] not in '["0123456789' and word.lower() in _NOT_A_COLUMN
+    return word[:1] in '["0123456789' or word.lower() not in _NOT_A_COLUMN
 
 
 def _stars(masked: str, names: set[str]) -> bool:

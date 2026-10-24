@@ -456,6 +456,110 @@
           "Id"
         ]
       }
+    },
+    {
+      "text": "SELECT id, name AS label FROM Items ORDER BY label",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "id",
+          "name"
+        ]
+      }
+    },
+    {
+      "text": "SELECT lbl = name FROM Items",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "name"
+        ]
+      }
+    },
+    {
+      "text": "SELECT CONVERT(int, created) FROM Items",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "created"
+        ]
+      }
+    },
+    {
+      "text": "SELECT id FROM Items WHERE name = 'a' COLLATE Latin1_General_CI_AS",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "id",
+          "name"
+        ]
+      }
+    },
+    {
+      "text": "SELECT id FROM Items WITH (INDEX(ix_items), NOLOCK) WHERE id = 1",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "id"
+        ]
+      }
+    },
+    {
+      "text": "SELECT TOP (@n) id FROM Items",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "id"
+        ]
+      }
+    },
+    {
+      "text": "SELECT id FROM Items WHERE created > NOW() - INTERVAL 1 DAY",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "id",
+          "created"
+        ]
+      }
+    },
+    {
+      "text": "SELECT id FROM Items WHERE name = N'x'",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "id",
+          "name"
+        ]
+      }
+    },
+    {
+      "text": "SELECT s\u1ed1, \u0111\u01a1n_gi\u00e1 FROM Items",
+      "open": false,
+      "expect": {
+        "kind": "READS",
+        "target": "Items",
+        "columns": [
+          "s\u1ed1",
+          "\u0111\u01a1n_gi\u00e1"
+        ]
+      }
     }
   ],
   "markers": [

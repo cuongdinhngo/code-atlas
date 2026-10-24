@@ -684,16 +684,19 @@ const NOT_A_COLUMN_READ = new Set([
   "pivot", "unpivot", "except", "intersect", "default", "any", "some", "current_timestamp",
   "current_user", "session_user", "system_user", "identity", "partition",
 ]);
-const PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)`;
+// A regular identifier: a letter, `_`, `@` or `#`, then letters, digits and `@#$_` — Unicode ones too.
+const PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}_@#][\p{L}\p{N}_@#$]*)`;
 // A name and its dotted tail; `t.*` keeps its star so it is seen, then never bound.
-const CHAIN = new RegExp(String.raw`${PART}(?:\s*\.\s*(?:${PART}|\*))*`, "g");
-// Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`.
+const CHAIN = new RegExp(String.raw`${PART}(?:\s*\.\s*(?:${PART}|\*))*`, "gu");
+// Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` table hint.
 const NOT_NAMES =
-  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b/gi;
-// The first argument of a date function is a date part, never a column.
-const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*$/i;
+  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)/gi;
+// The first argument of a date function is a date part, of CONVERT a type: never a column.
+const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket|convert|try_convert)\s*\(\s*$/i;
 // A top-N count precedes the select list; any other number or name before a bare word aliases it.
-const TOP_N = /\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
+const TOP_N = /\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
+const PRIOR = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}\p{N}_@#$]+)$/u;
+const ORDER_BY = /\border\s+by\b/gi;
 
 /** @param {string} part */
 function unbracket(part) {
@@ -789,6 +792,10 @@ function readColumnReads(raw, bare) {
   CTE_NAME.lastIndex = 0;
   const only = bare && items.length === 1 && !cte && sources.length === 1 ? sources[0] : null;
   const select = /\bselect\b/i.exec(code);
+  // A select-list alias may be an ORDER BY key (the one clause that sees it): never a column there.
+  const list = only === null ? -1 : (items[0]?.from ?? -1);
+  const order = select ? lastTopLevel(code, select.index, ORDER_BY) : -1;
+  const aliases = new Set();
   /** @type {{table: string, column: string}[]} */
   const out = [];
   const seen = new Set();
@@ -811,30 +818,70 @@ function readColumnReads(raw, bare) {
     }
     if (only === null || !select || m.index < select.index + select[0].length) continue;
     if (items.some((item) => m.index >= item.from && m.index < item.to)) continue;
-    if (bareColumn(m[0], code.slice(m.index + m[0].length), before)) add(only, column);
+    const rest = code.slice(m.index + m[0].length);
+    if (rest.startsWith("'")) continue;  // `N'…'`: a literal's prefix
+    if (excluded(m[0], rest, before)) continue;
+    const lower = column.toLowerCase();
+    if (aliasPlace(rest, before)) {
+      if (m.index < list) aliases.add(lower);
+      continue;
+    }
+    if (!(order >= 0 && m.index > order && aliases.has(lower))) add(only, column);
   }
   const starred = starredSources(code, names);
   return starred === null ? [] : out.filter(({ table }) => !starred.has(table));
 }
 
 /**
- * A bare word that can only be a column (410): no keyword, call, date part, parameter or temp, and
- * not an alias — a word after `AS`, after `)` or `END`, or straight after another name or number.
+ * A bare word that is never a column (410): a keyword, call, parameter, temp, date part, CONVERT
+ * type or collation name.
  * @param {string} token
  * @param {string} after
  * @param {string} before
  */
-function bareColumn(token, after, before) {
+function excluded(token, after, before) {
   const delimited = /^[[\"]/.test(token);
-  const lower = unbracket(token).toLowerCase();
-  if (/^[@#]/.test(token) || (!delimited && NOT_A_COLUMN_READ.has(lower))) return false;
-  if (/^\s*\(/.test(after) || DATE_PART_ARG.test(before) || /\bas$/i.test(before)) return false;
-  if (TOP_N.test(before)) return true;
-  if (/(?:\)|\bend)$/i.test(before)) return false;
-  const prior = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)$/.exec(before);
-  if (!prior) return true;
-  const word = prior[0];
-  return !/^[[\"0-9]/.test(word) && NOT_A_COLUMN_READ.has(word.toLowerCase());
+  if (/^[@#]/.test(token) || (!delimited && NOT_A_COLUMN_READ.has(unbracket(token).toLowerCase()))) {
+    return true;
+  }
+  return /^\s*\(/.test(after) || DATE_PART_ARG.test(before) || /\bcollate$/i.test(before);
+}
+
+/**
+ * Does a word stand where an alias does (410)? `x = expr` opening a select item, a word after `AS`,
+ * after `)` or `END`, or straight after another name or number — never a top-N count's next word.
+ * @param {string} after
+ * @param {string} before
+ */
+function aliasPlace(after, before) {
+  if (/^\s*=(?!=)/.test(after) && (/(?:,|\bselect|\bdistinct)$/i.test(before) || TOP_N.test(before))) {
+    return true;
+  }
+  if (/\bas$/i.test(before)) return true;
+  if (TOP_N.test(before)) return false;
+  if (/(?:\)|\bend)$/i.test(before)) return true;
+  const prior = PRIOR.exec(before);
+  if (!prior) return false;
+  return /^[[\"0-9]/.test(prior[0]) || !NOT_A_COLUMN_READ.has(prior[0].toLowerCase());
+}
+
+/**
+ * Where the last match of `pattern` outside every parenthesis opened since `start` begins, or -1.
+ * @param {string} code
+ * @param {number} start
+ * @param {RegExp} pattern
+ */
+function lastTopLevel(code, start, pattern) {
+  let found = -1;
+  let depth = 0;
+  let seen = start;
+  pattern.lastIndex = start;
+  for (let m = pattern.exec(code); m; m = pattern.exec(code)) {
+    for (; seen < m.index; seen++) depth += code[seen] === "(" ? 1 : code[seen] === ")" ? -1 : 0;
+    if (depth === 0) found = m.index;
+  }
+  pattern.lastIndex = 0;
+  return found;
 }
 
 /**
@@ -845,11 +892,11 @@ function bareColumn(token, after, before) {
  * @returns {Set<string>|null}
  */
 function starredSources(code, names) {
-  if (/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i.test(code)) {
+  if (/(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i.test(code)) {
     return null;
   }
   const starred = new Set();
-  const dotted = new RegExp(String.raw`(${PART}(?:\s*\.\s*${PART})*)\s*\.\s*\*`, "g");
+  const dotted = new RegExp(String.raw`(${PART}(?:\s*\.\s*${PART})*)\s*\.\s*\*`, "gu");
   for (let m = dotted.exec(code); m; m = dotted.exec(code)) {
     const key = (m[1] ?? "").split(/\s*\.\s*/).map(unbracket);
     const table = names.get(key.join(".").toLowerCase());

@@ -184,3 +184,41 @@ GO
         ("dbo.pSelf", "dbo.Status::Status"),
         ("dbo.pSelf", "dbo.Status::Created"),
     }, reads
+
+
+@needs_adapters
+def test_a_column_read_in_another_case_links_to_the_declared_column(tmp_path: Path) -> None:
+    """410 PR review: T-SQL names are case-insensitive, so `t.id` reads the declared `T::Id`."""
+    body = "CREATE PROCEDURE dbo.pMixed AS\n  SELECT t.id FROM dbo.t t;\nGO\n"
+    _write(tmp_path / "db" / "mixed.sql", body)
+    answer = find_references.create(_built(tmp_path))("dbo.T::Id", kinds=["READS"])
+    assert _readers(answer).get("dbo.pMixed") == "RESOLVED", answer
+
+
+@needs_adapters
+def test_aliases_types_collations_and_prefixes_are_never_columns(tmp_path: Path) -> None:
+    """410 PR review: an ORDER BY alias, `x = expr`, a CONVERT type, a collation, an INDEX hint
+    and `N'…'` read no column; `TOP (@n)` and a Unicode name still do."""
+    body = """CREATE PROCEDURE dbo.pReview AS
+  SELECT Id, Name AS Label, Lbl = Other, CONVERT(int, Flag) FROM dbo.T WITH (INDEX(ix_t), NOLOCK)
+  WHERE Name = N'x' COLLATE Latin1_General_CI_AS ORDER BY Label, Lbl;
+GO
+CREATE PROCEDURE dbo.pTop AS
+  SELECT TOP (@n) Số FROM dbo.T;
+GO
+"""
+    _write(tmp_path / "db" / "review.sql", body)
+    done = run_adapter_file([str(NODE), str(SQL_ENTRY)], "db/review.sql", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    reads = {
+        (edge["source_qname"], edge["target_raw"])
+        for edge in json.loads(done.stdout)["edges"]
+        if edge["kind"] == "READS" and "::" in edge["target_raw"]
+    }
+    assert reads == {
+        ("dbo.pReview", "dbo.T::Id"),
+        ("dbo.pReview", "dbo.T::Name"),
+        ("dbo.pReview", "dbo.T::Other"),
+        ("dbo.pReview", "dbo.T::Flag"),
+        ("dbo.pTop", "dbo.T::Số"),
+    }, reads

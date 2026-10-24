@@ -115,26 +115,28 @@ const NOT_A_COLUMN = new Set(`select from where and or not null is in like betwe
   values set insert update delete merge using output declare begin return returns if while go
   create alter view procedure proc function table trigger for of over escape collate pivot unpivot
   except intersect default any some current_timestamp current_user session_user system_user
-  identity partition`.split(/\s+/));
+  identity partition interval`.split(/\s+/));
 const STRING = /N?'(?:[^']|'')*'?/gi;
-const COLUMN_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][\w@#$]*)`;
-const CHAIN = new RegExp(String.raw`${COLUMN_PART}(?:\s*\.\s*(?:${COLUMN_PART}|\*))*`, "g");
+// A regular identifier: a letter, `_`, `@` or `#`, then letters, digits and `@#$_` — Unicode ones too.
+const COLUMN_PART = String.raw`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}_@#][\p{L}\p{N}_@#$]*)`;
+const CHAIN = new RegExp(String.raw`${COLUMN_PART}(?:\s*\.\s*(?:${COLUMN_PART}|\*))*`, "gu");
 const BARE_STAR =
-  /(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*\d+\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i;
-const DOTTED_STAR = new RegExp(String.raw`(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)\s*\.\s*\*`, "g");
+  /(?:\bselect\s+(?:distinct\s+)?(?:top\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s+)?)?|,\s*)\*/i;
+const DOTTED_STAR = new RegExp(String.raw`(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)\s*\.\s*\*`, "gu");
 const SECOND_SOURCE = /\bjoin\b|\bapply\b/i;
-// Clauses whose words are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`.
+// Words that are syntax, not names: paging, `FOR XML/JSON`, `WITH TIES`, an `INDEX` table hint.
 const NOT_NAMES =
-  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b/gi;
-// The first argument of a date function is a date part, never a column.
-const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket)\s*\(\s*$/i;
+  /\boffset\s+\S+\s+rows?\b(?:\s+fetch\s+(?:first|next)\s+\S+\s+rows?\s+only\b)?|\bfor\s+(?:xml|json)\b[^;]*|\bwith\s+ties\b|\bindex\s*(?:\([^)]*\)|=\s*[^\s,)]+)/gi;
+// The first argument of a date function is a date part, of CONVERT a type: never a column.
+const DATE_PART_ARG = /\b(?:dateadd|datediff|datediff_big|datepart|datename|datetrunc|date_bucket|convert|try_convert)\s*\(\s*$/i;
 // A top-N count precedes the select list; any other number or name before a bare word aliases it.
-const TOP_N = /\btop\s*\(?\s*\d+\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
+const TOP_N = /\btop\s*\(?\s*(?:\d+|@[\w@#$]+)\s*\)?\s*(?:percent\s*)?(?:with\s+ties\s*)?$/i;
 const AFTER_EXPRESSION = /(?:\)|\bend)$/i;
-const PRIOR = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\w@#$]+)$/;
+const PRIOR = /(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[\p{L}\p{N}_@#$]+)$/u;
+const ORDER_BY = /\border\s+by\b/gi;
 const ITEM = new RegExp(
   String.raw`\b(?:from|join|apply)\s+(${COLUMN_PART}(?:\s*\.\s*${COLUMN_PART})*)(?:\s+(?:as\s+)?(${COLUMN_PART}))?`,
-  "gi",
+  "giu",
 );
 const PLACEHOLDER = [".", ":", "%", "$", "{"];
 const blank = (/** @type {string} */ m) => " ".repeat(m.length);
@@ -177,6 +179,13 @@ function readSqlColumns(text, closed) {
     !SECOND_SOURCE.test(masked) &&
     (masked.match(FROM) || []).length === 1 &&
     !masked.slice(after).trimStart().startsWith(",");
+  // A select-list alias may be an ORDER BY key (the one clause that sees it): never a column there.
+  let order = -1;
+  ORDER_BY.lastIndex = start;
+  for (let m = ORDER_BY.exec(masked); m; m = ORDER_BY.exec(masked)) {
+    if (topLevel(masked, start, m.index)) order = m.index;
+  }
+  const aliases = new Set();
   /** @type {string[]} */
   const out = [];
   const seen = new Set();
@@ -192,8 +201,14 @@ function readSqlColumns(text, closed) {
       if (!names.has(parts.slice(0, -1).join(".").toLowerCase()) || column === "*") continue;
     } else if (!single || (m.index >= sourceAt && m.index < after)) {
       continue;
-    } else if (!bareColumn(m[0], masked.slice(m.index + m[0].length), before)) {
-      continue;
+    } else {
+      const rest = masked.slice(m.index + m[0].length);
+      if (excluded(m[0], rest, before)) continue;
+      if (aliasPlace(rest, before)) {
+        if (m.index < sourceAt) aliases.add(column.toLowerCase());
+        continue;
+      }
+      if (order >= 0 && m.index > order && aliases.has(column.toLowerCase())) continue;
     }
     if (!seen.has(column.toLowerCase())) {
       seen.add(column.toLowerCase());
@@ -217,18 +232,26 @@ function shared(masked, target) {
   return other;
 }
 
-// A bare word that is only a column: no keyword, call, date part, parameter, temp, alias.
-function bareColumn(token, after, before) {
+// A bare word that is never a column: a keyword, call, parameter, temp, date part, CONVERT type or
+// collation name.
+function excluded(token, after, before) {
   const lower = unquote(token).toLowerCase();
-  if (/^[@#]/.test(token) || (!/^[["]/.test(token) && NOT_A_COLUMN.has(lower))) return false;
-  if (after.trimStart().startsWith("(") || DATE_PART_ARG.test(before)) return false;
-  if (/\bas$/i.test(before)) return false;
-  if (TOP_N.test(before)) return true;
-  if (AFTER_EXPRESSION.test(before)) return false;
+  if (/^[@#]/.test(token) || (!/^[["]/.test(token) && NOT_A_COLUMN.has(lower))) return true;
+  return after.trimStart().startsWith("(") || DATE_PART_ARG.test(before) || /\bcollate$/i.test(before);
+}
+
+// A word where an alias stands: `x = expr` opening a select item, after `AS`, `)` or `END`, or
+// straight after another name or number — never a top-N count's next word.
+function aliasPlace(after, before) {
+  if (/^\s*=(?!=)/.test(after) && (/(?:,|\bselect|\bdistinct)$/i.test(before) || TOP_N.test(before))) {
+    return true;
+  }
+  if (/\bas$/i.test(before)) return true;
+  if (TOP_N.test(before)) return false;
+  if (AFTER_EXPRESSION.test(before)) return true;
   const prior = PRIOR.exec(before);
-  if (!prior) return true;
-  const word = prior[0];
-  return !/^[["0-9]/.test(word) && NOT_A_COLUMN.has(word.toLowerCase());
+  if (!prior) return false;
+  return /^[["0-9]/.test(prior[0]) || !NOT_A_COLUMN.has(prior[0].toLowerCase());
 }
 
 // Does the select list read the source with `*` — bare, or `t.*` naming it?
