@@ -14,6 +14,7 @@ from code_atlas.containment import resolves_inside
 from code_atlas.indexer import parse_file
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.overlay import active_overlay
+from code_atlas.ref_check import require_caller_root
 from code_atlas.source_slice import (
     BODY_LINE_THRESHOLD,
     clamp_line_range,
@@ -114,6 +115,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         line_start: int | None = None,
         line_end: int | None = None,
         path_prefix: str | None = None,
+        caller_root: str | None = None,
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
@@ -154,7 +156,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
         Asked from another worktree of this repo (MCP roots, or ``CA_CALLER_ROOT``), a subject in
         a file that worktree changed is read from its bytes — span and body — and every answer
-        so read carries ``overlay: worktree`` and ``overlay_root`` (389).
+        so read carries ``overlay: worktree`` and ``overlay_root`` (389). ``caller_root`` names
+        that worktree for this call alone — an absolute path inside a checkout of this repository,
+        ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
         An indexed file that now resolves outside the repo (swapped for a symlink since the build)
         answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
 
@@ -175,6 +179,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if line_end is not None and line_end < 1:
             raise ValueError(f"line_end must be >= 1, got {line_end}")
         path_prefix = require_path_prefix(path_prefix)
+        named_root = require_caller_root(config, caller_root)
         body_opts = _BodyOpts(
             full_body=full_body,
             max_lines=max_lines,
@@ -204,7 +209,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 return attach_answered_about_ref(payload, about_ref)
 
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
-            overlay = active_overlay(config, store)
+            overlay = active_overlay(config, store, named_root)
             built_file = str(rows[0]["file_path"]) if len(rows) == 1 else None
             if overlay is not None and (not rows or overlay.changes(built_file or "")):
                 # The worktree changed or added the subject's file: read the worktree's own parse.

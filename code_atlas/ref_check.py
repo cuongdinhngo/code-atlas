@@ -163,13 +163,49 @@ def find_mismatch(config: Config, roots: tuple[Path, ...]) -> RefMismatch | None
     return RefMismatch(caller_root=str(found[0]), caller_commit=found[1], index_commit=built)
 
 
-def caller_checkout(config: Config) -> Path | None:
+def require_caller_root(config: Config, caller_root: str | None) -> Path | None:
+    """A per-call ``caller_root`` (408), validated as a root is; a bad one fails loud (R5.3).
+
+    It must be an absolute directory inside a checkout sharing the index root's git directory —
+    the index checkout itself included. Anything else raises ``ValueError`` naming why, so a
+    refused root never answers about the index checkout as if it were the caller's.
+    """
+    if caller_root is None:
+        return None
+    path = Path(caller_root)
+    if not caller_root or not path.is_absolute():
+        raise ValueError(f"caller_root must be an absolute path, got {caller_root!r}")
+    if not path.is_dir():
+        raise ValueError(f"caller_root {caller_root!r} is not a directory")
+    if path.resolve() == config.root.resolve():
+        return path
+    mine = _checkout(config.root.resolve())
+    if mine is None:
+        raise ValueError(
+            f"caller_root {caller_root!r} refused: the index root is not a git checkout, "
+            "so no other checkout of it can be read"
+        )
+    theirs = _checkout(path)
+    if theirs is None:
+        raise ValueError(f"caller_root {caller_root!r} is not inside a git checkout")
+    if theirs[1] != mine[1]:
+        raise ValueError(
+            f"caller_root {caller_root!r} is a checkout of another repository than the index root"
+        )
+    if theirs[0] != mine[0] and gitutil.head_commit(theirs[0]) is None:
+        # A worktree whose HEAD no longer reads would answer about the index checkout instead.
+        raise ValueError(f"caller_root {caller_root!r} is a checkout whose HEAD does not resolve")
+    return path
+
+
+def caller_checkout(config: Config, caller_root: Path | None = None) -> Path | None:
     """The caller's other checkout of this repository, from its roots or ``CA_CALLER_ROOT`` (389).
 
     ``CA_CALLER_ROOT`` answers only when the client reported no roots: a client that names its
-    checkout is never overruled by the server's environment.
+    checkout is never overruled by the server's environment. A per-call ``caller_root`` (408)
+    stands in for the roots of that one call.
     """
-    roots = CALLER_ROOTS.get()
+    roots = CALLER_ROOTS.get() if caller_root is None else (caller_root,)
     if isinstance(roots, tuple):
         found = other_checkout(config, roots)
     elif config.caller_root is not None:
@@ -180,15 +216,20 @@ def caller_checkout(config: Config) -> Path | None:
 
 
 def attach_ref_check(
-    answer: dict[str, object], config: Config, *, status: bool
+    answer: dict[str, object],
+    config: Config,
+    *,
+    status: bool,
+    caller_root: Path | None = None,
 ) -> dict[str, object]:
     """Label an answer about another commit than the caller's checkout; status also names the route.
 
     A navigation answer keeps its rows: an ok, empty or not-found ``reason`` becomes
     ``ref_mismatch`` and moves to ``reason_at_index``; an input refusal keeps its reason. The commit
-    fields are always added. No MCP context or a matching HEAD: unchanged (AC2).
+    fields are always added. No MCP context or a matching HEAD: unchanged (AC2). A validated
+    per-call ``caller_root`` replaces the roots for this answer (408).
     """
-    roots = CALLER_ROOTS.get()
+    roots = CALLER_ROOTS.get() if caller_root is None else (caller_root,)
     if roots is None or not isinstance(answer, dict) or "error" in answer:
         return answer
     if answer.get(OVERLAY_FIELD) == OVERLAY_WORKTREE:

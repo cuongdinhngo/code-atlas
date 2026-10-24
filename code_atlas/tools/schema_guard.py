@@ -11,7 +11,7 @@ from typing import Any
 
 from code_atlas.config import Config
 from code_atlas.index_lock import build_in_progress, build_phase
-from code_atlas.ref_check import attach_ref_check
+from code_atlas.ref_check import attach_ref_check, require_caller_root
 from code_atlas.store import SchemaVersionError
 from code_atlas.worktree_guard import worktree_db_refusal
 
@@ -50,7 +50,8 @@ def guard(
     the cost 260 measured against a 0.4 ms nav read. Every answer also names a build in flight
     and its phase — one lock probe per call, omitted when no writer holds the lock (356). An
     answer about another commit than the caller's checkout is labelled (366; ``status`` for the
-    status tool, which names the route instead of changing a reason).
+    status tool, which names the route instead of changing a reason). A tool's ``caller_root``
+    keyword (408) is that label's root too, so it follows the checkout the call named.
     """
     refusal = None if config is None else worktree_db_refusal(config)
 
@@ -58,13 +59,14 @@ def guard(
     def guarded(*args: Any, **kwargs: Any) -> dict[str, object]:
         if refusal is not None:
             return dict(refusal)
+        named = None if config is None else require_caller_root(config, kwargs.get("caller_root"))
         try:
             answer = tool(*args, **kwargs)
         except SchemaVersionError as mismatch:
             answer = payload(mismatch)
         if config is not None:
             attach_build_state(answer, config)
-            attach_ref_check(answer, config, status=status)
+            attach_ref_check(answer, config, status=status, caller_root=named)
         return answer
 
     return guarded
