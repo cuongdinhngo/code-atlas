@@ -621,3 +621,43 @@ def test_221_without_its_argument_is_a_measured_zero(tmp_path: Path) -> None:
     assert payload["reason"] == REASON_NO_MATCHES
     assert payload[CROSS_LANGUAGE_UNMEASURED] == ["php"]
     assert "authoritative" not in payload
+
+
+def test_a_qualified_or_keyword_literal_names_the_subject(tmp_path: Path) -> None:
+    """409 (challenger F3): `'Mailer::sendAlert'`, `'dbo.sendAlert'` and a keyword value count."""
+    shapes: list[tuple[str, object]] = [
+        ("arg_strings", ["App\\Mailer::sendAlert"]),
+        ("arg_strings", ["dbo.sendAlert"]),
+        ("kwarg_strings", {"proc": "sendAlert"}),
+    ]
+    for i, (column, value) in enumerate(shapes):
+        call = edge("CALLS", "dbo.monthly", "invoke", SQL_FILE, tier="DYNAMIC")
+        call[column] = value
+        root = tmp_path / str(i)
+        config = _measured_zero_repo(root, root / "graph.db", [call], [])
+        payload = find_callers.create(config)(qname=METHOD_QNAME)
+        assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE, (column, value)
+
+
+def test_like_wildcards_in_the_name_match_only_themselves(tmp_path: Path) -> None:
+    """`_` and `%` in a name are literal: `send_alert` is not named by `sendXalert`."""
+    call = edge("CALLS", "dbo.monthly", "invoke", SQL_FILE, tier="DYNAMIC")
+    call["arg_strings"] = ["sendXalert", "send%alert"]
+    with GraphStore(tmp_path / "graph.db") as store:
+        _seed(store, tmp_path, SQL_FILE, "sql", [], [call])
+        assert not store.named_from_another_language(
+            ("send_alert",), language="php", kinds=("CALLS",)
+        )
+        assert store.named_from_another_language(
+            ("send%alert",), language="php", kinds=("CALLS",)
+        )
+
+
+def test_the_field_rides_only_a_no_matches_answer(tmp_path: Path) -> None:
+    """409 (challenger F1): another reason's zero is not called measured."""
+    own = edge("CALLS", "dbo.monthly", "monthly", SQL_FILE, tier="DYNAMIC")
+    config = _measured_zero_repo(tmp_path, tmp_path / "graph.db", [own], [])
+    payload = find_callers.create(config)(qname="dbo.monthly")
+    # 214: an unlinked same-name EXEC in its own language — unmodelled, not a measured zero.
+    assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+    assert CROSS_LANGUAGE_UNMEASURED not in payload

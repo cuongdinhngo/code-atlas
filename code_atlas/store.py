@@ -2773,29 +2773,36 @@ class GraphStore:
     ) -> bool:
         """Does an unlinked edge in a language other than ``language`` name one of ``raws`` (409)?
 
-        It names it as its ``target_raw``, or as a whole string among its literal arguments
-        (``arg_strings``, 398) — a stored proc reached through ``querySP('name')``. One read.
+        It names it as its ``target_raw``, or as a literal argument (``arg_strings`` /
+        ``kwarg_strings``, 398) that is the name or ends in it after a separator — a stored proc
+        reached through ``querySP('name')`` or ``'dbo.name'``. The indexed callee read goes first.
         """
         cleaned = tuple(raw for raw in raws if raw)
         if not cleaned or not kinds:
             return False
         kind_marks = ",".join("?" * len(kinds))
-        raw_marks = ",".join("?" * len(cleaned))
-        # Each raw as the JSON string it is stored as, with LIKE's own wildcards escaped.
-        patterns = [
-            "%" + json.dumps(raw).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            + "%"
-            for raw in cleaned
-        ]
-        named = " OR ".join(["e.target_raw IN (" + raw_marks + ")"]
-                            + ["e.arg_strings LIKE ? ESCAPE '\\'"] * len(patterns))
-        sql = (
+        unlinked = (
             "SELECT 1 FROM edges e JOIN files f ON f.path = e.file_path "
             f"WHERE e.kind IN ({kind_marks}) AND (e.target_qname IS NULL OR e.target_qname = '') "
-            f"AND COALESCE(e.language, f.language) <> ? AND ({named}) LIMIT 1"
+            "AND COALESCE(e.language, f.language) <> ? AND "
         )
-        params = (*kinds, language, *cleaned, *patterns)
-        return self._conn.execute(sql, params).fetchone() is not None
+        raw_marks = ",".join("?" * len(cleaned))
+        callee = f"{unlinked}e.target_raw IN ({raw_marks}) LIMIT 1"
+        if self._conn.execute(callee, (*kinds, language, *cleaned)).fetchone() is not None:
+            return True
+        patterns = [
+            f"%{_like_literal(lead)}{_like_literal(json.dumps(raw)[1:-1])}\"%"
+            for raw in cleaned
+            for lead in ('"', ".", ":", "@", ">", "/", "\\\\")
+        ]
+        matched = " OR ".join(
+            f"e.{column} LIKE ? ESCAPE '!'"
+            for column in ("arg_strings", "kwarg_strings")
+            for _ in patterns
+        )
+        literal = f"{unlinked}({matched}) LIMIT 1"
+        params = (*kinds, language, *patterns, *patterns)
+        return self._conn.execute(literal, params).fetchone() is not None
 
     def unlinked_kinds_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]

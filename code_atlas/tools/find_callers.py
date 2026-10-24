@@ -199,9 +199,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language`` only
-        if an unlinked call in another language names the subject — as its callee or as a whole
-        literal argument, ``querySP('name')``. Otherwise it stays ``no_matches`` and lists those
-        languages in ``cross_language_unmeasured`` (409).
+        if an unlinked call in another language names the subject — as its callee, or as a
+        literal argument that is the name or ends in it (``querySP('dbo.name')``). Otherwise it
+        stays ``no_matches`` and lists those languages in ``cross_language_unmeasured`` (409).
         Hits carry ``authoritative: false`` only when the stamped census has cross-language
         edges (276); an empty census is status-only. ``caveat_limits`` states the cost (251).
 
@@ -710,7 +710,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         elif (
             cross_lang_census is not None
-            and outcome.total_count > 0
+            and (outcome.total_count > 0 or reason != REASON_NO_MATCHES)
             and cross_language_census_has_edges(cross_lang_census)
         ):
             # Hits whose *->L crossing the index cannot measure (238), and only when the
@@ -718,7 +718,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # per-answer partition.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        if cross_lang_census is not None and outcome.total_count == 0 and not crossing_named:
+        if cross_lang_census is not None and reason == REASON_NO_MATCHES and not crossing_named:
             # A measured zero: nothing elsewhere names the subject. Which languages no linked
             # crossing reaches stays a field, never the reason (409).
             result[CROSS_LANGUAGE_UNMEASURED] = sorted(
