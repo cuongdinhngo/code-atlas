@@ -9,6 +9,7 @@ from typing import Literal
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
 from code_atlas.overlay import Overlay, active_overlay
+from code_atlas.ref_check import require_caller_root
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
@@ -33,6 +34,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         limit: int | None = None,
         offset: int = 0,
+        caller_root: str | None = None,
     ) -> dict[str, object]:
         """What does this file define, and on what lines — without printing the source?
 
@@ -47,13 +49,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         the file holds — omitted for a single-kind file, where it would restate ``total_count``
         — so a one-page reader can see what the page omitted (067/123). Asked from another
         worktree of this repo, a file that worktree changed or added is outlined from its bytes,
-        and the answer carries ``overlay: worktree`` (389).
+        and the answer carries ``overlay: worktree`` (389). ``caller_root`` names that worktree
+        for this call alone — an absolute path inside a checkout of this repository, ahead of the
+        roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
+        named_root = require_caller_root(config, caller_root)
         if not config.db_path.is_file():
             return _empty(
                 path,
@@ -64,7 +69,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         rel = _repo_relative(config.root, path)
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
-            overlay = active_overlay(config, store)
+            overlay = active_overlay(config, store, named_root)
             if overlay is not None:
                 rel = _repo_relative(overlay.root, rel)
                 if overlay.changes(rel):

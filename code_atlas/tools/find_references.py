@@ -22,6 +22,7 @@ from code_atlas.contract import (
     inbound_kinds_for,
 )
 from code_atlas.overlay import active_overlay, overlay_inbound
+from code_atlas.ref_check import require_caller_root
 from code_atlas.store import GraphStore
 from code_atlas.symbol_role import aggregate_test_count_source, stored_test_source
 from code_atlas.tools import call_site, claim
@@ -290,6 +291,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         exclude_tests: bool = False,
         path_prefix: str | None = None,
         kinds: list[str] | None = None,
+        caller_root: str | None = None,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -348,13 +350,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
         ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
         another worktree of this repo, rows from files it changed give way to its own edges onto
-        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389).
+        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389). ``caller_root`` names
+        that worktree for this call alone — an absolute path inside a checkout of this repository,
+        ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
 
         A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
         ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
         stored form (075/122). An exact stored qname is unchanged.
         """
         call = claim.call_args(find_references, locals())
+        named_root = require_caller_root(config, caller_root)
         table_kinds = _table_kinds(kinds)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -409,7 +414,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             about_ref = answered_about_ref_for(store)
             stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
             # A caller in another worktree reads that worktree, not this checkout's drift (389).
-            overlay = active_overlay(config, store)
+            overlay = active_overlay(config, store, named_root)
             read = read_subject(
                 config, store, qname, serve_behind=serve_behind, trust_built=overlay is not None
             )

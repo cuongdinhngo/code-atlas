@@ -144,9 +144,14 @@ class Overlay:
         return payload
 
 
-def active_overlay(config: Config, store: GraphStore) -> Overlay | None:
-    """The caller's worktree overlay, or None when the caller is in the index checkout (AC4)."""
-    root = caller_checkout(config)
+def active_overlay(
+    config: Config, store: GraphStore, caller_root: Path | None = None
+) -> Overlay | None:
+    """The caller's worktree overlay, or None when the caller is in the index checkout (AC4).
+
+    ``caller_root`` is a validated per-call root (408), ahead of the roots and ``CA_CALLER_ROOT``.
+    """
+    root = caller_checkout(config, caller_root)
     if root is None:
         return None
     built = store.get_meta(LAST_COMMIT_KEY)

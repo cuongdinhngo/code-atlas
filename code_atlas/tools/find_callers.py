@@ -22,6 +22,7 @@ from code_atlas.contract import (
 )
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.overlay import active_overlay, overlay_inbound
+from code_atlas.ref_check import require_caller_root
 from code_atlas.store import GraphStore, Row
 from code_atlas.symbol_role import (
     aggregate_test_count_source,
@@ -134,6 +135,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         serve_behind: bool = False,
         exclude_tests: bool = False,
         arg_name: str | None = None,
+        caller_root: str | None = None,
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
@@ -217,12 +219,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
         ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
         another worktree of this repo, rows from files it changed give way to its own edges onto
-        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389).
+        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389). ``caller_root`` names
+        that worktree for this call alone — an absolute path inside a checkout of this repository,
+        ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
 
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
         """
         call = claim.call_args(find_callers, locals())
+        named_root = require_caller_root(config, caller_root)
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
         if offset < 0:
@@ -278,7 +283,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             stamped = store.stamped_unmodelled_resolution_by_language()
             about_ref = answered_about_ref_for(store)
             # A caller in another worktree reads that worktree, not this checkout's drift (389).
-            overlay = active_overlay(config, store)
+            overlay = active_overlay(config, store, named_root)
             read = read_subject(
                 config, store, qname, serve_behind=serve_behind, trust_built=overlay is not None
             )

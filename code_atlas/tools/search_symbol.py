@@ -9,6 +9,7 @@ from code_atlas import contract, routes
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.overlay import Overlay, active_overlay
+from code_atlas.ref_check import require_caller_root
 from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefix_match
 from code_atlas.symbol_role import stored_test_source
 from code_atlas.tools.coverage import (
@@ -126,6 +127,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         offset: int = 0,
         queries: list[str] | None = None,
+        caller_root: str | None = None,
     ) -> dict[str, object]:
         """Find a symbol from part of its name or text — ranked, with where each one lives.
 
@@ -174,6 +176,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         its ``aliases`` (394).
         Asked from another worktree of this repo, rows from files it changed are swapped for that
         worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
+        ``caller_root`` names that worktree for this call alone — an absolute path inside a
+        checkout of this repository, ahead of the roots and ``CA_CALLER_ROOT``; any other value
+        is refused as an error (408).
         A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
         file, tier, rule}`` — beside ``results``; pass one to ``trace_capability(route=…)``.
         """
@@ -181,6 +186,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         batched = queries is not None
         kind = _require_kind(kind)
         path_prefix = require_path_prefix(path_prefix)
+        named_root = require_caller_root(config, caller_root)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
@@ -213,7 +219,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             about_ref = answered_about_ref_for(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
-            overlay = active_overlay(config, store)
+            overlay = active_overlay(config, store, named_root)
             guard = FreshnessGuard(config, store, trust_built=overlay is not None)
             mirrors = _mirror_context(store)
             table = routes.load(store.get_meta(routes.ROUTES_META_KEY))
