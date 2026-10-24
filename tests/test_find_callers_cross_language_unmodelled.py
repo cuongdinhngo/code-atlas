@@ -661,3 +661,19 @@ def test_the_field_rides_only_a_no_matches_answer(tmp_path: Path) -> None:
     # 214: an unlinked same-name EXEC in its own language — unmodelled, not a measured zero.
     assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
     assert CROSS_LANGUAGE_UNMEASURED not in payload
+
+
+def test_a_linked_helper_call_still_names_the_subject_by_its_argument(tmp_path: Path) -> None:
+    """409 (gate): `$db->querySP('name')` links to `Db::querySP`; its argument names the proc."""
+    config = _cross_language_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, named=False
+    )
+    with GraphStore(config.db_path) as store:
+        helper = edge("CALLS", f"{PHP_FILE}::loadChange", "\\\\App\\\\Db::querySP", PHP_FILE,
+                      target_qname="\\\\App\\\\Db::querySP")
+        helper["arg_strings"] = ["getUnplannedChange"]
+        _seed(store, tmp_path, PHP_FILE, "php",
+              [node("Function", "loadChange", f"{PHP_FILE}::loadChange", PHP_FILE)], [helper])
+        _stamp_census(store)
+    payload = find_callers.create(config)(qname=PROC_QNAME)
+    assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
