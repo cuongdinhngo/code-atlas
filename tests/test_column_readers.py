@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 import subprocess
@@ -13,6 +14,7 @@ from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_references
+from tests.adapter_cli import run_adapter_file
 
 REPO = Path(__file__).resolve().parent.parent
 PHP_ENTRY = REPO / "adapters" / "php" / "index.php"
@@ -162,12 +164,8 @@ CREATE PROCEDURE dbo.pSelf AS
 GO
 """
     _write(tmp_path / "db" / "more.sql", body)
-    done = subprocess.run(
-        [str(NODE), str(SQL_ENTRY), "--file", "db/more.sql"],
-        cwd=tmp_path, capture_output=True, text=True, check=True,
-    )
-    import json
-
+    done = run_adapter_file([str(NODE), str(SQL_ENTRY)], "db/more.sql", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
     reads = {
         (edge["source_qname"], edge["target_raw"])
         for edge in json.loads(done.stdout)["edges"]
