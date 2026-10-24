@@ -218,12 +218,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 363-C1 — a zero from a text search must count the rows the search cannot match
 
 - type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
-- status: proposed · seen: 363, 397, 406
+- status: proposed · seen: 363, 397, 406, 409
 - evidence: `include_graph` attested an unused copy by searching unlinked include text for its
   basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
   includer yet never matches. The challenger found it; the zero now counts them and is not
   authoritative while any exist. 406: a `key_from: "list"` argument split over lines named nothing
   and counted nowhere; it now counts in `keys_unread`.
+  409: an empty `find_callers` searched whole literals only, so `'dbo.name'` read as a
+  measured zero; a qualified or keyword literal now names the subject.
 - destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
 
 ### 362-C1 — a widened target must widen every query behind the same answer

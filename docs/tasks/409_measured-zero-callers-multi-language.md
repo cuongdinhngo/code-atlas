@@ -4,7 +4,7 @@ slug: measured-zero-callers-multi-language
 title: "`find_callers` on a caller-less PHP method answers `relation_unmodelled_for_language` on any multi-language index — keep a measured zero"
 phase: 2
 milestone: Honesty
-status: in-progress
+status: done
 depends_on: [221, 238, 393]
 ---
 
@@ -45,7 +45,7 @@ Out of scope: calls from file-scope code in `include`d scripts (anchor #3679).
 
 ## Session status
 
-- **KEY:** 409 · **work_doc_mode:** embed · **Current phase:** 4 review · **Next action:** the ticket-blind challenger. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 409 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W4 and merges after #104. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · Run mode: `autorun 408 - 409 - 410 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/409-measured-zero-callers`, **stacked on `feat/408-per-call-caller-root`** (#104). Contract `.mango/run-contract-409.txt`.
@@ -235,3 +235,65 @@ are deviations below. Behaviour axis: Approach 1–4 implemented as approved.
 |---|---|---|---|
 | D1 | `code_atlas/tools/nav_result.py` gains `CROSS_LANGUAGE_UNMEASURED` | change list row 2 | the field's name sits beside its caveat sibling, where every payload key constant lives |
 | D2 | `docs/design/payload.md` documents the field, not `docs/TOOLS.md` | change list row 4 | payload fields are listed there; TOOLS.md's one mention ("answers zero or `relation_unmodelled_for_language`") stays true |
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 76,153 tokens; raw ticket only, the task file excluded from its diff):
+  7 met · 1 not met (the capability clause — W2 drops it, there is no such capability) · 3 can't tell (Scope 3 and
+  AC4 carry their evidence in this doc: H1, H8). Findings, settled in `54a13feb`:
+  - F1 (Major) — `cross_language_unmeasured` rode any empty answer, beside `bare_name_truncated` or 214's unlinked
+    `EXEC` — **fixed**: only a final `no_matches` carries it (`test_the_field_rides_only_a_no_matches_answer`).
+  - F2 (Minor) — an empty answer the arm did not upgrade lost the 238 census caveat — **fixed**: the hit-path arm
+    takes every answer but a `no_matches`, as before.
+  - F3 (Minor–Major) — a qualified literal (`'dbo.sendAlert'`, `'Mailer::sendAlert'`) or a keyword value read as a
+    measured zero — **fixed**: a literal that ends in the name after `.` `:` `@` `>` `/` `\`, in `arg_strings` or
+    `kwarg_strings`, names it (`test_a_qualified_or_keyword_literal_names_the_subject`).
+  - F6 (Minor) — the `OR` defeated `idx_edges_raw` — **fixed**: the indexed callee read runs first, the literal scan
+    only on a miss.
+  - F7 (Minor) — TOOLS.md's string-argument line — **fixed**; F4/F5 verified OK by the challenger; the LIKE escape now
+    reuses the store's own `_like_literal` (`ESCAPE '!'`), with `test_like_wildcards_in_the_name_match_only_themselves`.
+- Both new fix tests fail on `a7448648`'s store and tool (`2 failed, 21 passed`). Ran at 54a13feb.
+- **Round 2: verify-only, main loop.** The fixes stay inside the named findings and the approved files plus TOOLS.md
+  (D2 already moved the docs). `tests/test_find_callers_cross_language_unmodelled.py` `23 passed`; every caller /
+  cross-language / claim / reason / empty-answer neighbour `135 passed in 13.78s`; `ruff`, `mypy` clean. Ran at
+  54a13feb, superseded by the final gate below.
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W4 standing for ratification.
+`Ph3/4 proven by`: R1, AC2 → the naming and qualified-literal tests; R2, AC1, C1 → the measured-zero and field tests;
+AC3 → the 221/238 file with and without the argument; R3 (3/3) and AC4 → H1 and H8; G1 → all of them.
+
+Reviewed at 54a13febacf111a825242365458aa634fdac169a. Files: `code_atlas/store.py`, `code_atlas/tools/find_callers.py`,
+`code_atlas/tools/nav_result.py`, `tests/test_find_callers_cross_language_unmodelled.py`, `docs/design/payload.md`,
+`docs/TOOLS.md`, `CHANGELOG.md`. Working doc: this file.
+
+## Phase 5 — finalise
+
+**Durable lesson.** The recalled 363-C1 bound this change (a zero must count what its search cannot see); its `seen:`
+gains 409 (P1). No new claim: the challenger's F3 is that class again — the search saw whole literals, not
+qualified ones.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 1 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+
+Falsify: `test_a_qualified_or_keyword_literal_names_the_subject` on `a7448648`'s store fails — the guard. Cannot
+promote: an unattended run; `/mango:promote` is the maintainer's pass (363-C1 now at four tickets).
+
+### Outward actions
+
+Under the handover: push `feat/409-measured-zero-callers`; open its PR against `feat/408-per-call-caller-root`.
+Deferred to the maintainer: ratify W1–W4, merge after #104, `/mango:promote` for 363-C1.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 68,575 |
+| 3 execute | `implementer` — not dispatched (main loop implemented the reason arm) | — | unmeasured (main-loop spend, not a dispatch) |
+| 4 review | ticket-blind `challenger` | 1 | 76,153 |
+
+`LEDGER TOTAL: 144,728 · top cost driver: 4 review / challenger` — main loop unmeasured.
