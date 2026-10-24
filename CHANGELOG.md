@@ -25,7 +25,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   view naming it as `alias.col`, or bare beside its one source (`RESOLVED`), and a host string's
   `SELECT … FROM t` doing the same (`HEURISTIC`). A table's readers that named none of its columns —
   a `select *`, say — are counted in `column_reads_unknown`; a bare name beside several sources, or
-  through a CTE, binds to none. A table's own `READS` row lists `columns` (410).
+  through a CTE, binds to none. A column read links case-insensitively, as T-SQL resolves it; an
+  ORDER BY alias, a CONVERT type or a collation is never a column. A table's own `READS` row lists
+  `columns` (410).
 - `read_symbol`, `file_outline`, `search_symbol`, `find_callers` and `find_references` take
   `caller_root`: a subagent in a worktree, sharing its parent's roots, names that worktree for the
   call and is answered from it rather than the main checkout. A path outside this repository is

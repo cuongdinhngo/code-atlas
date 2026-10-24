@@ -478,7 +478,7 @@ vulnerabilities go through [`SECURITY.md`](SECURITY.md).
 
 - **Shipped.** Phase 1 (closed 2026-09-27): the core, the onboarding system map and four adapters —
   PHP, TypeScript/JavaScript, T-SQL and Python — with **24 tools**. Phase 2 so far: releases
-  0.2.0–0.7.0 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
+  0.2.0–0.8.0 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
 - **Open.** Graph coverage and freshness work; each ticket and its gate is in
   [`docs/BACKLOG.md`](docs/BACKLOG.md). Nothing is open on the onboarding map.
 - **Deferred.** The C#/.NET adapter — the only language left, held since 2026-08-04

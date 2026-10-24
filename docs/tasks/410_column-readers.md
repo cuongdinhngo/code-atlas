@@ -299,6 +299,14 @@ Reviewed at 2358e94c0799fcd451d53aedb3119716b3be925d. Files: the four adapters' 
 handshakes, the tests listed above, CHANGELOG, `pyproject.toml`, `gen_skill.py` and its generated files, TOOLS.md,
 PLAN, `design/storage.md`, the adapter READMEs. Working doc: this file.
 
+**PR #106 review.** A rule-book review found false column READS, each seen on the shipped readers: an ORDER BY
+alias (`… AS Label … ORDER BY Label`), `Lbl = Name`, `CONVERT(int, …)`'s type, a `COLLATE` name, an `INDEX(…)`
+hint, T-SQL's `N'…'` prefix, a host string's `INTERVAL`, and a Unicode name cut to its ASCII head; `TOP (@n)`
+dropped every bare read. H2 claimed the casefold pass linked a column read; it ran for WRITES / ALTERS only, so
+`t.id` never reached `T::Id`. Fixed in the four readers (one shape each) and in `resolver.py` for column READS
+only; table READS keep 390's rule. Pinned by `test_aliases_types_collations…`, `test_a_column_read_in_another_case…`
+and nine shared-table rows. Under-reads left as limits: `MERGE … USING`, `UPDATE … FROM`.
+
 ## Phase 5 — finalise
 
 **Durable lesson.** The binder's first cut was correct on every authored fixture and wrong on the challenger's
