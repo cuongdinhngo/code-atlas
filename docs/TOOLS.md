@@ -426,8 +426,9 @@ scanner masks literals) the call's first line is read, as before (398).
   key — or the first matching pattern's — answers every target, never one handler. When each row
   carries its own `when` label (`region=A`, `flag=ON`) and optional `source` (`file:line`) — inline
   fields, or `columns` entries for a TSV or JSON census — the key is a **conditional route**: each
-  flow and route row carries its `when`/`source`, labels nothing evaluates (415). Otherwise it is
-  a **collision**, flagged `ambiguity: "route_collision"` with `route_candidates`. A repeated key and
+  flow and route row carries its `when`/`source`, labels nothing evaluates (415). One row without a
+  label (a blank cell is none), or two sharing one, makes the key a **collision**, flagged
+  `ambiguity: "route_collision"` with `route_candidates`; a TSV label column the file lacks fails the build. A repeated key and
   target is a `duplicate`; a dead-target row is counted, not stored, so its URL answers
   `no_such_symbol`. `get_index_status` balances the table under `routes`: `declared` = `stored` +
   the `dropped` counts (`unresolved`, `short_name_tie`, `duplicate`, `incomplete` — a census row

@@ -232,6 +232,12 @@ def _tsv(
             f"indirection_rules: {label!r} routes.tsv {relative!r} has no column "
             f"{key_column!r} or {target_column!r}"
         )
+    for name in _LABELS:  # a misspelt label column would turn every conditional into a collision
+        if columns.get(name) is not None and columns.get(name) not in header:
+            raise ConfigError(
+                f"indirection_rules: {label!r} routes.tsv {relative!r} has no {name} column "
+                f"{columns.get(name)!r}"
+            )
     found: list[Handler] = []
     skipped: list[tuple[str, str]] = []
     for row in reader:
@@ -413,7 +419,8 @@ def _shared(routes: Sequence[Route]) -> dict[str, list[Route]]:
 
 
 def _brief(route: Route) -> dict[str, str]:
-    return {"route": route.declared, "target": route.target}
+    brief = {"route": route.declared, "target": route.target}
+    return brief | ({"when": route.when} if route.when is not None else {})
 
 
 def collision_fields(candidates: Sequence[Route]) -> dict[str, object]:

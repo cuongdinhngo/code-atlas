@@ -11,8 +11,10 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from code_atlas import routes
-from code_atlas.config import Config, load_config
+from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import get_index_status, impact, trace_capability
@@ -145,3 +147,20 @@ def test_inline_and_json_rows_take_when_and_source(tmp_path: Path) -> None:
         (URL, XB, "region=B", "x.php:3"),
         (URL, XA, "flag=ON", None),
     ]
+
+
+def test_a_missing_label_column_fails_the_build(tmp_path: Path) -> None:
+    """Review M1: a misspelt ``when`` column would read every conditional route as a collision."""
+    (tmp_path / "routes.tsv").write_text(CENSUS, encoding="utf-8")
+    block = {**BLOCK, "columns": {"key": "url", "target": "handler", "when": "conditon"}}
+    with pytest.raises(ConfigError, match="no when column"):
+        routes.read_blocks(block, "rules.json", tmp_path, lambda _data: None)
+
+
+def test_a_collision_example_names_its_labels() -> None:
+    """Review M2: the label that failed to tell two rows apart is shown in status."""
+    census = routes.Census()
+    rows = (routes.Handler("k", "A", "on"), routes.Handler("k", "B", "on"))
+    table, _ = routes.resolve([routes.RouteBlock(None, rows)], lambda _t: "f.py", census=census)
+    [example] = census.as_status(table)["collision_examples"]  # type: ignore[misc]
+    assert [row["when"] for row in example["routes"]] == ["on", "on"]
