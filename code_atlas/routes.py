@@ -19,7 +19,7 @@ import io
 import json
 import re
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
@@ -30,6 +30,15 @@ from code_atlas.containment import resolves_inside
 ROUTES_META_KEY = "routes"
 # JSON-source rows whose short-class target named several classes and no `prefer` chose one (397).
 ROUTES_AMBIGUOUS_META_KEY = "routes_ambiguous"
+# Where every declared row went — stored, or dropped by reason — and the keys that collide (411).
+ROUTES_CENSUS_META_KEY = "routes_census"
+# A URL whose key several declared rows name with different targets answers every one (411).
+ROUTE_COLLISION = "route_collision"
+CANDIDATES_FIELD = "route_candidates"
+EXAMPLES_CAP = 20
+UNRESOLVED, SHORT_NAME_TIE, DUPLICATE, INCOMPLETE = (
+    "unresolved", "short_name_tie", "duplicate", "incomplete"
+)
 ROUTE_TIER = contract.CONFIDENCE_TIERS[1]  # HEURISTIC
 NEAREST = 5
 _WILDCARD = "*"
@@ -44,6 +53,15 @@ class RouteBlock:
     # A JSON census names a handler by short class; `prefer` breaks a tie by qname segment (397).
     short_names: bool = False
     prefer: tuple[str, ...] = ()
+    # A path's own significant keys, overriding the block's for that path (411).
+    by_path: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # Census rows read but missing their key or their target (411).
+    incomplete: int = 0
+
+    def significant_for(self, declared: str) -> tuple[str, ...] | None:
+        """The keys deciding this row's route: its path's own, else the block's."""
+        path = urlsplit(declared.strip()).path.lstrip("/")
+        return dict(self.by_path).get(path, self.significant)
 
 
 @dataclass(frozen=True)
@@ -97,21 +115,47 @@ def read_blocks(
             raise ConfigError(
                 f"indirection_rules: {label!r} routes.significant must be a list of names"
             )
+        by_path = _by_path(item.get("significant_by_path"), label)
         entries = [_entry(row, label) for row in _list(item.get("table"), label)]
+        incomplete = 0
         if item.get("tsv") is not None:
-            entries.extend(_tsv(item, label, root, digest))
+            rows, incomplete = _tsv(item, label, root, digest)
+            entries.extend(rows)
         prefer = item.get("prefer", [])
         if not isinstance(prefer, list) or not all(isinstance(seg, str) and seg for seg in prefer):
             raise ConfigError(f"indirection_rules: {label!r} routes.prefer must be a list of names")
         if prefer and item.get("json") is None:
             raise ConfigError(f"indirection_rules: {label!r} routes.prefer needs a json source")
         keys = tuple(significant) if significant is not None else None
-        blocks.append(RouteBlock(keys, tuple(entries)))
+        blocks.append(RouteBlock(keys, tuple(entries), by_path=by_path, incomplete=incomplete))
         if item.get("json") is not None:
             # Its own block, after the inline and TSV rows: only census rows name a short class.
-            rows = tuple(_json(item, label, root, digest))
-            blocks.append(RouteBlock(keys, rows, short_names=True, prefer=tuple(prefer)))
+            found, skipped = _json(item, label, root, digest)
+            blocks.append(
+                RouteBlock(
+                    keys, tuple(found), short_names=True, prefer=tuple(prefer),
+                    by_path=by_path, incomplete=skipped,
+                )
+            )
     return blocks
+
+
+def _by_path(raw: object, label: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """``{path: [key, …]}``: a census path whose own query keys decide its routes (411)."""
+    if raw is None:
+        return ()
+    if not isinstance(raw, dict) or not all(
+        isinstance(path, str) and path.strip() and isinstance(names, list)
+        and all(isinstance(name, str) and name for name in names)
+        for path, names in raw.items()
+    ):
+        raise ConfigError(
+            f"indirection_rules: {label!r} routes.significant_by_path must map paths to lists "
+            "of names"
+        )
+    return tuple(
+        (urlsplit(path.strip()).path.lstrip("/"), tuple(names)) for path, names in raw.items()
+    )
 
 
 def _list(raw: object, label: str) -> list[object]:
@@ -135,8 +179,9 @@ def _entry(row: object, label: str) -> tuple[str, str]:
 
 def _tsv(
     item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
-) -> list[tuple[str, str]]:
-    """A measured route census, used as is through a ``columns`` map naming its two columns."""
+) -> tuple[list[tuple[str, str]], int]:
+    """A measured route census, used as is through a ``columns`` map naming its two columns;
+    and the count of its rows missing either (411)."""
     relative, columns = item.get("tsv"), item.get("columns") or {"key": "key", "target": "target"}
     if not isinstance(relative, str) or not isinstance(columns, dict):
         raise ConfigError(f"indirection_rules: {label!r} routes.tsv needs a path and columns")
@@ -162,18 +207,24 @@ def _tsv(
             f"indirection_rules: {label!r} routes.tsv {relative!r} has no column "
             f"{key_column!r} or {target_column!r}"
         )
-    return [
-        (str(row[str(key_column)]).strip(), str(row[str(target_column)]).strip())
-        for row in reader
-        if row.get(str(key_column)) and row.get(str(target_column))
-    ]
+    found: list[tuple[str, str]] = []
+    skipped = 0
+    for row in reader:
+        key = str(row.get(str(key_column)) or "").strip()
+        target = str(row.get(str(target_column)) or "").strip()
+        if key and target:
+            found.append((key, target))
+        else:
+            skipped += 1
+    return found, skipped
 
 
 def _json(
     item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
-) -> list[tuple[str, str]]:
+) -> tuple[list[tuple[str, str]], int]:
     """A JSON route census: ``rows`` is a dotted path to its list of objects, ``columns`` names
-    the key and target fields (dotted for a nested one). A row missing either is skipped (397)."""
+    the key and target fields (dotted for a nested one). A row missing either is skipped (397),
+    and counted (411)."""
     relative, columns = item.get("json"), item.get("columns") or {"key": "key", "target": "target"}
     selector = item.get("rows", "")
     if not (isinstance(relative, str) and isinstance(columns, dict) and isinstance(selector, str)):
@@ -203,7 +254,7 @@ def _json(
         key, target = _dig(row, str(columns.get("key"))), _dig(row, str(columns.get("target")))
         if isinstance(key, str) and key.strip() and isinstance(target, str) and target.strip():
             found.append((key.strip(), target.strip()))
-    return found
+    return found, len(rows) - len(found)
 
 
 def _dig(value: object, path: str) -> object:
@@ -215,46 +266,115 @@ def _dig(value: object, path: str) -> object:
     return value
 
 
+@dataclass
+class Census:
+    """Where every declared row went: stored, or dropped for one reason, with examples (411)."""
+
+    declared: int = 0
+    stored: int = 0
+    dropped: dict[str, int] = field(default_factory=dict)
+    examples: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+
+    def drop(self, reason: str, declared: str | None = None, target: str | None = None) -> None:
+        self.dropped[reason] = self.dropped.get(reason, 0) + 1
+        if declared is not None and target is not None:
+            shown = self.examples.setdefault(reason, [])
+            if len(shown) < EXAMPLES_CAP:
+                shown.append({"route": declared, "target": target})
+
+    def as_status(self, routes: Sequence[Route]) -> dict[str, object]:
+        """``declared == stored + sum(dropped)``; a key several targets share is a collision."""
+        collided = colliding(routes)
+        status: dict[str, object] = {
+            "declared": self.declared,
+            "stored": self.stored,
+            "dropped": dict(sorted(self.dropped.items())),
+            "collisions": len(collided),
+        }
+        if self.examples:
+            status["dropped_examples"] = dict(sorted(self.examples.items()))
+        if collided:
+            status["collision_examples"] = [
+                {"key": key, "routes": [_brief(route) for route in rows]}
+                for key, rows in list(collided.items())[:EXAMPLES_CAP]
+            ]
+        return status
+
+
 def resolve(
     blocks: Iterable[RouteBlock],
     locate: Callable[[str], str | None],
     candidates: Callable[[str], list[tuple[str, str]]] | None = None,
     ambiguous: list[dict[str, object]] | None = None,
+    census: Census | None = None,
 ) -> tuple[list[Route], int]:
-    """Routes whose target ``locate`` finds (its file), first declaration of a key winning; and
-    the count of rows naming no indexed symbol — counted, never linked (AC3).
+    """Routes whose target ``locate`` finds (its file), and the count of rows naming no indexed
+    symbol — counted, never linked (AC3). Rows of one key with different targets are all kept, a
+    collision; one repeating a key's target is a duplicate, dropped. ``census`` tallies each (411).
 
     A short-names block whose target ``locate`` misses asks ``candidates`` for the ``(qname, file)``
     pairs it may name; one, or one its ``prefer`` picks, links, and a tie lands in ``ambiguous``.
     """
     routes: list[Route] = []
-    seen: set[str] = set()
+    targets: dict[str, set[str]] = {}
     unresolved = 0
     tied: dict[str, dict[str, object]] = {}
+    tally = census if census is not None else Census()
     for block in blocks:
+        tally.declared += len(block.entries) + block.incomplete
+        for _ in range(block.incomplete):
+            tally.drop(INCOMPLETE)
         for declared, target in block.entries:
-            key = canonical(declared, block.significant)
-            if key in seen:
-                continue
+            significant = block.significant_for(declared)
+            key = canonical(declared, significant)
             file = locate(target)
             linked = target
+            tie = False
             if file is None and block.short_names and candidates is not None:
                 found = candidates(target)
                 picked = _prefer(found, block.prefer)
                 if picked is not None:
                     linked, file = picked
                 elif len(found) > 1:
+                    tie = True
                     names = [qname for qname, _ in found]
                     tied.setdefault(key, {"route": declared, "target": target, "candidates": names})
             if file is None:
                 unresolved += 1
+                tally.drop(SHORT_NAME_TIE if tie else UNRESOLVED, declared, target)
                 continue
-            seen.add(key)
-            routes.append(Route(key, declared, linked, file, block.significant))
+            if linked in targets.get(key, ()):
+                tally.drop(DUPLICATE, declared, linked)
+                continue
+            targets.setdefault(key, set()).add(linked)
+            tally.stored += 1
+            routes.append(Route(key, declared, linked, file, significant))
     if ambiguous is not None:
         # A later row of the same key may have linked it; only a key left unrouted is named.
-        ambiguous.extend(row for key, row in tied.items() if key not in seen)
+        ambiguous.extend(row for key, row in tied.items() if key not in targets)
     return routes, unresolved
+
+
+def colliding(routes: Sequence[Route]) -> dict[str, list[Route]]:
+    """Keys that several stored routes share, each with its routes in table order (411)."""
+    by_key: dict[str, list[Route]] = {}
+    for route in routes:
+        by_key.setdefault(route.key, []).append(route)
+    return {key: rows for key, rows in by_key.items() if len(rows) > 1}
+
+
+def _brief(route: Route) -> dict[str, str]:
+    return {"route": route.declared, "target": route.target}
+
+
+def collision_fields(candidates: Sequence[Route]) -> dict[str, object]:
+    """What an answer adds when its URL reached several handlers: none of them alone (411)."""
+    if len(candidates) < 2:
+        return {}
+    return {
+        "ambiguity": ROUTE_COLLISION,
+        CANDIDATES_FIELD: [route.as_row() for route in candidates],
+    }
 
 
 def short_target(target: str) -> tuple[str, str] | None:
@@ -299,15 +419,20 @@ def load(raw: str | None) -> list[Route] | None:
     ]
 
 
-def match(routes: Sequence[Route], url: str) -> Route | None:
-    """The route a URL reaches: an exact canonical key first, then a ``*`` value pattern."""
-    for route in routes:
-        if canonical(url, route.significant) == route.key and _WILDCARD not in route.key:
-            return route
-    for route in routes:
-        if _WILDCARD in route.key and _glob(route.key).fullmatch(canonical(url, route.significant)):
-            return route
-    return None
+def matches(routes: Sequence[Route], url: str) -> list[Route]:
+    """The routes a URL reaches: an exact canonical key first, then a ``*`` value pattern — every
+    route of that one key, so a collision answers all of its targets (411)."""
+    exact = [
+        route for route in routes
+        if _WILDCARD not in route.key and canonical(url, route.significant) == route.key
+    ]
+    if exact:
+        return [route for route in exact if route.key == exact[0].key]
+    pattern = [
+        route for route in routes
+        if _WILDCARD in route.key and _glob(route.key).fullmatch(canonical(url, route.significant))
+    ]
+    return [route for route in pattern if route.key == pattern[0].key] if pattern else []
 
 
 def _glob(key: str) -> re.Pattern[str]:
