@@ -133,6 +133,7 @@ def test_ac3_every_declared_row_is_stored_or_dropped_by_reason(tmp_path: Path) -
             {"route": "/x.php?cmd=c", "target": "handlers.gone.G::c"}
         ]
         assert examples["duplicate"] == [{"route": f"{URL_A}&page=2", "target": A}]
+        assert examples["incomplete"] == [{"route": "/x.php?cmd=d", "target": ""}]
 
 
 def test_ac3_a_short_name_tie_is_its_own_reason() -> None:

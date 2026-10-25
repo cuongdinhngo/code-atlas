@@ -55,8 +55,8 @@ class RouteBlock:
     prefer: tuple[str, ...] = ()
     # A path's own significant keys, overriding the block's for that path (411).
     by_path: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    # Census rows read but missing their key or their target (411).
-    incomplete: int = 0
+    # Census rows read but missing their key or their target, as ``(key, target)`` (411).
+    incomplete: tuple[tuple[str, str], ...] = ()
 
     def significant_for(self, declared: str) -> tuple[str, ...] | None:
         """The keys deciding this row's route: its path's own, else the block's."""
@@ -117,7 +117,7 @@ def read_blocks(
             )
         by_path = _by_path(item.get("significant_by_path"), label)
         entries = [_entry(row, label) for row in _list(item.get("table"), label)]
-        incomplete = 0
+        incomplete: list[tuple[str, str]] = []
         if item.get("tsv") is not None:
             rows, incomplete = _tsv(item, label, root, digest)
             entries.extend(rows)
@@ -127,14 +127,16 @@ def read_blocks(
         if prefer and item.get("json") is None:
             raise ConfigError(f"indirection_rules: {label!r} routes.prefer needs a json source")
         keys = tuple(significant) if significant is not None else None
-        blocks.append(RouteBlock(keys, tuple(entries), by_path=by_path, incomplete=incomplete))
+        blocks.append(
+            RouteBlock(keys, tuple(entries), by_path=by_path, incomplete=tuple(incomplete))
+        )
         if item.get("json") is not None:
             # Its own block, after the inline and TSV rows: only census rows name a short class.
             found, skipped = _json(item, label, root, digest)
             blocks.append(
                 RouteBlock(
                     keys, tuple(found), short_names=True, prefer=tuple(prefer),
-                    by_path=by_path, incomplete=skipped,
+                    by_path=by_path, incomplete=tuple(skipped),
                 )
             )
     return blocks
@@ -179,9 +181,9 @@ def _entry(row: object, label: str) -> tuple[str, str]:
 
 def _tsv(
     item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
-) -> tuple[list[tuple[str, str]], int]:
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """A measured route census, used as is through a ``columns`` map naming its two columns;
-    and the count of its rows missing either (411)."""
+    and its rows missing either (411)."""
     relative, columns = item.get("tsv"), item.get("columns") or {"key": "key", "target": "target"}
     if not isinstance(relative, str) or not isinstance(columns, dict):
         raise ConfigError(f"indirection_rules: {label!r} routes.tsv needs a path and columns")
@@ -208,20 +210,17 @@ def _tsv(
             f"{key_column!r} or {target_column!r}"
         )
     found: list[tuple[str, str]] = []
-    skipped = 0
+    skipped: list[tuple[str, str]] = []
     for row in reader:
         key = str(row.get(str(key_column)) or "").strip()
         target = str(row.get(str(target_column)) or "").strip()
-        if key and target:
-            found.append((key, target))
-        else:
-            skipped += 1
+        (found if key and target else skipped).append((key, target))
     return found, skipped
 
 
 def _json(
     item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
-) -> tuple[list[tuple[str, str]], int]:
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """A JSON route census: ``rows`` is a dotted path to its list of objects, ``columns`` names
     the key and target fields (dotted for a nested one). A row missing either is skipped (397),
     and counted (411)."""
@@ -250,11 +249,13 @@ def _json(
             f"indirection_rules: {label!r} routes.json {relative!r} has no list at {selector!r}"
         )
     found: list[tuple[str, str]] = []
+    skipped: list[tuple[str, str]] = []
     for row in rows:
         key, target = _dig(row, str(columns.get("key"))), _dig(row, str(columns.get("target")))
-        if isinstance(key, str) and key.strip() and isinstance(target, str) and target.strip():
-            found.append((key.strip(), target.strip()))
-    return found, len(rows) - len(found)
+        pair = (key.strip() if isinstance(key, str) else "",
+                target.strip() if isinstance(target, str) else "")
+        (found if all(pair) else skipped).append(pair)
+    return found, skipped
 
 
 def _dig(value: object, path: str) -> object:
@@ -321,9 +322,9 @@ def resolve(
     tied: dict[str, dict[str, object]] = {}
     tally = census if census is not None else Census()
     for block in blocks:
-        tally.declared += len(block.entries) + block.incomplete
-        for _ in range(block.incomplete):
-            tally.drop(INCOMPLETE)
+        tally.declared += len(block.entries) + len(block.incomplete)
+        for declared, target in block.incomplete:
+            tally.drop(INCOMPLETE, declared, target)
         for declared, target in block.entries:
             significant = block.significant_for(declared)
             key = canonical(declared, significant)
