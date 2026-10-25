@@ -14,6 +14,7 @@ no answer, count list or message can name it; only how many were dropped is kept
 
 from __future__ import annotations
 
+import fnmatch
 import json
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass
@@ -26,6 +27,8 @@ from code_atlas.containment import resolves_inside
 RECORDS_META_KEY = "records"
 # The counts block the build result and `get_index_status` report: never an excluded id.
 RECORDS_STATUS_META_KEY = "records_status"
+# Globs of hub files whose records reach no answer seeded elsewhere (412).
+RECORDS_STOP_AT_META_KEY = "records_stop_at"
 RECORD_TIER = contract.CONFIDENCE_TIERS[1]  # HEURISTIC
 DANGLING_FIRST = 10
 TITLE_MAX = 200
@@ -43,8 +46,11 @@ class Record:
     kind: str | None
     targets: tuple[str, ...]
 
-    def as_row(self, via: str | None = None) -> dict[str, object]:
-        """The record as an answer carries it: declared, so HEURISTIC and rule-derived."""
+    def as_row(
+        self, via: str | None = None, distance: int | None = None
+    ) -> dict[str, object]:
+        """The record as an answer carries it: declared, so HEURISTIC and rule-derived. A
+        ``distance`` (hops from the seed) marks the row ``direct`` at 0 (412)."""
         row: dict[str, object] = {"id": self.id, "title": self.title}
         if self.url is not None:
             row["url"] = self.url
@@ -52,6 +58,9 @@ class Record:
             row["kind"] = self.kind
         if via is not None:
             row["via"] = via
+        if distance is not None:
+            row["distance"] = distance
+            row["direct"] = distance == 0
         row["tier"] = RECORD_TIER
         row[contract.RULE_FLAG] = True
         return row
@@ -65,6 +74,7 @@ class RecordSet:
     excluded: int
     skipped: int
     files: int = 0  # files the globs matched: a typo'd glob reads as 0, not as silence
+    stop_at: tuple[str, ...] = ()  # hub-file globs (412)
 
 
 def read_blocks(
@@ -98,6 +108,13 @@ def _read_block(
     if kind is not None and not isinstance(kind, str):
         raise ConfigError(f"{where}.kind must be a string")
     excluded_ids = _excluded(item.get("exclude"), where, root, digest)
+    stop_at = item.get("stop_at", [])
+    if isinstance(stop_at, str):
+        stop_at = [stop_at]
+    if not isinstance(stop_at, list) or not all(
+        isinstance(glob, str) and glob.strip() for glob in stop_at
+    ):
+        raise ConfigError(f"{where}.stop_at must be a list of globs")
     records: list[Record] = []
     excluded: set[str] = set()
     skipped = 0
@@ -119,7 +136,10 @@ def _read_block(
                 excluded.add(rid)
                 continue
             records.append(_record(entry, rid, fields, targets, kind))
-    return RecordSet(tuple(records), len(excluded), skipped, len(matched))
+    return RecordSet(
+        tuple(records), len(excluded), skipped, len(matched),
+        tuple(glob.strip() for glob in stop_at),
+    )
 
 
 def _entries(relative: str, data: bytes) -> tuple[list[object], int]:
@@ -313,6 +333,64 @@ def attached(
                 seen.add(record.id)
                 rows.append(record.as_row(carrier if via else None))
     return rows
+
+
+def ranked(
+    records: Sequence[Record],
+    seeds: Sequence[str],
+    radius: Iterable[tuple[str, int, str]],
+    *,
+    stop_at: Sequence[str] = (),
+    direct_only: bool = False,
+) -> tuple[list[dict[str, object]], int]:
+    """Rows for a blast radius, direct first, and how many records ``stop_at`` alone kept out
+    (412). ``seeds`` are the subject's qnames and files: a record on one, or on a member a seed
+    contains, is ``direct`` (distance 0). ``radius`` is ``(carrier, depth, file)`` in walk
+    order, read by depth; a carrier in a ``stop_at`` file carries nothing.
+    Each record once, under its first carrier, so at its least distance."""
+    owners = set(seeds)
+    members = sorted(
+        {
+            target
+            for record in records
+            for target in record.targets
+            if target not in owners and _contained(target, owners)
+        }
+    )
+    by_target: dict[str, list[Record]] = {}
+    for record in records:
+        for target in record.targets:
+            by_target.setdefault(target, []).append(record)
+    rows: list[dict[str, object]] = []
+    seen: set[str] = set()
+
+    def take(carrier: str, distance: int) -> None:
+        for record in by_target.get(carrier, ()):
+            if record.id not in seen:
+                seen.add(record.id)
+                rows.append(record.as_row(carrier, distance))
+
+    for carrier in dict.fromkeys([*seeds, *members]):
+        take(carrier, 0)
+    if direct_only:
+        return rows, 0
+    stopped: set[str] = set()
+    for carrier, depth, file in sorted(radius, key=lambda hop: hop[1]):
+        if any(fnmatch.fnmatchcase(file, glob) for glob in stop_at):
+            stopped.update(record.id for record in by_target.get(carrier, ()))
+        else:
+            take(carrier, max(depth, 1))
+    return rows, len(stopped - seen)
+
+
+def _contained(qname: str, owners: set[str]) -> bool:
+    """Is ``qname`` a member, at any depth, of one of ``owners``?"""
+    head = qname
+    while contract.MEMBER_SEPARATOR in head:
+        head = head.rpartition(contract.MEMBER_SEPARATOR)[0]
+        if head in owners:
+            return True
+    return False
 
 
 def status_block(raw: str | None) -> dict[str, object] | None:

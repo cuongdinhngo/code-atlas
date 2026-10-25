@@ -32,6 +32,8 @@ PARAM_WAIVERS: dict[str, str] = {
     "arg_name": "find_callers filter, arg_position's keyword twin (372); rare",
     "confidence_tier": "taught under confidence_tier prose",
     "reset_fit_counts": "ops knob on get_index_status; not a how-to-ask rule",
+    "records": "impact's records side-field scope (412); the tool description teaches it",
+    "records_limit": "impact's records side-field page (412); same as limit",
 }
 
 CAPABILITY_WAIVERS: dict[str, str] = {}

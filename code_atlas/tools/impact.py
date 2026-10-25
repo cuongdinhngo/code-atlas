@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Sequence
 from typing import Literal, NamedTuple
 
-from code_atlas import records
+from code_atlas import records as record_table
 from code_atlas import routes as route_table
-from code_atlas.config import Config
+from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import BARE_SUBJECT_KINDS, CALLER_KINDS
 from code_atlas.mirror_search import label_mirror_rows, load_mirror_search_stamp
 from code_atlas.store import GraphStore
@@ -28,6 +29,7 @@ from code_atlas.tools.nav_result import (
     answered_about_ref_for,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
+    attach_limit_capped,
     attach_rules_stale,
     attach_sibling_definitions,
     attach_try_instead,
@@ -47,6 +49,7 @@ NAME = "impact"
 # module rollup (140) answers about the same seeds this tool does. One definition, two answers.
 
 DetailLevel = Literal["minimal", "standard"]
+RecordScope = Literal["direct", "radius"]
 
 QUESTION = "blast-radius"
 # Empty modelled zero vs failed query (065); unlinked same-name sites spoil a closed zero (330).
@@ -167,6 +170,13 @@ def attach_seed_expansion(
     }
 
 
+def _depth(value: object) -> int:
+    """A radius row's depth, which the walk always stores as an int."""
+    if not isinstance(value, int):
+        raise TypeError(f"depth must be int, got {type(value).__name__}")
+    return value
+
+
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
@@ -178,6 +188,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         sign: bool = False,
         exclude_tests: bool = False,
         routes: list[str] | None = None,
+        records: RecordScope = "radius",
+        records_limit: int | None = None,
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
@@ -219,6 +231,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         declared, ``routes`` in the answer lists each route whose target is a seed or in the radius
         (``HEURISTIC``, ``rule: true``) — omitted when none reaches it.
 
+        With a ``records`` rule, ``records`` lists the declared records on the subject and its
+        radius, each with ``via`` (its carrier), ``distance`` and ``direct`` (on a seed, a member a
+        seed contains, or a seed's file): direct rows first, then by distance, at most
+        ``records_limit`` (at most the page, ``limit_capped_to`` when reduced); ``records_total``
+        counts them all.
+        ``records="direct"`` keeps the direct rows alone; a ``stop_at`` hub file carries none into
+        the radius and ``records_stopped`` counts what it kept out (407, 412).
+
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line naming subject, question, answer and the revision the index describes,
         with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
@@ -230,6 +250,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
             raise ValueError(f"depth must be >= 0, got {hops}")
+        if records not in ("direct", "radius"):
+            raise ValueError(f"records must be 'direct' or 'radius', got {records!r}")
+        if records_limit is not None and records_limit < 1:
+            raise ValueError(f"records_limit must be >= 1, got {records_limit}")
+        limit, clamped = clamp_limit(records_limit, config.page_limit)
         parts = [*subject_parts(paths, qnames), *(routes or [])]
         subject = ",".join(parts)
         if not config.db_path.is_file():
@@ -239,7 +264,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
             table = route_table.load(store.get_meta(route_table.ROUTES_META_KEY))
-            stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
+            stored_records = record_table.load(store.get_meta(record_table.RECORDS_META_KEY))
+            stop_at = json.loads(store.get_meta(record_table.RECORDS_STOP_AT_META_KEY) or "[]")
             matched = [route_table.matches(table or [], url) for url in routes or []]
             routed = [route for found in matched for route in found]
             plan = plan_seeds(
@@ -248,6 +274,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 qnames=[*(qnames or []), *(r.target for r in routed if r.target != r.file)],
                 max_results=config.page_limit,
             )
+            seed_qnames = [
+                *plan.walk_seeds,
+                *(qname for qname, _ in plan.ambiguous_sites),
+                *(qname for qname, _ in plan.twinned_sites),
+            ]
+            seed_files = sorted(
+                {
+                    str(row["file_path"])
+                    for found in store.nodes_by_qualified_names(
+                        seed_qnames, limit=config.page_limit
+                    ).values()
+                    for row in found
+                }
+            ) if stored_records else []
             outcome = store.impact_radius(
                 plan.walk_seeds,
                 depth=hops,
@@ -287,20 +327,26 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 [route for found in matched if len(found) > 1 for route in found]
             ))
         if stored_records:
-            # Seeds first (walked, ambiguous, twinned), the radius in its own order, then the
-            # files — a record may name a file rather than a symbol (407).
-            carriers = [
-                *plan.walk_seeds,
-                *(qname for qname, _ in plan.ambiguous_sites),
-                *(qname for qname, _ in plan.twinned_sites),
-                *(str(row["qname"]) for row in results),
-                *(paths or []),
-                *(str(row["file"]) for row in results),
+            # The subject's own records first — a seed, a member, a seed's file — then the radius
+            # by distance, symbols before files at one depth (407, 412).
+            hops_of = [(row, _depth(row["depth"])) for row in results]
+            radius = [
+                *((str(row["qname"]), hop, str(row["file"])) for row, hop in hops_of),
+                *((str(row["file"]), hop, str(row["file"])) for row, hop in hops_of),
             ]
-            record_rows = records.attached(stored_records, carriers, via=True)
+            record_rows, stopped = record_table.ranked(
+                stored_records,
+                [*seed_qnames, *(paths or []), *seed_files],
+                radius,
+                stop_at=stop_at,
+                direct_only=records == "direct",
+            )
             if record_rows:
-                result["records"] = record_rows[: config.page_limit]
+                result["records"] = record_rows[:limit]
                 result["records_total"] = len(record_rows)
+            if stopped:
+                result["records_stopped"] = stopped
+            attach_limit_capped(result, cap=limit, clamped=clamped)
         _attach_freshness(result, staleness)
         if routes or "routes" in result or "records" in result:
             # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
