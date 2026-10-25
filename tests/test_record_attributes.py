@@ -122,6 +122,19 @@ def test_a_filter_on_an_undeclared_name_is_refused(repo: Config, wanted: dict[st
             call()
 
 
+def test_a_bad_filter_is_refused_on_every_path(repo: Config, tmp_path: Path) -> None:
+    """Review F1: refused before any early return — an unknown subject, no index — and a value
+    no attribute can hold (an object, a null, an empty list) is malformed."""
+    with pytest.raises(ValueError, match="no records block declares"):
+        read_symbol.create(repo)(qname="handlers.gone", records_filter={"owner": "me"})
+    bare = load_config(tmp_path, {"CA_DB_PATH": str(tmp_path / "none.db")})
+    with pytest.raises(ValueError, match="no records block declares"):
+        impact.create(bare)(qnames=[SAVE], records_filter={"tier": "A"})
+    for value in ({"a": 1}, None, [], [["A"]]):
+        with pytest.raises(ValueError, match="must be a string"):
+            find_references.create(repo)(qname=SAVE, records_filter={"tier": value})
+
+
 def test_ac3_a_block_without_attributes_answers_as_before(tmp_path: Path) -> None:
     """AC3: no ``attributes`` key on any row, and any filter is refused — nothing is declared."""
     config = build(tmp_path / "repo")
@@ -133,5 +146,8 @@ def test_ac3_a_block_without_attributes_answers_as_before(tmp_path: Path) -> Non
 
 def test_only_scalars_and_lists_of_scalars_are_kept() -> None:
     kept = [records._attribute(value) for value in ("a", 0, 1.5, False, [1, "b"])]
-    dropped = [records._attribute(value) for value in (None, {"a": 1}, [], [[1]], [{"a": 1}])]
-    assert kept == ["a", 0, 1.5, False, [1, "b"]] and dropped == [None] * 5
+    dropped = [
+        records._attribute(value)
+        for value in (None, {"a": 1}, [], [[1]], [{"a": 1}], float("nan"), [float("inf")])
+    ]
+    assert kept == ["a", 0, 1.5, False, [1, "b"]] and dropped == [None] * 7

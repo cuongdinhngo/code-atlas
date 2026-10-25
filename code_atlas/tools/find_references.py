@@ -79,6 +79,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     require_path_prefix,
+    require_records_filter,
     shape_bare_ambiguous,
     shape_exact_miss,
     sibling_definition_rows,
@@ -377,6 +378,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
+        require_records_filter(config, records_filter)
         if not config.db_path.is_file():
             return empty_nav(
                 qname,

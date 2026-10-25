@@ -468,10 +468,11 @@ scanner masks literals) the call's first line is read, as before (398).
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
   `skipped` (an unreadable file, a record with no id, a repeated id — the first by path wins).
   `attributes` names further dotted paths (`["tier", "region"]`) whose values — a string, number,
-  boolean or a list of them; anything else is dropped — ride on every record row as `attributes`,
-  keyed by the path as written (413). `records_filter` on `read_symbol`, `find_references` and
+  boolean or a list of them; anything else is dropped — ride on a record row as `attributes`,
+  keyed by the path as written, omitted when the record holds none of them (413). `records_filter` on `read_symbol`, `find_references` and
   `impact` (`{"tier": ["A", "B"]}`) keeps a record whose attribute equals a value (a list attribute:
-  any element), before `records_total` counts; a path no block declares is refused (`ValueError`).
+  any element; a record without the attribute never matches), before `records_total` counts; a path
+  no block declares, or a value no attribute holds, is refused (`ValueError`) before any answer.
   `exclude` names a file of ids, one per line (`#` starts a comment, inline too): they are dropped before anything else
   reads them, so only their count is served — and a missing file fails the build rather than serve
   them. The files join the rules digest, so an edit reads `rules_stale` until the next refresh.

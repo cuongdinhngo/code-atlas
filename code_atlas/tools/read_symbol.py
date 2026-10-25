@@ -58,6 +58,7 @@ from code_atlas.tools.nav_result import (
     is_stub,
     is_under_path_prefix,
     require_path_prefix,
+    require_records_filter,
     shape_exact_miss,
 )
 from code_atlas.tools.search_symbol import _column_reference_targets
@@ -180,6 +181,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError("line_start and line_end must be passed together")
         if line_start is not None and line_start < 1:
             raise ValueError(f"line_start must be >= 1, got {line_start}")
+        require_records_filter(config, records_filter)
         if line_end is not None and line_end < 1:
             raise ValueError(f"line_end must be >= 1, got {line_end}")
         path_prefix = require_path_prefix(path_prefix)

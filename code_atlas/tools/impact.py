@@ -38,6 +38,7 @@ from code_atlas.tools.nav_result import (
     definition_sites,
     empty_nav,
     nav_result,
+    require_records_filter,
     shape_exact_miss,
     sibling_definition_rows,
 )
@@ -258,6 +259,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if records_limit is not None and records_limit < 1:
             raise ValueError(f"records_limit must be >= 1, got {records_limit}")
         limit, clamped = clamp_limit(records_limit, config.page_limit)
+        require_records_filter(config, records_filter)
         parts = [*subject_parts(paths, qnames), *(routes or [])]
         subject = ",".join(parts)
         if not config.db_path.is_file():

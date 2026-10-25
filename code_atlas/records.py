@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -267,12 +268,18 @@ def _record(
 def _attribute(value: object) -> object:
     """A kept attribute value: a string, number or boolean, or a list of them — else ``None``,
     never stored (413)."""
-    scalar = (str, int, float, bool)
-    if isinstance(value, scalar):
+    if _scalar(value):
         return value
-    if isinstance(value, list) and value and all(isinstance(item, scalar) for item in value):
+    if isinstance(value, list) and value and all(_scalar(item) for item in value):
         return value
     return None
+
+
+def _scalar(value: object) -> bool:
+    # NaN and the infinities are not JSON: a value the stored blob could not hold is dropped.
+    if isinstance(value, float):
+        return math.isfinite(value)
+    return isinstance(value, str | int | bool)
 
 
 def _dig(value: object, path: str) -> object:
@@ -372,12 +379,7 @@ def select(
     refused — never read as "matches nothing" or ignored."""
     if wanted is None:
         return list(records)
-    unknown = sorted(set(wanted) - set(declared))
-    if unknown:
-        raise ValueError(
-            f"records_filter names {unknown}, which no records block declares as attributes; "
-            f"declared: {sorted(declared)}"
-        )
+    check_filter(wanted, declared)
     tests = {
         path: value if isinstance(value, list) else [value] for path, value in wanted.items()
     }
@@ -386,6 +388,24 @@ def select(
         for record in records
         if all(_kept(dict(record.attributes).get(path), want) for path, want in tests.items())
     ]
+
+
+def check_filter(wanted: Mapping[str, object], declared: Sequence[str]) -> None:
+    """Refuse a filter naming a path no block declares, or wanting a value no attribute holds:
+    an object, a null, a nested or empty list (413)."""
+    unknown = sorted(set(wanted) - set(declared))
+    if unknown:
+        raise ValueError(
+            f"records_filter names {unknown}, which no records block declares as attributes; "
+            f"declared: {sorted(declared)}"
+        )
+    for path, value in wanted.items():
+        values = value if isinstance(value, list) else [value]
+        if not values or not all(isinstance(item, str | int | float | bool) for item in values):
+            raise ValueError(
+                f"records_filter[{path!r}] must be a string, number or boolean, or a non-empty "
+                f"list of them, got {value!r}"
+            )
 
 
 def _kept(value: object, wanted: Sequence[object]) -> bool:
