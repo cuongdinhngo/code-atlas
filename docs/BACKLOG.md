@@ -81,8 +81,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Onboarding's module facts do not order or count a `View`** (`module_facts._KIND_ORDER`), so a
   view-only SQL module summarises as empty — 402.
 - **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
-  misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
-  match, and a procedure in another schema leaves an uncounted unresolved edge — 386.
+  misses `Insert_Order` (the casefold pass links writes and column reads, not `EXEC`), a `dbo.py`
+  module's function is an exact match, and a procedure in another schema leaves an uncounted
+  unresolved edge — 386.
 - **`impact_modules` reads as the PR blast-radius tool** — a name-only probe picked it for
   *"a blast-radius sentence I can paste on the PR"*; `impact` and `find_callers` are the answer — 200.
 - **The consumer brief names no contract-change occasion** — its first occasion is a rename; a widened
@@ -90,6 +91,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`impact` on a table defined in several files walks nothing** — a schema file plus migrations make
   it `subject_ambiguous`, so the writers' records never surface; 407 lists only the seed's own, and
   403's fix covers `read_symbol` on routines. Every `Table` definition of one qname as one seed — 407.
+- **A column read under `MERGE … USING` or `UPDATE … FROM` is not credited**, and the anchor's column
+  questions await a contract-19 rebuild (E1) — 410.
 - **The PreCompact state line reaches no one** — Claude Code adds no PreCompact stdout to context and
   discards its `systemMessage` (`hooks.md`, read 2026-10-10); the hook still runs there — 381.
 
