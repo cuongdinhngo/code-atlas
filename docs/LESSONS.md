@@ -49,6 +49,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 414-C1 — an AC's premise about today's behaviour is one call on `main` away
+
+- type: 2 (process) · handle: `run-the-ac-on-main-before-the-design`
+- status: proposed · seen: 414
+- evidence: 414's AC2 said `impact` would walk a table's readers and writers once the refusal lifted; `impact`
+  walks no `READS`/`WRITES` on any table, which one call on `main` shows. The design was built before that call
+  and the challenger had to raise it. Run each AC's "as today" premise before the design.
+- destination: first sighting.
+
 ### 413-C1 — a parameter refused deep in one answer path is ignored on every path that returns first
 
 - type: 2 (code) · handle: `validate-a-parameter-before-the-first-return`
