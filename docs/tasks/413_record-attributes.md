@@ -249,6 +249,25 @@ file.
 - 413-C1 `validate-a-parameter-before-the-first-return` (code, new): a parameter refused deep in one answer path
   is ignored on every path that returns before it; `read_symbol` has eight.
 
+**The final gate** (live checkout):
+
+Ran at ff7c85b0
+
+```
+$ scripts/gate.sh
+      2 failed, 4962 passed, 4 skipped, 1 xfailed in 644.29s (0:10:44)
+GATE RED — 1 check(s) failed
+```
+
+The two failures are 411's host exclusions. In a clean worktree at the same SHA:
+
+```
+$ .venv/bin/python -m pytest -q tests/test_install_skew.py tests/test_release_discipline.py
+29 passed, 1 xfailed in 15.70s
+```
+
+Ran at ff7c85b0.
+
 ### Outward actions
 
 Under the handover: push `feat/413-record-attributes`; open its PR against `feat/412-records-direct-first`.
