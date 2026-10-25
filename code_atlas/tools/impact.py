@@ -9,7 +9,7 @@ from typing import Literal, NamedTuple
 from code_atlas import records as record_table
 from code_atlas import routes as route_table
 from code_atlas.config import Config, clamp_limit
-from code_atlas.contract import BARE_SUBJECT_KINDS, CALLER_KINDS
+from code_atlas.contract import BARE_SUBJECT_KINDS, CALLER_KINDS, SPANNING_KINDS
 from code_atlas.mirror_search import label_mirror_rows, load_mirror_search_stamp
 from code_atlas.store import GraphStore
 from code_atlas.symbol_role import stored_test_source
@@ -293,9 +293,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             stop_at = json.loads(store.get_meta(record_table.RECORDS_STOP_AT_META_KEY) or "[]")
             matched = [route_table.matches(table or [], url) for url in routes or []]
             routed = [route for found in matched for route in found]
+            seed_paths = [*(paths or []), *(r.target for r in routed if r.target == r.file)]
             plan = plan_seeds(
                 store,
-                paths=[*(paths or []), *(r.target for r in routed if r.target == r.file)],
+                paths=seed_paths,
                 qnames=[*(qnames or []), *(r.target for r in routed if r.target != r.file)],
                 max_results=config.page_limit,
             )
@@ -304,13 +305,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 *(qname for qname, _ in plan.ambiguous_sites),
                 *(qname for qname, _ in plan.twinned_sites),
             ]
+            # A path seed owns its own file only (416): a qname it expanded into may also be
+            # declared in other files, and those files' records are not the subject's.
+            named = [qname for qname in seed_qnames if qname not in plan.from_paths]
             seed_files = sorted(
                 {
-                    str(row["file_path"])
-                    for found in store.nodes_by_qualified_names(
-                        seed_qnames, limit=config.page_limit
-                    ).values()
-                    for row in found
+                    *(
+                        str(row["file_path"])
+                        for found in store.nodes_by_qualified_names(
+                            named, limit=config.page_limit
+                        ).values()
+                        for row in found
+                    ),
+                    *seed_paths,
                 }
             ) if stored_records else []
             outcome = store.impact_radius(
@@ -360,7 +367,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             ]
             record_rows, stopped = record_table.ranked(
                 stored_records,
-                [*seed_qnames, *(paths or []), *seed_files],
+                [*seed_qnames, *seed_files],
                 radius,
                 stop_at=stop_at,
                 direct_only=records == "direct",
@@ -586,7 +593,7 @@ def resolve_seeds(
             continue
         for row in rows:
             qname = str(row["qualified_name"])
-            if qname in seen:
+            if qname in seen or row["kind"] in SPANNING_KINDS:
                 continue
             # Through the same gate a qname seed uses (169): a path-derived seed used to be
             # appended raw, so it was never classified, never counted and never explained.

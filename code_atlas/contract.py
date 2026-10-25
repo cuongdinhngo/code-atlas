@@ -148,6 +148,8 @@ VIEW_KIND = "View"
 # sharing the name never compete with it.
 BARE_SUBJECT_KINDS: tuple[str, ...] = ("Table", "Function", "View")
 TABLE_PART_KINDS: tuple[str, ...] = ("Column", "ForeignKey")
+# Every file in a namespace declares it, so no one file's path seeds it (416).
+SPANNING_KINDS: tuple[str, ...] = ("Namespace",)
 CONTAINS = "CONTAINS"
 # A select's FROM / JOIN source (390); opt-in on find_references(kinds=).
 READS = "READS"
