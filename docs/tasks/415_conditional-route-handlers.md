@@ -234,14 +234,14 @@ $ .venv/bin/python -m pytest -q tests/test_conditional_route_handlers.py tests/t
 46 passed in 6.25s
 ```
 
-Ran at HEAD of the review fix (the commit before this bookkeeping).
+Ran at e4114c06
 
 Verdict: clean (challenger only — REVIEWER: OFF), W1–W3 standing for ratification.
 `Ph3/4 proven by`: R1 (3/3: inline · TSV · JSON) → `test_inline_and_json_rows_*`, `test_ac1_*`; R2 →
 `test_a_labelled_and_an_unlabelled_*`, `test_status_counts_*`; R3, AC1 → `test_ac1_*`; AC2 → `test_ac2_*`, the route
 suites; C1/R4 → labels stored and echoed only; R5 → TOOLS.md, docstrings.
 
-Reviewed at the review-fix commit. Files: `code_atlas/routes.py`, `code_atlas/tools/trace_capability.py`,
+Reviewed at e4114c06. Files: `code_atlas/routes.py`, `code_atlas/tools/trace_capability.py`,
 `code_atlas/tools/impact.py`, `tests/test_conditional_route_handlers.py`, `docs/TOOLS.md`. Working doc: this file.
 
 ## Phase 5 — finalise
