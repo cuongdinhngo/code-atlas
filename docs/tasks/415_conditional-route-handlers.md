@@ -255,6 +255,25 @@ optional column) is 363-C1's class — a zero that counts what it cannot see —
 `RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
 
+**The final gate** (live checkout):
+
+Ran at cfebf1b6
+
+```
+$ scripts/gate.sh
+      2 failed, 4980 passed, 4 skipped, 1 xfailed in 661.15s (0:11:01)
+GATE RED — 1 check(s) failed
+```
+
+The two failures are 411's host exclusions; #109's CI (a clean runner) passed them. In a clean worktree here:
+
+```
+$ .venv/bin/python -m pytest -q tests/test_install_skew.py tests/test_release_discipline.py
+29 passed, 1 xfailed in 15.39s
+```
+
+Ran at cfebf1b6.
+
 ### Outward actions
 
 Under the handover: push `feat/415-conditional-route-handlers`; open its PR against `feat/414-definition-precedence`.
