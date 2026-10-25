@@ -116,6 +116,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         line_end: int | None = None,
         path_prefix: str | None = None,
         caller_root: str | None = None,
+        records_filter: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
@@ -167,6 +168,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and a route to ``file_outline`` or a line range — never a silent mid-body cut (288). Pass
         ``full_body=true`` (or a ``max_lines`` at/above the span) for the whole declaration;
         ``line_start``/``line_end`` return exactly that clamped range inside the symbol.
+        With a ``records`` rule the subject's declared records ride in ``records``, each with
+        its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
+        attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -233,7 +237,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     if detail_level == "standard":
                         _attach_params(payload, store, dict(worktree_node), rel)
-                    _attach_records(payload, store, qname, config)
+                    _attach_records(payload, store, qname, config, records_filter)
                     overlay.label(payload)
                     return attach_next_tools(payload, str(worktree_node["kind"]))
                 if built_file is not None:
@@ -300,7 +304,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             rows, ambiguity = one_definition_first(rows, complete=complete)
             if len(rows) > 1 and ambiguity is None:
                 refused = _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
-                return _stamp(_attach_records(refused, store, qname, config))
+                return _stamp(_attach_records(refused, store, qname, config, records_filter))
             node = rows[0]
             rel = str(node["file_path"])
             if not resolves_inside(config.root, config.root / rel):
@@ -359,7 +363,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     refused = _refuse_ambiguous(
                         qname, rows, detail_level=detail_level, config=config
                     )
-                    return _stamp(_attach_records(refused, store, qname, config))
+                    return _stamp(_attach_records(refused, store, qname, config, records_filter))
                 node = rows[0]
                 rel = str(node["file_path"])
             if overlay is not None and overlay.changes(rel):
@@ -424,7 +428,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 name=str(node["name"]),
             )
             attach_other_indexed_files_drifted(payload, guard)
-            _attach_records(payload, store, str(node["qualified_name"]), config)
+            _attach_records(payload, store, str(node["qualified_name"]), config, records_filter)
             _attach_pointers(payload, store, node, rows if ambiguity else (), ambiguity)
             if overlay is not None:
                 overlay.label(payload)
@@ -434,10 +438,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
 
 def _attach_records(
-    payload: dict[str, object], store: GraphStore, qname: str, config: Config
+    payload: dict[str, object],
+    store: GraphStore,
+    qname: str,
+    config: Config,
+    wanted: dict[str, object] | None,
 ) -> dict[str, object]:
-    """The declared records on the subject, labelled stale when their files moved (407)."""
-    stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
+    """The declared records on the subject ``wanted`` keeps, labelled stale when their files
+    moved (407, 413)."""
+    stored_records = records.load_selected(
+        store.get_meta(records.RECORDS_META_KEY),
+        store.get_meta(records.RECORDS_ATTRIBUTES_META_KEY),
+        wanted,
+    )
     rows = records.attached(stored_records or [], [qname], via=False)
     if rows:
         payload["records"] = rows

@@ -295,6 +295,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         path_prefix: str | None = None,
         kinds: list[str] | None = None,
         caller_root: str | None = None,
+        records_filter: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -363,6 +364,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
         ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
         stored form (075/122). An exact stored qname is unchanged.
+        With a ``records`` rule the subject's declared records ride in ``records``, each with
+        its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
+        attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).
         """
         call = claim.call_args(find_references, locals())
         named_root = require_caller_root(config, caller_root)
@@ -418,7 +422,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             stamped = store.stamped_unmodelled_resolution_by_language()
             emitted_kinds = store.stamped_emitted_kinds_by_language()
             about_ref = answered_about_ref_for(store)
-            stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
+            stored_records = records.load_selected(
+                store.get_meta(records.RECORDS_META_KEY),
+                store.get_meta(records.RECORDS_ATTRIBUTES_META_KEY),
+                records_filter,
+            )
             # A caller in another worktree reads that worktree, not this checkout's drift (389).
             overlay = active_overlay(config, store, named_root)
             read = read_subject(

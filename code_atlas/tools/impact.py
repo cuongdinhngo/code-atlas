@@ -190,6 +190,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         routes: list[str] | None = None,
         records: RecordScope = "radius",
         records_limit: int | None = None,
+        records_filter: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
@@ -237,7 +238,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``records_limit`` (at most the page, ``limit_capped_to`` when reduced); ``records_total``
         counts them all.
         ``records="direct"`` keeps the direct rows alone; a ``stop_at`` hub file carries none into
-        the radius and ``records_stopped`` counts what it kept out (407, 412).
+        the radius and ``records_stopped`` counts what it kept out (407, 412). ``records_filter``
+        (``{"tier": ["A", "B"]}``) keeps records whose declared attribute equals a value; a name
+        no block declares raises ``ValueError`` (413).
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line naming subject, question, answer and the revision the index describes,
@@ -264,7 +267,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
             table = route_table.load(store.get_meta(route_table.ROUTES_META_KEY))
-            stored_records = record_table.load(store.get_meta(record_table.RECORDS_META_KEY))
+            stored_records = record_table.load_selected(
+                store.get_meta(record_table.RECORDS_META_KEY),
+                store.get_meta(record_table.RECORDS_ATTRIBUTES_META_KEY),
+                records_filter,
+            )
             stop_at = json.loads(store.get_meta(record_table.RECORDS_STOP_AT_META_KEY) or "[]")
             matched = [route_table.matches(table or [], url) for url in routes or []]
             routed = [route for found in matched for route in found]
