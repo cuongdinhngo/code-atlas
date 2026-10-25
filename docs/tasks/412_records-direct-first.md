@@ -282,6 +282,26 @@ Reviewed at 66970b60. Files: `code_atlas/records.py`, `code_atlas/enrichment.py`
   shape by three tools — the challenger found two left out. Falsify: `rtk proxy grep -rn "records.attached" code_atlas`
   still names three readers (still true). → `docs/ENGINEERING_RULES.md`, the maintainer's `/mango:promote`.
 
+**The final gate** (live checkout):
+
+Ran at b4ae92c3
+
+```
+$ scripts/gate.sh
+      2 failed, 4954 passed, 4 skipped, 1 xfailed in 666.27s (0:11:06)
+GATE RED — 1 check(s) failed
+```
+
+The two failures are 411's host exclusions (`test_install_skew.py`, `test_release_discipline.py`, the host's installed
+tool read through the live checkout). In a clean worktree at the same SHA:
+
+```
+$ .venv/bin/python -m pytest -q tests/test_install_skew.py tests/test_release_discipline.py
+29 passed, 1 xfailed in 15.87s
+```
+
+Ran at b4ae92c3.
+
 ### Outward actions
 
 Under the handover: push `feat/412-records-direct-first`; open its PR against `feat/411-route-key-collisions`.
