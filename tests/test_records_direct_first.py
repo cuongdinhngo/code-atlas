@@ -38,12 +38,12 @@ RECORDS = [
 ]
 
 
-def build(root: Path, **block: object) -> Config:
+def build(root: Path, entries: list[dict[str, object]] = RECORDS, **block: object) -> Config:
     root.mkdir(parents=True)
     for path, text in SOURCES.items():
         (root / path).parent.mkdir(parents=True, exist_ok=True)
         (root / path).write_text(text, encoding="utf-8")
-    (root / "qa.json").write_text(json.dumps(RECORDS), encoding="utf-8")
+    (root / "qa.json").write_text(json.dumps(entries), encoding="utf-8")
     rule = {"sources": ["qa.json"], "fields": {"id": "key", "title": "summary"}, **block}
     (root / "rules.json").write_text(json.dumps({"records": rule}), encoding="utf-8")
     argv = ", ".join(json.dumps(part) for part in (*CLI.entry_argv, "--server"))
@@ -142,3 +142,38 @@ def test_bad_arguments_are_refused(repo: Config, tmp_path: Path) -> None:
         records.read_blocks(
             {"sources": ["qa.json"], "stop_at": [""]}, "rules.json", tmp_path, lambda _d: None
         )
+
+
+def test_the_radius_is_read_by_distance_symbols_before_files_at_one_depth() -> None:
+    """Declared deepest-first, listed nearest-first; a record on seed and radius is direct."""
+    declared = [
+        records.Record("FAR", "far", None, None, ("deep.Far::run",)),
+        records.Record("NEAR-FILE", "near file", None, None, ("near.py",)),
+        records.Record("NEAR", "near", None, None, ("near.Near::run",)),
+        records.Record("BOTH", "both", None, None, ("seed.Seed::run", "deep.Far::run")),
+        records.Record("HUB", "hub", None, None, ("hub.Hub::run",)),
+    ]
+    radius = [
+        ("deep.Far::run", 2, "deep.py"),
+        ("hub.Hub::run", 1, "hub.py"),
+        ("near.Near::run", 1, "near.py"),
+        ("near.py", 1, "near.py"),
+    ]
+    listed, stopped = records.ranked(declared, ["seed.Seed::run"], radius, stop_at=["hub.*"])
+
+    assert [(row["id"], row["distance"]) for row in listed] == [
+        ("BOTH", 0), ("NEAR", 1), ("NEAR-FILE", 1), ("FAR", 2),
+    ]
+    assert stopped == 1  # HUB, kept out through a symbol carrier in a stop_at file
+
+
+def test_a_stopped_only_answer_still_carries_rules_stale(tmp_path: Path) -> None:
+    """Every record kept out by ``stop_at`` and none listed: the count still reads as stale."""
+    hub_only = [row for row in RECORDS if row["targets"] == [HUB]]
+    config = build(tmp_path / "repo", hub_only, stop_at=["front.*"])
+    rules = config.root / "rules.json"
+    rules.write_text(rules.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    answer = impact.create(config)(paths=[LEAF])
+
+    assert "records" not in answer and answer["records_stopped"] == 50
+    assert "rules_stale" in answer

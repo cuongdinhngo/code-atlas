@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 
 from code_atlas import records
-from code_atlas.config import Config, load_config
+from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_references, impact, read_symbol
@@ -148,6 +148,18 @@ def test_only_scalars_and_lists_of_scalars_are_kept() -> None:
     kept = [records._attribute(value) for value in ("a", 0, 1.5, False, [1, "b"])]
     dropped = [
         records._attribute(value)
-        for value in (None, {"a": 1}, [], [[1]], [{"a": 1}], float("nan"), [float("inf")])
+        for value in (
+            None, {"a": 1}, [], [[1]], [{"a": 1}], float("nan"), [float("inf")],
+            "x" * (records.TITLE_MAX + 1), list(range(records.ATTRIBUTE_LIST_MAX + 1)),
+        )
     ]
-    assert kept == ["a", 0, 1.5, False, [1, "b"]] and dropped == [None] * 7
+    assert kept == ["a", 0, 1.5, False, [1, "b"]] and dropped == [None] * 9
+    with pytest.raises(ValueError, match="must be a string"):
+        records.check_filter({"tier": float("nan")}, ["tier"])
+
+
+@pytest.mark.parametrize("bad", ["tier", [1], [""], [" "], None])
+def test_a_malformed_attributes_list_fails_the_build_loud(tmp_path: Path, bad: object) -> None:
+    item = {"sources": ["qa.json"], "fields": {"id": "key", "title": "summary"}, "attributes": bad}
+    with pytest.raises(ConfigError, match="attributes must be a list of field paths"):
+        records.read_blocks(item, "rules.json", tmp_path, lambda _d: None)

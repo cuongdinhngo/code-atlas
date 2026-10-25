@@ -424,12 +424,13 @@ scanner masks literals) the call's first line is read, as before (398).
   `significant_by_path` (`{"/x.php": ["cmd"]}`) gives a path its own keys in place of the block's
   (411). Rows of one canonical key with different targets are a **collision**: all are stored, and
   a URL reaching that key — or the first matching pattern's — answers every target, with
-  `ambiguity: "route_collision"` and `route_candidates`, never one handler. A repeated key and
-  target is a `duplicate`; a dead-target row is counted, not stored, so its URL answers
-  `no_such_symbol`. `get_index_status` balances the table under `routes`: `declared` = `stored` +
+  `ambiguity: "route_collision"` and `route_candidates` (up to 20; `route_candidates_total` when
+  cut), never one handler; the trace is one build seeded at every target, under its usual caps.
+  A repeated key and target is a `duplicate`; a dead-target row is counted, not stored — even
+  when an earlier row routed its key — so its URL answers `no_such_symbol`. `get_index_status` balances the table under `routes`: `declared` = `stored` +
   the `dropped` counts (`unresolved`, `short_name_tie`, `duplicate`, `incomplete` — a census row
   missing its key or target), with up to 20 `dropped_examples` per reason, `collisions` and
-  `collision_examples`. Only those three tools read routes — the map,
+  `collision_examples` (20 routes each, with `routes_total`). Only those three tools read routes — the map,
   `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
   `HEURISTIC` + `rule: true`; later hops carry their own tiers.
   **A JSON census (397).** `json` names a file, `rows` a dotted path to its list of objects (absent:
@@ -468,7 +469,8 @@ scanner masks literals) the call's first line is read, as before (398).
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
   `skipped` (an unreadable file, a record with no id, a repeated id — the first by path wins).
   `attributes` names further dotted paths (`["tier", "region"]`) whose values — a string, number,
-  boolean or a list of them; anything else is dropped — ride on a record row as `attributes`,
+  boolean or a list of up to 20 of them, a string at most 200 characters; anything else is
+  dropped, never cut — ride on a record row as `attributes`,
   keyed by the path as written, omitted when the record holds none of them (413). `records_filter` on `read_symbol`, `find_references` and
   `impact` (`{"tier": ["A", "B"]}`) keeps a record whose attribute equals a value (a list attribute:
   any element; a record without the attribute never matches), before `records_total` counts; a path

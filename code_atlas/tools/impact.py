@@ -372,7 +372,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if stopped:
                 result["records_stopped"] = stopped
         _attach_freshness(result, staleness)
-        if routes or "routes" in result or "records" in result:
+        if routes or {"routes", "records", "records_stopped"} & result.keys():
             # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
             attach_rules_stale(result, config, relabel=bool(routes))
         attach_other_definitions(result, plan)
