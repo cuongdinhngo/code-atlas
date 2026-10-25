@@ -79,6 +79,9 @@ class TemplateRef(NamedTuple):
     kind: str = "CALLS"
 
 
+# The declared definition precedence a tool reads when a qname has several definitions (414).
+DEFINITION_PRECEDENCE_META_KEY = "definition_precedence"
+
 @dataclass(frozen=True, slots=True)
 class RulesPayload:
     """Validated aliases/calls/view_data/keyed_calls plus a content digest (load before parse)."""
@@ -94,6 +97,8 @@ class RulesPayload:
     routes: tuple[routes.RouteBlock, ...] = ()
     # Declared record sources (407): read here so their bytes join the digest; resolved into meta.
     records: tuple[records.RecordSet, ...] = ()
+    # Path globs, most authoritative first: the definition that answers for a shared qname (414).
+    precedence: tuple[str, ...] = ()
 
 
 def load_indirection_rules(config: Config) -> RulesPayload | None:
@@ -113,6 +118,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     template_refs: list[TemplateRef] = []
     route_blocks: list[routes.RouteBlock] = []
     record_sets: list[records.RecordSet] = []
+    precedence: list[str] = []
     digester = hashlib.sha256()
     for relative in sorted(paths):
         full = config.root / relative
@@ -138,6 +144,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         route_blocks.extend(routes.read_blocks(parsed[4], relative, config.root, digester.update))
         template_refs.extend(parsed[5])
         record_sets.extend(records.read_blocks(parsed[6], relative, config.root, digester.update))
+        precedence.extend(_precedence(parsed[7], relative))
 
     return RulesPayload(
         aliases=tuple(aliases),
@@ -148,7 +155,28 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         routes=tuple(route_blocks),
         template_refs=tuple(template_refs),
         records=tuple(record_sets),
+        precedence=tuple(dict.fromkeys(precedence)),
     )
+
+
+def _precedence(raw: object, label: str) -> list[str]:
+    """``{"precedence": [glob, …]}``: which definition answers when a qname has several (414)."""
+    if raw is None:
+        return []
+    globs = raw.get("precedence") if isinstance(raw, dict) else None
+    if not isinstance(globs, list) or not all(isinstance(g, str) and g.strip() for g in globs):
+        raise ConfigError(
+            f"indirection_rules: {label!r} definitions.precedence must be a list of path globs"
+        )
+    return [glob.strip() for glob in globs]
+
+
+def publish_definitions(store: GraphStore, payload: RulesPayload | None) -> None:
+    """Store the declared definition precedence, or drop it when none is declared (414)."""
+    if payload is None or not payload.precedence:
+        store.delete_meta(DEFINITION_PRECEDENCE_META_KEY)
+    else:
+        store.set_meta(DEFINITION_PRECEDENCE_META_KEY, json.dumps(list(payload.precedence)))
 
 
 def rules_digest(payload: RulesPayload | None) -> str:
@@ -1019,6 +1047,7 @@ def _load_rules(
     object,
     list[TemplateRef],
     object,
+    object,
 ]:
     try:
         raw = json.loads(raw_bytes.decode("utf-8"))
@@ -1082,6 +1111,7 @@ def _load_rules(
         raw.get("routes"),
         template_refs,
         raw.get("records"),
+        raw.get("definitions"),
     )
 
 

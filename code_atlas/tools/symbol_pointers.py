@@ -7,10 +7,12 @@ copies. Each pointer is read from rows and edges the index already holds; none i
 
 from __future__ import annotations
 
+import fnmatch
 import json
 from collections.abc import Mapping, Sequence
 
 from code_atlas import contract
+from code_atlas.enrichment import DEFINITION_PRECEDENCE_META_KEY
 from code_atlas.store import GraphStore, Row
 from code_atlas.symbol_role import path_indicates_test
 
@@ -21,6 +23,8 @@ AMBIGUITY_FIELD = "ambiguity"
 TEST_COPIES = "test_copies"
 # Several migrations redefine one object; the highest version answers (403).
 MIGRATION_REDEFINITIONS = "migration_redefinitions"
+# The project's declared precedence picks the definition that answers (414).
+DEFINITION_PRECEDENCE = "definition_precedence"
 # Overrides named per read, and subtype levels walked to find them: a pointer, not a hierarchy.
 IMPLEMENTED_BY_CAP = 20
 _DESCENT_LEVELS = 4
@@ -172,18 +176,52 @@ def latest_migration_first(
     return [row for _, row in ranked] + copies, True
 
 
+def declared_precedence(store: GraphStore) -> tuple[str, ...]:
+    """The path globs a rules file declared, most authoritative first; empty when none (414)."""
+    raw = store.get_meta(DEFINITION_PRECEDENCE_META_KEY)
+    return tuple(json.loads(raw)) if raw else ()
+
+
+def precedence_first(
+    rows: Sequence[Row], precedence: Sequence[str], *, complete: bool = True
+) -> tuple[list[Row], bool]:
+    """The one production definition the first matching glob names, then the rest (414).
+
+    The first glob any production row matches decides: one row answers; two leave the rows as
+    they are, never a guess. No glob matches, a cut fetch, or no precedence: not held.
+    """
+    production = [row for row in rows if not row.get("is_test")]
+    if not complete or len(rows) < 2 or not precedence:
+        return list(rows), False
+    for glob in precedence:
+        hits = [row for row in production if fnmatch.fnmatchcase(str(row["file_path"]), glob)]
+        if hits:
+            if len(hits) > 1:
+                return list(rows), False
+            return [hits[0], *(row for row in rows if row is not hits[0])], True
+    return list(rows), False
+
+
 def one_definition_first(
-    rows: Sequence[Row], *, complete: bool = True, every_version: bool = True
+    rows: Sequence[Row],
+    *,
+    complete: bool = True,
+    every_version: bool = True,
+    precedence: Sequence[str] = (),
 ) -> tuple[list[Row], str | None]:
     """The definition that answers first, and why the others do not compete — or ``None``.
 
     The one rule every reader of several definitions applies (R1.8): a production row over its test
-    copies (394), then the latest of a migration's redefinitions (403). ``every_version=False``
-    (a page may hide a redefinition) never names a latest it cannot see.
+    copies (394), then the project's declared precedence (414), then the latest of a migration's
+    redefinitions (403). ``every_version=False`` (a page may hide a redefinition) never names a
+    latest it cannot see, nor a preferred definition.
     """
     ordered, held = test_copies_first(rows, complete=complete)
     if held:
         return ordered, TEST_COPIES
+    ordered, held = precedence_first(rows, precedence, complete=complete and every_version)
+    if held:
+        return ordered, DEFINITION_PRECEDENCE
     ordered, held = latest_migration_first(rows, complete=complete and every_version)
     return ordered, MIGRATION_REDEFINITIONS if held else None
 

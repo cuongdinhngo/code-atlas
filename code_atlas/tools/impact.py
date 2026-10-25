@@ -43,6 +43,7 @@ from code_atlas.tools.nav_result import (
     sibling_definition_rows,
 )
 from code_atlas.tools.staleness import compute_staleness
+from code_atlas.tools.symbol_pointers import declared_precedence, precedence_first
 
 NAME = "impact"
 
@@ -87,6 +88,8 @@ class SeedPlan(NamedTuple):
     twinned_sites: list[tuple[str, list[dict[str, object]]]]
     dropped: tuple[SubjectResolution, ...]
     from_bare: tuple[tuple[str, str], ...] = ()
+    # Seeds walked through the declared precedence: the answering site, then the others (414).
+    preferred: tuple[tuple[str, list[dict[str, object]]], ...] = ()
 
     @property
     def refused(self) -> int:
@@ -99,7 +102,9 @@ def plan_seeds(
 ) -> SeedPlan:
     """Resolve the subjects, then remove the seeds that cannot honestly be walked (161 + 169)."""
     seed_set = resolve_seeds(store, paths=paths, qnames=qnames, max_results=max_results)
-    walk_seeds, ambiguous_sites = _split_ambiguous(store, seed_set.seeds, max_results)
+    walk_seeds, ambiguous_sites, preferred = _split_ambiguous(
+        store, seed_set.seeds, max_results
+    )
     ambiguous_sites = [*ambiguous_sites, *seed_set.bare_refused]
     # Only the seeds a PATH expanded into: 161 closed the qname half, and a caller who named a
     # qname asked for that qname (169).
@@ -118,6 +123,7 @@ def plan_seeds(
         twinned_sites=twinned_sites,
         dropped=seed_set.dropped,
         from_bare=seed_set.from_bare,
+        preferred=tuple(preferred),
     )
 
 
@@ -216,6 +222,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         A seed whose qname has more than one definition is **not** walked (the graph links callers
         by qname, so it cannot be attributed to one twin): its sites are listed under
         ``ambiguous_definitions``; when no seed was walkable, ``reason=subject_ambiguous`` (161).
+        A rules file's ``definitions.precedence`` naming one definition walks it instead, the rest
+        under ``other_definitions`` (414).
         The default payload names the revision it describes — ``staleness`` plus ``last_commit`` —
         so a blast radius acted on destructively is never silently undated (8-E).
 
@@ -304,6 +312,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 exclude_test_sources=exclude_tests,
             )
             results = outcome.rows[: config.impact_max_nodes]
+            _place_preferred_seeds(results, plan.preferred)
             if detail_level != "minimal":
                 _label_rows(store, results)
             # A blast radius is acted on destructively, so it names the revision in-band, not only
@@ -360,6 +369,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if routes or "routes" in result or "records" in result:
             # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
             attach_rules_stale(result, config, relabel=bool(routes))
+        if plan.preferred:
+            result["other_definitions"] = [
+                site for _, sites in plan.preferred for site in sites[1:]
+            ]
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)
         if unlinked_same_name_sites:
@@ -403,25 +416,48 @@ def _method_seed_unlinked_sites(store: GraphStore, seeds: Sequence[str]) -> int:
 
 def _split_ambiguous(
     store: GraphStore, seeds: Sequence[str], max_results: int
-) -> tuple[list[str], list[tuple[str, list[dict[str, object]]]]]:
+) -> tuple[
+    list[str],
+    list[tuple[str, list[dict[str, object]]]],
+    list[tuple[str, list[dict[str, object]]]],
+]:
     """Partition seeds into walkable (one definition) and ambiguous (a shared qname, 9-A).
 
     The graph links callers by qname, not node identity, so a qname with >1 definitions cannot be
-    attributed to one twin; such a seed is disclosed, never walked as an arbitrary one. Order-stable
-    (R4.2); the site list is ``definition_sites`` order.
+    attributed to one twin; such a seed is disclosed, never walked as an arbitrary one — unless
+    the project's declared precedence names the one that answers (414): it is walked, its other
+    definitions listed. Order-stable (R4.2); the site list is ``definition_sites`` order.
     """
     walk: list[str] = []
     ambiguous: list[tuple[str, list[dict[str, object]]]] = []
+    preferred: list[tuple[str, list[dict[str, object]]]] = []
+    precedence = declared_precedence(store)
     for qname in seeds:
         rows = store.nodes_by_qualified_name(qname, limit=max_results)
-        if len(rows) > 1:
+        ordered, held = precedence_first(rows, precedence, complete=len(rows) < max_results)
+        if len(rows) > 1 and held:
+            walk.append(qname)
+            sites = [{**site, "qname": qname} for site in definition_sites(ordered)]
+            preferred.append((qname, sites))
+        elif len(rows) > 1:
             sites = definition_sites(rows)
             for site in sites:  # one site shape with the bare refusal's (392)
                 site["qname"] = qname
             ambiguous.append((qname, sites))
         else:
             walk.append(qname)
-    return walk, ambiguous
+    return walk, ambiguous, preferred
+
+
+def _place_preferred_seeds(
+    rows: list[dict[str, object]], preferred: Sequence[tuple[str, list[dict[str, object]]]]
+) -> None:
+    """A seed walked through the declared precedence sits at its answering definition (414)."""
+    sites = {qname: listed[0] for qname, listed in preferred}
+    for row in rows:
+        site = sites.get(str(row["qname"]))
+        if site is not None and row.get("depth") == 0:
+            row["file"], row["line"] = site["file"], site["line"]
 
 
 def _split_twinned(

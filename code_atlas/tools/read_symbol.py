@@ -66,6 +66,7 @@ from code_atlas.tools.symbol_pointers import (
     ALIASES_FIELD,
     AMBIGUITY_FIELD,
     aliases,
+    declared_precedence,
     implemented_by,
     one_definition_first,
 )
@@ -147,7 +148,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ignoring the list (070 warn; 078 refuse) — unless one is production and every other a
         test copy: that one answers, with ``ambiguity: "test_copies"`` and the copies listed (394);
         or every one a versioned migration's redefinition (``V7__x.sql``): the highest version
-        answers, ``ambiguity: "migration_redefinitions"``, the earlier ones listed (403).
+        answers, ``ambiguity: "migration_redefinitions"``, the earlier ones listed (403); or a
+        rules file's ``definitions.precedence`` glob names one: ``"definition_precedence"`` (414).
         A found hit names where else its code lives (394): ``implemented_by`` — for an abstract
         method or one whose body reaches nothing, the overriding methods of linked subtypes,
         capped — and ``aliases`` — the names an ``ALIASES`` edge ties
@@ -303,7 +305,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if prefix_miss is not None:
                 return _stamp(prefix_miss)
-            rows, ambiguity = one_definition_first(rows, complete=complete)
+            rows, ambiguity = one_definition_first(
+                rows, complete=complete, precedence=declared_precedence(store)
+            )
             if len(rows) > 1 and ambiguity is None:
                 refused = _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
                 return _stamp(_attach_records(refused, store, qname, config, records_filter))
@@ -360,7 +364,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 if prefix_miss is not None:
                     return _stamp(prefix_miss)
-                rows, ambiguity = one_definition_first(rows, complete=complete)
+                rows, ambiguity = one_definition_first(
+                    rows, complete=complete, precedence=declared_precedence(store)
+                )
                 if len(rows) > 1 and ambiguity is None:
                     refused = _refuse_ambiguous(
                         qname, rows, detail_level=detail_level, config=config
