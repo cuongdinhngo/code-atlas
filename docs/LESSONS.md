@@ -44,7 +44,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-zero-must-count-what-the-search-cannot-see` | 5 | 363, 397, 406, 409, 411 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-zero-must-count-what-the-search-cannot-see` | 6 | 363, 397, 406, 409, 411, 415 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-docs-change-runs-every-doc-budget` | 2 | 408, 411 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
@@ -266,7 +266,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 363-C1 — a zero from a text search must count the rows the search cannot match
 
 - type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
-- status: proposed · seen: 363, 397, 406, 409, 411
+- status: proposed · seen: 363, 397, 406, 409, 411, 415
 - evidence: `include_graph` attested an unused copy by searching unlinked include text for its
   basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
   includer yet never matches. The challenger found it; the zero now counts them and is not
@@ -275,6 +275,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   409: an empty `find_callers` searched whole literals only, so `'dbo.name'` read as a
   measured zero; a qualified or keyword literal now names the subject.
   411: a TSV or JSON census row missing its key or target was skipped uncounted; it is now `incomplete`.
+  415: a misspelt TSV label column read every row as unlabelled; it now fails the build.
 - destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
 
 ### 362-C1 — a widened target must widen every query behind the same answer
