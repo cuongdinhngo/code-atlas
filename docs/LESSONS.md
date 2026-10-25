@@ -41,10 +41,12 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
 | `widen-every-query-that-shares-the-page` | 13 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
-| `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
+| `read-a-literal-by-its-structure-not-a-regex` | 3 | 361, 371, 398 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-zero-must-count-what-the-search-cannot-see` | 6 | 363, 397, 406, 409, 411, 415 | not yet — awaiting the maintainer's `/mango:promote` |
+| `seed-the-change-probe-with-the-first-answer` | 2 | 374, 396 | not yet — awaiting the maintainer's `/mango:promote` |
+| `confirm-the-blocked-path-runs` | 2 | 360, 365 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-docs-change-runs-every-doc-budget` | 2 | 408, 411 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
