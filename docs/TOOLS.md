@@ -422,14 +422,17 @@ scanner masks literals) the call's first line is read, as before (398).
   the block — they answer `capability_not_configured`. A key is case-sensitive and percent-decoded,
   its fragment dropped; any string (a CLI command, a message type) works as a path-only key.
   `significant_by_path` (`{"/x.php": ["cmd"]}`) gives a path its own keys in place of the block's
-  (411). Rows of one canonical key with different targets are a **collision**: all are stored, and
-  a URL reaching that key — or the first matching pattern's — answers every target, with
-  `ambiguity: "route_collision"` and `route_candidates`, never one handler. A repeated key and
+  (411). Rows of one canonical key with different targets are all stored, and a URL reaching that
+  key — or the first matching pattern's — answers every target, never one handler. When each row
+  carries its own `when` label (`region=A`, `flag=ON`) and optional `source` (`file:line`) — inline
+  fields, or `columns` entries for a TSV or JSON census — the key is a **conditional route**: each
+  flow and route row carries its `when`/`source`, labels nothing evaluates (415). Otherwise it is
+  a **collision**, flagged `ambiguity: "route_collision"` with `route_candidates`. A repeated key and
   target is a `duplicate`; a dead-target row is counted, not stored, so its URL answers
   `no_such_symbol`. `get_index_status` balances the table under `routes`: `declared` = `stored` +
   the `dropped` counts (`unresolved`, `short_name_tie`, `duplicate`, `incomplete` — a census row
-  missing its key or target), with up to 20 `dropped_examples` per reason, `collisions` and
-  `collision_examples`. Only those three tools read routes — the map,
+  missing its key or target), with up to 20 `dropped_examples` per reason, `collisions`,
+  `collision_examples` and `conditional` (keys). Only those three tools read routes — the map,
   `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
   `HEURISTIC` + `rule: true`; later hops carry their own tiers.
   **A JSON census (397).** `json` names a file, `rows` a dotted path to its list of objects (absent:
