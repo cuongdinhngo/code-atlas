@@ -129,7 +129,7 @@ W1–W3 count as self-resolved because the handover handed them back; each stand
 
 `BASELINE: green — 414's final gate on this stack: 4972 passed, 4 skipped, 1 xfailed, 2 host exclusions`
 
-Ran at 414's gate tree (recorded in 414's working doc). Host exclusions as 411.
+Ran at 3feb7593 (414's gate). Host exclusions as 411.
 
 ### Rule sections
 
