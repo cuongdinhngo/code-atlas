@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import fnmatch
 import json
-from collections.abc import Callable, Iterable, Sequence
+import math
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -29,9 +30,12 @@ RECORDS_META_KEY = "records"
 RECORDS_STATUS_META_KEY = "records_status"
 # Globs of hub files whose records reach no answer seeded elsewhere (412).
 RECORDS_STOP_AT_META_KEY = "records_stop_at"
+# The attribute paths the blocks declare: the names a `records_filter` may test (413).
+RECORDS_ATTRIBUTES_META_KEY = "records_attributes"
 RECORD_TIER = contract.CONFIDENCE_TIERS[1]  # HEURISTIC
 DANGLING_FIRST = 10
 TITLE_MAX = 200
+ATTRIBUTE_LIST_MAX = 20  # a longer list attribute is dropped, never stored (413)
 _DEFAULT_FIELDS = {"id": "id", "title": "title", "url": "url", "kind": "kind"}
 _LINE_SUFFIXES = frozenset({".jsonl", ".ndjson"})
 
@@ -45,6 +49,8 @@ class Record:
     url: str | None
     kind: str | None
     targets: tuple[str, ...]
+    # Declared attribute paths and their values, as read (413); empty when none is declared.
+    attributes: tuple[tuple[str, object], ...] = ()
 
     def as_row(
         self, via: str | None = None, distance: int | None = None
@@ -56,6 +62,8 @@ class Record:
             row["url"] = self.url
         if self.kind is not None:
             row["kind"] = self.kind
+        if self.attributes:
+            row["attributes"] = dict(self.attributes)
         if via is not None:
             row["via"] = via
         if distance is not None:
@@ -75,6 +83,7 @@ class RecordSet:
     skipped: int
     files: int = 0  # files the globs matched: a typo'd glob reads as 0, not as silence
     stop_at: tuple[str, ...] = ()  # hub-file globs (412)
+    attributes: tuple[str, ...] = ()  # declared attribute paths (413)
 
 
 def read_blocks(
@@ -104,6 +113,12 @@ def _read_block(
     ):
         raise ConfigError(f"{where}.sources must be a list of globs")
     fields, targets = _fields(item.get("fields"), where)
+    attributes = item.get("attributes", [])
+    if not isinstance(attributes, list) or not all(
+        isinstance(path, str) and path.strip() for path in attributes
+    ):
+        raise ConfigError(f"{where}.attributes must be a list of field paths")
+    declared = tuple(dict.fromkeys(path.strip() for path in attributes))
     kind = item.get("kind")
     if kind is not None and not isinstance(kind, str):
         raise ConfigError(f"{where}.kind must be a string")
@@ -135,10 +150,11 @@ def _read_block(
             if rid in excluded_ids:
                 excluded.add(rid)
                 continue
-            records.append(_record(entry, rid, fields, targets, kind))
+            records.append(_record(entry, rid, fields, targets, kind, declared))
     return RecordSet(
         tuple(records), len(excluded), skipped, len(matched),
         tuple(glob.strip() for glob in stop_at),
+        declared,
     )
 
 
@@ -222,6 +238,7 @@ def _record(
     fields: dict[str, str],
     targets: Sequence[str],
     kind: str | None,
+    attributes: Sequence[str] = (),
 ) -> Record:
     title = _dig(entry, fields["title"])
     url = _dig(entry, fields["url"])
@@ -241,7 +258,36 @@ def _record(
         url=url.strip() if isinstance(url, str) and url.strip() else None,
         kind=declared_kind if isinstance(declared_kind, str) and declared_kind else kind,
         targets=tuple(named),
+        attributes=tuple(
+            (path, value)
+            for path in attributes
+            if (value := _attribute(_dig(entry, path))) is not None
+        ),
     )
+
+
+def _attribute(value: object) -> object:
+    """A kept attribute value: a string, number or boolean, or a list of up to
+    ``ATTRIBUTE_LIST_MAX`` of them — else ``None``, never stored (413)."""
+    if _scalar(value):
+        return value
+    if (
+        isinstance(value, list)
+        and 0 < len(value) <= ATTRIBUTE_LIST_MAX
+        and all(_scalar(item) for item in value)
+    ):
+        return value
+    return None
+
+
+def _scalar(value: object) -> bool:
+    # NaN and the infinities are not JSON; a string past TITLE_MAX would bloat every row.
+    # Dropped, never cut: a truncated value would silently miss an exact filter.
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, str):
+        return len(value) <= TITLE_MAX
+    return isinstance(value, int | bool)
 
 
 def _dig(value: object, path: str) -> object:
@@ -286,7 +332,10 @@ def resolve(
             if found:
                 attachments += len(found)
                 stored.append(
-                    Record(record.id, record.title, record.url, record.kind, tuple(found))
+                    Record(
+                        record.id, record.title, record.url, record.kind, tuple(found),
+                        record.attributes,
+                    )
                 )
     counts: dict[str, object] = {
         "files": files,
@@ -311,9 +360,70 @@ def load(raw: str | None) -> list[Record] | None:
     if raw is None:
         return None
     return [
-        Record(row["id"], row["title"], row["url"], row["kind"], tuple(row["targets"]))
+        Record(
+            row["id"], row["title"], row["url"], row["kind"], tuple(row["targets"]),
+            tuple((str(path), value) for path, value in row.get("attributes", ())),
+        )
         for row in json.loads(raw)
     ]
+
+
+def load_selected(
+    raw: str | None, raw_declared: str | None, wanted: Mapping[str, object] | None
+) -> list[Record] | None:
+    """The stored records a ``records_filter`` keeps (413); ``None`` when no records block was
+    built — and a filter then names nothing declared, so it is refused."""
+    stored = load(raw)
+    declared = json.loads(raw_declared) if raw_declared else []
+    selected = select(stored or [], wanted, declared)
+    return None if stored is None else selected
+
+
+def select(
+    records: Sequence[Record], wanted: Mapping[str, object] | None, declared: Sequence[str]
+) -> list[Record]:
+    """The records whose attributes match ``wanted``: each path equal to a value, or to one of a
+    list's; a list attribute matches when any element does (413). A path no block declares is
+    refused — never read as "matches nothing" or ignored."""
+    if wanted is None:
+        return list(records)
+    check_filter(wanted, declared)
+    tests = {
+        path: value if isinstance(value, list) else [value] for path, value in wanted.items()
+    }
+    return [
+        record
+        for record in records
+        if all(_kept(dict(record.attributes).get(path), want) for path, want in tests.items())
+    ]
+
+
+def check_filter(wanted: Mapping[str, object], declared: Sequence[str]) -> None:
+    """Refuse a filter naming a path no block declares, or wanting a value no attribute holds:
+    an object, a null, a nested or empty list (413)."""
+    unknown = sorted(set(wanted) - set(declared))
+    if unknown:
+        raise ValueError(
+            f"records_filter names {unknown}, which no records block declares as attributes; "
+            f"declared: {sorted(declared)}"
+        )
+    for path, value in wanted.items():
+        values = value if isinstance(value, list) else [value]
+        if not values or not all(_scalar(item) for item in values):
+            raise ValueError(
+                f"records_filter[{path!r}] must be a string, number or boolean, or a non-empty "
+                f"list of them, got {value!r}"
+            )
+
+
+def _kept(value: object, wanted: Sequence[object]) -> bool:
+    held = value if isinstance(value, list) else [] if value is None else [value]
+    return any(_same(item, want) for item in held for want in wanted)
+
+
+def _same(left: object, right: object) -> bool:
+    # JSON's true is not 1: a boolean equals only a boolean.
+    return left == right and isinstance(left, bool) == isinstance(right, bool)
 
 
 def attached(

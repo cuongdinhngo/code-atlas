@@ -318,6 +318,7 @@ def publish_records(store: GraphStore, payload: RulesPayload | None) -> None:
         store.delete_meta(records.RECORDS_META_KEY)
         store.delete_meta(records.RECORDS_STATUS_META_KEY)
         store.delete_meta(records.RECORDS_STOP_AT_META_KEY)
+        store.delete_meta(records.RECORDS_ATTRIBUTES_META_KEY)
         return
     files = set(store.file_paths())
     named = sorted({t for block in payload.records for r in block.records for t in r.targets})
@@ -345,6 +346,11 @@ def publish_records(store: GraphStore, payload: RulesPayload | None) -> None:
         store.set_meta(records.RECORDS_STOP_AT_META_KEY, json.dumps(stop_at))
     else:
         store.delete_meta(records.RECORDS_STOP_AT_META_KEY)
+    declared = sorted({path for block in payload.records for path in block.attributes})
+    if declared:
+        store.set_meta(records.RECORDS_ATTRIBUTES_META_KEY, json.dumps(declared))
+    else:
+        store.delete_meta(records.RECORDS_ATTRIBUTES_META_KEY)
 
 
 def is_rule_edge_path(path: object) -> bool:

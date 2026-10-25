@@ -34,6 +34,7 @@ PARAM_WAIVERS: dict[str, str] = {
     "reset_fit_counts": "ops knob on get_index_status; not a how-to-ask rule",
     "records": "impact's records side-field scope (412); the tool description teaches it",
     "records_limit": "impact's records side-field page (412); same as limit",
+    "records_filter": "records side-field filter (413); each tool's description teaches it",
 }
 
 CAPABILITY_WAIVERS: dict[str, str] = {}

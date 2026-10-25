@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 from typing import Any, Literal, NamedTuple
 
-from code_atlas import contract
+from code_atlas import contract, records
 from code_atlas.build_info import maybe_server_provenance, server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONFIDENCE_TIERS
@@ -934,6 +934,18 @@ def shape_exact_miss(
         miss["candidates"] = list(resolution.stored_shorter)
         attach_try_instead(miss, None, TRY_INSTEAD_HINT_STORED_SHORTER)
     return miss
+
+
+def require_records_filter(config: Config, wanted: Mapping[str, object] | None) -> None:
+    """Refuse a malformed or undeclared ``records_filter`` before any answer path (413): no
+    index, or no records block, declares nothing, so every named path is refused."""
+    if wanted is None:
+        return
+    raw = None
+    if config.db_path.is_file():
+        with GraphStore(config.db_path) as store:
+            raw = store.get_meta(records.RECORDS_ATTRIBUTES_META_KEY)
+    records.check_filter(wanted, json.loads(raw) if raw else [])
 
 
 def attach_limit_capped(
