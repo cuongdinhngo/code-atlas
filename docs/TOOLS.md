@@ -469,7 +469,8 @@ scanner masks literals) the call's first line is read, as before (398).
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
   `skipped` (an unreadable file, a record with no id, a repeated id — the first by path wins).
   `attributes` names further dotted paths (`["tier", "region"]`) whose values — a string, number,
-  boolean or a list of them; anything else is dropped — ride on a record row as `attributes`,
+  boolean or a list of up to 20 of them, a string at most 200 characters; anything else is
+  dropped, never cut — ride on a record row as `attributes`,
   keyed by the path as written, omitted when the record holds none of them (413). `records_filter` on `read_symbol`, `find_references` and
   `impact` (`{"tier": ["A", "B"]}`) keeps a record whose attribute equals a value (a list attribute:
   any element; a record without the attribute never matches), before `records_total` counts; a path
