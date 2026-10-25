@@ -281,7 +281,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         a URL a front controller dispatches at run time (``route``, read through a declared
         ``routes`` table: its flows start at the route's target, whose hop is ``HEURISTIC`` with
         ``rule: true``; a URL whose key several declared rows give different targets traces every
-        one and carries ``ambiguity: "route_collision"`` with ``route_candidates``; an unmatched URL
+        one — under each row's own ``when`` label a conditional route, each flow's ``route``
+        carrying ``when``/``source`` (never evaluated), else ``ambiguity: "route_collision"`` with
+        ``route_candidates``; an unmatched URL
         answers ``no_such_symbol`` with ``nearest_routes``; no table answers
         ``capability_not_configured``). Supply exactly one; naming none or several
         answers ``reason: name_not_qualified``. Each

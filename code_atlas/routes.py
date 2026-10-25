@@ -21,6 +21,7 @@ import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from code_atlas import contract
@@ -36,6 +37,7 @@ ROUTES_CENSUS_META_KEY = "routes_census"
 ROUTE_COLLISION = "route_collision"
 CANDIDATES_FIELD = "route_candidates"
 EXAMPLES_CAP = 20
+_LABELS = ("when", "source")
 UNRESOLVED, SHORT_NAME_TIE, DUPLICATE, INCOMPLETE = (
     "unresolved", "short_name_tie", "duplicate", "incomplete"
 )
@@ -44,12 +46,22 @@ NEAREST = 5
 _WILDCARD = "*"
 
 
+class Handler(NamedTuple):
+    """One declared row: a key, its target, and — for a conditional route — the condition it is
+    served under and the dispatching code, both labels nothing evaluates (415)."""
+
+    key: str
+    target: str
+    when: str | None = None
+    source: str | None = None
+
+
 @dataclass(frozen=True)
 class RouteBlock:
     """One ``routes`` block: which query keys decide a route, and its ``(key, target)`` rows."""
 
     significant: tuple[str, ...] | None
-    entries: tuple[tuple[str, str], ...]
+    entries: tuple[Handler | tuple[str, str], ...]
     # A JSON census names a handler by short class; `prefer` breaks a tie by qname segment (397).
     short_names: bool = False
     prefer: tuple[str, ...] = ()
@@ -73,16 +85,17 @@ class Route:
     target: str
     file: str
     significant: tuple[str, ...] | None
+    when: str | None = None  # a conditional route's label (415)
+    source: str | None = None
 
     def as_row(self) -> dict[str, object]:
         """The route as an answer carries it: declared, so HEURISTIC and rule-derived."""
-        return {
-            "route": self.declared,
-            "target": self.target,
-            "file": self.file,
-            "tier": ROUTE_TIER,
-            contract.RULE_FLAG: True,
-        }
+        row: dict[str, object] = {"route": self.declared, "target": self.target}
+        if self.when is not None:
+            row["when"] = self.when
+        if self.source is not None:
+            row["source"] = self.source
+        return row | {"file": self.file, "tier": ROUTE_TIER, contract.RULE_FLAG: True}
 
 
 def canonical(key: str, significant: Sequence[str] | None) -> str:
@@ -168,7 +181,7 @@ def _list(raw: object, label: str) -> list[object]:
     return raw
 
 
-def _entry(row: object, label: str) -> tuple[str, str]:
+def _entry(row: object, label: str) -> Handler:
     if not isinstance(row, dict):
         raise ConfigError(f"indirection_rules: {label!r} routes.table rows must be objects")
     key, target = row.get("key"), row.get("target")
@@ -176,14 +189,24 @@ def _entry(row: object, label: str) -> tuple[str, str]:
         raise ConfigError(
             f"indirection_rules: {label!r} routes.table rows need a string key and target"
         )
-    return key.strip(), target.strip()
+    labels = [row.get("when"), row.get("source")]
+    if not all(value is None or isinstance(value, str) for value in labels):
+        raise ConfigError(
+            f"indirection_rules: {label!r} routes.table when and source must be strings"
+        )
+    return Handler(key.strip(), target.strip(), *(_label(value) for value in labels))
+
+
+def _label(value: object) -> str | None:
+    """A ``when``/``source`` cell as stored: a blank one is no label (415)."""
+    return value.strip() or None if isinstance(value, str) else None
 
 
 def _tsv(
     item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
-) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
-    """A measured route census, used as is through a ``columns`` map naming its two columns;
-    and its rows missing either (411)."""
+) -> tuple[list[Handler], list[tuple[str, str]]]:
+    """A measured route census, used as is through a ``columns`` map naming its key and target
+    columns, and optionally ``when`` and ``source`` (415); and its rows missing either (411)."""
     relative, columns = item.get("tsv"), item.get("columns") or {"key": "key", "target": "target"}
     if not isinstance(relative, str) or not isinstance(columns, dict):
         raise ConfigError(f"indirection_rules: {label!r} routes.tsv needs a path and columns")
@@ -209,21 +232,25 @@ def _tsv(
             f"indirection_rules: {label!r} routes.tsv {relative!r} has no column "
             f"{key_column!r} or {target_column!r}"
         )
-    found: list[tuple[str, str]] = []
+    found: list[Handler] = []
     skipped: list[tuple[str, str]] = []
     for row in reader:
         key = str(row.get(str(key_column)) or "").strip()
         target = str(row.get(str(target_column)) or "").strip()
-        (found if key and target else skipped).append((key, target))
+        if key and target:
+            when, source = (_label(row.get(str(columns.get(name)))) for name in _LABELS)
+            found.append(Handler(key, target, when, source))
+        else:
+            skipped.append((key, target))
     return found, skipped
 
 
 def _json(
     item: dict[str, object], label: str, root: Path, digest: Callable[[bytes], None]
-) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+) -> tuple[list[Handler], list[tuple[str, str]]]:
     """A JSON route census: ``rows`` is a dotted path to its list of objects, ``columns`` names
-    the key and target fields (dotted for a nested one). A row missing either is skipped (397),
-    and counted (411)."""
+    the key and target fields (dotted for a nested one), and optionally ``when``/``source``. A
+    row missing a key or a target is skipped (397), and counted (411)."""
     relative, columns = item.get("json"), item.get("columns") or {"key": "key", "target": "target"}
     selector = item.get("rows", "")
     if not (isinstance(relative, str) and isinstance(columns, dict) and isinstance(selector, str)):
@@ -248,13 +275,20 @@ def _json(
         raise ConfigError(
             f"indirection_rules: {label!r} routes.json {relative!r} has no list at {selector!r}"
         )
-    found: list[tuple[str, str]] = []
+    found: list[Handler] = []
     skipped: list[tuple[str, str]] = []
     for row in rows:
         key, target = _dig(row, str(columns.get("key"))), _dig(row, str(columns.get("target")))
         pair = (key.strip() if isinstance(key, str) else "",
                 target.strip() if isinstance(target, str) else "")
-        (found if all(pair) else skipped).append(pair)
+        if all(pair):
+            when, source = (
+                _label(_dig(row, str(columns[name]))) if columns.get(name) else None
+                for name in _LABELS
+            )
+            found.append(Handler(*pair, when, source))
+        else:
+            skipped.append(pair)
     return found, skipped
 
 
@@ -291,6 +325,7 @@ class Census:
             "stored": self.stored,
             "dropped": dict(sorted(self.dropped.items())),
             "collisions": len(collided),
+            "conditional": sum(conditional(rows) for rows in _shared(routes).values()),
         }
         if self.examples:
             status["dropped_examples"] = dict(sorted(self.examples.items()))
@@ -310,14 +345,15 @@ def resolve(
     census: Census | None = None,
 ) -> tuple[list[Route], int]:
     """Routes whose target ``locate`` finds (its file), and the count of rows naming no indexed
-    symbol — counted, never linked (AC3). Rows of one key with different targets are all kept, a
-    collision; one repeating a key's target is a duplicate, dropped. ``census`` tallies each (411).
+    symbol — counted, never linked (AC3). Rows of one key with different targets are all kept —
+    a conditional route when each carries its own ``when`` (415), else a collision; one repeating
+    a key's target and ``when`` is a duplicate, dropped. ``census`` tallies each (411).
 
     A short-names block whose target ``locate`` misses asks ``candidates`` for the ``(qname, file)``
     pairs it may name; one, or one its ``prefer`` picks, links, and a tie lands in ``ambiguous``.
     """
     routes: list[Route] = []
-    targets: dict[str, set[str]] = {}
+    targets: dict[str, set[tuple[str, str | None]]] = {}
     unresolved = 0
     tied: dict[str, dict[str, object]] = {}
     tally = census if census is not None else Census()
@@ -325,7 +361,8 @@ def resolve(
         tally.declared += len(block.entries) + len(block.incomplete)
         for declared, target in block.incomplete:
             tally.drop(INCOMPLETE, declared, target)
-        for declared, target in block.entries:
+        for entry in block.entries:
+            declared, target, when, source = Handler(*entry)
             significant = block.significant_for(declared)
             key = canonical(declared, significant)
             file = locate(target)
@@ -344,12 +381,12 @@ def resolve(
                 unresolved += 1
                 tally.drop(SHORT_NAME_TIE if tie else UNRESOLVED, declared, target)
                 continue
-            if linked in targets.get(key, ()):
+            if (linked, when) in targets.get(key, ()):
                 tally.drop(DUPLICATE, declared, linked)
                 continue
-            targets.setdefault(key, set()).add(linked)
+            targets.setdefault(key, set()).add((linked, when))
             tally.stored += 1
-            routes.append(Route(key, declared, linked, file, significant))
+            routes.append(Route(key, declared, linked, file, significant, when, source))
     if ambiguous is not None:
         # A later row of the same key may have linked it; only a key left unrouted is named.
         ambiguous.extend(row for key, row in tied.items() if key not in targets)
@@ -357,7 +394,18 @@ def resolve(
 
 
 def colliding(routes: Sequence[Route]) -> dict[str, list[Route]]:
-    """Keys that several stored routes share, each with its routes in table order (411)."""
+    """Keys that several stored routes share with no condition telling them apart, each with its
+    routes in table order (411); a conditional route is not one (415)."""
+    return {key: rows for key, rows in _shared(routes).items() if not conditional(rows)}
+
+
+def conditional(rows: Sequence[Route]) -> bool:
+    """Several handlers of one key, each under its own ``when`` label (415)."""
+    labels = [route.when for route in rows]
+    return len(rows) > 1 and None not in labels and len(set(labels)) == len(labels)
+
+
+def _shared(routes: Sequence[Route]) -> dict[str, list[Route]]:
     by_key: dict[str, list[Route]] = {}
     for route in routes:
         by_key.setdefault(route.key, []).append(route)
@@ -370,7 +418,7 @@ def _brief(route: Route) -> dict[str, str]:
 
 def collision_fields(candidates: Sequence[Route]) -> dict[str, object]:
     """What an answer adds when its URL reached several handlers: none of them alone (411)."""
-    if len(candidates) < 2:
+    if len(candidates) < 2 or conditional(candidates):
         return {}
     return {
         "ambiguity": ROUTE_COLLISION,
@@ -415,6 +463,8 @@ def load(raw: str | None) -> list[Route] | None:
             row["target"],
             row["file"],
             tuple(row["significant"]) if row["significant"] is not None else None,
+            row.get("when"),
+            row.get("source"),
         )
         for row in rows
     ]

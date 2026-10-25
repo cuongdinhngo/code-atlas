@@ -242,8 +242,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``routes`` names URLs a declared ``routes`` table maps to a handler (385): each seeds its
         target, and one that matches no route counts in ``seeds_dropped``; one whose key several
-        declared rows give different targets seeds them all and the answer carries
-        ``ambiguity: "route_collision"`` with ``route_candidates`` (411). Whenever a table is
+        declared rows give different targets seeds them all and, unless each row carries its own
+        ``when`` (a conditional route, 415), the answer carries ``ambiguity: "route_collision"``
+        with ``route_candidates`` (411). Whenever a table is
         declared, ``routes`` in the answer lists each route whose target is a seed or in the radius
         (``HEURISTIC``, ``rule: true``) — omitted when none reaches it.
 
