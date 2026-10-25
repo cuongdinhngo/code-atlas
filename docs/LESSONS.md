@@ -44,8 +44,19 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-zero-must-count-what-the-search-cannot-see` | 5 | 363, 397, 406, 409, 411 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-docs-change-runs-every-doc-budget` | 2 | 408, 411 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 411-C1 — a baseline run in the checkout being edited measures no tree
+
+- type: 2 (process) · handle: `a-baseline-needs-a-frozen-tree`
+- status: proposed · seen: 411
+- evidence: 411's `scripts/gate.sh` baseline ran in the background while the first edits landed in the same
+  checkout, so its pytest read a mix of both trees; it was stopped and the base's CI run (same tree) taken
+  instead. Take the baseline before the first edit, or from CI on the base SHA.
+- destination: first sighting.
 
 ### 410-C1 — a stop-word list drops the real names that spell like its words
 
@@ -59,11 +70,12 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 408-C1 — a BACKLOG row is charged to the tier-1 budget, which `test_doc_size_budget.py` does not check
 
 - type: 2 (process) · handle: `a-docs-change-runs-every-doc-budget`
-- status: proposed · seen: 408
+- status: proposed · seen: 408, 411
 - evidence: #103 added three BACKLOG rows after running only the bookkeeping and doc-size tests, and `main` went red on
   `test_agent_chain_budget.py` (19,906 of 19,900 tokens), found by 408's baseline. A docs-only change still runs every
-  test that reads the doc it touched — `--fast` gate at least.
-- destination: first sighting.
+  test that reads the doc it touched — `--fast` gate at least. 411: #108, which ticketed 411–415, ran the
+  bookkeeping and doc-size tests only and went red on the same test (19,918 of 19,900).
+- destination: `docs/AGENT_BRIEF.md` (process) — proposed, awaiting the maintainer's `/mango:promote`.
 
 ### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
 
@@ -227,7 +239,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 363-C1 — a zero from a text search must count the rows the search cannot match
 
 - type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
-- status: proposed · seen: 363, 397, 406, 409
+- status: proposed · seen: 363, 397, 406, 409, 411
 - evidence: `include_graph` attested an unused copy by searching unlinked include text for its
   basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
   includer yet never matches. The challenger found it; the zero now counts them and is not
@@ -235,6 +247,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   and counted nowhere; it now counts in `keys_unread`.
   409: an empty `find_callers` searched whole literals only, so `'dbo.name'` read as a
   measured zero; a qualified or keyword literal now names the subject.
+  411: a TSV or JSON census row missing its key or target was skipped uncounted; it is now `incomplete`.
 - destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
 
 ### 362-C1 — a widened target must widen every query behind the same answer

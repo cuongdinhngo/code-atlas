@@ -4,7 +4,7 @@ slug: route-key-collisions
 title: "Two declared routes that canonicalise to one key keep the first silently, so a URL traces to an unrelated handler"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [385, 397]
 ---
 
@@ -55,7 +55,7 @@ Out of scope: several handlers on one key *by design* (415 builds that on top of
 
 ## Session status
 
-- **KEY:** 411 · **work_doc_mode:** embed · **Current phase:** 4 review · **Next action:** settle the challenger's findings, then finalise.
+- **KEY:** 411 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W5 and merges #109. **Revert path:** `git revert` the branch's commits; no contract or schema moved.
 - `TRACK: backend` · Run mode: `autorun 411 - 412 - 413 - 414 - 415 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/411-route-key-collisions` from `main` (`d3d45b21`; `origin/main` `9a682358` is #108's merge commit, same tree). Contract `.mango/run-contract-411.txt`.
@@ -232,6 +232,8 @@ Implemented in the main loop. Commits `afaa56b9` (core + tests), `c644d8d3` (doc
 
 **Green at execute:**
 
+Ran at c644d8d3
+
 ```
 $ .venv/bin/python -m pytest -q tests/test_route_collisions.py tests/test_route_table.py tests/test_routes_from_json.py
 29 passed in 11.08s
@@ -242,7 +244,66 @@ All checks passed!
 Success: no issues found in 105 source files
 ```
 
-Ran at c644d8d3.
-
 **Verification sweep.** File axis: every touched file is on the change list. Behaviour axis: Approach 1–6 implemented
 as approved. `get_index_status._attach_routes_ambiguous` is renamed `_attach_routes` (it now attaches both).
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 63,154 tokens; raw ticket only): R1–R5 met, AC1–AC3 met by its own probes
+  (wildcard keys, a `by_path` block, ties, two incomplete rows all balanced), AC4 likely. Findings:
+  - F1 (Minor) — the `routes` census is absent at `detail_level="minimal"` — **accepted as a limit**: the default is
+    `standard`, and `routes_ambiguous` and `records` stop at the same line (`get_index_status.py:626`).
+  - F2 (Minor) — an `incomplete` row had no `dropped_examples` entry — **fixed** in `4096172a`: the readers keep the
+    row as `(key, target)`, an absent one `""`; the AC3 test names it.
+  - F3 (Minor, reasoned, not run) — two blocks keying one URL differently (`significant: []` and `["cmd"]`) answer the
+    first key only — **accepted as a limit**: two different keys, as before 411; a collision is one key.
+- **Round 2: verify-only, main loop.** F2 stays inside `routes.py` and its test.
+
+```
+$ .venv/bin/python -m pytest -q tests/test_route_collisions.py tests/test_route_table.py tests/test_routes_from_json.py
+29 passed in 14.59s
+```
+
+Ran at 4096172a
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W5 standing for ratification.
+`Ph3/4 proven by`: R1, AC1 → `test_ac1_*`; R2, AC3 → `test_ac3_*`, `test_three_rows_*`; R3 (2/2: trace · impact) →
+`test_ac1_a_collision_*`, `test_ac1_impact_*`; R4, AC2 → `test_ac2_*`; AC4 → the 385/397 suites; R5 → TOOLS.md.
+
+Reviewed at 4096172a. Files: `code_atlas/routes.py`, `code_atlas/enrichment.py`, `code_atlas/tools/get_index_status.py`,
+`code_atlas/tools/trace_capability.py`, `code_atlas/tools/impact.py`, `tests/test_route_collisions.py`,
+`tests/test_route_table.py`, `docs/TOOLS.md`. Working doc: this file.
+
+## Phase 5 — finalise
+
+**Durable lesson.** Three claims, in `docs/LESSONS.md`:
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=3 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 2 recurring | 0 superseded (0 retired) | 2 promotion candidate(s)`
+`FALSIFY: 2 candidate(s) checked | 2 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md, docs/ENGINEERING_RULES.md | mango files written: 0`
+
+- 411-C1 `a-baseline-needs-a-frozen-tree` (process, new): a baseline run in the checkout being edited measures no tree.
+- 408-C1 `a-docs-change-runs-every-doc-budget` (process, seen 408, 411): #108 ran two doc tests and broke the tier-1
+  budget. Falsify: `tests/test_agent_chain_budget.py` still reads BACKLOG (still true). → `docs/AGENT_BRIEF.md`.
+- 363-C1 `a-zero-must-count-what-the-search-cannot-see` (code, seen +411): census rows skipped uncounted. Falsify:
+  `_tsv`/`_json` on `d3d45b21` skip a short row with no count (still true). → `docs/ENGINEERING_RULES.md`.
+  Both promotions are proposals; `/mango:promote` is the maintainer's pass.
+
+### Outward actions
+
+Under the handover: push `feat/411-route-key-collisions`; open its PR against `main`.
+Deferred to the maintainer: ratify W1–W5, the two promotions, merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 50,940 |
+| 3 execute | `implementer` — not dispatched; main loop implemented | — | unmeasured (main-loop spend, not a dispatch) |
+| 4 review | ticket-blind `challenger` | 1 | 63,154 |
+
+`LEDGER TOTAL: 114,094 · top cost driver: 4 review / challenger` — main loop unmeasured.
