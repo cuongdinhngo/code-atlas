@@ -233,21 +233,20 @@ def _traced_route(
         )
         payload["nearest_routes"] = routes.nearest(table, url)
         return attach_rules_stale(payload, config)
-    rows: list[dict[str, object]] = []
-    truncated = False
-    for route in candidates:  # several only on a collision: each target traced, none chosen (411)
-        built = _build(store, config, seeds=[(route.target, SUBJECT_ROUTE)])
-        truncated = truncated or _incomplete(built)
-        for row in (_flow_row(flow, detail_level) for flow in built.flows):
-            row[SUBJECT_ROUTE] = route.as_row()
-            steps = row["steps"]
-            if isinstance(steps, list) and steps:
-                # The hop INTO the target is the declaration, so it carries the route's tier.
-                steps[0].update(tier=routes.ROUTE_TIER, rule=True)
-            rows.append(row)
+    # Several only on a collision: one build seeds every target, so its caps bound them all (411).
+    by_target = {route.target: route for route in candidates}
+    built = _build(store, config, seeds=[(target, SUBJECT_ROUTE) for target in by_target])
+    rows = [_flow_row(flow, detail_level) for flow in built.flows]
+    for row, flow in zip(rows, built.flows, strict=True):
+        row[SUBJECT_ROUTE] = by_target[flow.seed].as_row()
+        steps = row["steps"]
+        if isinstance(steps, list) and steps:
+            # The hop INTO the target is the declaration, so it carries the route's tier.
+            steps[0].update(tier=routes.ROUTE_TIER, rule=True)
     payload = _envelope(
         config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
-        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows, truncated=truncated,
+        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
+        truncated=_incomplete(built),
     )
     payload.update(routes.collision_fields(candidates))
     return attach_rules_stale(payload, config)
