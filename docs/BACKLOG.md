@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
-| 413 | [Record attributes pass through](tasks/413_record-attributes.md) | Trust | todo | 407 |
 | 414 | [Definition precedence](tasks/414_definition-precedence.md) | Retrieval | todo | 403, 407 |
 | 415 | [Conditional route handlers](tasks/415_conditional-route-handlers.md) | Coverage | todo | 411 |
 

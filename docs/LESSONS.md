@@ -49,6 +49,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 413-C1 — a parameter refused deep in one answer path is ignored on every path that returns first
+
+- type: 2 (code) · handle: `validate-a-parameter-before-the-first-return`
+- status: proposed · seen: 413
+- evidence: `records_filter` was checked where `read_symbol` attaches records; an unknown subject, a stale or
+  outside-root read and no index returned before it and ignored an undeclared name. The challenger found it; the check
+  now runs at each tool's entry with the other argument checks.
+- destination: first sighting.
+
 ### 412-C1 — a new tool parameter is read by the surface guards before any reviewer
 
 - type: 2 (code) · handle: `a-new-parameter-meets-the-surface-guards`
