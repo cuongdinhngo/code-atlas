@@ -319,8 +319,9 @@ def load(raw: str | None) -> list[Record] | None:
 def attached(
     records: Sequence[Record], carriers: Iterable[str], *, via: bool
 ) -> list[dict[str, object]]:
-    """Rows for the records on ``carriers``, in carrier order; each record once, under the
-    first carrier that holds it (``via`` names it when asked)."""
+    """Rows for the records on ``carriers`` — the subject itself, so each is ``direct`` at
+    distance 0 (412) — in carrier order; each record once, under the first carrier that holds it
+    (``via`` names it when asked)."""
     by_target: dict[str, list[Record]] = {}
     for record in records:
         for target in record.targets:
@@ -331,7 +332,7 @@ def attached(
         for record in by_target.get(carrier, ()):
             if record.id not in seen:
                 seen.add(record.id)
-                rows.append(record.as_row(carrier if via else None))
+                rows.append(record.as_row(carrier if via else None, 0))
     return rows
 
 

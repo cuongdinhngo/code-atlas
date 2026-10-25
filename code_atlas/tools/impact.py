@@ -344,9 +344,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if record_rows:
                 result["records"] = record_rows[:limit]
                 result["records_total"] = len(record_rows)
+                attach_limit_capped(result, cap=limit, clamped=clamped)
             if stopped:
                 result["records_stopped"] = stopped
-            attach_limit_capped(result, cap=limit, clamped=clamped)
         _attach_freshness(result, staleness)
         if routes or "routes" in result or "records" in result:
             # A route subject feeds the rows, matched or not; a reached route is a side-field (396).

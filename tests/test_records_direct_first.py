@@ -94,6 +94,15 @@ def test_a_record_on_a_member_of_the_seed_is_direct(repo: Config) -> None:
     }
 
 
+def test_a_qname_seeds_own_file_is_direct_though_the_walk_never_reaches_it(repo: Config) -> None:
+    """W4: the default set gains the subject's records today's carriers missed — the seed's file."""
+    answer = impact.create(repo)(qnames=[SAVE])
+    assert [(row["id"], row["direct"]) for row in rows(answer)[:2]] == [
+        ("LEAF-1", True),
+        ("LEAF-2", True),
+    ]
+
+
 def test_ac2_stop_at_keeps_the_hubs_records_out(tmp_path: Path) -> None:
     """AC2: none of the hub's 50 reach the leaf's answer; the hub's own answer keeps them."""
     config = build(tmp_path / "repo", stop_at=["front.*"])

@@ -461,7 +461,8 @@ scanner masks literals) the call's first line is read, as before (398).
   member a seed contains or a seed's file is `direct` (`distance` 0) and leads; the rest follow by
   `distance`, symbols before files. `stop_at` (globs, fnmatch, `*` crossing `/`) names hub files
   whose records reach no answer seeded elsewhere — counted in `records_stopped` — while their own
-  `impact` lists them (412). The build result and
+  `impact` lists them (412). Direct rows come seeds, paths, a seed's files, then members; every
+  `read_symbol` and `find_references` row is the subject's own, so `direct` at `distance` 0. The build result and
   `get_index_status` carry `records`: `files` (the globs' matches), `declared`, `untargeted` (no
   target read — a field map naming the wrong key), `attached`, `attachments`, `dangling` (a target
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
