@@ -233,12 +233,15 @@ def _traced_route(
         )
         payload["nearest_routes"] = routes.nearest(table, url)
         return attach_rules_stale(payload, config)
+    # Several only on a collision: one build seeds every target, so its caps bound them all (411).
+    by_target: dict[str, list[routes.Route]] = {}
+    for route in candidates:  # conditional routes may share a target: one flow under each (415)
+        by_target.setdefault(route.target, []).append(route)
+    built = _build(store, config, seeds=[(target, SUBJECT_ROUTE) for target in by_target])
     rows: list[dict[str, object]] = []
-    truncated = False
-    for route in candidates:  # several only on a collision: each target traced, none chosen (411)
-        built = _build(store, config, seeds=[(route.target, SUBJECT_ROUTE)])
-        truncated = truncated or _incomplete(built)
-        for row in (_flow_row(flow, detail_level) for flow in built.flows):
+    for flow in built.flows:
+        for route in by_target[flow.seed]:
+            row = _flow_row(flow, detail_level)
             row[SUBJECT_ROUTE] = route.as_row()
             steps = row["steps"]
             if isinstance(steps, list) and steps:
@@ -247,9 +250,10 @@ def _traced_route(
             rows.append(row)
     payload = _envelope(
         config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
-        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows, truncated=truncated,
+        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
+        truncated=_incomplete(built),
     )
-    payload.update(routes.collision_fields(candidates))
+    payload.update(routes.collision_fields([candidates]))
     return attach_rules_stale(payload, config)
 
 

@@ -36,6 +36,7 @@ ROUTES_CENSUS_META_KEY = "routes_census"
 # A URL whose key several declared rows name with different targets answers every one (411).
 ROUTE_COLLISION = "route_collision"
 CANDIDATES_FIELD = "route_candidates"
+CANDIDATES_TOTAL_FIELD = "route_candidates_total"
 EXAMPLES_CAP = 20
 _LABELS = ("when", "source")
 UNRESOLVED, SHORT_NAME_TIE, DUPLICATE, INCOMPLETE = (
@@ -244,7 +245,10 @@ def _tsv(
         key = str(row.get(str(key_column)) or "").strip()
         target = str(row.get(str(target_column)) or "").strip()
         if key and target:
-            when, source = (_label(row.get(str(columns.get(name)))) for name in _LABELS)
+            when, source = (
+                _label(row.get(str(columns[name]))) if columns.get(name) else None
+                for name in _LABELS
+            )
             found.append(Handler(key, target, when, source))
         else:
             skipped.append((key, target))
@@ -337,7 +341,11 @@ class Census:
             status["dropped_examples"] = dict(sorted(self.examples.items()))
         if collided:
             status["collision_examples"] = [
-                {"key": key, "routes": [_brief(route) for route in rows]}
+                {
+                    "key": key,
+                    "routes": [_brief(route) for route in rows[:EXAMPLES_CAP]],
+                    "routes_total": len(rows),
+                }
                 for key, rows in list(collided.items())[:EXAMPLES_CAP]
             ]
         return status
@@ -387,7 +395,11 @@ def resolve(
                 unresolved += 1
                 tally.drop(SHORT_NAME_TIE if tie else UNRESOLVED, declared, target)
                 continue
-            if (linked, when) in targets.get(key, ()):
+            known = targets.get(key, set())
+            # One target unlabelled beside a labelled copy is a repeat, not a collision (415).
+            if (linked, when) in known or (linked, None) in known or (
+                when is None and any(stored == linked for stored, _ in known)
+            ):
                 tally.drop(DUPLICATE, declared, linked)
                 continue
             targets.setdefault(key, set()).add((linked, when))
@@ -423,14 +435,22 @@ def _brief(route: Route) -> dict[str, str]:
     return brief | ({"when": route.when} if route.when is not None else {})
 
 
-def collision_fields(candidates: Sequence[Route]) -> dict[str, object]:
-    """What an answer adds when its URL reached several handlers: none of them alone (411)."""
-    if len(candidates) < 2 or conditional(candidates):
+def collision_fields(groups: Iterable[Sequence[Route]]) -> dict[str, object]:
+    """What an answer adds when a URL reached several handlers no condition tells apart (411,
+    415): each group is one URL's routes, judged alone. At most ``EXAMPLES_CAP`` candidates are
+    listed; a cut list carries the full count."""
+    unique = list(dict.fromkeys(
+        route for group in groups for rows in colliding(group).values() for route in rows
+    ))
+    if not unique:
         return {}
-    return {
+    fields: dict[str, object] = {
         "ambiguity": ROUTE_COLLISION,
-        CANDIDATES_FIELD: [route.as_row() for route in candidates],
+        CANDIDATES_FIELD: [route.as_row() for route in unique[:EXAMPLES_CAP]],
     }
+    if len(unique) > EXAMPLES_CAP:
+        fields[CANDIDATES_TOTAL_FIELD] = len(unique)
+    return fields
 
 
 def short_target(target: str) -> tuple[str, str] | None:

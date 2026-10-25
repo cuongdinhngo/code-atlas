@@ -114,8 +114,8 @@ def test_a_labelled_and_an_unlabelled_handler_still_collide() -> None:
         [routes.RouteBlock(None, (routes.Handler("k", "A", "on"), routes.Handler("k", "B", "on")))],
         lambda _t: "f.py",
     )
-    assert routes.collision_fields(table)["ambiguity"] == routes.ROUTE_COLLISION
-    assert routes.collision_fields(same)["ambiguity"] == routes.ROUTE_COLLISION
+    assert routes.collision_fields([table])["ambiguity"] == routes.ROUTE_COLLISION
+    assert routes.collision_fields([same])["ambiguity"] == routes.ROUTE_COLLISION
 
 
 def test_one_handler_under_two_conditions_is_kept_twice() -> None:
@@ -126,7 +126,7 @@ def test_one_handler_under_two_conditions_is_kept_twice() -> None:
 
     assert [route.when for route in table] == ["region=A", "region=B"]
     assert census.dropped == {}
-    assert routes.collision_fields(table) == {}
+    assert routes.collision_fields([table]) == {}
 
 
 def test_inline_and_json_rows_take_when_and_source(tmp_path: Path) -> None:
@@ -164,3 +164,36 @@ def test_a_collision_example_names_its_labels() -> None:
     table, _ = routes.resolve([routes.RouteBlock(None, rows)], lambda _t: "f.py", census=census)
     [example] = census.as_status(table)["collision_examples"]  # type: ignore[misc]
     assert [row["when"] for row in example["routes"]] == ["on", "on"]
+
+
+def test_two_conditional_urls_sharing_labels_are_no_collision_in_impact(tmp_path: Path) -> None:
+    """Review: each URL is judged on its own key, never the concatenation of every match."""
+    other = "/x.php?action=z"
+    census = CENSUS + "".join(
+        f"{other}\t{target}\t{when}\t\n" for target, when in ((XA, "region=A"), (XB, "region=B"))
+    )
+    answer = impact.create(build(tmp_path / "repo", census))(routes=[URL, other, URL])
+    assert "ambiguity" not in answer and routes.CANDIDATES_FIELD not in answer
+
+
+def test_one_target_labelled_and_unlabelled_is_a_duplicate_not_a_collision() -> None:
+    census = routes.Census()
+    rows = (routes.Handler("k", "A", "region=A"), ("k", "A"))
+    table, _ = routes.resolve([routes.RouteBlock(None, rows)], lambda _t: "f.py", census=census)
+
+    assert [route.when for route in table] == ["region=A"]
+    assert census.dropped == {routes.DUPLICATE: 1}
+    assert census.as_status(table)["collisions"] == 0
+
+
+def test_one_handler_under_two_conditions_traces_once_under_each(tmp_path: Path) -> None:
+    header = "url\thandler\tcondition\tat\n"
+    census = header + "".join(f"{URL}\t{XA}\t{when}\t\n" for when in ("region=A", "region=B"))
+    answer = trace_capability.create(build(tmp_path / "repo", census))(route=URL)
+    assert sorted(flow["route"]["when"] for flow in answer["results"]) == ["region=A", "region=B"]
+
+
+def test_a_table_stored_before_415_loads_unlabelled() -> None:
+    raw = '[{"key":"k","declared":"k","target":"T","file":"f","significant":null}]'
+    [route] = routes.load(raw) or []
+    assert (route.when, route.source) == (None, None)

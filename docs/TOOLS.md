@@ -423,17 +423,21 @@ scanner masks literals) the call's first line is read, as before (398).
   its fragment dropped; any string (a CLI command, a message type) works as a path-only key.
   `significant_by_path` (`{"/x.php": ["cmd"]}`) gives a path its own keys in place of the block's
   (411). Rows of one canonical key with different targets are all stored, and a URL reaching that
-  key — or the first matching pattern's — answers every target, never one handler. When each row
-  carries its own `when` label (`region=A`, `flag=ON`) and optional `source` (`file:line`) — inline
-  fields, or `columns` entries for a TSV or JSON census — the key is a **conditional route**: each
-  flow and route row carries its `when`/`source`, labels nothing evaluates (415). One row without a
-  label (a blank cell is none), or two sharing one, makes the key a **collision**, flagged
-  `ambiguity: "route_collision"` with `route_candidates`; a TSV label column the file lacks fails the build. A repeated key and
-  target is a `duplicate`; a dead-target row is counted, not stored, so its URL answers
-  `no_such_symbol`. `get_index_status` balances the table under `routes`: `declared` = `stored` +
-  the `dropped` counts (`unresolved`, `short_name_tie`, `duplicate`, `incomplete` — a census row
-  missing its key or target), with up to 20 `dropped_examples` per reason, `collisions`,
-  `collision_examples` and `conditional` (keys). Only those three tools read routes — the map,
+  key — or the first matching pattern's — answers every target, never one handler; the trace is
+  one build seeded at every target, under its usual caps. When each row carries its own `when`
+  label (`region=A`, `flag=ON`) and optional `source` (`file:line`) — inline fields, or `columns`
+  entries for a TSV or JSON census — the key is a **conditional route**: each flow and route row
+  carries its `when`/`source`, labels nothing evaluates (415). One row without a label (a blank
+  cell is none), or two sharing one, makes the key a **collision**, flagged
+  `ambiguity: "route_collision"` with `route_candidates` (up to 20; `route_candidates_total` when
+  cut), each URL judged on its own key; a TSV label column the file lacks fails the build. A
+  repeated key and target is a `duplicate` — an unlabelled row beside a labelled one of the same
+  target too; a dead-target row is counted, not stored — even when an earlier row routed its key —
+  so its URL answers `no_such_symbol`. `get_index_status` balances the table under `routes`:
+  `declared` = `stored` + the `dropped` counts (`unresolved`, `short_name_tie`, `duplicate`,
+  `incomplete` — a census row missing its key or target), with up to 20 `dropped_examples` per
+  reason, `collisions`, `collision_examples` (20 routes each, with `routes_total`) and
+  `conditional` (keys). Only those three tools read routes — the map,
   `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
   `HEURISTIC` + `rule: true`; later hops carry their own tiers.
   **A JSON census (397).** `json` names a file, `rows` a dotted path to its list of objects (absent:
@@ -472,7 +476,8 @@ scanner masks literals) the call's first line is read, as before (398).
   naming nothing indexed, never attached) with `dangling_first` (10 `{id, target}`), `excluded`,
   `skipped` (an unreadable file, a record with no id, a repeated id — the first by path wins).
   `attributes` names further dotted paths (`["tier", "region"]`) whose values — a string, number,
-  boolean or a list of them; anything else is dropped — ride on a record row as `attributes`,
+  boolean or a list of up to 20 of them, a string at most 200 characters; anything else is
+  dropped, never cut — ride on a record row as `attributes`,
   keyed by the path as written, omitted when the record holds none of them (413). `records_filter` on `read_symbol`, `find_references` and
   `impact` (`{"tier": ["A", "B"]}`) keeps a record whose attribute equals a value (a list attribute:
   any element; a record without the attribute never matches), before `records_total` counts; a path
@@ -489,9 +494,11 @@ scanner masks literals) the call's first line is read, as before (398).
   `*` crossing `/`), most authoritative first. For a qname with several production definitions, the
   first glob any of them matches decides — one match answers `read_symbol` and leads `search_symbol`
   with `ambiguity: "definition_precedence"`, the rest under `ambiguous_definitions`; `impact` and
-  `impact_modules` walk a named qname from it, the rest under `other_definitions` (a seed a path
+  `impact_modules` walk a named qname with its seed placed at it, the rest under
+  `other_definitions` — the walk is the qname's, so it spans every definition's edges (a seed a path
   expanded into keeps its file); two matches stay `subject_ambiguous`. Test copies (394) are settled
-  first, migration versions (403) after; a cut search page applies neither. References target the
+  first, migration versions (403) after; a cut search page applies neither. Several rules files
+  join their globs in file-name order. References target the
   qname, so they already span every definition — and `impact` walks call and type edges, not
   `READS`/`WRITES`: a table's readers and writers are `find_references`' answer.
 

@@ -35,6 +35,7 @@ RECORDS_ATTRIBUTES_META_KEY = "records_attributes"
 RECORD_TIER = contract.CONFIDENCE_TIERS[1]  # HEURISTIC
 DANGLING_FIRST = 10
 TITLE_MAX = 200
+ATTRIBUTE_LIST_MAX = 20  # a longer list attribute is dropped, never stored (413)
 _DEFAULT_FIELDS = {"id": "id", "title": "title", "url": "url", "kind": "kind"}
 _LINE_SUFFIXES = frozenset({".jsonl", ".ndjson"})
 
@@ -266,20 +267,27 @@ def _record(
 
 
 def _attribute(value: object) -> object:
-    """A kept attribute value: a string, number or boolean, or a list of them — else ``None``,
-    never stored (413)."""
+    """A kept attribute value: a string, number or boolean, or a list of up to
+    ``ATTRIBUTE_LIST_MAX`` of them — else ``None``, never stored (413)."""
     if _scalar(value):
         return value
-    if isinstance(value, list) and value and all(_scalar(item) for item in value):
+    if (
+        isinstance(value, list)
+        and 0 < len(value) <= ATTRIBUTE_LIST_MAX
+        and all(_scalar(item) for item in value)
+    ):
         return value
     return None
 
 
 def _scalar(value: object) -> bool:
-    # NaN and the infinities are not JSON: a value the stored blob could not hold is dropped.
+    # NaN and the infinities are not JSON; a string past TITLE_MAX would bloat every row.
+    # Dropped, never cut: a truncated value would silently miss an exact filter.
     if isinstance(value, float):
         return math.isfinite(value)
-    return isinstance(value, str | int | bool)
+    if isinstance(value, str):
+        return len(value) <= TITLE_MAX
+    return isinstance(value, int | bool)
 
 
 def _dig(value: object, path: str) -> object:
@@ -401,7 +409,7 @@ def check_filter(wanted: Mapping[str, object], declared: Sequence[str]) -> None:
         )
     for path, value in wanted.items():
         values = value if isinstance(value, list) else [value]
-        if not values or not all(isinstance(item, str | int | float | bool) for item in values):
+        if not values or not all(_scalar(item) for item in values):
             raise ValueError(
                 f"records_filter[{path!r}] must be a string, number or boolean, or a non-empty "
                 f"list of them, got {value!r}"
