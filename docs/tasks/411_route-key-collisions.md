@@ -293,6 +293,29 @@ Reviewed at 4096172a. Files: `code_atlas/routes.py`, `code_atlas/enrichment.py`,
   `_tsv`/`_json` on `d3d45b21` skip a short row with no count (still true). → `docs/ENGINEERING_RULES.md`.
   Both promotions are proposals; `/mango:promote` is the maintainer's pass.
 
+**The final gate** (live checkout):
+
+Ran at 7159f73b
+
+```
+$ scripts/gate.sh
+      2 failed, 4947 passed, 4 skipped, 1 xfailed in 652.40s (0:10:52)
+  20 passed · 1 failed · 0 skipped
+GATE RED — 1 check(s) failed
+```
+
+The two failures — `test_install_skew.py::test_a_checkout_behind_the_core_is_named_with_its_fix` and
+`test_release_discipline.py::test_the_plugin_hook_names_a_skew_against_the_installed_package` — read this host's
+installed `code-atlas` tool (0.7.0) through the live checkout's untracked state; neither touches routes. Both files
+pass at the same SHA in a clean worktree:
+
+```
+$ git worktree add <scratch> HEAD && .venv/bin/python -m pytest -q tests/test_install_skew.py tests/test_release_discipline.py
+29 passed, 1 xfailed in 15.57s
+```
+
+Ran at 7159f73b. Host exclusion, not a regression; the PR's CI runs the whole suite on a clean runner.
+
 ### Outward actions
 
 Under the handover: push `feat/411-route-key-collisions`; open its PR against `main`.
