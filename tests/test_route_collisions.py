@@ -11,8 +11,10 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from code_atlas import routes
-from code_atlas.config import Config, load_config
+from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import get_index_status, impact, trace_capability
@@ -162,3 +164,41 @@ def test_three_rows_of_one_key_keep_each_distinct_target_once() -> None:
     assert census.dropped == {routes.DUPLICATE: 1}
     assert routes.matches(table, "k?x=9") == table
     assert routes.collision_fields(table[:1]) == {}
+
+
+def test_impact_on_two_urls_of_one_collided_key_lists_each_candidate_once(tmp_path: Path) -> None:
+    config = build(tmp_path / "repo", {"significant": ["module"]})
+    answer = impact.create(config)(routes=[URL_A, URL_B])
+
+    assert [row["target"] for row in answer[routes.CANDIDATES_FIELD]] == [A, B]
+    assert routes.CANDIDATES_TOTAL_FIELD not in answer
+
+
+def test_a_wide_collision_lists_a_capped_page_of_candidates_with_its_total() -> None:
+    """Past ``EXAMPLES_CAP`` handlers on one key, answer and status carry the cut and the count."""
+    rows = tuple((f"k?x={n}", f"T{n:03}") for n in range(routes.EXAMPLES_CAP + 5))
+    census = routes.Census()
+    table, _ = routes.resolve([routes.RouteBlock((), rows)], lambda _t: "f.py", census=census)
+    fields = routes.collision_fields(routes.matches(table, "k"))
+    examples = census.as_status(table)["collision_examples"]
+    candidates = fields[routes.CANDIDATES_FIELD]
+    assert isinstance(examples, list) and isinstance(candidates, list)
+    [example] = examples
+
+    assert len(candidates) == routes.EXAMPLES_CAP
+    assert fields[routes.CANDIDATES_TOTAL_FIELD] == len(rows)
+    assert len(example["routes"]) == routes.EXAMPLES_CAP and example["routes_total"] == len(rows)
+
+
+def test_a_wildcard_key_shared_by_two_targets_answers_both() -> None:
+    rows = (("k?x=*", "A"), ("k?x=*", "B"))
+    table, _ = routes.resolve([routes.RouteBlock(None, rows)], lambda _t: "f.py")
+
+    assert [route.target for route in routes.matches(table, "k?x=7")] == ["A", "B"]
+
+
+@pytest.mark.parametrize("bad", [["x.php"], {"": ["cmd"]}, {"x.php": "cmd"}, {"x.php": [""]}])
+def test_a_malformed_significant_by_path_fails_the_build_loud(tmp_path: Path, bad: object) -> None:
+    block = {"routes": {"significant_by_path": bad, "table": [{"key": "k", "target": "T"}]}}
+    with pytest.raises(ConfigError, match="significant_by_path"):
+        routes.read_blocks(block["routes"], "rules.json", tmp_path, lambda _b: None)

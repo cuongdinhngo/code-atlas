@@ -35,6 +35,7 @@ ROUTES_CENSUS_META_KEY = "routes_census"
 # A URL whose key several declared rows name with different targets answers every one (411).
 ROUTE_COLLISION = "route_collision"
 CANDIDATES_FIELD = "route_candidates"
+CANDIDATES_TOTAL_FIELD = "route_candidates_total"
 EXAMPLES_CAP = 20
 UNRESOLVED, SHORT_NAME_TIE, DUPLICATE, INCOMPLETE = (
     "unresolved", "short_name_tie", "duplicate", "incomplete"
@@ -296,7 +297,11 @@ class Census:
             status["dropped_examples"] = dict(sorted(self.examples.items()))
         if collided:
             status["collision_examples"] = [
-                {"key": key, "routes": [_brief(route) for route in rows]}
+                {
+                    "key": key,
+                    "routes": [_brief(route) for route in rows[:EXAMPLES_CAP]],
+                    "routes_total": len(rows),
+                }
                 for key, rows in list(collided.items())[:EXAMPLES_CAP]
             ]
         return status
@@ -369,13 +374,18 @@ def _brief(route: Route) -> dict[str, str]:
 
 
 def collision_fields(candidates: Sequence[Route]) -> dict[str, object]:
-    """What an answer adds when its URL reached several handlers: none of them alone (411)."""
-    if len(candidates) < 2:
+    """What an answer adds when its URL reached several handlers: none of them alone (411).
+    At most ``EXAMPLES_CAP`` candidates are listed; a cut list carries the full count."""
+    unique = list(dict.fromkeys(candidates))
+    if len(unique) < 2:
         return {}
-    return {
+    fields: dict[str, object] = {
         "ambiguity": ROUTE_COLLISION,
-        CANDIDATES_FIELD: [route.as_row() for route in candidates],
+        CANDIDATES_FIELD: [route.as_row() for route in unique[:EXAMPLES_CAP]],
     }
+    if len(unique) > EXAMPLES_CAP:
+        fields[CANDIDATES_TOTAL_FIELD] = len(unique)
+    return fields
 
 
 def short_target(target: str) -> tuple[str, str] | None:
