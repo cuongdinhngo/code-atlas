@@ -484,10 +484,12 @@ scanner masks literals) the call's first line is read, as before (398).
 - **Which definition answers (414).** `definitions` declares `precedence`: path globs (fnmatch,
   `*` crossing `/`), most authoritative first. For a qname with several production definitions, the
   first glob any of them matches decides — one match answers `read_symbol` and leads `search_symbol`
-  with `ambiguity: "definition_precedence"`, the rest under `ambiguous_definitions`, and `impact`
-  walks the qname from it, the rest under `other_definitions`; two matches stay `subject_ambiguous`.
-  Test copies (394) are settled first, migration versions (403) after. References target the
-  qname, so they already span every definition.
+  with `ambiguity: "definition_precedence"`, the rest under `ambiguous_definitions`; `impact` and
+  `impact_modules` walk a named qname from it, the rest under `other_definitions` (a seed a path
+  expanded into keeps its file); two matches stay `subject_ambiguous`. Test copies (394) are settled
+  first, migration versions (403) after; a cut search page applies neither. References target the
+  qname, so they already span every definition — and `impact` walks call and type edges, not
+  `READS`/`WRITES`: a table's readers and writers are `find_references`' answer.
 
   ```json
   {"definitions": {"precedence": ["db/schema/**", "db/migrations/*"]}}

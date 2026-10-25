@@ -103,7 +103,7 @@ def plan_seeds(
     """Resolve the subjects, then remove the seeds that cannot honestly be walked (161 + 169)."""
     seed_set = resolve_seeds(store, paths=paths, qnames=qnames, max_results=max_results)
     walk_seeds, ambiguous_sites, preferred = _split_ambiguous(
-        store, seed_set.seeds, max_results
+        store, seed_set.seeds, max_results, from_paths=frozenset(seed_set.from_paths)
     )
     ambiguous_sites = [*ambiguous_sites, *seed_set.bare_refused]
     # Only the seeds a PATH expanded into: 161 closed the qname half, and a caller who named a
@@ -163,6 +163,12 @@ def attach_seed_refusals(payload: dict[str, object], plan: SeedPlan) -> None:
         and not plan.twinned_sites
     ):
         explain_lost_subject(payload, plan.dropped)
+
+
+def attach_other_definitions(payload: dict[str, object], plan: SeedPlan) -> None:
+    """The definitions a declared precedence did not choose, per walked seed (414)."""
+    if plan.preferred:
+        payload["other_definitions"] = [site for _, sites in plan.preferred for site in sites[1:]]
 
 
 def attach_seed_expansion(
@@ -312,7 +318,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 exclude_test_sources=exclude_tests,
             )
             results = outcome.rows[: config.impact_max_nodes]
-            _place_preferred_seeds(results, plan.preferred)
+            place_preferred_seeds(results, plan)
             if detail_level != "minimal":
                 _label_rows(store, results)
             # A blast radius is acted on destructively, so it names the revision in-band, not only
@@ -369,10 +375,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if routes or "routes" in result or "records" in result:
             # A route subject feeds the rows, matched or not; a reached route is a side-field (396).
             attach_rules_stale(result, config, relabel=bool(routes))
-        if plan.preferred:
-            result["other_definitions"] = [
-                site for _, sites in plan.preferred for site in sites[1:]
-            ]
+        attach_other_definitions(result, plan)
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)
         if unlinked_same_name_sites:
@@ -415,7 +418,11 @@ def _method_seed_unlinked_sites(store: GraphStore, seeds: Sequence[str]) -> int:
 
 
 def _split_ambiguous(
-    store: GraphStore, seeds: Sequence[str], max_results: int
+    store: GraphStore,
+    seeds: Sequence[str],
+    max_results: int,
+    *,
+    from_paths: frozenset[str] = frozenset(),
 ) -> tuple[
     list[str],
     list[tuple[str, list[dict[str, object]]]],
@@ -426,7 +433,8 @@ def _split_ambiguous(
     The graph links callers by qname, not node identity, so a qname with >1 definitions cannot be
     attributed to one twin; such a seed is disclosed, never walked as an arbitrary one — unless
     the project's declared precedence names the one that answers (414): it is walked, its other
-    definitions listed. Order-stable (R4.2); the site list is ``definition_sites`` order.
+    definitions listed. A seed a path expanded into is that file's, so the precedence never moves
+    it. Order-stable (R4.2); the site list is ``definition_sites`` order.
     """
     walk: list[str] = []
     ambiguous: list[tuple[str, list[dict[str, object]]]] = []
@@ -435,7 +443,7 @@ def _split_ambiguous(
     for qname in seeds:
         rows = store.nodes_by_qualified_name(qname, limit=max_results)
         ordered, held = precedence_first(rows, precedence, complete=len(rows) < max_results)
-        if len(rows) > 1 and held:
+        if len(rows) > 1 and held and qname not in from_paths:
             walk.append(qname)
             sites = [{**site, "qname": qname} for site in definition_sites(ordered)]
             preferred.append((qname, sites))
@@ -449,11 +457,9 @@ def _split_ambiguous(
     return walk, ambiguous, preferred
 
 
-def _place_preferred_seeds(
-    rows: list[dict[str, object]], preferred: Sequence[tuple[str, list[dict[str, object]]]]
-) -> None:
+def place_preferred_seeds(rows: Sequence[dict[str, object]], plan: SeedPlan) -> None:
     """A seed walked through the declared precedence sits at its answering definition (414)."""
-    sites = {qname: listed[0] for qname, listed in preferred}
+    sites = {qname: listed[0] for qname, listed in plan.preferred}
     for row in rows:
         site = sites.get(str(row["qname"]))
         if site is not None and row.get("depth") == 0:

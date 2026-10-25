@@ -26,8 +26,10 @@ from code_atlas.onboarding.modules import (
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools import claim
 from code_atlas.tools.impact import (
+    attach_other_definitions,
     attach_seed_expansion,
     attach_seed_refusals,
+    place_preferred_seeds,
     plan_seeds,
     subject_parts,
 )
@@ -136,6 +138,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             truncated = len(outcome.rows) > config.impact_max_nodes
             rows = outcome.rows[: config.impact_max_nodes]
+            place_preferred_seeds(rows, plan)
             owners, table_truncated = _owners(store, config)
             staleness = compute_staleness(store, config, include_dirty_count=True) if sign else {}
 
@@ -164,6 +167,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             payload["note"] = " · ".join(notes)
         # A module list that silently lost a seed is worse than one that names the loss, and the
         # rollup hides it better than `impact`'s symbol list does (179). Same disclosure, one site.
+        attach_other_definitions(payload, plan)
         attach_seed_expansion(payload, plan, paths)
         attach_seed_refusals(payload, plan)
         if not sign or not plan.walk_seeds:

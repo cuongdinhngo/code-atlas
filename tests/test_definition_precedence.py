@@ -21,7 +21,7 @@ from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.enrichment import load_indirection_rules
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
-from code_atlas.tools import find_references, impact, read_symbol, search_symbol
+from code_atlas.tools import find_references, impact, impact_modules, read_symbol, search_symbol
 
 NODE = shutil.which("node")
 SQL_ENTRY = Path(__file__).resolve().parent.parent / "adapters" / "sql" / "index.js"
@@ -81,11 +81,15 @@ def test_ac1_read_symbol_answers_from_the_preferred_definition(ranked: Config) -
 
 
 def test_ac2_impact_walks_the_table_and_names_its_other_definition(ranked: Config) -> None:
+    """W5: the refusal lifts and the seed sits at its answering definition. ``impact`` walks
+    ``IMPACT_KINDS`` only, so a table's readers and writers are ``find_references``' answer —
+    for a one-definition table too (the review measured it on ``main``)."""
     answer = impact.create(ranked)(qnames=[TABLE])
 
     assert answer.get("reason") != "subject_ambiguous", answer
-    [seed] = [row for row in answer["results"] if row["qname"] == TABLE]
-    assert (seed["file"], seed["depth"]) == (SCHEMA, 0)  # walked at its answering definition
+    assert [(row["qname"], row["file"], row["depth"]) for row in answer["results"]] == [
+        (TABLE, SCHEMA, 0)
+    ]
     assert [(site["qname"], site["file"]) for site in answer["other_definitions"]] == [
         (TABLE, MIGRATION)
     ]
@@ -96,6 +100,28 @@ def test_ac2_writers_aggregate_across_both_definitions(ranked: Config, plain: Co
     for config in (ranked, plain):
         answer = find_references.create(config)(qname=TABLE)
         assert "dbo.P" in {row["qname"] for row in answer["results"]}, answer
+
+
+def test_a_path_seed_keeps_its_own_file(ranked: Config) -> None:
+    """Review M1: the migration a caller names by path is that file's, never moved to the schema."""
+    answer = impact.create(ranked)(paths=[MIGRATION])
+
+    assert "other_definitions" not in answer
+    assert ("dbo.T::Note", MIGRATION) in {(row["qname"], row["file"]) for row in answer["results"]}
+    assert all(row["file"] != SCHEMA for row in answer["results"])
+
+
+def test_impact_modules_names_the_answering_definition(ranked: Config) -> None:
+    """Review M2: the shared seed plan places the seed for every tool that walks it."""
+    answer: Any = impact_modules.create(ranked)(qnames=[TABLE])
+
+    assert [row["exemplar"].split(":")[0] for row in answer["results"]] == [SCHEMA]
+    assert [site["file"] for site in answer["other_definitions"]] == [MIGRATION]
+
+
+def test_a_leading_slash_is_repo_relative(tmp_path: Path) -> None:
+    config = build(tmp_path / "repo", ["/schema/**"])
+    assert read_symbol.create(config)(qname=TABLE)["file"] == SCHEMA
 
 
 def test_search_lists_the_preferred_definition_first(ranked: Config) -> None:

@@ -168,7 +168,8 @@ def _precedence(raw: object, label: str) -> list[str]:
         raise ConfigError(
             f"indirection_rules: {label!r} definitions.precedence must be a list of path globs"
         )
-    return [glob.strip() for glob in globs]
+    # Paths are repo-relative: a leading `/` is dropped, never left to match nothing.
+    return [glob.strip().lstrip("/") for glob in globs]
 
 
 def publish_definitions(store: GraphStore, payload: RulesPayload | None) -> None:
