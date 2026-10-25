@@ -213,7 +213,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         so page one holds production rows rather than those a page of tests left over.
 
         ``routes`` names URLs a declared ``routes`` table maps to a handler (385): each seeds its
-        target, and one that matches no route counts in ``seeds_dropped``. Whenever a table is
+        target, and one that matches no route counts in ``seeds_dropped``; one whose key several
+        declared rows give different targets seeds them all and the answer carries
+        ``ambiguity: "route_collision"`` with ``route_candidates`` (411). Whenever a table is
         declared, ``routes`` in the answer lists each route whose target is a seed or in the radius
         (``HEURISTIC``, ``rule: true``) — omitted when none reaches it.
 
@@ -238,8 +240,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             about_ref = answered_about_ref_for(store)
             table = route_table.load(store.get_meta(route_table.ROUTES_META_KEY))
             stored_records = records.load(store.get_meta(records.RECORDS_META_KEY))
-            matched = [route_table.match(table or [], url) for url in routes or []]
-            routed = [route for route in matched if route is not None]
+            matched = [route_table.matches(table or [], url) for url in routes or []]
+            routed = [route for found in matched for route in found]
             plan = plan_seeds(
                 store,
                 paths=[*(paths or []), *(r.target for r in routed if r.target == r.file)],
@@ -269,7 +271,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
-            seeds_dropped=outcome.seeds_dropped + plan.refused + len(matched) - len(routed),
+            seeds_dropped=outcome.seeds_dropped + plan.refused + matched.count([]),
             answered_about_ref=about_ref)
         if table:
             reached = route_table.reaching(
@@ -280,6 +282,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if reached:
                 result["routes"] = [route.as_row() for route in reached]
+            # A URL several declared rows give different targets seeds them all, flagged (411).
+            result.update(route_table.collision_fields(
+                [route for found in matched if len(found) > 1 for route in found]
+            ))
         if stored_records:
             # Seeds first (walked, ambiguous, twinned), the radius in its own order, then the
             # files — a record may name a file rather than a symbol (407).

@@ -129,6 +129,8 @@ BUILD_PROGRESS_ROUTE_FIELD = "build_progress_route"
 ROUTES_AMBIGUOUS_FIELD = "routes_ambiguous"
 ROUTES_AMBIGUOUS_COUNT_FIELD = "routes_ambiguous_count"
 ROUTES_AMBIGUOUS_CAP = 20
+# Declared vs stored route rows, dropped by reason, and the keys that collide (411).
+ROUTES_FIELD = "routes"
 # The rule files changed since the build: rule-fed answers are labelled until an incremental (396).
 RULES_DIGEST_FIELD = "rules_digest"
 RULES_ERROR_FIELD = "rules_error"
@@ -332,13 +334,17 @@ def _refresh_refused_clause(payload: Mapping[str, object]) -> str:
     return f" — {REFRESH_REFUSED_LEAD} at {block.get('at')}: {reason} — {fix}"
 
 
-def _attach_routes_ambiguous(status: dict[str, object], store: GraphStore) -> None:
-    """Route rows whose short class named several classes, each with its candidates (397)."""
+def _attach_routes(status: dict[str, object], store: GraphStore) -> None:
+    """Route rows whose short class named several classes, each with its candidates (397); and
+    where every declared row went (411)."""
     raw = store.get_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
     rows = json.loads(raw) if raw else []
     if rows:
         status[ROUTES_AMBIGUOUS_FIELD] = rows[:ROUTES_AMBIGUOUS_CAP]
         status[ROUTES_AMBIGUOUS_COUNT_FIELD] = len(rows)
+    census = store.get_meta(routes.ROUTES_CENSUS_META_KEY)
+    if census:
+        status[ROUTES_FIELD] = json.loads(census)
 
 
 def _attach_build_state(
@@ -646,7 +652,7 @@ def _status(
         "orphans_max_nodes": _orphans_max_nodes_field(config),
     }
     _attach_build_state(enriched, config, store)
-    _attach_routes_ambiguous(enriched, store)
+    _attach_routes(enriched, store)
     record_status = records.status_block(store.get_meta(records.RECORDS_STATUS_META_KEY))
     if record_status is not None:
         enriched["records"] = record_status  # counts only: never an excluded id (407)

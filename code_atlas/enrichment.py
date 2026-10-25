@@ -261,10 +261,12 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
     """Store the resolved route table in meta (or drop it); return ``routes_unresolved`` (385).
 
     A target is a stored qname or an indexed file; a row naming neither is counted, not linked.
+    Where every declared row went is stored beside the table for ``get_index_status`` (411).
     """
     if payload is None or not payload.routes:
         store.delete_meta(routes.ROUTES_META_KEY)
         store.delete_meta(routes.ROUTES_AMBIGUOUS_META_KEY)
+        store.delete_meta(routes.ROUTES_CENSUS_META_KEY)
         return 0
     files = set(store.file_paths())
 
@@ -293,8 +295,12 @@ def publish_routes(store: GraphStore, payload: RulesPayload | None) -> int:
         return sorted(found.items())
 
     ambiguous: list[dict[str, object]] = []
-    table, unresolved = routes.resolve(payload.routes, locate, candidates, ambiguous)
+    census = routes.Census()
+    table, unresolved = routes.resolve(payload.routes, locate, candidates, ambiguous, census)
     store.set_meta(routes.ROUTES_META_KEY, routes.dump(table))
+    store.set_meta(
+        routes.ROUTES_CENSUS_META_KEY, json.dumps(census.as_status(table), sort_keys=True)
+    )
     if ambiguous:
         store.set_meta(routes.ROUTES_AMBIGUOUS_META_KEY, json.dumps(ambiguous, sort_keys=True))
     else:

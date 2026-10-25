@@ -420,9 +420,17 @@ scanner masks literals) the call's first line is read, as before (398).
   counts rows naming nothing indexed in `routes_unresolved`. `trace_capability(route=…)`,
   `impact(routes=[…])` and `search_symbol` read it; with no `routes` block — or an index built before
   the block — they answer `capability_not_configured`. A key is case-sensitive and percent-decoded,
-  its fragment dropped; any string (a CLI command, a message type) works as a path-only key. The
-  first row of a canonical key, and the first matching pattern, wins; a dead-target row is counted,
-  not stored, so its URL answers `no_such_symbol`. Only those three tools read routes — the map,
+  its fragment dropped; any string (a CLI command, a message type) works as a path-only key.
+  `significant_by_path` (`{"/x.php": ["cmd"]}`) gives a path its own keys in place of the block's
+  (411). Rows of one canonical key with different targets are a **collision**: all are stored, and
+  a URL reaching that key — or the first matching pattern's — answers every target, with
+  `ambiguity: "route_collision"` and `route_candidates` (up to 20; `route_candidates_total` when
+  cut), never one handler; the trace is one build seeded at every target, under its usual caps.
+  A repeated key and target is a `duplicate`; a dead-target row is counted, not stored — even
+  when an earlier row routed its key — so its URL answers `no_such_symbol`. `get_index_status` balances the table under `routes`: `declared` = `stored` +
+  the `dropped` counts (`unresolved`, `short_name_tie`, `duplicate`, `incomplete` — a census row
+  missing its key or target), with up to 20 `dropped_examples` per reason, `collisions` and
+  `collision_examples` (20 routes each, with `routes_total`). Only those three tools read routes — the map,
   `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
   `HEURISTIC` + `rule: true`; later hops carry their own tiers.
   **A JSON census (397).** `json` names a file, `rows` a dotted path to its list of objects (absent:

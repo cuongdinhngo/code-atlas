@@ -193,8 +193,8 @@ def test_a_wildcard_value_matches_any_action() -> None:
     )
 
     assert unresolved == 0
-    assert routes.match(table, "i.php?action=zz&module=a") is table[0]
-    assert routes.match(table, "i.php?action=zz&module=b") is None
+    assert routes.matches(table, "i.php?action=zz&module=a") == [table[0]]
+    assert routes.matches(table, "i.php?action=zz&module=b") == []
 
 
 def test_only_star_is_a_wildcard() -> None:
@@ -203,7 +203,7 @@ def test_only_star_is_a_wildcard() -> None:
         [routes.RouteBlock(None, (("i.php?page=*", "T"), ("a[1]/*", "U")))], lambda _t: "f.py"
     )
 
-    assert routes.match(table, "i.php?page=x") is table[0]
-    assert routes.match(table, "i.phpXpage=x") is None
-    assert routes.match(table, "a[1]/edit") is table[1]
-    assert routes.match(table, "a1/edit") is None
+    assert routes.matches(table, "i.php?page=x") == [table[0]]
+    assert routes.matches(table, "i.phpXpage=x") == []
+    assert routes.matches(table, "a[1]/edit") == [table[1]]
+    assert routes.matches(table, "a1/edit") == []

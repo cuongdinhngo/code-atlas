@@ -225,30 +225,31 @@ def _traced_route(
         )
         payload["try_instead_hint"] = ROUTES_HINT
         return attach_rules_stale(payload, config)  # a routes block added since the build (396)
-    route = routes.match(table, url)
-    if route is None:
+    candidates = routes.matches(table, url)
+    if not candidates:
         payload = _envelope(
             config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
             reason=REASON_NO_SUCH_SYMBOL,
         )
         payload["nearest_routes"] = routes.nearest(table, url)
         return attach_rules_stale(payload, config)
-    built = _build(store, config, seeds=[(route.target, SUBJECT_ROUTE)])
+    # Several only on a collision: one build seeds every target, so its caps bound them all (411).
+    by_target = {route.target: route for route in candidates}
+    built = _build(store, config, seeds=[(target, SUBJECT_ROUTE) for target in by_target])
     rows = [_flow_row(flow, detail_level) for flow in built.flows]
-    for row in rows:
-        row[SUBJECT_ROUTE] = route.as_row()
+    for row, flow in zip(rows, built.flows, strict=True):
+        row[SUBJECT_ROUTE] = by_target[flow.seed].as_row()
         steps = row["steps"]
         if isinstance(steps, list) and steps:
             # The hop INTO the target is the declaration, so it carries the route's tier.
             steps[0].update(tier=routes.ROUTE_TIER, rule=True)
-    return attach_rules_stale(
-        _envelope(
-            config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
-            reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
-            truncated=_incomplete(built),
-        ),
-        config,
+    payload = _envelope(
+        config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
+        reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
+        truncated=_incomplete(built),
     )
+    payload.update(routes.collision_fields(candidates))
+    return attach_rules_stale(payload, config)
 
 
 def _known(store: GraphStore, kind: str, subject: str, limit: int) -> bool:
@@ -278,8 +279,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         subject: an entry symbol (``qname``), a file (``path``), a business module (``module``), or
         a URL a front controller dispatches at run time (``route``, read through a declared
         ``routes`` table: its flows start at the route's target, whose hop is ``HEURISTIC`` with
-        ``rule: true``; an unmatched URL answers ``no_such_symbol`` with ``nearest_routes``; no
-        table answers ``capability_not_configured``). Supply exactly one; naming none or several
+        ``rule: true``; a URL whose key several declared rows give different targets traces every
+        one and carries ``ambiguity: "route_collision"`` with ``route_candidates``; an unmatched URL
+        answers ``no_such_symbol`` with ``nearest_routes``; no table answers
+        ``capability_not_configured``). Supply exactly one; naming none or several
         answers ``reason: name_not_qualified``. Each
         result is one flow — its seed, its ordered ``steps`` (``qname`` · ``file`` · ``layer`` ·
         ``kind`` · ``tier``), how it ``ended`` and its ``sink``. A subject the index does not hold
