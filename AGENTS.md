@@ -137,5 +137,5 @@ fix (review's included) into one run; CI re-verifies.
 ## What has shipped
 **Phase 1** (closed 2026-09-27, plan §15): core, onboarding and four adapters — **24 tools**, plus the
 console scripts in `pyproject.toml`; C#/.NET is the only adapter left. **Phase 2 so far:** releases
-through 0.8.0 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
+through 0.9.0 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
 Open work: [`docs/BACKLOG.md`](docs/BACKLOG.md).

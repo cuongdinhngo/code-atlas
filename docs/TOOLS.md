@@ -416,7 +416,7 @@ scanner masks literals) the call's first line is read, as before (398).
   (`{"key": "url", "target": "handler"}`). `significant` names the query keys that decide a route;
   the rest, and their order, are noise, and `*` is a glob over the sorted `path?k=v&…` key, so it
   can span a `&` when the significant keys are not the last. A target is a stored qname or a
-  File. The build stores the table in the index (no node, no edge — the contract does not move) and
+  File. The build stores the table in the index (no node, no edge) and
   counts rows naming nothing indexed in `routes_unresolved`. `trace_capability(route=…)`,
   `impact(routes=[…])` and `search_symbol` read it; with no `routes` block — or an index built before
   the block — they answer `capability_not_configured`. A key is case-sensitive and percent-decoded,
