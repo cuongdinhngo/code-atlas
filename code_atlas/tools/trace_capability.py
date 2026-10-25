@@ -234,21 +234,26 @@ def _traced_route(
         payload["nearest_routes"] = routes.nearest(table, url)
         return attach_rules_stale(payload, config)
     # Several only on a collision: one build seeds every target, so its caps bound them all (411).
-    by_target = {route.target: route for route in candidates}
+    by_target: dict[str, list[routes.Route]] = {}
+    for route in candidates:  # conditional routes may share a target: one flow under each (415)
+        by_target.setdefault(route.target, []).append(route)
     built = _build(store, config, seeds=[(target, SUBJECT_ROUTE) for target in by_target])
-    rows = [_flow_row(flow, detail_level) for flow in built.flows]
-    for row, flow in zip(rows, built.flows, strict=True):
-        row[SUBJECT_ROUTE] = by_target[flow.seed].as_row()
-        steps = row["steps"]
-        if isinstance(steps, list) and steps:
-            # The hop INTO the target is the declaration, so it carries the route's tier.
-            steps[0].update(tier=routes.ROUTE_TIER, rule=True)
+    rows: list[dict[str, object]] = []
+    for flow in built.flows:
+        for route in by_target[flow.seed]:
+            row = _flow_row(flow, detail_level)
+            row[SUBJECT_ROUTE] = route.as_row()
+            steps = row["steps"]
+            if isinstance(steps, list) and steps:
+                # The hop INTO the target is the declaration, so it carries the route's tier.
+                steps[0].update(tier=routes.ROUTE_TIER, rule=True)
+            rows.append(row)
     payload = _envelope(
         config=config, subject=url, subject_kind=SUBJECT_ROUTE, indexed=True,
         reason=REASON_OK if rows else REASON_NO_MATCHES, results=rows,
         truncated=_incomplete(built),
     )
-    payload.update(routes.collision_fields(candidates))
+    payload.update(routes.collision_fields([candidates]))
     return attach_rules_stale(payload, config)
 
 
@@ -280,7 +285,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         a URL a front controller dispatches at run time (``route``, read through a declared
         ``routes`` table: its flows start at the route's target, whose hop is ``HEURISTIC`` with
         ``rule: true``; a URL whose key several declared rows give different targets traces every
-        one and carries ``ambiguity: "route_collision"`` with ``route_candidates``; an unmatched URL
+        one — under each row's own ``when`` label a conditional route, each flow's ``route``
+        carrying ``when``/``source`` (never evaluated), else ``ambiguity: "route_collision"`` with
+        ``route_candidates``; an unmatched URL
         answers ``no_such_symbol`` with ``nearest_routes``; no table answers
         ``capability_not_configured``). Supply exactly one; naming none or several
         answers ``reason: name_not_qualified``. Each

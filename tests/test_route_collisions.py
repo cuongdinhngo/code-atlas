@@ -163,7 +163,7 @@ def test_three_rows_of_one_key_keep_each_distinct_target_once() -> None:
     assert [route.target for route in table] == ["A", "B"]
     assert census.dropped == {routes.DUPLICATE: 1}
     assert routes.matches(table, "k?x=9") == table
-    assert routes.collision_fields(table[:1]) == {}
+    assert routes.collision_fields([table[:1]]) == {}
 
 
 def test_impact_on_two_urls_of_one_collided_key_lists_each_candidate_once(tmp_path: Path) -> None:
@@ -179,7 +179,7 @@ def test_a_wide_collision_lists_a_capped_page_of_candidates_with_its_total() -> 
     rows = tuple((f"k?x={n}", f"T{n:03}") for n in range(routes.EXAMPLES_CAP + 5))
     census = routes.Census()
     table, _ = routes.resolve([routes.RouteBlock((), rows)], lambda _t: "f.py", census=census)
-    fields = routes.collision_fields(routes.matches(table, "k"))
+    fields = routes.collision_fields([routes.matches(table, "k")])
     examples = census.as_status(table)["collision_examples"]
     candidates = fields[routes.CANDIDATES_FIELD]
     assert isinstance(examples, list) and isinstance(candidates, list)
