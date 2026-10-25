@@ -18,8 +18,8 @@ from typing import Any
 import pytest
 
 from code_atlas.config import Config, ConfigError, load_config
-from code_atlas.enrichment import load_indirection_rules
-from code_atlas.indexer import full_build
+from code_atlas.enrichment import DEFINITION_PRECEDENCE_META_KEY, load_indirection_rules
+from code_atlas.indexer import full_build, incremental_update
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_references, impact, impact_modules, read_symbol, search_symbol
 
@@ -150,3 +150,23 @@ def test_a_malformed_precedence_fails_the_build(tmp_path: Path) -> None:
     config = load_config(tmp_path, {"CA_INDIRECTION_RULES": "rules.json"})
     with pytest.raises(ConfigError, match="definitions.precedence"):
         load_indirection_rules(config)
+
+
+def test_an_edited_precedence_reapplies_on_an_incremental_as_a_full_build_would(
+    tmp_path: Path,
+) -> None:
+    """R4.2: a rules-only edit moves the answer on an incremental; dropping the block drops it."""
+    config = build(tmp_path / "repo", ["schema/**"])
+    rules = config.root / "rules.json"
+    rules.write_text(json.dumps({"definitions": {"precedence": ["migrations/*"]}}))
+    with GraphStore(config.db_path) as store:
+        incremental_update(config, store, [])
+        stored = store.get_meta(DEFINITION_PRECEDENCE_META_KEY)
+    assert stored == json.dumps(["migrations/*"])
+    assert read_symbol.create(config)(qname=TABLE)["file"] == MIGRATION
+
+    rules.write_text(json.dumps({}))
+    with GraphStore(config.db_path) as store:
+        incremental_update(config, store, [])
+        assert store.get_meta(DEFINITION_PRECEDENCE_META_KEY) is None
+    assert read_symbol.create(config)(qname=TABLE)["reason"] == "subject_ambiguous"

@@ -228,8 +228,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         A seed whose qname has more than one definition is **not** walked (the graph links callers
         by qname, so it cannot be attributed to one twin): its sites are listed under
         ``ambiguous_definitions``; when no seed was walkable, ``reason=subject_ambiguous`` (161).
-        A rules file's ``definitions.precedence`` naming one definition walks it instead, the rest
-        under ``other_definitions`` (414).
+        A rules file's ``definitions.precedence`` naming one definition walks the qname with its
+        seed placed there — the walk still spans every definition's edges — the rest under
+        ``other_definitions`` (414).
         The default payload names the revision it describes — ``staleness`` plus ``last_commit`` —
         so a blast radius acted on destructively is never silently undated (8-E).
 
@@ -432,9 +433,10 @@ def _split_ambiguous(
 
     The graph links callers by qname, not node identity, so a qname with >1 definitions cannot be
     attributed to one twin; such a seed is disclosed, never walked as an arbitrary one — unless
-    the project's declared precedence names the one that answers (414): it is walked, its other
-    definitions listed. A seed a path expanded into is that file's, so the precedence never moves
-    it. Order-stable (R4.2); the site list is ``definition_sites`` order.
+    the project's declared precedence names the one that answers (414): the qname is walked with
+    its seed placed there, its other definitions listed. A seed a path expanded into is that
+    file's, so the precedence never moves it. Order-stable (R4.2); the site list is
+    ``definition_sites`` order.
     """
     walk: list[str] = []
     ambiguous: list[tuple[str, list[dict[str, object]]]] = []

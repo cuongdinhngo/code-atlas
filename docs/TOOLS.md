@@ -487,9 +487,11 @@ scanner masks literals) the call's first line is read, as before (398).
   `*` crossing `/`), most authoritative first. For a qname with several production definitions, the
   first glob any of them matches decides — one match answers `read_symbol` and leads `search_symbol`
   with `ambiguity: "definition_precedence"`, the rest under `ambiguous_definitions`; `impact` and
-  `impact_modules` walk a named qname from it, the rest under `other_definitions` (a seed a path
+  `impact_modules` walk a named qname with its seed placed at it, the rest under
+  `other_definitions` — the walk is the qname's, so it spans every definition's edges (a seed a path
   expanded into keeps its file); two matches stay `subject_ambiguous`. Test copies (394) are settled
-  first, migration versions (403) after; a cut search page applies neither. References target the
+  first, migration versions (403) after; a cut search page applies neither. Several rules files
+  join their globs in file-name order. References target the
   qname, so they already span every definition — and `impact` walks call and type edges, not
   `READS`/`WRITES`: a table's readers and writers are `find_references`' answer.
 
