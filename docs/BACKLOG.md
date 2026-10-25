@@ -24,6 +24,11 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
+| 411 | [Route key collisions reported](tasks/411_route-key-collisions.md) | Trust | todo | 385, 397 |
+| 412 | [Records direct first](tasks/412_records-direct-first.md) | Trust | todo | 407 |
+| 413 | [Record attributes pass through](tasks/413_record-attributes.md) | Trust | todo | 407 |
+| 414 | [Definition precedence](tasks/414_definition-precedence.md) | Retrieval | todo | 403, 407 |
+| 415 | [Conditional route handlers](tasks/415_conditional-route-handlers.md) | Coverage | todo | 411 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -88,9 +93,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   *"a blast-radius sentence I can paste on the PR"*; `impact` and `find_callers` are the answer — 200.
 - **The consumer brief names no contract-change occasion** — its first occasion is a rename; a widened
   return contract under the same name is the field 16–30 miss (probe O6) — 200.
-- **`impact` on a table defined in several files walks nothing** — a schema file plus migrations make
-  it `subject_ambiguous`, so the writers' records never surface; 407 lists only the seed's own, and
-  403's fix covers `read_symbol` on routines. Every `Table` definition of one qname as one seed — 407.
 - **A column read under `MERGE … USING` or `UPDATE … FROM` is not credited**, and the anchor's column
   questions await a contract-19 rebuild (E1) — 410.
 - **The PreCompact state line reaches no one** — Claude Code adds no PreCompact stdout to context and
