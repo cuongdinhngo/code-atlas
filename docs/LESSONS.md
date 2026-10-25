@@ -40,7 +40,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
-| `widen-every-query-that-shares-the-page` | 11 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
+| `widen-every-query-that-shares-the-page` | 13 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
 | `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
@@ -48,6 +48,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `a-docs-change-runs-every-doc-budget` | 2 | 408, 411 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 412-C1 — a new tool parameter is read by the surface guards before any reviewer
+
+- type: 2 (code) · handle: `a-new-parameter-meets-the-surface-guards`
+- status: proposed · seen: 412
+- evidence: `records` and `records_limit` on `impact` failed `test_agent_brief_usage_completeness.py` (taught or
+  waived) and `test_limit_clamp_visible.py` (a `limit` clamps at the page); the change list named neither. Grep the
+  tests for `_tool_params` / `limit: int | None` before closing a change list that adds a parameter.
+- destination: first sighting.
 
 ### 411-C1 — a baseline run in the checkout being edited measures no tree
 
@@ -253,7 +262,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407
+- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from. 407 — a

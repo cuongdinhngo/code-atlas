@@ -154,6 +154,8 @@ def test_find_references_lists_a_targets_records_labelled_declared(repo: Config)
             "id": "T-2",
             "title": "Saved row lost its note",
             "kind": "ticket",
+            "distance": 0,
+            "direct": True,
             "tier": "HEURISTIC",
             "rule": True,
         }
