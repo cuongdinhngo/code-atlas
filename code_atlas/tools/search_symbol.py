@@ -62,6 +62,7 @@ from code_atlas.tools.symbol_pointers import (
     ALIASES_FIELD,
     AMBIGUITY_FIELD,
     aliases,
+    declared_precedence,
     one_definition_first,
 )
 
@@ -397,7 +398,9 @@ def _search_one(
     truncated = len(rows) > cap
     # A cut or later page may hide a newer redefinition: it names no latest (403 review).
     whole = not truncated and offset == 0
-    page, held = _one_definition_first(rows[:cap], every_version=whole)
+    page, held = _one_definition_first(
+        rows[:cap], every_version=whole, precedence=declared_precedence(store)
+    )
     results = _suppress_redundant_file_hits(
         [_hit(row, store=store, detail_level=detail_level) for row in page]
     )
@@ -603,9 +606,10 @@ def _overlay_hits(
 
 
 def _one_definition_first(
-    rows: list[Row], *, every_version: bool = True
+    rows: list[Row], *, every_version: bool = True, precedence: tuple[str, ...] = ()
 ) -> tuple[list[Row], dict[str, str]]:
-    """Each qname this page holds twice: the definition that answers leads the rest (394, 403).
+    """Each qname this page holds twice: the definition that answers leads the rest (394, 403,
+    414).
 
     Returns the reordered page and, per qname the rule held for, why the others do not compete.
     """
@@ -616,7 +620,9 @@ def _one_definition_first(
     held: dict[str, str] = {}
     for qname, group in groups.items():
         if len(group) > 1:
-            first, ambiguity = one_definition_first(group, every_version=every_version)
+            first, ambiguity = one_definition_first(
+                group, every_version=every_version, precedence=precedence
+            )
             if ambiguity is not None:
                 ordered[qname] = iter(first)
                 held[qname] = ambiguity
