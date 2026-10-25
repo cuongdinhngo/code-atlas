@@ -267,6 +267,25 @@ Reviewed at 20d3edb3. Files: `code_atlas/enrichment.py`, `code_atlas/indexer.py`
 - 414-C1 `run-the-ac-on-main-before-the-design` (process, new): AC2 assumed `impact` walks a table's writers; one
   call on `main` would have shown it never does, before the design was built around it.
 
+**The final gate** (live checkout):
+
+Ran at 3feb7593
+
+```
+$ scripts/gate.sh
+      2 failed, 4972 passed, 4 skipped, 1 xfailed in 662.25s (0:11:02)
+GATE RED — 1 check(s) failed
+```
+
+The two failures are 411's host exclusions. In a clean worktree at the same SHA:
+
+```
+$ .venv/bin/python -m pytest -q tests/test_install_skew.py tests/test_release_discipline.py
+29 passed, 1 xfailed in 15.70s
+```
+
+Ran at 3feb7593.
+
 ### Outward actions
 
 Under the handover: push `feat/414-definition-precedence`; open its PR against `feat/413-record-attributes`.
