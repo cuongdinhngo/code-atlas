@@ -318,7 +318,7 @@ def _attach_refresh_refused(status: dict[str, object], config: Config) -> None:
     if record.get("route"):
         block["route"] = record["route"]
     else:
-        block["hint"] = REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
+        block["hint"] = record.get("hint") or REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
     status[REFRESH_REFUSED] = block
 
 

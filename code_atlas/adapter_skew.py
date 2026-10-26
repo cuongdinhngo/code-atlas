@@ -14,11 +14,14 @@ Offline and writes nothing to the index (R4.1, R4.2); an adapter that cannot ans
 
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import threading
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from code_atlas import contract
 from code_atlas.adapter import AdapterContractError, AdapterError, SubprocessAdapter
@@ -27,6 +30,19 @@ from code_atlas.config import Config
 REFUSAL_NAME = "contract.refused"
 # Well inside the hook's 10 s: adapters launch together, so this bounds the whole probe.
 PROBE_TIMEOUT = 3.0
+# The fix for a refused handshake, by which half is older (418).
+OLDER_ADAPTER_FIX = (
+    "adapter {key!r} is v{announced}, core is v{core}: put the adapter checkout on a release that "
+    "speaks v{core}{release}, or reinstall the core from that checkout"
+)
+OLDER_CORE_FIX = (
+    "core is v{core}, older than adapter {key!r} (v{announced}): reinstall the core from the "
+    "adapter's checkout (`uv tool install --reinstall --from <checkout> code-atlas`)"
+)
+SAME_CHECKOUT_CLAUSE = (
+    "; the core was installed from this checkout ({source}) at another revision, "
+    "so reinstall it after switching branches"
+)
 
 
 def _refusal_path(db_path: Path) -> Path:
@@ -100,3 +116,56 @@ def adapter_contracts(config: Config, *, timeout: float = PROBE_TIMEOUT) -> dict
             adapter.kill()  # A parked handshake read returns once the child dies.
     refused = read_refusals(config.db_path)
     return {key: answers.get(key, refused.get(key)) for key in sorted(config.adapter_cmds)}
+
+
+def installed_from() -> Path | None:
+    """The directory a non-editable install was built from (``direct_url.json``), else ``None``.
+
+    An editable install follows its checkout live, so it can never lag it (418).
+    """
+    try:
+        raw = importlib.metadata.distribution("code-atlas").read_text("direct_url.json")
+        record = json.loads(raw or "null")
+    except (importlib.metadata.PackageNotFoundError, ValueError):
+        return None
+    if not isinstance(record, dict):
+        return None
+    url, dir_info = record.get("url"), record.get("dir_info")
+    if not isinstance(url, str) or not url.startswith("file:"):
+        return None
+    if isinstance(dir_info, dict) and dir_info.get("editable"):
+        return None
+    return Path(url2pathname(urlparse(url).path)).resolve()
+
+
+def same_checkout(command: Sequence[str] | None, source: Path | None) -> bool:
+    """Whether an adapter's argv launches a file inside the directory the core was built from."""
+    if not command or source is None:
+        return False
+    for part in command:
+        path = Path(part)
+        if path.is_absolute() and path.resolve().is_relative_to(source):
+            return True
+    return False
+
+
+def contract_fix(
+    refused: AdapterContractError,
+    command: Sequence[str] | None,
+    *,
+    source: Path | None = None,
+    release: str | None = None,
+) -> str:
+    """The fix for a refused handshake: which half is older, and the step that moves it (418)."""
+    from code_atlas.build_info import UNKNOWN_VERSION, package_version
+
+    release = package_version() if release is None else release
+    tag = f" (`git checkout v{release}`)" if release != UNKNOWN_VERSION else ""
+    older_adapter = refused.announced < contract.CONTRACT_VERSION
+    template = OLDER_ADAPTER_FIX if older_adapter else OLDER_CORE_FIX
+    fix = template.format(
+        key=refused.key, announced=refused.announced, core=contract.CONTRACT_VERSION, release=tag
+    )
+    if same_checkout(command, source):
+        fix += SAME_CHECKOUT_CLAUSE.format(source=source)
+    return fix
