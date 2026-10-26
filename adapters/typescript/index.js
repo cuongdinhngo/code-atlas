@@ -22,7 +22,7 @@ const META = {
     // A request's `spans` of any file are read as its `suffix` — a PHP view's `<script>` (399).
     spans: true,
   },
-  contract_version: 19,
+  contract_version: 20,
   // What a grep for a TS/JS symbol looks like (345): a declaration, a member call or import, a bare call.
   symbol_shapes: [
     {

@@ -44,7 +44,10 @@ from typing import Literal, get_args
 # region of one language inside another's file is named by its host, read by its suffix's owner.
 # v19: `READS` onto a Column, `Table::column` (410). A statement names the columns it reads, so a
 # pre-410 index — which would answer "no readers" for every column — rebuilds instead.
-CONTRACT_VERSION = 19
+# v20: the rule file's stored blocks (411–415). A pre-411 index kept one handler per route key, no
+# census, no record `attributes`/`stop_at`, no `definitions.precedence`: its answers would read as
+# complete, so it rebuilds instead.
+CONTRACT_VERSION = 20
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[

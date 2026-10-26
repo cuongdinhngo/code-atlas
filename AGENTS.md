@@ -108,7 +108,7 @@ Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count — the one place these numbers are
-kept:** **5,003 passed / 5 skipped / 1 xfail** (2026-10-25, through 415).
+kept:** **5,011 passed / 5 skipped / 1 xfail** (2026-10-26, through 417).
 Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 4,331 / 4 on the 373
 tree (2026-10-09) — re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build`.
@@ -137,5 +137,5 @@ fix (review's included) into one run; CI re-verifies.
 ## What has shipped
 **Phase 1** (closed 2026-09-27, plan §15): core, onboarding and four adapters — **24 tools**, plus the
 console scripts in `pyproject.toml`; C#/.NET is the only adapter left. **Phase 2 so far:** releases
-through 0.8.0 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
+through 0.9.0 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
 Open work: [`docs/BACKLOG.md`](docs/BACKLOG.md).

@@ -35,7 +35,7 @@ function serve(Parser $parser): void
             'declared_types' => true,
             'inheritance' => true,
         ],
-        'contract_version' => 19,
+        'contract_version' => 20,
         // What a grep for a PHP symbol looks like (345): a declaration, a member or static call,
         // `new`, or a bare call — the shapes the language spells, never a project's names.
         'symbol_shapes' => [

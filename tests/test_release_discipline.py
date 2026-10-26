@@ -65,7 +65,7 @@ def _git(*args: str) -> str:
 
 # A release is cut untagged; pushing the tag is the maintainer's (381 E3, 390). Strict: once the tag
 # is fetched this XPASSes and fails, so the marker cannot outlive the gap it names.
-@pytest.mark.xfail(_version() == "0.8.0", strict=True, reason="v0.8.0 not yet tagged (410)")
+@pytest.mark.xfail(_version() == "0.9.0", strict=True, reason="v0.9.0 not yet tagged (417)")
 def test_the_top_release_is_tagged() -> None:
     """381 AC3: a release is a tagged `vX.Y.Z`; commits after it are not a newer release."""
     top = HEADING.findall((REPO / "CHANGELOG.md").read_text(encoding="utf-8"))[0][0]

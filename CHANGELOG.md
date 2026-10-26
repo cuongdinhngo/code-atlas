@@ -17,6 +17,29 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.9.0 — 2026-10-26 · contract 20 · schema 9
+
+- **Full rebuild required.** Run `code-atlas-build --full`: a pre-0.9.0 index kept one handler per
+  route key and none of the rule file's new blocks, so its answers would read as complete.
+- **Adapter checkout must be updated.** Every adapter speaks contract 20.
+- Route rows sharing a key are all stored, and a URL reaching that key answers every target, flagged
+  `ambiguity: "route_collision"` with `route_candidates`. `get_index_status` balances the table
+  under `routes`: `declared` = `stored` + `dropped` by reason (`unresolved`, `short_name_tie`,
+  `duplicate`, `incomplete`), with examples, `collisions` and `conditional`. `significant_by_path`
+  gives a path its own significant keys (411).
+- `impact` lists the subject's own records first, each with `distance` and `direct`;
+  `records: "direct"` returns those alone and `records_limit` pages them. A records block's
+  `stop_at` names hub files whose records reach no other answer, counted in `records_stopped` (412).
+- A records block's `attributes` ride on every record row, and `records_filter` on `read_symbol`,
+  `find_references` and `impact` keeps the records whose attribute matches. A path no block
+  declares, or a value no attribute holds, is refused (413).
+- A rules file's `definitions.precedence` (path globs, most authoritative first) names which of a
+  qname's definitions answers: `read_symbol` reads it, `search_symbol` leads with it under
+  `ambiguity: "definition_precedence"`, and `impact` / `impact_modules` walk the qname with the rest
+  under `other_definitions` (414).
+- Rows of one route key that each carry a `when` label (and optional `source`) are a conditional
+  route: one flow per handler, each with its `when`/`source`. A TSV label column the file lacks
+  fails the build (415).
 - `impact(paths=[…])` seeds only the symbols the file defines: a `Namespace` another file also
   declares is no path's seed, so that file's records never read `direct` (416).
 
