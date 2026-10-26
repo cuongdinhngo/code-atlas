@@ -17,8 +17,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
-- `impact(paths=[…])` seeds only the symbols the file defines: a `Namespace` every file in it
-  declares is no path's seed, so another file's records never read `direct` (416).
+- `impact(paths=[…])` seeds only the symbols the file defines: a `Namespace` another file also
+  declares is no path's seed, so that file's records never read `direct` (416).
 
 ## 0.8.0 — 2026-10-24 · contract 19 · schema 9
 

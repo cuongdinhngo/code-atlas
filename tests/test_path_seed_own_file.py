@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -18,6 +19,7 @@ from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import impact
 from tests.php_adapter_cli import CLI, needs_php
+from tests.python_adapter_cli import CLI as PY_CLI
 
 pytestmark = needs_php
 
@@ -86,3 +88,29 @@ def test_the_namespace_is_no_seed_of_a_path(repo: Config) -> None:
     assert "ambiguous_definitions" not in answer
     assert answer["seeds_dropped"] == 0
     assert answer["seed_expansion"] == {"paths": 1, "seeds": 3}
+
+
+def test_a_namespace_only_its_own_file_declares_stays_a_path_seed(
+    tmp_path: Path,
+) -> None:
+    """A Python package's ``Namespace`` is its ``__init__.py``'s alone, so that path seeds it."""
+    root = tmp_path / "repo"
+    (root / "pkg").mkdir(parents=True)
+    (root / "pkg" / "__init__.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    argv = ", ".join(json.dumps(part) for part in (*PY_CLI.entry_argv, "--server"))
+    (root / ".code-atlas.toml").write_text(f"[adapter_cmd]\npython = [{argv}]\n", encoding="utf-8")
+    for git in (["git", "init", "-q"], ["git", "add", "-A"]):
+        subprocess.run(git, cwd=root, check=True, capture_output=True)
+    config = load_config(
+        root,
+        {
+            "CA_TRUST_PROJECT_FILE": "1",
+            "CA_WORKERS": "1",
+            "CA_DB_PATH": str(root / ".code-atlas" / "graph.db"),
+        },
+    )
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    answer = impact.create(config)(paths=["pkg/__init__.py"])
+    assert answer["seed_expansion"] == {"paths": 1, "seeds": 3}
+    assert "pkg" in [row["qname"] for row in cast(list[dict[str, Any]], answer["results"])]

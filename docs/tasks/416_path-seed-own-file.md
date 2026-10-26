@@ -26,8 +26,11 @@ was already correct.
 ## Resolution
 
 - `resolve_seeds` skips a node whose kind is in `contract.SPANNING_KINDS` (`Namespace`) when it
-  expands a path, so `impact` and `impact_modules` both seed only the file's own symbols.
+  expands a path and another file also declares it, so `impact` and `impact_modules` both seed only
+  the file's own symbols. A Python package's `Namespace` is its `__init__.py`'s alone and stays a
+  seed (review fix: the first cut dropped it).
 - `impact`'s `seed_files` takes a path-derived seed's file from the path alone; a qname seed still
   contributes every file that defines it.
 - An explicit `qnames=["\\ns"]` is unchanged: it was asked for.
-- Proving: `tests/test_path_seed_own_file.py` (4 failed on `main` 4d9c9863, 4 pass with the fix).
+- Proving: `tests/test_path_seed_own_file.py` (4 failed on `main` 4d9c9863, 4 pass with the fix;
+  the review added the package case, which failed on the first cut).
