@@ -17,7 +17,7 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
-## 0.9.0 — 2026-10-25 · contract 20 · schema 9
+## 0.9.0 — 2026-10-26 · contract 20 · schema 9
 
 - **Full rebuild required.** Run `code-atlas-build --full`: a pre-0.9.0 index kept one handler per
   route key and none of the rule file's new blocks, so its answers would read as complete.
@@ -40,8 +40,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - Rows of one route key that each carry a `when` label (and optional `source`) are a conditional
   route: one flow per handler, each with its `when`/`source`. A TSV label column the file lacks
   fails the build (415).
-- `impact(paths=[…])` seeds only the symbols the file defines: a `Namespace` every file in it
-  declares is no path's seed, so another file's records never read `direct` (416).
+- `impact(paths=[…])` seeds only the symbols the file defines: a `Namespace` another file also
+  declares is no path's seed, so that file's records never read `direct` (416).
 
 ## 0.8.0 — 2026-10-24 · contract 19 · schema 9
 

@@ -593,7 +593,9 @@ def resolve_seeds(
             continue
         for row in rows:
             qname = str(row["qualified_name"])
-            if qname in seen or row["kind"] in SPANNING_KINDS:
+            if qname in seen or (
+                row["kind"] in SPANNING_KINDS and _declared_elsewhere(store, qname, path)
+            ):
                 continue
             # Through the same gate a qname seed uses (169): a path-derived seed used to be
             # appended raw, so it was never classified, never counted and never explained.
@@ -604,6 +606,12 @@ def resolve_seeds(
     return SeedSet(
         found, tuple(dropped), tuple(expanded), tuple(from_bare), tuple(bare_refused)
     )
+
+
+def _declared_elsewhere(store: GraphStore, qname: str, path: str) -> bool:
+    """Whether a file other than ``path`` also declares ``qname`` — a namespace it shares (416)."""
+    rows = store.nodes_by_qualified_name(qname, limit=2)
+    return any(str(row["file_path"]) != path for row in rows)
 
 
 def _resolve_seed(store: GraphStore, qname: str, max_results: int) -> SubjectResolution:
