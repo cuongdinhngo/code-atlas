@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A build refused for an adapter on another contract carries a `hint` naming the older half and its
+  step (`git checkout v<release>` or reinstall the core), on the payload, the CLI line and
+  `refresh_refused`. When the adapter runs from the checkout the core was installed from, the hint
+  and the SessionStart line say so instead of `git pull` (418).
+
 ## 0.9.0 — 2026-10-26 · contract 20 · schema 9
 
 - **Full rebuild required.** Run `code-atlas-build --full`: a pre-0.9.0 index kept one handler per

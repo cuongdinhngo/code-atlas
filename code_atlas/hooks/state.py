@@ -59,11 +59,22 @@ HOOKS_UPGRADE = (
     "(or re-copy the hook snippet)"
 )
 CHECKOUT_UPGRADE = "`git pull` in its checkout, then reinstall its dependencies"
+# The core was installed from the adapters' own checkout, then the checkout moved: `git pull`
+# can leave it where it is, so the fix names the revision instead (418).
+SAME_CHECKOUT_UPGRADE = (
+    "{release} in the checkout the core was installed from, or reinstall the core from it"
+)
+SAME_CHECKOUT_REINSTALL = (
+    "`uv tool install --reinstall --from <checkout> code-atlas`: the core was installed from "
+    "this checkout at another revision"
+)
 # The whole-install line's steps, in the order they must run (374 Scope 2).
 DISCONNECT_STEP = "disconnect the server (`/mcp`)"
 TOOL_STEP = "`uv tool upgrade code-atlas`"
 PLUGIN_STEP = "`claude plugin update code-atlas@code-atlas`"
 CHECKOUT_STEP = "`git pull` the adapter checkout, reinstall its deps"
+SAME_CHECKOUT_STEP = "{release} in the adapter checkout, or reinstall the core from it"
+SAME_CHECKOUT_TOOL_STEP = "`uv tool install --reinstall --from <checkout> code-atlas`"
 RECONNECT_STEP = "reconnect (`/mcp`) or restart"
 UPGRADING_POINTER = "run the README's *Upgrading* steps in order"
 # uv writes `?rev=`/`?tag=` into the receipt only when the install named `@<ref>`; upgrade skips it.
@@ -128,7 +139,7 @@ def _whole_line(
 ) -> str:
     """Every lagging half and its step in order; past the budget, the halves and the README."""
     steps = [step for _, step in lagging]
-    if any(step in (TOOL_STEP, PLUGIN_STEP) for step in steps):
+    if any(step in (TOOL_STEP, SAME_CHECKOUT_TOOL_STEP, PLUGIN_STEP) for step in steps):
         steps = ([DISCONNECT_STEP] if windows else []) + steps + [RECONNECT_STEP]
     numbered = " ".join(f"{n}. {step}" for n, step in enumerate(steps, 1))
     halves = ", ".join(half for half, _ in lagging)
@@ -137,7 +148,7 @@ def _whole_line(
         if estimate_tokens(line) <= TOKEN_BUDGET:
             return line
     # Still too long: the checkout half is counted, not listed.
-    halves = ", ".join(adapters if step == CHECKOUT_STEP else half for half, step in lagging)
+    halves = ", ".join(adapters if half.startswith("adapter ") else half for half, _ in lagging)
     return f"{PREFIX}{halves} lag {newest} — {UPGRADING_POINTER}"
 
 
@@ -148,10 +159,21 @@ def install_line(
     expected_contract: int | None,
     adapters: Mapping[str, int | None],
     windows: bool,
+    same_checkout: bool = False,
 ) -> str | None:
     """One line naming every half older than the newest — tool, plugin, adapter checkout — or
     ``None``. An adapter that could not answer is ``None``, never a skew."""
     core = contract.CONTRACT_VERSION
+    release = "check out the core's release"
+    if _release(installed):
+        release = f"`git checkout v{installed}`"
+    checkout_upgrade, checkout_step, tool_upgrade = CHECKOUT_UPGRADE, CHECKOUT_STEP, TOOL_UPGRADE
+    tool_step = TOOL_STEP
+    if same_checkout:
+        tool_step = SAME_CHECKOUT_TOOL_STEP
+        checkout_upgrade = SAME_CHECKOUT_UPGRADE.format(release=release)
+        checkout_step = SAME_CHECKOUT_STEP.format(release=release)
+        tool_upgrade = SAME_CHECKOUT_REINSTALL
     known = {key: c for key, c in adapters.items() if c is not None}
     tool, plugin = _release(installed), (_release(expected) if expected else None)
     newest = max([core, *known.values(), *([expected_contract] if expected_contract else [])])
@@ -166,17 +188,17 @@ def install_line(
     same_release = not (tool and plugin and plugin != tool)
     if same_release and not plugin_lags:
         if ahead and not behind and not windows:
-            return _adapter_line(ahead, TOOL_UPGRADE)
+            return _adapter_line(ahead, tool_upgrade)
         if behind and not tool_lags:
-            return _adapter_line(behind, CHECKOUT_UPGRADE)
+            return _adapter_line(behind, checkout_upgrade)
     lagging: list[tuple[str, str]] = []
     if tool_lags:
-        lagging.append((f"tool {installed} (v{core})", TOOL_STEP))
+        lagging.append((f"tool {installed} (v{core})", tool_step))
     if plugin_lags:
         lagging.append((f"plugin {expected}", PLUGIN_STEP))
     if behind:
         named = ", ".join(f"'{key}' v{c}" for key, c in sorted(behind.items()))
-        lagging.append((f"adapter {named}", CHECKOUT_STEP))
+        lagging.append((f"adapter {named}", checkout_step))
     leaders = sorted(key for key, c in known.items() if c == newest)
     if newest > core and newest != expected_contract and leaders:
         newest_label = f"adapter {', '.join(repr(k) for k in leaders)} (v{newest})"
@@ -245,16 +267,19 @@ def _fit(summary: str, phase: str | None) -> str:
 
 
 def _install_skew(root: Path, expected: str | None, expected_contract: int | None) -> str | None:
-    from code_atlas.adapter_skew import adapter_contracts
+    from code_atlas.adapter_skew import adapter_contracts, installed_from, same_checkout
     from code_atlas.build_info import package_version
     from code_atlas.config import load_config
 
+    config = load_config(root)
+    source = installed_from()
     return install_line(
         installed=package_version(),
         expected=expected,
         expected_contract=expected_contract,
-        adapters=adapter_contracts(load_config(root)),
+        adapters=adapter_contracts(config),
         windows=os.name == "nt",
+        same_checkout=any(same_checkout(cmd, source) for cmd in config.adapter_cmds.values()),
     )
 
 

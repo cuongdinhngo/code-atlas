@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 # What a refused refresh records for `get_index_status` (401); the rest of the refusal is dropped.
-RECORDED_FIELDS = ("reason", "detail", "route")
+RECORDED_FIELDS = ("reason", "detail", "route", "hint")
 
 
 def _verbose(argv: list[str]) -> bool:

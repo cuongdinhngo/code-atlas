@@ -48,7 +48,12 @@ def exit_code(result: Mapping[str, object]) -> int:
         return BUSY_PEER
     if mode == REFUSED_MODE:
         detail = result.get("detail")
-        _say(f"refused: {result.get('reason')}" + (f" ({detail})" if detail else ""))
+        hint = result.get("hint")
+        _say(
+            f"refused: {result.get('reason')}"
+            + (f" ({detail})" if detail else "")
+            + (f" — {hint}" if hint else "")
+        )
         return FAILED
     wrote = _wrote(result)
     files = wrote.get("files", 0)

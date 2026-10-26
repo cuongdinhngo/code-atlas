@@ -15,7 +15,8 @@ from dataclasses import asdict
 from typing import Literal
 
 from code_atlas import contract, gitutil, records
-from code_atlas.adapter import AdapterError
+from code_atlas.adapter import AdapterContractError, AdapterError
+from code_atlas.adapter_skew import contract_fix, installed_from
 from code_atlas.config import Config
 from code_atlas.index_lock import (
     clear_pending,
@@ -186,7 +187,7 @@ def _adapter_refused(
     ``schema_guard``: the refusal reaches the caller as a payload, still writing no index (064's
     concern) and naming the tree it declined to write (071/079).
     """
-    return {
+    refused: dict[str, object] = {
         "mode": REFUSED,
         "requested_full": full,
         "performed": False,
@@ -196,6 +197,11 @@ def _adapter_refused(
         "db_path": str(config.db_path),
         "seconds": round(time.monotonic() - started, 3),
     }
+    if isinstance(broken, AdapterContractError):
+        # A contract skew's fix is a version move, never the command the generic hint names (418).
+        command = config.adapter_cmd(broken.key)
+        refused["hint"] = contract_fix(broken, command, source=installed_from())
+    return refused
 
 
 def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
