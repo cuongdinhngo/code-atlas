@@ -123,7 +123,8 @@ startup preflight warns about the `/mnt/*` case; the Defender cost it cannot see
 
 You need **Python ≥ 3.12** with SQLite ≥ 3.25 and FTS5 (a standard CPython build has both), plus the runtime of whichever language you want to index: a **PHP CLI ≥
 8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript
-and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core.
+and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core. Incremental
+builds in a git repo need **git ≥ 2.24**; an older git falls back to full builds.
 
 ```bash
 git clone https://github.com/cuongdinhngo/code-atlas.git

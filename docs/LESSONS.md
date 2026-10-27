@@ -312,12 +312,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 360-C1 — a ticket that names why a repair path fails assumes the path runs
 
 - type: 2 (process) · handle: `confirm-the-blocked-path-runs`
-- status: proposed · seen: 360, 365
+- status: proposed · seen: 360, 365, 419
 - evidence: the ticket said read-through "cannot repair" a file added mid-build because its diff
   was empty, and the design fixed the diff. `file_outline` returned `found: false` for a path
   missing from `files` before read-through ran at all, so AC4 stayed red until it routed the
   miss through `ensure_miss`. Run the named path once before designing around its blocker.
-- destination: first sighting.
+  419: the state-hook arm of the proving test passed pre-fix — its stdin named no hook event, so
+  the hook returned before reaching git. Every arm must be seen red, not only the suite.
+- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
 
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
 

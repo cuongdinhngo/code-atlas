@@ -21,6 +21,11 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   step (`git checkout v<release>` or reinstall the core), on the payload, the CLI line and
   `refresh_refused`. When the adapter runs from the checkout the core was installed from, the hint
   and the SessionStart line say so instead of `git pull` (418).
+- Every git call runs through `gitutil._run`, hardened: no system config, no prompt, and
+  `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden; `diff` adds
+  `--no-ext-diff --no-textconv`. A revision read from the index must be a full object id and follows
+  `--end-of-options`; anything else is refused on stderr and the build falls back to full. git 2.24
+  or newer is required (419).
 
 ## 0.9.0 — 2026-10-26 · contract 20 · schema 9
 

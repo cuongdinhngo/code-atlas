@@ -33,6 +33,9 @@ untrusted input**. It aims to hold these guarantees:
 - **Reads and writes stay inside the repo.** A path code-atlas reads from, or writes into, the
   indexed repo is resolved with symlinks followed and refused if it lands outside
   (`code_atlas/containment.py`).
+- **git runs hardened.** Every git command is spawned by `code_atlas/gitutil.py` with the
+  repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden, and a
+  stored revision is accepted only as a full object id, after `--end-of-options`.
 - **The core makes no network calls.** The optional LLM package, `onboarding_llm/`, is off by
   default. When you enable it, it sends derived facts to Anthropic's API: module paths,
   signatures, docblocks and graph facts, not function bodies.
@@ -43,11 +46,10 @@ untrusted input**. It aims to hold these guarantees:
   a `.code-atlas/` directory that is itself committed as a symlink, and an indexed file swapped for a
   link out of the repo since the build — `read_symbol` refuses it, but another tool's read-through
   repair still re-parses it (375). All three are tracked in [`docs/BACKLOG.md`](docs/BACKLOG.md).
-- **The indexed repo's own git config applies.** code-atlas runs read-only `git` commands
-  (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) inside the indexed repo, so that repo's
-  `.git/config` applies, exactly as it would if you ran `git` there yourself. Do not index a working
-  copy whose `.git` directory you did not create, such as one unpacked from an archive, outside a
-  container.
+- **The rest of the indexed repo's git config applies.** The read-only `git` commands
+  (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) still read its `.git/config` beyond
+  the overridden keys. Do not index a working copy whose `.git` directory you did not create, such
+  as one unpacked from an archive, outside a container.
 - **The runtime image runs as root** unless you pass `--user`. The README shows how.
 
 A report that breaks one of the guarantees above is in scope. A report that restates a known
