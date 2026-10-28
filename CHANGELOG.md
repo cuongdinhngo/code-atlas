@@ -26,6 +26,12 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   `--no-ext-diff --no-textconv`. A revision read from the index must be a full object id and follows
   `--end-of-options`; anything else is refused on stderr and the build falls back to full. git 2.24
   or newer is required (419).
+- The index directory is trusted only if code-atlas wrote it. When git tracks anything under it, or
+  it, the database, a `-wal`/`-shm` or the shadow is a link or resolves outside the repo, the build,
+  the server, `get_index_status` and every hook refuse with the fix (`git rm -r --cached <dir>`),
+  and the hooks inject nothing. Every file there is written without following a link, `0600` in a
+  `0700` directory, so an index a root container creates needs `--user` to stay readable to you;
+  the database opens with `trusted_schema=OFF` and defensive mode (420).
 
 ## 0.9.0 — 2026-10-26 · contract 20 · schema 9
 

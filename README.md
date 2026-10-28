@@ -381,7 +381,7 @@ never a silent fallback.
 
 | Environment | `.code-atlas.toml` | Default | Meaning |
 |---|---|---|---|
-| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). The file value must stay inside the repo; only the env var may point outside |
+| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). Inside the repo it must not be a link or tracked by git; only the env var may point outside |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
 | `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here |

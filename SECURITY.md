@@ -33,6 +33,11 @@ untrusted input**. It aims to hold these guarantees:
 - **Reads and writes stay inside the repo.** A path code-atlas reads from, or writes into, the
   indexed repo is resolved with symlinks followed and refused if it lands outside
   (`code_atlas/containment.py`).
+- **The index directory is code-atlas's own.** An index that git tracks, or whose directory,
+  database or database sibling is a link or leads outside the repo, is refused by every entry point
+  with the fix. Each index file is written by `code_atlas/containment.py`, never through a link,
+  `0600` in a `0700` directory, and the database is opened with `trusted_schema=OFF` and SQLite's
+  defensive mode.
 - **git runs hardened.** Every git command is spawned by `code_atlas/gitutil.py` with the
   repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden, and a
   stored revision is accepted only as a full object id, after `--end-of-options`.
@@ -42,10 +47,13 @@ untrusted input**. It aims to hold these guarantees:
 
 ### Known limitations
 
-- **Three symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
-  a `.code-atlas/` directory that is itself committed as a symlink, and an indexed file swapped for a
-  link out of the repo since the build — `read_symbol` refuses it, but another tool's read-through
-  repair still re-parses it (375). All three are tracked in [`docs/BACKLOG.md`](docs/BACKLOG.md).
+- **Two symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
+  and an indexed file swapped for a link out of the repo since the build — `read_symbol` refuses it,
+  but another tool's read-through repair still re-parses it (375). Both are tracked in
+  [`docs/BACKLOG.md`](docs/BACKLOG.md).
+- **A committed index is refused only where git can answer.** If git cannot run in the repo (not
+  installed, or refusing a `.git` owned by another user, as in the runtime image), the index is not
+  known to be tracked and is opened, still under the link, mode and SQLite defences above.
 - **The rest of the indexed repo's git config applies.** The read-only `git` commands
   (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) still read its `.git/config` beyond
   the overridden keys. Do not index a working copy whose `.git` directory you did not create, such
