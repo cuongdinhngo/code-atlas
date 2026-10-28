@@ -2,16 +2,18 @@
 
 Keyed on the symbol's content (not its position), so a rename or reorder is a cache hit and an
 edit is a miss. The on-disk form is sorted-key JSON with no timestamps, so it is byte-stable and
-**committable** — a committed cache makes every later run (and any diff) deterministic (R4.2). The
-core never sees this file; it is written only by the opt-in ``onboarding_llm`` path.
+**committable** — a committed cache makes every later run (and any diff) deterministic (R4.2) — at
+a path outside the index directory, which is refused once tracked (420). The core never sees this
+file; it is written only by the opt-in ``onboarding_llm`` path.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
+
+from code_atlas.containment import make_private_dir, safe_write
 
 
 def content_key(*parts: str) -> str:
@@ -31,8 +33,9 @@ class ContentHashCache:
     cheap enough for this opt-in, offline tool.
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, root: Path | None = None) -> None:
         self._path = path
+        self._root = root
         self._entries: dict[str, dict[str, str]] = _read(path)
 
     def get(self, key: str) -> dict[str, str] | None:
@@ -45,11 +48,9 @@ class ContentHashCache:
         self._flush()
 
     def _flush(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        make_private_dir(self._path.parent)
         text = json.dumps(self._entries, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        temporary = self._path.with_name(self._path.name + ".tmp")
-        temporary.write_text(text, encoding="utf-8")
-        os.replace(temporary, self._path)
+        safe_write(self._path, text, root=self._root)
 
 
 def _read(path: Path) -> dict[str, dict[str, str]]:

@@ -25,6 +25,8 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 
+from code_atlas.containment import make_private_dir, safe_open, safe_write
+
 LOCK_NAME = "write.lock"
 # A request that found the lock held (357): a dirty flag, no owner, so nothing outlives a death.
 PENDING_NAME = "write.pending"
@@ -105,8 +107,9 @@ else:
 def try_index_write_lock(db_path: Path) -> Iterator[bool]:
     """Yield ``True`` while holding the lock; ``False`` if another writer holds it."""
     lock_path = db_path.parent / LOCK_NAME
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with lock_path.open("a+", encoding="utf-8") as lock_file:
+    make_private_dir(lock_path.parent)
+    descriptor = safe_open(lock_path, os.O_RDWR | os.O_CREAT | os.O_APPEND)
+    with os.fdopen(descriptor, "a+", encoding="utf-8") as lock_file:
         try:
             _lock_exclusive_nb(lock_file.fileno())
         except BlockingIOError:
@@ -131,7 +134,7 @@ def pending_path_for(db_path: Path) -> Path:
 def mark_pending(db_path: Path) -> None:
     """Leave a request for the lock holder to serve. Best-effort: never raises."""
     try:
-        pending_path_for(db_path).touch()
+        os.close(safe_open(pending_path_for(db_path), os.O_WRONLY | os.O_CREAT))
     except OSError:
         return
 
@@ -159,11 +162,8 @@ def refresh_refused_path_for(db_path: Path) -> Path:
 
 def record_refresh_refused(db_path: Path, record: Mapping[str, object]) -> None:
     """Replace the record with this refusal. Best-effort: never raises, never half-written."""
-    path = refresh_refused_path_for(db_path)
-    staged = path.with_name(path.name + ".tmp")
     try:
-        staged.write_text(json.dumps(dict(record), sort_keys=True), encoding="utf-8")
-        os.replace(staged, path)
+        safe_write(refresh_refused_path_for(db_path), json.dumps(dict(record), sort_keys=True))
     except OSError:
         return
 
@@ -228,7 +228,8 @@ def publish_build_progress(db_path: Path, line: str) -> None:
     takes nor disturbs the lock it writes inside.
     """
     try:
-        with lock_path_for(db_path).open("r+", encoding="utf-8") as handle:
+        descriptor = safe_open(lock_path_for(db_path), os.O_RDWR)
+        with os.fdopen(descriptor, "r+", encoding="utf-8") as handle:
             # Fixed width, rewritten from offset 0: no truncate, so a concurrent reader never
             # sees a half-length line, and the file never grows over a long build.
             handle.seek(0)

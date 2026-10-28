@@ -54,6 +54,15 @@ def ls_files(root: Path) -> tuple[str, ...] | None:
     return tuple(sorted(path for path in found.split("\0") if path))
 
 
+def tracked(root: Path, paths: tuple[str, ...]) -> tuple[str, ...] | None:
+    """Which tracked paths lie at or under ``paths`` (repo-relative, read literally), or None."""
+    pathspecs = tuple(f":(literal){path}" for path in paths)
+    found = _run(root, "ls-files", "-z", "--", *pathspecs)
+    if found is None:
+        return None
+    return tuple(sorted(path for path in found.split("\0") if path))
+
+
 def ls_untracked(root: Path) -> tuple[str, ...] | None:
     """Untracked paths git does not ignore, repo-relative and POSIX-separated, or None.
 

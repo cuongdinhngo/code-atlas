@@ -31,6 +31,7 @@ from code_atlas.contract import CONTRACT_VERSION
 from code_atlas.enrichment import rules_drift
 from code_atlas.gitutil import dirty_paths
 from code_atlas.index_lock import build_holds_live_db, build_in_progress, read_refresh_refused
+from code_atlas.index_trust import check_index
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     COVERAGE_LOSS,
@@ -208,6 +209,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         unbuilt or unreadable index carries no line — it cannot name a revision (task 100).
         """
         call = claim.call_args(get_index_status, locals())
+        check_index(config.root, config.db_path)  # a server outlives the commit that tracks it
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if offset > 0 and detail_level != "verbose":

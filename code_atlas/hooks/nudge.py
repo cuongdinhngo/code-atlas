@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from code_atlas.containment import safe_append, safe_write
 from code_atlas.hooks import additional_context
 
 INDEX_DIR = ".code-atlas"
@@ -238,14 +239,11 @@ def nudge(
     state.pop(key, None)
     state[key] = sorted(seen | set(kinds))
     kept = dict(list(state.items())[-KEPT_SESSIONS:])
-    # Parallel subagents write here: replace atomically so no reader sees a torn file.
-    tmp = index / f"{STATE_FILE}.{os.getpid()}.tmp"
-    tmp.write_text(json.dumps(kept), encoding="utf-8")
-    os.replace(tmp, index / STATE_FILE)
+    # Parallel subagents write here: replaced atomically so no reader sees a torn file.
+    safe_write(index / STATE_FILE, json.dumps(kept), root=root)
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    with (index / LOG_FILE).open("a", encoding="utf-8") as log:
-        for name, kind in sorted(set(fresh)):
-            log.write(f"{stamp}\t{key}\t{name}\t{kind}\n")
+    rows = "".join(f"{stamp}\t{key}\t{name}\t{kind}\n" for name, kind in sorted(set(fresh)))
+    safe_append(index / LOG_FILE, rows, root=root)
     return (
         f"code-atlas: this grep looks like a symbol search ({', '.join(kinds)}) — ask the index "
         "first (search_symbol / find_callers / find_references); keep Grep as the cross-check."
