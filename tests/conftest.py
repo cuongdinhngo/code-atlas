@@ -4,11 +4,15 @@ A tracked ``.code-atlas/`` is refused, as it would be in a user's repo without t
 Added through ``GIT_CONFIG_COUNT``, so the user's own global config still applies.
 """
 
+import atexit
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
-_IGNORE = Path(tempfile.mkdtemp(prefix="code-atlas-tests-")) / "exclude"
+_HOME = tempfile.mkdtemp(prefix="code-atlas-tests-")
+atexit.register(shutil.rmtree, _HOME, True)
+_IGNORE = Path(_HOME) / "exclude"
 _IGNORE.write_text(".code-atlas/\n", encoding="utf-8")
 _INDEX = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
 os.environ["GIT_CONFIG_COUNT"] = str(_INDEX + 1)

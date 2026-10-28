@@ -4,8 +4,9 @@ The indexed repo is untrusted content and git stores symlinks, so a committed li
 (an indexed body, a quoted README) or a write (the onboarding tree) anywhere on the host. This is
 the one containment rule; each read or write site asks it rather than carrying its own check.
 
-Every file written under the index directory is opened here (420): the file itself never through a
-link, its directory a real one inside the given root, created private to the user.
+Every file the index keeps is opened here (420): the file itself never through a link, its
+directory a real one inside the given root, created private to the user. The onboarding cache
+beside it is ``generate_onboarding``'s, guarded by ``require_writable`` instead.
 """
 
 import contextlib
@@ -61,7 +62,8 @@ def safe_open(path: Path, flags: int, *, root: Path | None = None) -> int:
     ``root`` defaults to the file's own directory, which must then not be a link itself.
     """
     parent = path.parent
-    if parent.is_symlink() or not resolves_inside(parent if root is None else root, parent):
+    linked = parent.is_symlink() or parent.is_junction()
+    if linked or not resolves_inside(parent if root is None else root, parent):
         raise UnsafeWrite(errno.ELOOP, "refusing to write through a link", str(path))
     if not _NOFOLLOW and path.is_symlink():
         raise UnsafeWrite(errno.ELOOP, "refusing to write through a link", str(path))

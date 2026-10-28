@@ -13,6 +13,7 @@ determinism (R4.2) is asserted over row content ordered by a stable key, with th
 
 import atexit
 import contextlib
+import errno
 import json
 import os
 import re
@@ -25,7 +26,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from code_atlas import contract
-from code_atlas.containment import make_private_dir, safe_open
+from code_atlas.containment import UnsafeWrite, make_private_dir, safe_open
 from code_atlas.contract import CONFIDENCE_TIERS
 
 # A quarter of the tour budget may go to roots, so the walk always has room to expand
@@ -140,8 +141,12 @@ def _connect(
 def _create_private(db_path: Path) -> None:
     """Create the database file ``0600`` before SQLite does; its WAL siblings take the same mode."""
     make_private_dir(db_path.parent)
-    with contextlib.suppress(FileExistsError):
+    try:
         os.close(safe_open(db_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL))
+    except FileExistsError:
+        if db_path.is_symlink():  # O_EXCL fails on a link too; SQLite would then follow it
+            refused = "refusing to open a linked index"
+            raise UnsafeWrite(errno.ELOOP, refused, str(db_path)) from None
 
 
 def shadow_db_path(db_path: Path) -> Path:

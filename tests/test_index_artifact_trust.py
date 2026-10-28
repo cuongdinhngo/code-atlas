@@ -170,7 +170,9 @@ def test_a_running_server_refuses_an_index_committed_under_it(tmp_path: Path) ->
 
 
 @posix_only
-@pytest.mark.parametrize("link", ["cache", "cache/graph.db", "cache/graph.db-wal", "shadow"])
+@pytest.mark.parametrize(
+    "link", ["cache", "cache/graph.db", "cache/graph.db-wal", "shadow", "shadow-wal"]
+)
 def test_a_linked_db_path_is_refused(tmp_path: Path, link: str) -> None:
     """AC3: the database, its directory, -wal and the shadow must not lead out of the repo."""
     root, outside = tmp_path / "repo", tmp_path / "elsewhere"
@@ -181,11 +183,23 @@ def test_a_linked_db_path_is_refused(tmp_path: Path, link: str) -> None:
         (root / "cache").symlink_to(outside, target_is_directory=True)
     else:
         (root / "cache").mkdir()
-        name = "cache/graph.db.shadow" if link == "shadow" else link
+        name = f"cache/graph.db.{link}" if link.startswith("shadow") else link
         (root / name).symlink_to(outside / "x.db")
     with pytest.raises(ConfigError, match="symlink|outside"):
         load_config(root, _env())
     assert not any(outside.iterdir())
+
+
+@posix_only
+def test_a_linked_database_is_never_opened_by_the_store(tmp_path: Path) -> None:
+    """AC3: a store opened past ``load_config`` still refuses a database that is a link."""
+    victim = tmp_path / "victim.db"
+    victim.write_bytes(VICTIM_BYTES)
+    (tmp_path / "index").mkdir()
+    (tmp_path / "index" / "graph.db").symlink_to(victim)
+    with pytest.raises(OSError, match="linked index"):
+        GraphStore(tmp_path / "index" / "graph.db")
+    assert victim.read_bytes() == VICTIM_BYTES
 
 
 @pytest.fixture
@@ -247,11 +261,11 @@ def test_the_index_is_private(tmp_path: Path) -> None:
     }
 
 
-# Writers that never target the index directory, each with why (AC7).
+# Writers outside the AC7 sweep, each with why (the onboarding cache stays out of 420).
 EXEMPT = {
     "code_atlas/containment.py": "the one writer",
     "code_atlas/query.py": "the operator's own --out file",
-    "code_atlas/tools/generate_onboarding.py": "require_writable owns these writes (out of scope)",
+    "code_atlas/tools/generate_onboarding.py": "require_writable refuses links; modes are BACKLOG",
     "code_atlas/adapter.py": "the stderr log path is caller-chosen; no core caller passes one",
 }
 _WRITE_MODES = set("wax+")
