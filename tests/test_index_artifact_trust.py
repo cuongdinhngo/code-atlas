@@ -23,6 +23,7 @@ from code_atlas.store import (
     GraphStore,
     bump_fit_count,
     read_meta_readonly,
+    schema_distrust_supported,
 )
 from code_atlas.tools import build_or_update_index, get_index_status
 
@@ -205,6 +206,8 @@ def test_a_linked_database_is_never_opened_by_the_store(tmp_path: Path) -> None:
 @pytest.fixture
 def sentinel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A file a schema object may write only through a function on code-atlas's own connections."""
+    if not schema_distrust_supported():
+        pytest.skip("this SQLite refuses fts5 triggers under trusted_schema=OFF, so it stays on")
     mark = tmp_path / "sentinel"
     mark.write_text("0", encoding="utf-8")
     real = sqlite3.connect

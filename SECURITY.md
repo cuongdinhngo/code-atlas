@@ -51,6 +51,9 @@ untrusted input**. It aims to hold these guarantees:
   and an indexed file swapped for a link out of the repo since the build — `read_symbol` refuses it,
   but another tool's read-through repair still re-parses it (375). Both are tracked in
   [`docs/BACKLOG.md`](docs/BACKLOG.md).
+- **`trusted_schema` stays on where SQLite is too old for it.** A build older than the 3.45 tested
+  here (3.40 in Debian bookworm, the runtime image's base) refuses the index's own full-text
+  triggers with it off, so there only defensive mode applies.
 - **A committed index is refused only where git can answer.** If git cannot run in the repo (not
   installed, or refusing a `.git` owned by another user, as in the runtime image), the index is not
   known to be tracked and is opened, still under the link, mode and SQLite defences above.

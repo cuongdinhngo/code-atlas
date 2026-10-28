@@ -133,9 +133,30 @@ def _connect(
 ) -> sqlite3.Connection:
     """Every connection: a schema the file carries is not trusted to call our functions (420)."""
     conn = sqlite3.connect(target, uri=uri, check_same_thread=check_same_thread)
-    conn.execute("PRAGMA trusted_schema=OFF")
+    if schema_distrust_supported():
+        conn.execute("PRAGMA trusted_schema=OFF")
     conn.setconfig(sqlite3.SQLITE_DBCONFIG_DEFENSIVE, True)
     return conn
+
+
+@lru_cache(maxsize=1)
+def schema_distrust_supported() -> bool:
+    """Whether this SQLite runs the index's own fts5 triggers under ``trusted_schema=OFF``.
+
+    Older builds (3.40, Debian bookworm's) refuse a trigger writing fts5 then; there it stays on.
+    """
+    probe = sqlite3.connect(":memory:")
+    try:
+        probe.execute("PRAGMA trusted_schema=OFF")
+        probe.execute("CREATE TABLE t(x)")
+        probe.execute("CREATE VIRTUAL TABLE f USING fts5(x)")
+        probe.execute("CREATE TRIGGER g AFTER INSERT ON t BEGIN INSERT INTO f VALUES (new.x); END")
+        probe.execute("INSERT INTO t VALUES ('x')")
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        probe.close()
+    return True
 
 
 def _create_private(db_path: Path) -> None:

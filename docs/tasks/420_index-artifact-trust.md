@@ -87,6 +87,9 @@ publish), `config.py` (`db_path` resolution and `_is_repo_relative`).
   is kept per `.git/index` stamp, so `get_index_status` spawns git only after a commit or pull.
   Not done: where git cannot answer (the runtime image's ownership refusal) a tracked index is not
   refused; the onboarding cache keeps default modes. Both are in BACKLOG.
+- Deviation from AC4: SQLite 3.40 (the runtime image's) refuses the index's own fts5 triggers
+  under `trusted_schema=OFF`, so `store.schema_distrust_supported` probes once and leaves it on
+  there; defensive mode always applies, and the sentinel tests skip on such a build.
 - Tests: `tests/conftest.py` adds `.code-atlas/` to git's excludes for the session, since fixtures
   `git add -A` a built repo; two module-count pins move to 106.
 - A committed LLM cache at the default `.code-atlas/` path is now refused; its env knob moves it.
