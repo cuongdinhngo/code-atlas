@@ -19,6 +19,7 @@ from code_atlas.config import ConfigError
 from code_atlas.containment import resolves_inside
 
 # git's answer per (root, paths), kept while ``.git/index`` is unchanged.
+_TRACKED_MAX = 64
 _TRACKED: dict[tuple[Path, tuple[str, ...]], tuple[tuple[int, int], tuple[str, ...] | None]] = {}
 # The database's own files: SQLite's WAL siblings and the full rebuild's shadow (356).
 _SIBLINGS = ("-wal", "-shm", ".shadow", ".shadow-wal", ".shadow-shm")
@@ -66,7 +67,10 @@ def _tracked(root: Path, paths: tuple[str, ...]) -> tuple[str, ...] | None:
     if kept is not None and kept[0] == stamp:
         return kept[1]
     found = gitutil.tracked(root, paths)
-    _TRACKED[(root, paths)] = (stamp, found)
+    if found is not None:  # a failed call is asked again; a same-tick edit is git's own racy case
+        if len(_TRACKED) >= _TRACKED_MAX:
+            _TRACKED.clear()
+        _TRACKED[(root, paths)] = (stamp, found)
     return found
 
 
