@@ -172,7 +172,7 @@ REFRESH_REASONS = frozenset(
 REFRESH_ROUTES = frozenset({FULL_REBUILD_ROUTE, INCOMPLETE_INDEX_ROUTE})
 REFRESH_REASON_UNKNOWN = "unknown"
 # The hook's own `at` format (hooks/refresh.py).
-REFRESH_AT = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+REFRESH_AT = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
 REFRESH_DETAIL_CAP = 1000
 # The longest summary the code composes, every clause at once, is 612 chars (421 AC4).
 SUMMARY_CAP = 1024
@@ -548,7 +548,8 @@ def _compose_state(payload: dict[str, object]) -> str:
     if isinstance(pending, dict):
         # Ahead of staleness: an incremental refuses here, so "run build_or_update_index" is wrong.
         stored, server = pending.get("stored_contract"), pending.get("server_contract")
-        era = f"index contract {f'v{stored}' if stored else 'unknown'}, server v{server}"
+        index = f"v{stored}" if stored else "unknown"
+        era = f"index contract {index}, server v{server}"
         return (
             f"{REBUILD_LEAD}{at} · {scale} — {era} — run `{pending.get('route')}` "
             f"(or build_or_update_index {pending.get('in_band_option')})"

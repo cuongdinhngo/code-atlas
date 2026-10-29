@@ -81,6 +81,8 @@ UPGRADING_POINTER = "run the README's *Upgrading* steps in order"
 RECEIPT = "uv-receipt.toml"
 PIN_KEYS = ("rev=", "tag=")
 SCREEN_EVENT = "SessionStart"
+# The numeric fields of the build's progress line (build_or_update_index's writer).
+PROGRESS_COUNTS = frozenset({"done", "total", "pid", "at"})
 
 
 def _verbose(argv: list[str]) -> bool:
@@ -100,11 +102,28 @@ def _project_root() -> Path:
 
 
 def _build_clause(phase: str | None) -> str:
-    from code_atlas.index_text import NAME_CAP, scrubbed
     from code_atlas.tools.get_index_status import BUILD_PROGRESS_ROUTE
 
-    live = f" ({scrubbed(phase, NAME_CAP)})" if phase else ""
+    live = f" ({phase})" if phase else ""
     return f" · a build is running{live} — `{BUILD_PROGRESS_ROUTE}` reads its live phase"
+
+
+def checked_progress(line: str | None) -> str | None:
+    """The build's progress line only when every token is one the build writes, else ``None`` (421).
+
+    ``phase=`` names one of ``BUILD_PHASES``; the rest are counts, a pid and an epoch.
+    """
+    from code_atlas.indexer import BUILD_PHASES
+
+    if not line:
+        return None
+    for token in line.split(" "):
+        key, _, value = token.partition("=")
+        if key == "phase" and value in BUILD_PHASES:
+            continue
+        if key not in PROGRESS_COUNTS or not (value.isascii() and value.isdigit()):
+            return None
+    return line
 
 
 def _release(version: str) -> tuple[int, ...] | None:
@@ -343,7 +362,7 @@ def state_line(root: Path, *, verbose: bool = False) -> str | None:
     summary = str(payload["summary"])
     if not (bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db)):
         return PREFIX + summary
-    return _fit(summary, read_build_progress(db))
+    return _fit(summary, checked_progress(read_build_progress(db)))
 
 
 def main(argv: list[str] | None = None) -> int:
