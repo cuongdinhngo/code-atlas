@@ -41,6 +41,11 @@ untrusted input**. It aims to hold these guarantees:
 - **git runs hardened.** Every git command is spawned by `code_atlas/gitutil.py` with the
   repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden, and a
   stored revision is accepted only as a full object id, after `--end-of-options`.
+- **Text read back from the index is data.** A name stamped into the index, the recorded refusal
+  and the build's progress line reach `nudge.log`, the server instructions or a hook only as a
+  checked name, a value from code-atlas's own vocabulary or a number; the status summary is
+  scrubbed of control, bidi and ANSI characters and capped (`code_atlas/index_text.py`). Tool
+  answers that return indexed source (`read_symbol`, search) carry it as written.
 - **The core makes no network calls.** The optional LLM package, `onboarding_llm/`, is off by
   default. When you enable it, it sends derived facts to Anthropic's API: module paths,
   signatures, docblocks and graph facts, not function bodies.

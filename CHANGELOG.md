@@ -32,6 +32,11 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   and the hooks inject nothing. Every file there is written without following a link, `0600` in a
   `0700` directory, so an index a root container creates needs `--user` to stay readable to you;
   the database opens with `trusted_schema=OFF` and defensive mode (420).
+- Text read back from the index can no longer add a line to `nudge.log` or speak to the agent.
+  A refusal record's reason and route must be ones code-atlas writes (else `unknown`, with its own
+  hint), the coverage-loss clause names only shipped or configured languages, and the
+  `get_index_status` summary — the server instructions and the SessionStart line — is scrubbed of
+  control, bidi and ANSI characters and capped at 1,024 characters (421).
 
 ## 0.9.0 — 2026-10-26 · contract 20 · schema 9
 

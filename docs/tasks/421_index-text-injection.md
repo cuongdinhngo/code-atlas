@@ -4,7 +4,7 @@ slug: index-text-injection
 title: "Text read back from the index cannot add a log line or steer the agent — only checked names, enumerated values and numbers reach a log, the instructions or a hook"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [420]
 ---
 
@@ -63,3 +63,29 @@ writer), `tools/get_index_status.py` (`_attach_refresh_refused`, `_refresh_refus
 `REFRESH_HINTS`, `REFRESH_REASON_NAMED_BY`). Coverage loss: `get_index_status.py`
 (`COVERAGE_LOSS_PENDING`, the summary's loss clause). Consumers: `instructions.py`,
 `hooks/state.py` (`_fit`, the JSON it prints).
+
+## Resolution
+
+- `code_atlas/index_text.py` holds the two checks: `checked_name` (one printable line, at most 256
+  characters) and `scrubbed` (ANSI sequences removed, control and bidi characters dropped, capped).
+- Nudge: a pair is logged only when the adapter name passes `checked_name` and the kind is one of
+  `contract.SHAPE_KINDS`; the rest are counted in one `-\tdropped:<n>` row, and the injected line
+  names only checked kinds. A grep whose every hit is dropped stays silent and logs nothing, as
+  any silent grep does (377).
+- Refusal record: one checked reader, `_checked_refusal(read_refresh_refused(…))`. `reason` must be
+  in `REFRESH_REASONS` (absent still reads `refresh_error`), `route` in `REFRESH_ROUTES`, `at` the
+  hook's ASCII timestamp; the hint is always `REFRESH_HINTS`'; `detail` is scrubbed and capped at
+  1,000. A guard parses `build_or_update_index.py` so a new refused reason or route joins the sets.
+- Coverage loss: `_known_languages(coverage_loss(…))` names a lost id only when it is shipped or
+  configured — a lost language is never configured, so "configured" alone would name none — and
+  counts the rest as `lost_unrecognised`. Reason and hint come from the constants.
+- Summary: `last_commit` must be an object id (`gitutil.is_object_id`) and the stored contract a
+  number; the sentence is scrubbed once and capped at `SUMMARY_CAP` 1,024 (the longest the code
+  composes, every clause at once, is 612). The SessionStart hook takes the build's progress line
+  only when every token is a `BUILD_PHASES` phase or a count (`state.checked_progress`).
+- Tests: three summary fixtures stamped `last_commit` values that are not object ids (padded); the
+  core module count pins move to 107.
+- Not done (tool answers, Track B 429): `schema_guard.attach_build_state` returns `build_phase`
+  unchecked, and the coverage-loss build refusal returns `lost_languages` raw.
+- Proving: `tests/test_index_text_injection.py` — 10 red on 764cb091, each for its own reason;
+  the review arms (a printable planted kind, the progress line) were red on 1f76cc85.

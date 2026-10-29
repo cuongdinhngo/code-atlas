@@ -69,6 +69,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   runs git as root over a host-owned mount, so refusing there would refuse every container user:
   the maintainer's call); and `generate_onboarding`'s `.code-atlas/onboarding/` cache keeps default
   modes (`require_writable` already refuses links) — 420.
+- **421's residuals** — two tool-answer fields stay unchecked: `build_phase`, a coverage-loss
+  refusal's `lost_languages` — 429.
 - **Two symlink residuals** — a stub root's files (`collect_stubs`, `os.walk`) — 342; and read-through repair
   (`poke`, other tools) re-parses an indexed file swapped for a link out, storing its rows
   (`read_symbol` refuses before repairing) — 375.
