@@ -24,6 +24,7 @@ from pathlib import Path, PurePosixPath
 
 from code_atlas.containment import safe_append, safe_write
 from code_atlas.hooks import additional_context
+from code_atlas.index_text import checked_name
 
 INDEX_DIR = ".code-atlas"
 STATE_FILE = "nudge.json"
@@ -226,11 +227,13 @@ def nudge(
 
     with GraphStore(load_config(root).db_path) as store:
         shapes = store.stamped_symbol_shapes()
-    hits = matched_kinds(call, shapes)
+    hits = set(matched_kinds(call, shapes))
+    # Both are stamped index text, the repo's to write: a forged one never reaches the log (421).
+    checked = {(name, kind) for name, kind in hits if checked_name(name) and checked_name(kind)}
     key = dedupe_key(session, agent)
     state = _load_state(index / STATE_FILE)
     seen = set(state.get(key, []))
-    fresh = [(name, kind) for name, kind in hits if kind not in seen]
+    fresh = [(name, kind) for name, kind in checked if kind not in seen]
     # Judged last, so only a grep that would speak pays for it; silence records nothing (377).
     if not fresh or not index_answers(root):
         return None
@@ -242,7 +245,9 @@ def nudge(
     # Parallel subagents write here: replaced atomically so no reader sees a torn file.
     safe_write(index / STATE_FILE, json.dumps(kept), root=root)
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    rows = "".join(f"{stamp}\t{key}\t{name}\t{kind}\n" for name, kind in sorted(set(fresh)))
+    rows = "".join(f"{stamp}\t{key}\t{name}\t{kind}\n" for name, kind in sorted(fresh))
+    if len(hits) > len(checked):
+        rows += f"{stamp}\t{key}\t-\tdropped:{len(hits) - len(checked)}\n"
     safe_append(index / LOG_FILE, rows, root=root)
     return (
         f"code-atlas: this grep looks like a symbol search ({', '.join(kinds)}) — ask the index "

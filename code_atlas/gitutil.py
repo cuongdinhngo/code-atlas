@@ -42,6 +42,11 @@ _HEAD = "HEAD"
 END_OF_OPTIONS_SINCE = (2, 24)
 
 
+def is_object_id(value: object) -> bool:
+    """A full SHA-1 or SHA-256 object id — the only revision read from the index git is given."""
+    return isinstance(value, str) and _OBJECT_ID.fullmatch(value) is not None
+
+
 def ls_files(root: Path) -> tuple[str, ...] | None:
     """Every tracked path, repo-relative and POSIX-separated, or None outside a git repo.
 
@@ -218,7 +223,7 @@ def _run(
     object id (or ``HEAD``): a value read from the index can never be parsed as an option (419).
     """
     if revision is not None:
-        if revision != _HEAD and not _OBJECT_ID.fullmatch(revision):
+        if revision != _HEAD and not is_object_id(revision):
             _report(f"refused revision {revision!r}: not a full object id; git is not asked")
             return None
         arguments = (*arguments, "--end-of-options", revision, "--")

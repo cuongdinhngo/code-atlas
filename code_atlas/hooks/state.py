@@ -100,9 +100,10 @@ def _project_root() -> Path:
 
 
 def _build_clause(phase: str | None) -> str:
+    from code_atlas.index_text import NAME_CAP, scrubbed
     from code_atlas.tools.get_index_status import BUILD_PROGRESS_ROUTE
 
-    live = f" ({phase})" if phase else ""
+    live = f" ({scrubbed(phase, NAME_CAP)})" if phase else ""
     return f" · a build is running{live} — `{BUILD_PROGRESS_ROUTE}` reads its live phase"
 
 

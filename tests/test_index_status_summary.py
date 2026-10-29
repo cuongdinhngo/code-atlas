@@ -29,7 +29,7 @@ def test_summary_is_pure_function_of_structured_fields() -> None:
         "indexed": True,
         "files": 10,
         "nodes": 100,
-        "last_commit": "abcdef0123456789",
+        "last_commit": "abcdef0123456789" + "0" * 24,
         "staleness": "current",
     }
     assert _compose_summary(base) == "current @ abcdef0 · 10 files · 100 symbols"
@@ -66,7 +66,12 @@ def test_a_pending_rebuild_leads_the_summary_whatever_the_staleness() -> None:
         "stored_contract": "10",
         "server_contract": "13",
     }
-    base = {"indexed": True, "files": 10, "nodes": 100, "last_commit": "abcdef0123456789"}
+    base = {
+        "indexed": True,
+        "files": 10,
+        "nodes": 100,
+        "last_commit": "abcdef0123456789" + "0" * 24,
+    }
     expected = (
         "rebuild required @ abcdef0 · 10 files · 100 symbols — index contract v10, server v13 — "
         "run `code-atlas-build --full` (or build_or_update_index allow_full_rebuild=true)"
@@ -90,7 +95,7 @@ def test_built_minimal_summary_and_claim_unchanged(tmp_path: Path) -> None:
             path,
             target_qname="\\App\\Db::write",
         )])
-        store.set_meta("last_commit", "7efaa91deadbeef")
+        store.set_meta("last_commit", "7efaa91deadbeef" + "0" * 25)
         store.set_meta("last_ref", "main")
     config = load_config(tmp_path)
     tool = get_index_status.create(config, (get_index_status.NAME,))
