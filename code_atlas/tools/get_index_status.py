@@ -25,7 +25,8 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
 from code_atlas import records, routes
-from code_atlas.adapter import shipped_adapters, unconfigured_adapters
+from code_atlas.adapter import AdapterContractError, shipped_adapters, unconfigured_adapters
+from code_atlas.adapter_skew import contract_fix, installed_from, read_refusals
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONTRACT_VERSION
@@ -338,12 +339,14 @@ def _attach_refresh_refused(status: dict[str, object], config: Config) -> None:
     The hook's own record, never a prediction: an adapter that fails its handshake is found only
     by launching it, which a status call must not do. Every detail level, as the summary is.
     """
-    block = _checked_refusal(read_refresh_refused(config.db_path))
+    block = _checked_refusal(read_refresh_refused(config.db_path), config)
     if block is not None:
         status[REFRESH_REFUSED] = block
 
 
-def _checked_refusal(record: Mapping[str, object] | None) -> dict[str, object] | None:
+def _checked_refusal(
+    record: Mapping[str, object] | None, config: Config
+) -> dict[str, object] | None:
     """The record as data (421): an enumerated reason and route, a dated `at`, our own hint."""
     if record is None:
         return None
@@ -359,8 +362,23 @@ def _checked_refusal(record: Mapping[str, object] | None) -> dict[str, object] |
     if isinstance(route, str) and route in REFRESH_ROUTES:
         block["route"] = route
     else:
-        block["hint"] = REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
+        block["hint"] = _refusal_hint(reason, config)
     return block
+
+
+def _refusal_hint(reason: str, config: Config) -> str:
+    """Our hint for ``reason``; a contract skew's directional one is rebuilt from typed data (418).
+
+    ``read_refusals`` keeps only integers, keyed here by a configured adapter, never record text.
+    """
+    if reason == NO_USABLE_ADAPTER:
+        recorded = read_refusals(config.db_path)
+        skewed = {key: value for key, value in recorded.items() if key in config.adapter_cmds}
+        if len(skewed) == 1:
+            ((key, announced),) = skewed.items()
+            refused = AdapterContractError(key, announced)
+            return contract_fix(refused, config.adapter_cmd(key), source=installed_from())
+    return REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
 
 
 def _refresh_refused_clause(payload: Mapping[str, object]) -> str:
