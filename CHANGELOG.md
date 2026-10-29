@@ -17,6 +17,20 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.9.1 — 2026-10-29 · contract 20 · schema 9
+
+### Security
+
+Fixes [GHSA-66g7-7jr3-j5rc](https://github.com/cuongdinhngo/code-atlas/security/advisories/GHSA-66g7-7jr3-j5rc)
+(419–421): an index the indexed repo committed could pass a git option, write through a link, or
+put text in the agent's instructions. Upgrade every install. No rebuild, no adapter update.
+
+- **A committed index is now refused.** If `.code-atlas/` is tracked, untrack it
+  (`git rm -r --cached .code-atlas`) and add it to `.gitignore`. In the runtime image, run with
+  `--user "$(id -u):$(id -g)"` so the index stays readable to you.
+
+### Changes
+
 - A build refused for an adapter on another contract carries a `hint` naming the older half and its
   step (`git checkout v<release>` or reinstall the core), on the payload, the CLI line and
   `refresh_refused`. When the adapter runs from the checkout the core was installed from, the hint
