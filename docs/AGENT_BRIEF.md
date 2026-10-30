@@ -91,17 +91,21 @@ with a `len(...)==N`/listed-subset pin on it unlisted and later caught as a devi
 
 ## P6 — A verified assumption holds only for the path and tree it was checked on
 
-`Ratified 2026-08-30` — handle `re-verify-the-assumption-on-a-new-path`.
+`Ratified 2026-08-30` — handle `re-verify-the-assumption-on-a-new-path` · widened 2026-10-30 —
+handle `confirm-the-blocked-path-runs` (`360-C1`).
 
 When a change adds a call path parallel to the one an assumption was verified on, re-verify on the
 new path; when a ticket inherits a count measured before a sibling landed, re-measure at current
-HEAD. A Gate-2 "verified" is not transitive to a path the same change introduces.
+HEAD. A Gate-2 "verified" is not transitive to a path the same change introduces. **A ticket's stated
+reason a path fails is such an assumption:** run that path once and record where it really stops
+before designing around its blocker.
 
 **Why it costs.** The assumption was true of the loop it was read against and false of the loop the
 same change added. No reviewer catches it — the breaking path post-dates the check.
 
 **Falsifier.** An assumption marked verified read against one branch while an added parallel branch
-is unguarded, or an AC citing a count not re-measured at pickup HEAD.
+is unguarded, an AC citing a count not re-measured at pickup HEAD, or a design built on a ticket's
+stated blocker with no run of that path.
 
 ## P7 — A dimension's second value makes every aggregate over it a blend
 
@@ -131,6 +135,23 @@ the stale floors failed 16 days later (issue #4), which took a bisect to tell ap
 
 **Falsifier.** A merged change after which `cross_repo_validate.py --public-only` fails on a floor
 the change moved.
+
+## P9 — A docs-only change runs `scripts/gate.sh --fast` before it is pushed
+
+`Ratified 2026-10-30` — handle `a-docs-change-runs-every-doc-budget` (`408-C1`).
+
+The tier-1 total lives in `test_agent_chain_budget.py`, not the doc-size or bookkeeping test.
+**Why it costs.** #103 and #108 ran only those two and turned `main` red. **Falsifier.** A docs-only
+PR after which `test_agent_chain_budget.py` fails on `main`.
+
+## P10 — A non-tool entry point ships named in a surface an agent loads
+
+`Ratified 2026-10-30` — handle `a-shell-surface-needs-an-agent-channel` (`387-C1`).
+
+A new CLI command, flag, mode or rule-file kind is named where an agent reads it, by a test that
+derives the names from the code. **Why it costs.** `code-atlas query`, its modes and `route=` shipped
+documented only for humans; no agent used them until 387. **Falsifier.** A CLI flag absent from every
+agent-loaded surface while the suite is green.
 
 ---
 

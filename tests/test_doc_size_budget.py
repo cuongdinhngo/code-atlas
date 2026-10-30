@@ -297,9 +297,13 @@ BUDGETS = {
     # 5,960 -> 6,260 on 2026-10-30 (423), argued. §9 makes the security standard binding: six
     # rules citing its rows, and one self-check clause. R7.6 had nothing to cut here — no rule
     # held security before — so the criteria live in tier-2 SECURITY_STANDARD.md, not here.
-    "ENGINEERING_RULES.md": 6_260,
+    # 6,260 -> 6,700 on 2026-10-30 (promotion), argued. Eight classes at recurrence 2-15; P2 ran
+    # first, so four WIDENED R1.8, R5.5, R5.6 and R6.5 rather than add a rule, and two are new
+    # (R5.9, R5.10). Nothing in tier 1 retold them; their claims are tier 2 (LESSONS.md).
+    "ENGINEERING_RULES.md": 6_700,
     # 2,250 -> 1,900 on 2026-09-27, LOWERED: phase-1 incident retellings cut to one line (1,683).
-    "AGENT_BRIEF.md": 1_900,
+    # 1,900 -> 2,250 on 2026-10-30 (promotion): P9 and P10 new, P6 widened, same pass as above.
+    "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
     # (contract v10). The §3 bullet is the tightest statement of its qname and `extra` fields; there
     # is no superseded line to prune, so the ceiling rises one step rather than displacing content.

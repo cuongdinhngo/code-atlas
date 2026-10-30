@@ -40,14 +40,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
-| `widen-every-query-that-shares-the-page` | 15 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412, 420, 421 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
-| `read-a-literal-by-its-structure-not-a-regex` | 3 | 361, 371, 398 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-zero-must-count-what-the-search-cannot-see` | 6 | 363, 397, 406, 409, 411, 415 | not yet — awaiting the maintainer's `/mango:promote` |
-| `seed-the-change-probe-with-the-first-answer` | 2 | 374, 396 | not yet — awaiting the maintainer's `/mango:promote` |
-| `confirm-the-blocked-path-runs` | 4 | 360, 365, 419, 420 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-docs-change-runs-every-doc-budget` | 3 | 408, 411, 423 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
+| `widen-every-query-that-shares-the-page` | 15 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412, 420, 421 | ENGINEERING_RULES R5.5 (widened) |
+| `read-a-literal-by-its-structure-not-a-regex` | 3 | 361, 371, 398 | ENGINEERING_RULES R5.9 |
+| `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | ENGINEERING_RULES R1.8 (widened) |
+| `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | AGENT_BRIEF P10 |
+| `a-zero-must-count-what-the-search-cannot-see` | 6 | 363, 397, 406, 409, 411, 415 | ENGINEERING_RULES R5.6 (widened) |
+| `seed-the-change-probe-with-the-first-answer` | 2 | 374, 396 | ENGINEERING_RULES R5.10 |
+| `confirm-the-blocked-path-runs` | 4 | 360, 365, 419, 420 | AGENT_BRIEF P6 and ENGINEERING_RULES R6.5 (widened) |
+| `a-docs-change-runs-every-doc-budget` | 3 | 408, 411, 423 | AGENT_BRIEF P9 |
 
 ## Live claims
 
@@ -123,7 +123,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   `test_agent_chain_budget.py` (19,906 of 19,900 tokens), found by 408's baseline. A docs-only change still runs every
   test that reads the doc it touched — `--fast` gate at least. 411: #108, which ticketed 411–415, ran the
   bookkeeping and doc-size tests only and went red on the same test (19,918 of 19,900).
-- destination: `docs/AGENT_BRIEF.md` (process) — proposed, awaiting the maintainer's `/mango:promote`.
+- destination: promoted 2026-10-30 to AGENT_BRIEF P9.
 
 ### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
 
@@ -188,7 +188,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   whenever the index was behind, yet both answered `ok` for every unchanged subject (reproduced on `main` daa6baa0);
   six anchor PRs fell back to Grep. R1.8 covers two sites branching on one verdict; this site never consulted the
   verdict at all. 365 had fixed the held case the same way, by calling the guard's predicate.
-- destination: first sighting.
+- destination: promoted 2026-10-30 to ENGINEERING_RULES R1.8.
 
 ### 387-C1 — a surface reached only from a shell is invisible to an agent until its brief names it
 
@@ -198,7 +198,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   `route=` with a waiver saying TOOLS.md teaches it; no surface an agent loads named any of them, so 387 was opened
   to add them. Tool params were gated (`test_agent_brief_usage_completeness`), CLI flags were not; 387's test now
   derives `query.py`'s flags. Any non-tool entry point (a CLI, a rule-file kind) has the same gap.
-- destination: first sighting.
+- destination: promoted 2026-10-30 to AGENT_BRIEF P10.
 
 ### 384-C1 — a store that de-dupes keep-first hides later declarations from a per-row fingerprint
 
@@ -254,7 +254,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   `uv tool upgrade` between them left `server_stale_process: false` for good — the anchor's report.
   Every test stubbed the probe, so none could see it; the new one writes a real loaded file
   (`test_server_identity_is_live.py`). Whether uv also restored 0.2.0 on Windows stays unverified.
-- destination: first sighting.
+- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.10.
 
 ### 369-C1 — a receiver read by its spelling needs the scope that could rebind it
 
@@ -297,7 +297,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   measured zero; a qualified or keyword literal now names the subject.
   411: a TSV or JSON census row missing its key or target was skipped uncounted; it is now `incomplete`.
   415: a misspelt TSV label column read every row as unlabelled; it now fails the build.
-- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
+- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.6.
 
 ### 362-C1 — a widened target must widen every query behind the same answer
 
@@ -307,7 +307,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from. 407 — a
   record target widened to a file reached the stored records but not `impact`'s row-file carriers.
-- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
+- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.5.
 
 ### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
 
@@ -316,7 +316,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: `{data: {action: 'inner'}}` gave `action='inner'`, `{action: 'a' + b}` gave `'a'`, and a
   ternary gave a bogus field — each a guessed rule link. The challenger found it; a depth-aware split
   at top-level commas, keeping only an entry that is exactly a name and one string, reads none of them.
-- destination: first sighting.
+- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.9.
 
 ### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
 
@@ -338,7 +338,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   miss through `ensure_miss`. Run the named path once before designing around its blocker.
   419: the state-hook arm of the proving test passed pre-fix — its stdin named no hook event, so
   the hook returned before reaching git. Every arm must be seen red, not only the suite.
-- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
+- destination: promoted 2026-10-30 to AGENT_BRIEF P6, ENGINEERING_RULES R6.5.
 
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
 
