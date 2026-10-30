@@ -67,9 +67,9 @@ REPO = Path(__file__).resolve().parent.parent
 # 19,850 -> 19,900 on 2026-10-17 (tickets 396-398): measured 19,882. Three todo rows from one anchor
 # finding, filed separately because each ships alone. R7.6 ran first: 372's keyword follow-up is
 # the same adapter capture as 398, so 398 scopes it and its Follow-ups line left (39 tokens back).
-# 19,900 -> 20,300 on 2026-10-30 (423): rule book §9 (six security rules), CONVENTION §8.1's row
-# and AGENTS.md's tier-2 pointer for SECURITY_STANDARD.md. The 65 criteria themselves stay tier 2;
-# what tier 1 pays is the binding rules and the way to reach them. Per-file: the doc budget test.
+# 19,900 -> 20,300 on 2026-10-30 (423): rule book §9 (six rules), CONVENTION §8.1's row and
+# AGENTS.md's pointer. The 65 criteria stay tier 2; tier 1 pays only the rules and the way to
+# them. Per-file split: test_doc_size_budget.
 TIER1_BUDGET = 20_300
 
 

@@ -36,7 +36,8 @@ by hand and are checked by nothing.
    values written in `docs/SECURITY_STANDARD.md`.
 7. **Guards for rows held without one:** a CI grep gate refuses `eval`, `exec`, `pickle`,
    `yaml.load` and `importlib` on repo content under `code_atlas/` and `adapters/` (SEC-IN-07); a
-   test refuses a committed binary outside a named allow-list (SEC-SC-14); `claude plugin validate
+   test refuses a committed binary outside a named allow-list (SEC-SC-14); an AST test refuses SQL
+   built by f-string, `%` or `.format` in `store.py` outside named identifiers (SEC-IN-06); `claude plugin validate
    --strict` runs in CI where the CLI installs (SEC-PL-06). The drift check (AC6) also reads the
    repo's admins (SEC-GV-04), and adds the standard's repo-setting item kind with its reader.
 8. `scripts/gate.sh` keeps parity with `ci.yml` (`test_ci_and_gate_agree`); the new workflows
@@ -47,4 +48,4 @@ by hand and are checked by nothing.
 `.github/workflows/ci.yml`, `cross-repo.yml`, `tokens-to-answer-sample.yml`; new
 `.github/dependabot.yml`, `codeql.yml`, `scorecard.yml`, `settings-drift.yml`;
 `tests/test_ci_and_gate_agree.py`; the R2.4 grep in `ci.yml`; `docs/SECURITY_STANDARD.md` rows
-SEC-SC-01..05, 08..10, 14..16, SEC-IN-07, SEC-PL-06, SEC-GV-01, SEC-GV-04.
+SEC-SC-01..05, 08..10, 14..16, SEC-IN-06, 07, SEC-PL-06, SEC-GV-01, SEC-GV-04.

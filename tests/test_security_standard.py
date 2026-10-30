@@ -35,7 +35,8 @@ ROW = re.compile(r"^\|\s*SEC-")
 LEVELS = ("MUST", "SHOULD")
 KINDS = ("test", "ci", "doc", "open", "n/a", "deferred")
 HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
-STEP_NAME = re.compile(r"^\s*(?:-\s+)?name:\s*(.+?)\s*$", re.MULTILINE)
+# A step's `- name:` or a job's own `name:` (four spaces in); never a workflow or artifact name.
+STEP_NAME = re.compile(r"^(?:\s+- |    )name:\s*(.+?)\s*$", re.MULTILINE)
 FRONTMATTER_STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
 GIT_LISTED = re.compile(r"`git (--?[a-z][a-z-]*|[a-z][a-z-]*)")
 
@@ -71,7 +72,11 @@ def rows(text: str | None = None) -> list[Row]:
 def _defined_tests(path: Path) -> frozenset[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     return frozenset(
-        n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+        n.name
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+        and n.name.startswith("test")
+        and not any("skip" in ast.unparse(d) for d in n.decorator_list)
     )
 
 
@@ -179,6 +184,8 @@ HELD = "test: tests/test_security_standard.py::test_every_row_names_what_holds_i
 PLANTED = {
     "missing test": "test: tests/test_security_standard.py::test_nobody_wrote_this",
     "missing test file": "test: tests/test_nowhere.py::test_x",
+    "a helper, not a test": "test: tests/test_security_standard.py::problems",
+    "a workflow name, not a step": "ci: CI",
     "missing CI step": "ci: a step no workflow has",
     "missing heading": "doc: SECURITY.md#No such heading",
     "open on a done ticket": "open: 422",
@@ -228,10 +235,17 @@ def test_section_9_cites_only_criteria_the_standard_has() -> None:
 SPAWNERS = frozenset({"run", "Popen", "check_output", "check_call", "call"})
 
 
-def _git_argument(call: ast.Call) -> str | None:
-    """The subcommand in `gitutil._run(root, "<cmd>", …)` or `<spawn>(["git", "<cmd>", …])`."""
-    if isinstance(call.func, ast.Name) and call.func.id == "_run" and len(call.args) > 1:
-        argument = call.args[1]
+NON_LITERAL = "<a subcommand not written as a literal>"
+
+
+def _git_argument(call: ast.Call, path: Path) -> str | None:
+    """The subcommand in `gitutil._run(root, "<cmd>", …)` or `<spawn>(["git", "<cmd>", …])`.
+
+    A subcommand built at run time reads as `NON_LITERAL`, so the comparison fails loud on it.
+    """
+    in_gitutil = path.name == "gitutil.py"
+    if in_gitutil and isinstance(call.func, ast.Name) and call.func.id == "_run":
+        argument = call.args[1] if len(call.args) > 1 else None
     elif (
         isinstance(call.func, ast.Attribute)
         and call.func.attr in SPAWNERS
@@ -242,13 +256,13 @@ def _git_argument(call: ast.Call) -> str | None:
         and call.args[0].elts[0].value == "git"
     ):
         argument = call.args[0].elts[1]
+        if in_gitutil and isinstance(argument, ast.Starred):
+            return None  # `_run`'s own spawn: its callers above name the subcommand
     else:
         return None
-    return (
-        argument.value
-        if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
-        else None
-    )
+    if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+        return argument.value
+    return NON_LITERAL
 
 
 def _git_commands_in_code() -> set[str]:
@@ -258,13 +272,15 @@ def _git_commands_in_code() -> set[str]:
         for top in ("code_atlas", "release_check", "onboarding_llm")
         for path in sorted((REPO / top).rglob("*.py"))
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
-        if isinstance(node, ast.Call) and (command := _git_argument(node))
+        if isinstance(node, ast.Call) and (command := _git_argument(node, path))
     }
 
 
 def test_the_code_reader_finds_the_known_spawners() -> None:
     """Guards the guard: an empty read would make the comparison below pass on an empty list."""
     assert {"ls-files", "rev-parse", "ls-remote"} <= _git_commands_in_code()
+    built = ast.parse('subprocess.run(["git", command])').body[0].value  # type: ignore[attr-defined]
+    assert _git_argument(built, Path("x.py")) == NON_LITERAL
 
 
 def test_security_md_names_every_git_command_code_atlas_runs() -> None:
@@ -276,3 +292,47 @@ def test_security_md_names_every_git_command_code_atlas_runs() -> None:
         f"SECURITY.md's Git commands lists {sorted(listed)}, the code runs {sorted(spawned)}: "
         f"missing {sorted(spawned - listed)}, stale {sorted(listed - spawned)}"
     )
+
+
+# A module reaches the network if it imports a client library or lists remote refs over git.
+NETWORK_MODULES = frozenset({"requests", "httpx", "aiohttp", "socket", "http.client", "anthropic"})
+NETWORK_NAMES = {"urllib.request": frozenset({"urlopen", "Request", "build_opener"})}
+LISTED_PACKAGE = re.compile(r"`([a-z_]+)/`")
+
+
+def _reaches_network(tree: ast.AST, path: Path) -> bool:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and any(a.name in NETWORK_MODULES for a in node.names):
+            return True
+        if isinstance(node, ast.ImportFrom) and node.module:
+            if node.module in NETWORK_MODULES:
+                return True
+            if {a.name for a in node.names} & NETWORK_NAMES.get(node.module, frozenset()):
+                return True
+        if isinstance(node, ast.Call) and _git_argument(node, path) == "ls-remote":
+            return True
+    return False
+
+
+def _network_packages() -> set[str]:
+    return {
+        top
+        for top in ("code_atlas", "release_check", "onboarding_llm")
+        for path in sorted((REPO / top).rglob("*.py"))
+        if _reaches_network(ast.parse(path.read_text(encoding="utf-8")), path)
+    }
+
+
+def test_security_md_names_every_package_that_reaches_the_network() -> None:
+    listed = set(
+        LISTED_PACKAGE.findall(_section(SECURITY_MD.read_text(encoding="utf-8"), "Network calls"))
+    )
+    found = _network_packages()
+    assert "code_atlas" not in found, "the core reaches the network (R4)"
+    assert found == listed - {"code_atlas"}, (
+        f"SECURITY.md's Network calls names {sorted(listed)}, the code reaches it from "
+        f"{sorted(found)}"
+    )
+    planted = ast.parse("from urllib.request import urlopen")
+    assert _reaches_network(planted, Path("x.py"))
+    assert not _reaches_network(ast.parse("from urllib.parse import urlparse"), Path("x.py"))

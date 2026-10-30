@@ -305,7 +305,30 @@ not a spawn; it now reads only `_run(...)` and `<spawn>([...])` call sites.
 
 Targeted run after the docs landed: `test_security_standard` 81 passed; with
 `test_no_client_identifiers`, both budget tests, `test_backlog_bookkeeping` and
-`test_every_test_is_collected`: 298 passed. `ruff check tests/` clean.
+`test_every_test_is_collected`: 298 passed. `ruff check tests/` clean. AGENTS.md's "through
+0.9.0" also became "0.9.1" (true since 422; one word, recorded here).
+
+---
+
+## Phase 4 — Review ✋ Gate 4
+
+**Challenger round 1** (ticket-blind): 10 met · 2 partly · 0 not met. Partly: (1a) no repo-setting
+item kind — deliberate, `open: 424` (Clarification 1); (4) SEC-MCP-01 stays `open: 428`, since no
+test asserts the absence of an HTTP transport and the ticket's own rule is "where no guard exists
+the row is `open:`". Its two parser findings (a helper accepted as a test; a workflow `name:`
+accepted as a CI step) were fixed — see reviewer 5.
+
+**Reviewer round 1:** CHANGES REQUESTED, 4 Important + 3 Minor, all taken:
+
+| # | Finding | Fix |
+|---|---------|-----|
+| 1 | SECURITY.md said every index file goes through `containment`; the onboarding cache does not | guarantee narrowed to the build and server; new limitation; SEC-IN-04 `open: 430`; 430 AC6 routes the cache through `containment` |
+| 2 | SEC-IN-06 cited the confinement test, which does not guard binding | test dropped; `open: 424`; 424 AC7 adds an AST guard on `store.py` |
+| 3 | SEC-GV-03 tested git commands only | `test_security_md_names_every_package_that_reaches_the_network`, seen failing on a copy missing `onboarding_llm/` |
+| 4 | SEC-IN-05 overclaimed; SEC-IN-14 `open: 430` not owned by 430 | criterion says "where SQLite supports it", `open: 430`; 430 now lists SEC-IN-04, 05, 14 and asserts extension loading off |
+| 5 | parser: helpers, workflow names, non-literal git subcommands | only `test*` defs without a skip mark; job/step names only; a built subcommand reads `NON_LITERAL`; two planted cases added |
+| 6 | `HEAD` is also accepted | SECURITY.md says so |
+| 7 | 4-line comment (R7.5); 0.9.1 bump unrecorded | trimmed to 3; recorded in Phase 3 |
 
 ---
 

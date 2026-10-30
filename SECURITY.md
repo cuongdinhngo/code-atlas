@@ -49,8 +49,8 @@ Each criterion code-atlas holds, and the test or ticket behind it, is in
   (`code_atlas/containment.py`).
 - **The index directory is code-atlas's own.** An index that git tracks, or whose directory,
   database or database sibling is a link or leads outside the repo, is refused by every entry point
-  with the fix. Each index file is written by `code_atlas/containment.py`, never through a link,
-  `0600` in a `0700` directory, and the database is opened with `trusted_schema=OFF` and SQLite's
+  with the fix. Each file the build and the server write there goes through
+  `code_atlas/containment.py`, never through a link, `0600` in a `0700` directory, and the database is opened with `trusted_schema=OFF` and SQLite's
   defensive mode.
 - **git runs hardened.** See [Git commands](#git-commands).
 - **Text read back from the index is data.** A name stamped into the index, the recorded refusal
@@ -76,7 +76,7 @@ pieces outside it do:
 Every command below runs with `shell=False` and a timeout. In the indexed repo, `code_atlas/gitutil.py`
 is the only spawner: it overrides the repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`
 and `diff.external`, sets `GIT_CONFIG_NOSYSTEM=1` and `GIT_TERMINAL_PROMPT=0`, and accepts a stored
-revision only as a full object id, after `--end-of-options`.
+revision only as a full object id (or the literal `HEAD`), after `--end-of-options`.
 
 - `git ls-files` — which files to index, and whether git tracks the index.
 - `git rev-parse` — the repo's top level, `HEAD` and branch.
@@ -92,7 +92,7 @@ Keep these on in your MCP client:
 
 - **Tool approval.** Every tool reads the repo and writes only its own index under `.code-atlas/`,
   except the two you ask to write: `build_or_update_index` and `generate_onboarding` (which writes
-  `docs/onboarding/`). Approve those knowingly.
+  `docs/onboarding/` and a cache under `.code-atlas/onboarding/`). Approve those knowingly.
 - **A pinned install.** Install a release tag, and do not turn on auto-update for a marketplace
   that tracks a branch.
 - **Read answers as data.** Source, docblocks and names in an answer come from the indexed repo.
@@ -103,6 +103,9 @@ Keep these on in your MCP client:
 - **Two symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
   and an indexed file swapped for a link out of the repo since the build — `read_symbol` refuses it,
   but another tool's read-through repair still re-parses it. Both close in 430.
+- **The onboarding cache is written with default modes.** `generate_onboarding` refuses a link
+  under `.code-atlas/onboarding/` but writes its cache with your umask's modes, not `0600`/`0700`
+  (430).
 - **`trusted_schema` stays on where SQLite is too old for it.** A build older than the 3.45 tested
   here (3.40 in Debian bookworm, the runtime image's base) refuses the index's own full-text
   triggers with it off, so there only defensive mode applies.

@@ -36,8 +36,9 @@ One fixture per limit, each seen failing first (R6.5):
 5. **Scrubbed environments:** adapters run with an allow-listed environment (no `*_TOKEN`,
    `*_KEY`, `ANTHROPIC_*`, `GH_*`); git runs with `GIT_*` variables other than the ones
    code-atlas sets removed.
-6. `generate_onboarding`'s `.code-atlas/onboarding/` cache joins 420's modes (`0700`/`0600`),
-   closing 420's residual.
+6. `generate_onboarding`'s `.code-atlas/onboarding/` cache is written through `containment`, with
+   420's modes (`0700`/`0600`), closing 420's residual (SEC-IN-04, SEC-IN-12). A test asserts SQLite
+   extension loading is off on every connection the store opens (SEC-IN-05).
 7. The BACKLOG follow-ups these close (341, 342/375 symlink residuals, parser-OOM cap, 420's
    cache modes) leave the list in the same commit.
 
@@ -45,4 +46,4 @@ One fixture per limit, each seen failing first (R6.5):
 
 `code_atlas/adapter.py`, `code_atlas/indexer.py`, `code_atlas/config.py`,
 `code_atlas/containment.py`, `code_atlas/gitutil.py`, stub-root collection, read-through repair,
-architecture-rule loading, `onboarding_llm/cache.py`; standard rows SEC-IN-01, 03, 09..13.
+architecture-rule loading, `onboarding_llm/cache.py`; standard rows SEC-IN-01, 03..05, 09..14.
