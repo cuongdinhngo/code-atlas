@@ -25,6 +25,22 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 
+## Open work — Trust (security)
+
+423 first: later tickets fill its rows.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 423 | [Security standard, conformance-tested](tasks/423_security-standard.md) | Standard | todo | 422 |
+| 424 | [CI hardening](tasks/424_ci-hardening.md) | Supply chain | todo | 423 |
+| 425 | [Locked, hashed, audited dependencies](tasks/425_dependency-lock-and-audit.md) | Supply chain | todo | 423 |
+| 426 | [Non-root, digest-pinned runtime image](tasks/426_container-hardening.md) | Container | todo | 425 |
+| 427 | [Pinned installs, hook activation](tasks/427_distribution-pinning.md) | Distribution | todo | 423 |
+| 428 | [Tool annotations, closed schemas, surface manifest](tasks/428_tool-surface-manifest.md) | MCP surface | todo | 423 |
+| 429 | [Repo text in answers marked as data](tasks/429_untrusted-output-framing.md) | Output | todo | 428 |
+| 430 | [Limits, containment, scrubbed env](tasks/430_limits-and-containment.md) | Input | todo | 423 |
+| 431 | [Release pipeline with provenance](tasks/431_release-pipeline.md) | Release | todo | 424, 425 |
+
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
@@ -57,23 +73,10 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — 042.
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
-- **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — 258.
 - **Whether the grep-time nudge changes what an agent does is unmeasured** — 344 and 345 shipped the delivery and the hook; no field run has counted grep-then-index against grep-only since — 300.
 - **A PHP property is referenced only by a static fetch naming its declaring class** — `$this->x`, `$obj->x` and `self::$x` on an inherited property emit no edge onto it, so `find_references` on it can still answer a confident zero — 336.
 - **A separator-normalised `read_symbol` hit ignores `path_prefix`** — `\Foo\bar` re-read as `Foo::bar` returns the body from a file the filter excluded; `find_references`' prefix zero names no `path_excluded` either — 339.
-- **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
-  (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
-  341.
-- **420's residuals** — a tracked index is not refused where git cannot answer (the runtime image
-  runs git as root over a host-owned mount, so refusing there would refuse every container user:
-  the maintainer's call); and `generate_onboarding`'s `.code-atlas/onboarding/` cache keeps default
-  modes (`require_writable` already refuses links) — 420.
-- **421's residuals** — two tool-answer fields stay unchecked: `build_phase`, a coverage-loss
-  refusal's `lost_languages` — 429.
-- **Two symlink residuals** — a stub root's files (`collect_stubs`, `os.walk`) — 342; and read-through repair
-  (`poke`, other tools) re-parses an indexed file swapped for a link out, storing its rows
-  (`read_symbol` refuses before repairing) — 375.
 - **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
   mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
   live DB still repairs in 365's tests — 365.
