@@ -47,7 +47,9 @@ the standard binding first, so each later ticket fills its rows rather than inve
    — untrusted; network responses; dependencies and Actions as pinned), every network call
    code-atlas makes, every git command it runs, the client-side controls a user should keep on
    (tool approval, no auto-update of a branch-tracking marketplace), and the known limitations
-   carried from 0.9.1. A test keeps the listed git commands equal to the ones `gitutil` runs.
+   carried from 0.9.1 — naming git filter drivers (`filter.<name>.clean`/`process`), which no
+   per-command override covers, among the repo config that still applies. A test keeps the listed
+   git commands equal to the ones `gitutil` runs.
 
 Out of scope: closing any open row — each belongs to 424–431. The repo-settings drift check is 424.
 
