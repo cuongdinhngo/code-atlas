@@ -115,16 +115,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   (a date function's first argument) and keeps only reserved words in the list.
 - destination: first sighting.
 
-### 408-C1 — a BACKLOG row is charged to the tier-1 budget, which `test_doc_size_budget.py` does not check
-
-- type: 2 (process) · handle: `a-docs-change-runs-every-doc-budget`
-- status: proposed · seen: 408, 411, 423
-- evidence: #103 added three BACKLOG rows after running only the bookkeeping and doc-size tests, and `main` went red on
-  `test_agent_chain_budget.py` (19,906 of 19,900 tokens), found by 408's baseline. A docs-only change still runs every
-  test that reads the doc it touched — `--fast` gate at least. 411: #108, which ticketed 411–415, ran the
-  bookkeeping and doc-size tests only and went red on the same test (19,918 of 19,900).
-- destination: promoted 2026-10-30 to AGENT_BRIEF P9.
-
 ### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
 
 - type: 2 (code) · handle: `a-guest-row-needs-its-own-language`
@@ -180,26 +170,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   compares the stored hash with the worktree's bytes per file (`Overlay.changes`); `test_challenger_main_…`.
 - destination: stays in lessons_path (type 5, descriptive; no `design_doc_path` file exists yet).
 
-### 388-C1 — a status that names what a tool refuses must ask the tool's own predicate
-
-- type: 2 (code) · handle: `a-route-list-must-come-from-the-tools-verdict`
-- status: proposed · seen: 388, 396, 401
-- evidence: `get_index_status` put `find_callers` / `find_references` under `behind_refuses` from a constant list
-  whenever the index was behind, yet both answered `ok` for every unchanged subject (reproduced on `main` daa6baa0);
-  six anchor PRs fell back to Grep. R1.8 covers two sites branching on one verdict; this site never consulted the
-  verdict at all. 365 had fixed the held case the same way, by calling the guard's predicate.
-- destination: promoted 2026-10-30 to ENGINEERING_RULES R1.8.
-
-### 387-C1 — a surface reached only from a shell is invisible to an agent until its brief names it
-
-- type: 2 (process) · handle: `a-shell-surface-needs-an-agent-channel`
-- status: proposed · seen: 387, 401
-- evidence: 382–384 shipped `code-atlas query` and its modes with README, design and CHANGELOG text, and 385
-  `route=` with a waiver saying TOOLS.md teaches it; no surface an agent loads named any of them, so 387 was opened
-  to add them. Tool params were gated (`test_agent_brief_usage_completeness`), CLI flags were not; 387's test now
-  derives `query.py`'s flags. Any non-tool entry point (a CLI, a rule-file kind) has the same gap.
-- destination: promoted 2026-10-30 to AGENT_BRIEF P10.
-
 ### 384-C1 — a store that de-dupes keep-first hides later declarations from a per-row fingerprint
 
 - type: 2 (code) · handle: `keep-first-hides-the-later-declaration`
@@ -245,17 +215,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   `agent_id` and `agent_type`. Anything keyed on `session_id` alone treats a subagent as its parent.
 - destination: first sighting.
 
-### 374-C1 — a memo guarded by a change probe must seed the probe when it first computes
-
-- type: 2 (code) · handle: `seed-the-change-probe-with-the-first-answer`
-- status: proposed · seen: 374, 396
-- evidence: `server_identity()` read `_identity is None or _loaded_modules_changed()`, so the first
-  call never stamped the loaded modules; the second took the swapped files as its baseline, and a
-  `uv tool upgrade` between them left `server_stale_process: false` for good — the anchor's report.
-  Every test stubbed the probe, so none could see it; the new one writes a real loaded file
-  (`test_server_identity_is_live.py`). Whether uv also restored 0.2.0 on Windows stays unverified.
-- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.10.
-
 ### 369-C1 — a receiver read by its spelling needs the scope that could rebind it
 
 - type: 2 (code) · handle: `a-name-receiver-needs-its-scope`
@@ -284,40 +243,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   `Client.set_roots` leaves a live session's answer unchanged — a roots *handler* is what moves it.
 - destination: first sighting.
 
-### 363-C1 — a zero from a text search must count the rows the search cannot match
-
-- type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
-- status: proposed · seen: 363, 397, 406, 409, 411, 415
-- evidence: `include_graph` attested an unused copy by searching unlinked include text for its
-  basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
-  includer yet never matches. The challenger found it; the zero now counts them and is not
-  authoritative while any exist. 406: a `key_from: "list"` argument split over lines named nothing
-  and counted nowhere; it now counts in `keys_unread`.
-  409: an empty `find_callers` searched whole literals only, so `'dbo.name'` read as a
-  measured zero; a qualified or keyword literal now names the subject.
-  411: a TSV or JSON census row missing its key or target was skipped uncounted; it is now `incomplete`.
-  415: a misspelt TSV label column read every row as unlabelled; it now fails the build.
-- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.6.
-
-### 362-C1 — a widened target must widen every query behind the same answer
-
-- type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412, 420, 421
-- evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
-  spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
-  rows only. The challenger found both; enumerate every read the payload is built from. 407 — a
-  record target widened to a file reached the stored records but not `impact`'s row-file carriers.
-- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.5.
-
-### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
-
-- type: 2 (code) · handle: `read-a-literal-by-its-structure-not-a-regex`
-- status: proposed · seen: 361, 371, 398
-- evidence: `{data: {action: 'inner'}}` gave `action='inner'`, `{action: 'a' + b}` gave `'a'`, and a
-  ternary gave a bogus field — each a guessed rule link. The challenger found it; a depth-aware split
-  at top-level commas, keeping only an entry that is exactly a name and one string, reads none of them.
-- destination: promoted 2026-10-30 to ENGINEERING_RULES R5.9.
-
 ### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
 
 - type: 2 (code) · handle: `a-flag-loop-needs-a-clearable-flag`
@@ -327,18 +252,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   read-only marker re-ran builds forever. The challenger found it; `clear_pending` now reports
   whether the flag is gone, and the loop continues only when it is.
 - destination: first sighting.
-
-### 360-C1 — a ticket that names why a repair path fails assumes the path runs
-
-- type: 2 (process) · handle: `confirm-the-blocked-path-runs`
-- status: proposed · seen: 360, 365, 419, 420
-- evidence: the ticket said read-through "cannot repair" a file added mid-build because its diff
-  was empty, and the design fixed the diff. `file_outline` returned `found: false` for a path
-  missing from `files` before read-through ran at all, so AC4 stayed red until it routed the
-  miss through `ensure_miss`. Run the named path once before designing around its blocker.
-  419: the state-hook arm of the proving test passed pre-fix — its stdin named no hook event, so
-  the hook returned before reaching git. Every arm must be seen red, not only the suite.
-- destination: promoted 2026-10-30 to AGENT_BRIEF P6, ENGINEERING_RULES R6.5.
 
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
 
@@ -409,3 +322,11 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | 349-C1 | `ungated-floor-drifts-silently` | AGENT_BRIEF P8 |
 | 343-C2 | `formatter-rewrites-untouched-lines` | ENGINEERING_RULES R7.7 |
 | 356-C1 | `child-build-inherits-adapter-env` | ENGINEERING_RULES R6.10 |
+| 408-C1 | `a-docs-change-runs-every-doc-budget` | AGENT_BRIEF P9 |
+| 388-C1 | `a-route-list-must-come-from-the-tools-verdict` | ENGINEERING_RULES R1.8 |
+| 387-C1 | `a-shell-surface-needs-an-agent-channel` | AGENT_BRIEF P10 |
+| 374-C1 | `seed-the-change-probe-with-the-first-answer` | ENGINEERING_RULES R5.10 |
+| 363-C1 | `a-zero-must-count-what-the-search-cannot-see` | ENGINEERING_RULES R5.6 |
+| 362-C1 | `widen-every-query-that-shares-the-page` | ENGINEERING_RULES R5.5 |
+| 361-C1 | `read-a-literal-by-its-structure-not-a-regex` | ENGINEERING_RULES R5.9 |
+| 360-C1 | `confirm-the-blocked-path-runs` | AGENT_BRIEF P6, ENGINEERING_RULES R6.5 |
