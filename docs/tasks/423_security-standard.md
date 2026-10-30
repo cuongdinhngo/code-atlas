@@ -169,6 +169,7 @@ Status legend: ✅ done/proven · ⚠ deferred (needs follow-up ticket) · ❌ n
 Ran at `436df1b8`
 
 ```
+# baseline record (an earlier tree by design; the reviewed-tree run is in Phase 4)
 $ .venv/bin/python -m pytest -q --no-header -p no:cacheprovider
 FAILED tests/test_install_skew.py::test_a_checkout_behind_the_core_is_named_with_its_fix
 FAILED tests/test_no_client_identifiers.py::test_no_foreign_tracker_key_appears_in_any_tracked_file
@@ -286,6 +287,7 @@ and `CWE`: the standard cites OSPS Baseline controls and CWE ids, both standards
 Seen failing (R6.5), before the docs they check existed:
 
 ```
+# execute-time record (seen-failing, before the docs existed)
 $ pytest tests/test_security_standard.py            # standard written, SECURITY.md and §9 not yet
 FAILED ...::test_every_row_names_what_holds_it[SEC-MCP-08]   # doc: SECURITY.md#Trust model — no heading
 FAILED ...::test_every_row_names_what_holds_it[SEC-SC-13]    # a ';' inside the n/a reason split it
@@ -341,7 +343,15 @@ Reviewed at `9787f30b` (+ the round-2 notes and bookkeeping in the finalise comm
 
 **Gate** at `9787f30b`, host: Linux, `php` · `composer` · `node` on PATH:
 `2 failed, 5193 passed, 4 skipped` — the two failures are the baseline's host exclusions (installed
-uv tool 0.7.0); every other check PASS. `GATE RED` on those two only; Docker run recorded below.
+uv tool 0.7.0); every other check PASS. `GATE RED` on those two only, so the suite was confirmed
+in Docker on the final tree:
+
+Ran at `1910b86a`
+
+```
+$ scripts/docker-test.sh
+5191 passed, 8 skipped in 654.66s (0:10:54)
+```
 
 ### Cost ledger
 

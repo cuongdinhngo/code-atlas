@@ -109,7 +109,7 @@ Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count — the one place these numbers are
-kept:** **5,088 passed / 8 skipped / 1 xfail** (2026-10-29).
+kept:** **5,191 passed / 8 skipped** (2026-10-30, Docker).
 Re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build` and 420's 3 sentinels.
 
