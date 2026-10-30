@@ -18,14 +18,14 @@ from code_atlas.preflight import check_environment
 def test_a_clean_host_is_silent(monkeypatch: pytest.MonkeyPatch) -> None:
     """The whole point of R5.3's loud/quiet split: nothing to warn about prints nothing."""
     monkeypatch.setattr(preflight, "_long_paths_disabled", lambda: [])
-    monkeypatch.setattr(preflight, "_git_config", lambda root, key: "false")
+    monkeypatch.setattr(preflight.gitutil, "config_value", lambda root, key: "false")
     warnings = check_environment(Path("/home/dev/repo"), {"typescript": (sys.executable, "x.js")})
     assert warnings == []
 
 
 def test_autocrlf_true_is_reported_with_its_fix(monkeypatch: pytest.MonkeyPatch) -> None:
     """core.autocrlf=true → every file reparses; the warning names the setting and the remedy."""
-    monkeypatch.setattr(preflight, "_git_config", lambda root, key: "true")
+    monkeypatch.setattr(preflight.gitutil, "config_value", lambda root, key: "true")
     warnings = preflight._autocrlf_true(Path("/repo"))
     assert len(warnings) == 1
     assert "core.autocrlf" in warnings[0]
@@ -33,9 +33,9 @@ def test_autocrlf_true_is_reported_with_its_fix(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_autocrlf_false_or_absent_is_silent(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(preflight, "_git_config", lambda root, key: "false")
+    monkeypatch.setattr(preflight.gitutil, "config_value", lambda root, key: "false")
     assert preflight._autocrlf_true(Path("/repo")) == []
-    monkeypatch.setattr(preflight, "_git_config", lambda root, key: None)
+    monkeypatch.setattr(preflight.gitutil, "config_value", lambda root, key: None)
     assert preflight._autocrlf_true(Path("/repo")) == []
 
 

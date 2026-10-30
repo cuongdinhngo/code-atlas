@@ -234,9 +234,13 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
     host_root = _resolve_optional_path("host_root", environ, file_values)
     container_root = _resolve_optional_path("container_root", environ, file_values)
     _validate_root_pair(host_root, container_root)
+    db_path = root / _resolve_db_path(environ, file_values)
+    from code_atlas.index_trust import check_index
+
+    check_index(root, db_path)
     return Config(
         root=root,
-        db_path=root / _resolve_db_path(environ, file_values),
+        db_path=db_path,
         workers=_resolve("workers", _as_int, _default_workers(), environ, file_values),
         adapter_timeout=_resolve(
             "adapter_timeout", _as_int, DEFAULT_ADAPTER_TIMEOUT, environ, file_values

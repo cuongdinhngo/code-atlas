@@ -123,7 +123,8 @@ startup preflight warns about the `/mnt/*` case; the Defender cost it cannot see
 
 You need **Python ≥ 3.12** with SQLite ≥ 3.25 and FTS5 (a standard CPython build has both), plus the runtime of whichever language you want to index: a **PHP CLI ≥
 8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript
-and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core.
+and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core. Incremental
+builds in a git repo need **git ≥ 2.24**; an older git falls back to full builds.
 
 ```bash
 git clone https://github.com/cuongdinhngo/code-atlas.git
@@ -380,7 +381,7 @@ never a silent fallback.
 
 | Environment | `.code-atlas.toml` | Default | Meaning |
 |---|---|---|---|
-| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). The file value must stay inside the repo; only the env var may point outside |
+| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). Inside the repo it must not be a link or tracked by git; only the env var may point outside |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
 | `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here |
@@ -478,7 +479,7 @@ vulnerabilities go through [`SECURITY.md`](SECURITY.md).
 
 - **Shipped.** Phase 1 (closed 2026-09-27): the core, the onboarding system map and four adapters —
   PHP, TypeScript/JavaScript, T-SQL and Python — with **24 tools**. Phase 2 so far: releases
-  0.2.0–0.9.0 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
+  0.2.0–0.9.1 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
 - **Open.** Graph coverage and freshness work; each ticket and its gate is in
   [`docs/BACKLOG.md`](docs/BACKLOG.md). Nothing is open on the onboarding map.
 - **Deferred.** The C#/.NET adapter — the only language left, held since 2026-08-04

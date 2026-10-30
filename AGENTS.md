@@ -108,10 +108,10 @@ Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count — the one place these numbers are
-kept:** **5,026 passed / 5 skipped** (2026-10-26, through 418).
+kept:** **5,088 passed / 8 skipped / 1 xfail** (2026-10-29).
 Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 4,331 / 4 on the 373
 tree (2026-10-09) — re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
-`gitutil` wedge; in-image also `test_runtime_image_reports_server_build`.
+`gitutil` wedge; in-image also `test_runtime_image_reports_server_build` and 420's 3 sentinels.
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the
 exclusion above — confirm green via Docker and say so, never "unverified". Ship the server in a

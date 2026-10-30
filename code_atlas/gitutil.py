@@ -3,8 +3,14 @@
 Every helper returns ``None`` rather than raising when git cannot answer — a directory that is not a
 repo, or a repo with no commit yet, is a normal state the build degrades through (the walk fallback,
 an absent ``last_commit``), not a configuration error.
+
+Every git process code-atlas starts is spawned by ``_run``, hardened against the indexed repo's own
+configuration, and a revision read from data must be a full object id before it reaches git (419).
 """
 
+import functools
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +27,25 @@ GitHead = tuple[str | None, str | None]
 # tree-kill on timeout frees the capture pipe a grandchild still holds while the reader blocks.
 _CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
+# The indexed repo is untrusted (SECURITY.md): none of its config may run a program for us (419).
+HARDENED_CONFIG = (
+    "core.fsmonitor=false",
+    "core.hooksPath=/dev/null",
+    "core.sshCommand=",
+    "diff.external=",
+)
+HARDENED_ENV = {"GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"}
+# A full SHA-1 or SHA-256 object id; ``HEAD`` is the one symbolic revision code-atlas writes itself.
+_OBJECT_ID = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+_HEAD = "HEAD"
+# ``--end-of-options`` arrived in git 2.24; an older git fails every revision call, loudly.
+END_OF_OPTIONS_SINCE = (2, 24)
+
+
+def is_object_id(value: object) -> bool:
+    """A full SHA-1 or SHA-256 object id — the only revision read from the index git is given."""
+    return isinstance(value, str) and _OBJECT_ID.fullmatch(value) is not None
+
 
 def ls_files(root: Path) -> tuple[str, ...] | None:
     """Every tracked path, repo-relative and POSIX-separated, or None outside a git repo.
@@ -29,6 +54,15 @@ def ls_files(root: Path) -> tuple[str, ...] | None:
     byte arrives verbatim instead of wrapped in escaped quotes.
     """
     found = _run(root, "ls-files", "-z")
+    if found is None:
+        return None
+    return tuple(sorted(path for path in found.split("\0") if path))
+
+
+def tracked(root: Path, paths: tuple[str, ...]) -> tuple[str, ...] | None:
+    """Which tracked paths lie at or under ``paths`` (repo-relative, read literally), or None."""
+    pathspecs = tuple(f":(literal){path}" for path in paths)
+    found = _run(root, "ls-files", "-z", "--", *pathspecs)
     if found is None:
         return None
     return tuple(sorted(path for path in found.split("\0") if path))
@@ -84,7 +118,7 @@ def changed_paths(root: Path, since: str, *, renames: bool = True) -> tuple[str,
     affected qnames by the indexer before reconcile. ``renames=False`` lists both ends (389).
     """
     flags = () if renames else ("--no-renames",)
-    found = _run(root, "diff", "--name-only", "-z", *flags, since, "--")
+    found = _run(root, "diff", "--name-only", "-z", *flags, revision=since)
     if found is None:
         return None
     return tuple(sorted({path for path in found.split("\0") if path}))
@@ -97,7 +131,7 @@ def dirty_paths(root: Path) -> tuple[str, ...] | None:
     tracked files in a git repo, so they cannot stale the index. The caller decides which of
     these paths the *index* covers — a dirty README is not a stale graph (047).
     """
-    found = _run(root, "diff", "--name-only", "-z", "HEAD")
+    found = _run(root, "diff", "--name-only", "-z", revision=_HEAD)
     if found is None:
         return None
     return tuple(sorted(path for path in found.split("\0") if path))
@@ -137,6 +171,28 @@ def checkout_identity(root: Path) -> tuple[Path, Path] | None:
     return Path(lines[0]).resolve(), (root / lines[1]).resolve()
 
 
+def config_value(root: Path, key: str) -> str | None:
+    """One config value as git resolves it for ``root``, or None when unset or git cannot answer.
+
+    The system file stays readable: it is the host's, and Git for Windows sets ``core.autocrlf``
+    there. Reading a value runs nothing, so only this call skips ``GIT_CONFIG_NOSYSTEM``.
+    """
+    found = _run(root, "config", "--get", key, system_config=True)
+    return None if found is None else found.strip()
+
+
+@functools.cache
+def git_version() -> tuple[int, int] | None:
+    """``(major, minor)`` of the git on PATH, or None when it cannot be read. Asked once."""
+    found = _run(Path.cwd(), "--version")
+    match = re.search(r"(\d+)\.(\d+)", found or "")
+    return None if match is None else (int(match.group(1)), int(match.group(2)))
+
+
+def _report(message: str) -> None:
+    print(f"code-atlas git: {message}", file=sys.stderr)
+
+
 def _kill_tree(proc: "subprocess.Popen[str]") -> None:
     """Kill ``proc``: the whole tree via ``taskkill /T`` on Windows (where a grandchild can hold the
     capture pipe open), just the process elsewhere. Must never itself raise or hang, or a stuck kill
@@ -158,12 +214,29 @@ def _kill_tree(proc: "subprocess.Popen[str]") -> None:
         proc.kill()
 
 
-def _run(root: Path, *arguments: str) -> str | None:
-    """One read-only git command. Anything git cannot answer is None, never a partial answer."""
+def _run(
+    root: Path, *arguments: str, revision: str | None = None, system_config: bool = False
+) -> str | None:
+    """One read-only, hardened git command. Anything git cannot answer is None, never partial.
+
+    ``revision`` goes last, after ``--end-of-options`` and before ``--``, and only as a full
+    object id (or ``HEAD``): a value read from the index can never be parsed as an option (419).
+    """
+    if revision is not None:
+        if revision != _HEAD and not is_object_id(revision):
+            _report(f"refused revision {revision!r}: not a full object id; git is not asked")
+            return None
+        arguments = (*arguments, "--end-of-options", revision, "--")
+    if arguments[:1] == ("diff",):
+        arguments = ("diff", "--no-ext-diff", "--no-textconv", *arguments[1:])
+    skipped = ("GIT_CONFIG_NOSYSTEM",) if system_config else ()
+    env = {**os.environ, **{k: v for k, v in HARDENED_ENV.items() if k not in skipped}}
+    hardening = [part for setting in HARDENED_CONFIG for part in ("-c", setting)]
     try:
         proc = subprocess.Popen(
-            ["git", *arguments],
+            ["git", *hardening, *arguments],
             cwd=root,
+            env=env,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -188,4 +261,16 @@ def _run(root: Path, *arguments: str) -> str | None:
     except (OSError, ValueError):
         _kill_tree(proc)
         return None
-    return None if proc.returncode != 0 else stdout
+    if proc.returncode != 0:
+        if revision is not None:
+            _too_old()
+        return None
+    return stdout
+
+
+def _too_old() -> None:
+    """A revision call failed: say so when the cause is a git without ``--end-of-options``."""
+    version = git_version()
+    if version is not None and version < END_OF_OPTIONS_SINCE:
+        found = ".".join(map(str, version))
+        _report(f"git {found} is older than 2.24 and cannot take --end-of-options; upgrade git")

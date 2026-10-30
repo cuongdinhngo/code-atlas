@@ -40,16 +40,25 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
-| `widen-every-query-that-shares-the-page` | 13 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
+| `widen-every-query-that-shares-the-page` | 15 | 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412, 420, 421 | proposed for ENGINEERING_RULES by 389 — awaiting the maintainer's `/mango:promote` |
 | `read-a-literal-by-its-structure-not-a-regex` | 3 | 361, 371, 398 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-route-list-must-come-from-the-tools-verdict` | 3 | 388, 396, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-shell-surface-needs-an-agent-channel` | 2 | 387, 401 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-zero-must-count-what-the-search-cannot-see` | 6 | 363, 397, 406, 409, 411, 415 | not yet — awaiting the maintainer's `/mango:promote` |
 | `seed-the-change-probe-with-the-first-answer` | 2 | 374, 396 | not yet — awaiting the maintainer's `/mango:promote` |
-| `confirm-the-blocked-path-runs` | 2 | 360, 365 | not yet — awaiting the maintainer's `/mango:promote` |
+| `confirm-the-blocked-path-runs` | 4 | 360, 365, 419, 420 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-docs-change-runs-every-doc-budget` | 2 | 408, 411 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 421-C1 — a value from a closed vocabulary is checked by membership, not by its shape
+
+- type: 2 (code) · handle: `a-closed-vocabulary-is-checked-by-membership`
+- status: proposed · seen: 421
+- evidence: the first cut let a nudge shape `kind` and the build's progress line through a
+  "one printable line" check, so `ignore previous rules` still reached the agent as code-atlas.
+  Both seats found it; `contract.SHAPE_KINDS` and `indexer.BUILD_PHASES` already named the set.
+- destination: first sighting.
 
 ### 414-C1 — an AC's premise about today's behaviour is one call on `main` away
 
@@ -283,7 +292,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412
+- status: proposed · seen: 362, 364, 367, 389, 396, 397, 398, 400, 402, 403, 404, 407, 412, 420, 421
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from. 407 — a
@@ -312,12 +321,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 360-C1 — a ticket that names why a repair path fails assumes the path runs
 
 - type: 2 (process) · handle: `confirm-the-blocked-path-runs`
-- status: proposed · seen: 360, 365
+- status: proposed · seen: 360, 365, 419, 420
 - evidence: the ticket said read-through "cannot repair" a file added mid-build because its diff
   was empty, and the design fixed the diff. `file_outline` returned `found: false` for a path
   missing from `files` before read-through ran at all, so AC4 stayed red until it routed the
   miss through `ensure_miss`. Run the named path once before designing around its blocker.
-- destination: first sighting.
+  419: the state-hook arm of the proving test passed pre-fix — its stdin named no hook event, so
+  the hook returned before reaching git. Every arm must be seen red, not only the suite.
+- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
 
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
 

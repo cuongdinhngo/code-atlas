@@ -26,6 +26,7 @@ from urllib.request import url2pathname
 from code_atlas import contract
 from code_atlas.adapter import AdapterContractError, AdapterError, SubprocessAdapter
 from code_atlas.config import Config
+from code_atlas.containment import safe_write
 
 REFUSAL_NAME = "contract.refused"
 # Well inside the hook's 10 s: adapters launch together, so this bounds the whole probe.
@@ -72,7 +73,7 @@ def record_refusal(
     kept = {key: value for key, value in read_refusals(db_path).items() if key not in cleared}
     kept[refused.key] = refused.announced
     try:
-        _refusal_path(db_path).write_text(json.dumps(kept, sort_keys=True), encoding="utf-8")
+        safe_write(_refusal_path(db_path), json.dumps(kept, sort_keys=True))
     except OSError:
         pass  # Unwritable: the launch is the only source; the caller still gets the refusal.
 

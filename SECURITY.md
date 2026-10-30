@@ -33,21 +33,39 @@ untrusted input**. It aims to hold these guarantees:
 - **Reads and writes stay inside the repo.** A path code-atlas reads from, or writes into, the
   indexed repo is resolved with symlinks followed and refused if it lands outside
   (`code_atlas/containment.py`).
+- **The index directory is code-atlas's own.** An index that git tracks, or whose directory,
+  database or database sibling is a link or leads outside the repo, is refused by every entry point
+  with the fix. Each index file is written by `code_atlas/containment.py`, never through a link,
+  `0600` in a `0700` directory, and the database is opened with `trusted_schema=OFF` and SQLite's
+  defensive mode.
+- **git runs hardened.** Every git command is spawned by `code_atlas/gitutil.py` with the
+  repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden, and a
+  stored revision is accepted only as a full object id, after `--end-of-options`.
+- **Text read back from the index is data.** A name stamped into the index, the recorded refusal
+  and the build's progress line reach `nudge.log`, the server instructions or a hook only as a
+  checked name, a value from code-atlas's own vocabulary or a number; the status summary is
+  scrubbed of control, bidi and ANSI characters and capped (`code_atlas/index_text.py`). Tool
+  answers that return indexed source (`read_symbol`, search) carry it as written.
 - **The core makes no network calls.** The optional LLM package, `onboarding_llm/`, is off by
   default. When you enable it, it sends derived facts to Anthropic's API: module paths,
   signatures, docblocks and graph facts, not function bodies.
 
 ### Known limitations
 
-- **Three symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
-  a `.code-atlas/` directory that is itself committed as a symlink, and an indexed file swapped for a
-  link out of the repo since the build — `read_symbol` refuses it, but another tool's read-through
-  repair still re-parses it (375). All three are tracked in [`docs/BACKLOG.md`](docs/BACKLOG.md).
-- **The indexed repo's own git config applies.** code-atlas runs read-only `git` commands
-  (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) inside the indexed repo, so that repo's
-  `.git/config` applies, exactly as it would if you ran `git` there yourself. Do not index a working
-  copy whose `.git` directory you did not create, such as one unpacked from an archive, outside a
-  container.
+- **Two symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
+  and an indexed file swapped for a link out of the repo since the build — `read_symbol` refuses it,
+  but another tool's read-through repair still re-parses it (375). Both are tracked in
+  [`docs/BACKLOG.md`](docs/BACKLOG.md).
+- **`trusted_schema` stays on where SQLite is too old for it.** A build older than the 3.45 tested
+  here (3.40 in Debian bookworm, the runtime image's base) refuses the index's own full-text
+  triggers with it off, so there only defensive mode applies.
+- **A committed index is refused only where git can answer.** If git cannot run in the repo (not
+  installed, or refusing a `.git` owned by another user, as in the runtime image), the index is not
+  known to be tracked and is opened, still under the link, mode and SQLite defences above.
+- **The rest of the indexed repo's git config applies.** The read-only `git` commands
+  (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) still read its `.git/config` beyond
+  the overridden keys. Do not index a working copy whose `.git` directory you did not create, such
+  as one unpacked from an archive, outside a container.
 - **The runtime image runs as root** unless you pass `--user`. The README shows how.
 
 A report that breaks one of the guarantees above is in scope. A report that restates a known

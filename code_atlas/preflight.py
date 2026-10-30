@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+
+from code_atlas import gitutil
 
 
 def check_environment(
@@ -61,7 +62,7 @@ def _long_paths_disabled() -> list[str]:
 
 def _autocrlf_true(root: Path) -> list[str]:
     """A DB built under LF (Docker/WSL) and read on a CRLF checkout sees every file changed."""
-    value = _git_config(root, "core.autocrlf")
+    value = gitutil.config_value(root, "core.autocrlf")
     if value != "true":
         return []
     return [
@@ -109,18 +110,3 @@ def _missing_adapter_runtime(adapter_cmds: Mapping[str, Sequence[str]]) -> list[
             )
     return warnings
 
-
-def _git_config(root: Path, key: str) -> str | None:
-    """Read one git config value for this repo, or None when git cannot answer."""
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(root), "config", "--get", key],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
-        return None
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip()

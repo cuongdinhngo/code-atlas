@@ -31,7 +31,7 @@ def _git_init(root: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=root, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
     subprocess.run(
-        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-qm", "x"],
         cwd=root,
         check=True,
         capture_output=True,

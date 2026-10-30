@@ -14,6 +14,7 @@ from fastmcp import FastMCP
 
 from code_atlas import instructions
 from code_atlas.config import Config, ConfigError, load_config
+from code_atlas.index_trust import IndexTrustError
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseWriter
 from code_atlas.onboarding.summary import Summarizer
@@ -228,7 +229,12 @@ def main() -> None:
         from code_atlas import query
 
         raise SystemExit(query.main(sys.argv[2:]))
-    build_server(load_config(Path.cwd(), os.environ)).run()
+    try:
+        config = load_config(Path.cwd(), os.environ)
+    except IndexTrustError as refused:
+        print(f"code-atlas: refusing to serve: {refused}", file=sys.stderr)
+        raise SystemExit(2) from None
+    build_server(config).run()
 
 
 if __name__ == "__main__":

@@ -311,7 +311,7 @@ def test_full_false_after_a_commit_runs_incremental(repo: Path) -> None:
     call(build_server(config), BUILD, {"full": True})
     tree(repo, "src/a.aa")
     git(repo, "add", "-A")
-    git(repo, "commit", "-qm", "edit")
+    git(repo, "commit", "--allow-empty", "-qm", "edit")
 
     result = call(build_server(config), BUILD, {"full": False})
 

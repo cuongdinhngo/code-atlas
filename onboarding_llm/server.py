@@ -52,7 +52,8 @@ def build_summarizer(config: Config, env: Mapping[str, str]) -> Summarizer | Non
     cache_path = config.root / (env.get(CACHE_ENV, "").strip() or DEFAULT_CACHE)
     import anthropic  # deferred: optional `llm` extra, never imported by the core or the CI gate
 
-    return LLMSummarizer(anthropic.Anthropic(), model, ContentHashCache(cache_path))
+    cache = ContentHashCache(cache_path, root=config.root)
+    return LLMSummarizer(anthropic.Anthropic(), model, cache)
 
 
 def build_layer_refiner(config: Config, env: Mapping[str, str]) -> LayerRefiner | None:
@@ -63,7 +64,8 @@ def build_layer_refiner(config: Config, env: Mapping[str, str]) -> LayerRefiner 
     cache_path = config.root / (env.get(LAYER_CACHE_ENV, "").strip() or DEFAULT_LAYER_CACHE)
     import anthropic  # deferred: optional `llm` extra, never imported by the core or the CI gate
 
-    return LLMLayerRefiner(anthropic.Anthropic(), model, ContentHashCache(cache_path))
+    cache = ContentHashCache(cache_path, root=config.root)
+    return LLMLayerRefiner(anthropic.Anthropic(), model, cache)
 
 
 def build_prose_writer(config: Config, env: Mapping[str, str]) -> ProseWriter | None:
@@ -74,7 +76,8 @@ def build_prose_writer(config: Config, env: Mapping[str, str]) -> ProseWriter | 
     cache_path = config.root / (env.get(PROSE_CACHE_ENV, "").strip() or DEFAULT_PROSE_CACHE)
     import anthropic  # deferred: optional `llm` extra, never imported by the core or the CI gate
 
-    return LLMProseWriter(anthropic.Anthropic(), model, ContentHashCache(cache_path))
+    cache = ContentHashCache(cache_path, root=config.root)
+    return LLMProseWriter(anthropic.Anthropic(), model, cache)
 
 
 def run() -> None:

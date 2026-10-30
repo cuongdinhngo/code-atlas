@@ -65,8 +65,13 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
   (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
   341.
-- **Three symlink residuals** — a stub root's files (`collect_stubs`, `os.walk`), the index
-  directory (`.code-atlas/` committed as a link aims SQLite writes) — 342; and read-through repair
+- **420's residuals** — a tracked index is not refused where git cannot answer (the runtime image
+  runs git as root over a host-owned mount, so refusing there would refuse every container user:
+  the maintainer's call); and `generate_onboarding`'s `.code-atlas/onboarding/` cache keeps default
+  modes (`require_writable` already refuses links) — 420.
+- **421's residuals** — two tool-answer fields stay unchecked: `build_phase`, a coverage-loss
+  refusal's `lost_languages` — 429.
+- **Two symlink residuals** — a stub root's files (`collect_stubs`, `os.walk`) — 342; and read-through repair
   (`poke`, other tools) re-parses an indexed file swapped for a link out, storing its rows
   (`read_symbol` refuses before repairing) — 375.
 - **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`

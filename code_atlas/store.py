@@ -13,7 +13,9 @@ determinism (R4.2) is asserted over row content ordered by a stable key, with th
 
 import atexit
 import contextlib
+import errno
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -24,6 +26,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from code_atlas import contract
+from code_atlas.containment import UnsafeWrite, make_private_dir, safe_open
 from code_atlas.contract import CONFIDENCE_TIERS
 
 # A quarter of the tour budget may go to roots, so the walk always has room to expand
@@ -125,6 +128,48 @@ SHADOW_SUFFIX = ".shadow"
 PUBLISH_BUSY_TIMEOUT_MS = 60_000
 
 
+def _connect(
+    target: Path | str, *, uri: bool = False, check_same_thread: bool = True
+) -> sqlite3.Connection:
+    """Every connection: a schema the file carries is not trusted to call our functions (420)."""
+    conn = sqlite3.connect(target, uri=uri, check_same_thread=check_same_thread)
+    if schema_distrust_supported():
+        conn.execute("PRAGMA trusted_schema=OFF")
+    conn.setconfig(sqlite3.SQLITE_DBCONFIG_DEFENSIVE, True)
+    return conn
+
+
+@lru_cache(maxsize=1)
+def schema_distrust_supported() -> bool:
+    """Whether this SQLite runs the index's own fts5 triggers under ``trusted_schema=OFF``.
+
+    Older builds (3.40, Debian bookworm's) refuse a trigger writing fts5 then; there it stays on.
+    """
+    probe = sqlite3.connect(":memory:")
+    try:
+        probe.execute("PRAGMA trusted_schema=OFF")
+        probe.execute("CREATE TABLE t(x)")
+        probe.execute("CREATE VIRTUAL TABLE f USING fts5(x)")
+        probe.execute("CREATE TRIGGER g AFTER INSERT ON t BEGIN INSERT INTO f VALUES (new.x); END")
+        probe.execute("INSERT INTO t VALUES ('x')")
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        probe.close()
+    return True
+
+
+def _create_private(db_path: Path) -> None:
+    """Create the database file ``0600`` before SQLite does; its WAL siblings take the same mode."""
+    make_private_dir(db_path.parent)
+    try:
+        os.close(safe_open(db_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL))
+    except FileExistsError:
+        if db_path.is_symlink():  # O_EXCL fails on a link too; SQLite would then follow it
+            refused = "refusing to open a linked index"
+            raise UnsafeWrite(errno.ELOOP, refused, str(db_path)) from None
+
+
 def shadow_db_path(db_path: Path) -> Path:
     """Where a full rebuild writes before it publishes — the one definition site (356, R6.7)."""
     return db_path.with_name(db_path.name + SHADOW_SUFFIX)
@@ -148,7 +193,7 @@ def read_meta_readonly(db_path: Path, key: str) -> str | None:
     if not db_path.is_file():
         return None
     try:
-        conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+        conn = _connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
         try:
             row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         finally:
@@ -177,7 +222,7 @@ def _page_size(db_path: Path) -> int | None:
     if not db_path.is_file():
         return None
     try:
-        conn = sqlite3.connect(db_path)
+        conn = _connect(db_path)
         try:
             return int(conn.execute("PRAGMA page_size").fetchone()[0])
         finally:
@@ -871,7 +916,7 @@ def _fit_conn(db_path: Path) -> sqlite3.Connection:
     if cached is not None:
         with contextlib.suppress(sqlite3.Error):
             cached[0].close()
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = _connect(db_path, check_same_thread=False)
     conn.execute("PRAGMA busy_timeout=5000")
     # Durability the graph needs, a counter does not: no graph row is written here, and a
     # counter that loses its last few increments to a power cut is still a counter.
@@ -945,8 +990,8 @@ class GraphStore:
         self._publish_to: Path | None = None
         self._batch_open = False
         if str(db_path) != MEMORY_DB:
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(db_path)
+            _create_private(db_path)
+        self._conn = _connect(db_path)
         self._mirror_stamp: dict[str, object] | None = None
         self._conn.create_function(
             DIRECT_MATCH_SQL_FN, 3, _direct_match_udf, deterministic=True
@@ -1061,10 +1106,10 @@ class GraphStore:
         """
         shadow = shadow_db_path(db_path)
         _remove_db_files(shadow)
-        shadow.parent.mkdir(parents=True, exist_ok=True)
+        _create_private(shadow)
         size = _page_size(db_path)
         if size is not None:
-            conn = sqlite3.connect(shadow)
+            conn = _connect(shadow)
             try:
                 conn.execute(f"PRAGMA page_size={size}")
                 conn.execute("PRAGMA journal_mode=WAL")
@@ -1097,7 +1142,7 @@ class GraphStore:
             raise ValueError("publish() needs a store from open_shadow()")
         if self.get_meta(BUILD_COMPLETE_KEY) != BUILD_COMPLETE:
             raise ValueError("refusing to publish a shadow its build never stamped complete")
-        live = sqlite3.connect(self._publish_to)
+        live = _connect(self._publish_to)
         try:
             # Past the readers' 5 s: the build already holds write.lock, so only a short writer
             # (a fit bump, a read-through repair) can be ahead, and losing the build costs more.

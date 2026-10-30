@@ -132,7 +132,8 @@ def test_a_pending_coverage_loss_is_in_the_summary_with_its_route(tmp_path: Path
     assert status["staleness"] == "current"
     assert get_index_status.COVERAGE_LOSS_PENDING in status
     summary = str(status["summary"])
-    assert "fake" in summary and COVERAGE_LOSS_HINT in summary, summary
+    # `fake` is neither shipped nor configured: counted, never named (421 AC3).
+    assert "coverage_loss: 1 unrecognised" in summary and COVERAGE_LOSS_HINT in summary, summary
 
 
 def test_the_state_hook_speaks_for_a_coverage_loss_at_an_unmoved_head(tmp_path: Path) -> None:
@@ -144,7 +145,8 @@ def test_the_state_hook_speaks_for_a_coverage_loss_at_an_unmoved_head(tmp_path: 
         env=env, cwd=tmp_path, capture_output=True, text=True, check=True,
     )
 
-    assert "fake" in completed.stdout and COVERAGE_LOSS_HINT in completed.stdout, completed
+    out = completed.stdout
+    assert "1 unrecognised" in out and COVERAGE_LOSS_HINT in out, completed
 
 
 def test_no_pending_loss_leaves_the_summary_byte_identical() -> None:

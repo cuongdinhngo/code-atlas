@@ -20,24 +20,31 @@ a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 """
 
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
 from code_atlas import records, routes
-from code_atlas.adapter import unconfigured_adapters
+from code_atlas.adapter import AdapterContractError, shipped_adapters, unconfigured_adapters
+from code_atlas.adapter_skew import contract_fix, installed_from, read_refusals
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONTRACT_VERSION
 from code_atlas.enrichment import rules_drift
-from code_atlas.gitutil import dirty_paths
+from code_atlas.gitutil import dirty_paths, is_object_id
 from code_atlas.index_lock import build_holds_live_db, build_in_progress, read_refresh_refused
+from code_atlas.index_text import checked_name, scrubbed
+from code_atlas.index_trust import check_index
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     COVERAGE_LOSS,
     COVERAGE_LOSS_HINT,
     COVERAGE_LOSS_IN_BAND,
     FULL_REBUILD_ROUTE,
+    FULL_REBUILD_USE_SHELL,
     IN_BAND_FULL_REBUILD,
+    INCOMPLETE_INDEX,
+    INCOMPLETE_INDEX_ROUTE,
     build_incomplete,
     contract_rebuild_required,
     coverage_loss,
@@ -152,6 +159,24 @@ REFRESH_HINTS = {
     REFRESH_ERROR: "run `code-atlas-refresh --verbose` to see the error",
 }
 REFRESH_HINT_DEFAULT = "run build_or_update_index to see why"
+# The record is the repo's to write (421): only what code-atlas itself records is read back.
+REFRESH_REASONS = frozenset(
+    {
+        NO_USABLE_ADAPTER,
+        CONTRACT_REBUILD_REQUIRED,
+        FULL_REBUILD_USE_SHELL,
+        COVERAGE_LOSS,
+        INCOMPLETE_INDEX,
+        REFRESH_ERROR,
+    }
+)
+REFRESH_ROUTES = frozenset({FULL_REBUILD_ROUTE, INCOMPLETE_INDEX_ROUTE})
+REFRESH_REASON_UNKNOWN = "unknown"
+# The hook's own `at` format (hooks/refresh.py).
+REFRESH_AT = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+REFRESH_DETAIL_CAP = 1000
+# The longest summary the code composes, every clause at once, is 612 chars (421 AC4).
+SUMMARY_CAP = 1024
 # A refused reason another field already names on the summary is not said twice.
 REFRESH_REASON_NAMED_BY = {
     COVERAGE_LOSS: COVERAGE_LOSS_PENDING,
@@ -208,6 +233,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         unbuilt or unreadable index carries no line — it cannot name a revision (task 100).
         """
         call = claim.call_args(get_index_status, locals())
+        check_index(config.root, config.db_path)  # a server outlives the commit that tracks it
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if offset > 0 and detail_level != "verbose":
@@ -283,9 +309,14 @@ def _attach_rebuild_pending(status: dict[str, object], store: GraphStore) -> Non
             "reason": CONTRACT_REBUILD_REQUIRED,
             "route": FULL_REBUILD_ROUTE,
             "in_band_option": IN_BAND_FULL_REBUILD,
-            "stored_contract": store.get_meta(CONTRACT_VERSION_KEY),
+            "stored_contract": _checked_contract(store.get_meta(CONTRACT_VERSION_KEY)),
             "server_contract": str(CONTRACT_VERSION),
         }
+
+
+def _checked_contract(value: str | None) -> str | None:
+    """A contract version is a number; anything else stamped there is not one (421)."""
+    return value if value is not None and value.isascii() and value.isdigit() else None
 
 
 def _attach_rules_stale(status: dict[str, object], config: Config, store: GraphStore) -> None:
@@ -308,18 +339,46 @@ def _attach_refresh_refused(status: dict[str, object], config: Config) -> None:
     The hook's own record, never a prediction: an adapter that fails its handshake is found only
     by launching it, which a status call must not do. Every detail level, as the summary is.
     """
-    record = read_refresh_refused(config.db_path)
+    block = _checked_refusal(read_refresh_refused(config.db_path), config)
+    if block is not None:
+        status[REFRESH_REFUSED] = block
+
+
+def _checked_refusal(
+    record: Mapping[str, object] | None, config: Config
+) -> dict[str, object] | None:
+    """The record as data (421): an enumerated reason and route, a dated `at`, our own hint."""
     if record is None:
-        return
-    reason = str(record.get("reason") or REFRESH_ERROR)
-    block: dict[str, object] = {"reason": reason, "at": record.get("at")}
+        return None
+    raw = record.get("reason") or REFRESH_ERROR
+    reason = raw if isinstance(raw, str) and raw in REFRESH_REASONS else REFRESH_REASON_UNKNOWN
+    block: dict[str, object] = {"reason": reason}
+    at = record.get("at")
+    if isinstance(at, str) and REFRESH_AT.fullmatch(at):
+        block["at"] = at
     if record.get("detail"):
-        block["detail"] = record["detail"]
-    if record.get("route"):
-        block["route"] = record["route"]
+        block["detail"] = scrubbed(record["detail"], REFRESH_DETAIL_CAP)
+    route = record.get("route")
+    if isinstance(route, str) and route in REFRESH_ROUTES:
+        block["route"] = route
     else:
-        block["hint"] = record.get("hint") or REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
-    status[REFRESH_REFUSED] = block
+        block["hint"] = _refusal_hint(reason, config)
+    return block
+
+
+def _refusal_hint(reason: str, config: Config) -> str:
+    """Our hint for ``reason``; a contract skew's directional one is rebuilt from typed data (418).
+
+    ``read_refusals`` keeps only integers, keyed here by a configured adapter, never record text.
+    """
+    if reason == NO_USABLE_ADAPTER:
+        recorded = read_refusals(config.db_path)
+        skewed = {key: value for key, value in recorded.items() if key in config.adapter_cmds}
+        if len(skewed) == 1:
+            ((key, announced),) = skewed.items()
+            refused = AdapterContractError(key, announced)
+            return contract_fix(refused, config.adapter_cmd(key), source=installed_from())
+    return REFRESH_HINTS.get(reason, REFRESH_HINT_DEFAULT)
 
 
 def _refresh_refused_clause(payload: Mapping[str, object]) -> str:
@@ -331,7 +390,8 @@ def _refresh_refused_clause(payload: Mapping[str, object]) -> str:
     if REFRESH_REASON_NAMED_BY.get(reason) in payload:
         return ""
     fix = f"run `{block['route']}`" if block.get("route") else str(block.get("hint"))
-    return f" — {REFRESH_REFUSED_LEAD} at {block.get('at')}: {reason} — {fix}"
+    at = f" at {block['at']}" if block.get("at") else ""
+    return f" — {REFRESH_REFUSED_LEAD}{at}: {reason} — {fix}"
 
 
 def _attach_routes(status: dict[str, object], store: GraphStore) -> None:
@@ -370,14 +430,24 @@ def _attach_build_state(
     _attach_rebuild_pending(status, store)
     # A build here would REFUSE rather than serve, so the caller needs to know before it calls.
     # Hint and no route: no registered tool configures an adapter (R5.4c, 203).
-    lost = coverage_loss(store, config.adapter_cmds)
-    if lost:
-        status[COVERAGE_LOSS_PENDING] = {
+    named, unrecognised = _known_languages(coverage_loss(store, config.adapter_cmds), config)
+    if named or unrecognised:
+        loss: dict[str, object] = {
             "reason": COVERAGE_LOSS,
-            "lost_languages": list(lost),
+            "lost_languages": list(named),
             "hint": COVERAGE_LOSS_HINT,
             "in_band_option": COVERAGE_LOSS_IN_BAND,
         }
+        if unrecognised:
+            loss["lost_unrecognised"] = unrecognised
+        status[COVERAGE_LOSS_PENDING] = loss
+
+
+def _known_languages(lost: Sequence[str], config: Config) -> tuple[tuple[str, ...], int]:
+    """The lost ids code-atlas knows — shipped or configured — and a count of the rest (421)."""
+    known = {name.lower() for name in (*shipped_adapters(), *config.adapter_cmds)}
+    named = tuple(name for name in lost if checked_name(name) and name in known)
+    return named, len(lost) - len(named)
 
 
 def _attach_unconfigured_adapters(status: dict[str, object], config: Config) -> None:
@@ -452,9 +522,9 @@ def _behind_because(config: Config, paths: Sequence[str]) -> list[dict[str, str]
 
 def _short_rev(value: object) -> str | None:
     """First 7 hex chars of a commit SHA when present — never invent a revision."""
-    if not isinstance(value, str) or not value:
+    if not is_object_id(value):
         return None
-    return value[:7]
+    return str(value)[:7]
 
 
 def _compose_summary(payload: dict[str, object]) -> str:
@@ -469,11 +539,14 @@ def _compose_summary(payload: dict[str, object]) -> str:
         sentence += f" — {RULES_STALE_LEAD} — run build_or_update_index"
     loss = payload.get(COVERAGE_LOSS_PENDING)
     if payload.get("indexed") and isinstance(loss, dict):
-        lost = ", ".join(str(name) for name in loss.get("lost_languages") or ())
-        sentence += f" — {loss.get('reason')}: {lost} — {loss.get('hint')}"
+        lost = [str(name) for name in loss.get("lost_languages") or ()]
+        if loss.get("lost_unrecognised"):
+            lost.append(f"{loss['lost_unrecognised']} unrecognised")
+        sentence += f" — {COVERAGE_LOSS}: {', '.join(lost)} — {COVERAGE_LOSS_HINT}"
     if payload.get("indexed"):
         sentence += _refresh_refused_clause(payload)
-    return sentence
+    # The last line of defence: one line, no control/bidi/ANSI character, bounded (421 AC4).
+    return scrubbed(sentence, SUMMARY_CAP)
 
 
 def _compose_state(payload: dict[str, object]) -> str:
@@ -493,7 +566,8 @@ def _compose_state(payload: dict[str, object]) -> str:
     if isinstance(pending, dict):
         # Ahead of staleness: an incremental refuses here, so "run build_or_update_index" is wrong.
         stored, server = pending.get("stored_contract"), pending.get("server_contract")
-        era = f"index contract v{stored}, server v{server}"
+        index = f"v{stored}" if stored else "unknown"
+        era = f"index contract {index}, server v{server}"
         return (
             f"{REBUILD_LEAD}{at} · {scale} — {era} — run `{pending.get('route')}` "
             f"(or build_or_update_index {pending.get('in_band_option')})"
