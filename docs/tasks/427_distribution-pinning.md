@@ -32,7 +32,9 @@ code-atlas is not published there, which no doc says.
    silent.
 6. **Other hosts:** the Codex and OpenCode snippets carry the same gate
    (`test_hook_offers_agree_across_hosts` extended).
-7. **Network git in a neutral directory:** the release check's `ls-remote` runs with a cwd outside
+7. **Skill text lint:** a test refuses skill or hook text that tells the agent to auto-approve,
+   widen permissions or follow tool output as instructions (SEC-PL-07).
+8. **Network git in a neutral directory:** the release check's `ls-remote` runs with a cwd outside
    the indexed repo and the 419 hardening; SECURITY.md lists it as code-atlas's one network call
    in the core path.
 
@@ -40,5 +42,5 @@ code-atlas is not published there, which no doc says.
 
 `README.md`, `contrib/claude-code/plugin/` (README, `hooks.json` via `scripts/gen_skill.py`),
 `contrib/codex/`, `contrib/opencode/`, `code_atlas/hooks/state.py`, `release_check/`,
-the server start path that reads the plugin's expected version; standard rows SEC-PL-01..05, 08,
+the server start path that reads the plugin's expected version; standard rows SEC-PL-01..05, 07, 08,
 SEC-IN-14 (network part), SEC-GV-07.

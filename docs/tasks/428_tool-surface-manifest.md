@@ -25,14 +25,15 @@ and stdout discipline are not tested for what they leak.
    enums; free strings are length-bounded. A test walks every schema.
 3. **Manifest:** `tests/fixtures/tool_manifest.json` (names, descriptions, schemas, annotations)
    generated from the live server by a script that prints the diff; a test fails on drift; a change
-   needs a CHANGELOG line (R9 rule from 423). Seen failing on an edited description.
+   needs a CHANGELOG line (R9.4). Seen failing on an edited description.
 4. **Error hygiene:** a tool error is an `isError` result with no traceback and no host path
    outside the repo (fixtures: a bad argument, an unreadable index).
 5. **stdout is MCP only:** a test starts the server over stdio with an adapter that prints to
    stdout and sees only well-formed JSON-RPC frames.
+6. **stdio only:** a test refuses an HTTP or SSE transport under `code_atlas/` (SEC-MCP-01).
 
 ## Call sites
 
 `code_atlas/main.py` (tool registration, `TOOL_NAMES`), `code_atlas/tools/*`, new
 `scripts/gen_tool_manifest.py`, `tests/fixtures/tool_manifest.json`, `docs/TOOLS.md`;
-standard rows SEC-MCP-02..05, 07.
+standard rows SEC-MCP-01..05, 07.

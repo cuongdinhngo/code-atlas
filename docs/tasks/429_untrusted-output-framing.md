@@ -33,7 +33,9 @@ trusted.
 4. **LLM prose:** the prompt delimits repo text as data; the reply is escaped before render and
    never executed; a cached entry carries provenance (model, input hash) and a committed cache
    that fails the check is ignored, not trusted.
-5. **Proving fixture:** a docblock holding ANSI, a bidi override and "ignore previous
+5. **Agent config stays inert:** a fixture repo carrying `.claude/settings.json` hooks,
+   `.mcp.json` and an editor task file is indexed and onboarded with nothing run (SEC-PI-06).
+6. **Proving fixture:** a docblock holding ANSI, a bidi override and "ignore previous
    instructions" comes back escaped and inside a marked field, in `read_symbol`, search and the
    onboarding markdown; each seen failing first.
 
@@ -42,4 +44,4 @@ trusted.
 `code_atlas/tools/*` (answers carrying `doc`, `signature`, `source`, names),
 `code_atlas/instructions.py`, `code_atlas/index_text.py`, `code_atlas/tools/schema_guard.py`,
 `code_atlas/tools/build_or_update_index.py` (coverage-loss refusal), `code_atlas/onboarding/`
-renderers, `onboarding_llm/` (prompt, cache); standard rows SEC-PI-01..04.
+renderers, `onboarding_llm/` (prompt, cache); standard rows SEC-PI-01..04, 06.

@@ -28,6 +28,7 @@ Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 - [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) — one spend row per ticket (R7.2).
 - [`docs/LESSONS.md`](docs/LESSONS.md) — the claim corpus promotion reads; its `seen:` counts are the only gate (P1).
 - [`docs/ADAPTER_PLAYBOOK.md`](docs/ADAPTER_PLAYBOOK.md) — the standard for building and judging an adapter: the two tiers, the optional-field decisions, the five gates, the traps already paid for. Read before touching `adapters/`.
+- [`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md) — every `SEC-*` criterion and its guard; read before changing a subprocess, path, tool or workflow.
 - [`docs/SKILL_GAP_CANDIDATES.md`](docs/SKILL_GAP_CANDIDATES.md) — type-3 signals for mango's maintainer; this repo never edits a skill.
 
 ## What this is
@@ -109,8 +110,7 @@ with all of them present, bare `pytest` is the fastest route. Missing either con
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count — the one place these numbers are
 kept:** **5,088 passed / 8 skipped / 1 xfail** (2026-10-29).
-Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 4,331 / 4 on the 373
-tree (2026-10-09) — re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
+Re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build` and 420's 3 sentinels.
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the
@@ -137,5 +137,5 @@ fix (review's included) into one run; CI re-verifies.
 ## What has shipped
 **Phase 1** (closed 2026-09-27, plan §15): core, onboarding and four adapters — **24 tools**, plus the
 console scripts in `pyproject.toml`; C#/.NET is the only adapter left. **Phase 2 so far:** releases
-through 0.9.0 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
+through 0.9.1 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
 Open work: [`docs/BACKLOG.md`](docs/BACKLOG.md).

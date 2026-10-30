@@ -177,7 +177,9 @@ DOCS = REPO / "docs"
 # again or argues again rather than inheriting the 25 of margin.
 BUDGETS = {
     "CLAUDE.md": 50,
-    "AGENTS.md": 2_850,
+    # 2,850 -> 2,880 on 2026-10-30 (423): the tier-2 pointer to SECURITY_STANDARD.md. R7.6 paid
+    # most of it — the 373-tree pytest count, superseded by the expected count above it, left.
+    "AGENTS.md": 2_880,
     # 23,150 -> 23,250 on 2026-09-10 (237): two decision entries land in this window — 237
     # superseding 220's `unsupported`, and 238 narrowing 221/AC5 — and a verdict is the structure
     # this log exists to hold. R7.6 ran first and paid most of it: 237 cut the T-SQL entry's retro
@@ -292,7 +294,10 @@ BUDGETS = {
     # 5,880 -> 5,960 on 2026-10-08 (promotion: R6.10, R7.7), argued. main sat at 5,880 exactly. The
     # two rules were cut to 145 tokens, then the preamble's stale "every rule ratified 2026-08-30"
     # and R5.6's cross-reference to R5.5 paid 76 of them; the remaining 69 are bought here.
-    "ENGINEERING_RULES.md": 5_960,
+    # 5,960 -> 6,260 on 2026-10-30 (423), argued. §9 makes the security standard binding: six
+    # rules citing its rows, and one self-check clause. R7.6 had nothing to cut here — no rule
+    # held security before — so the criteria live in tier-2 SECURITY_STANDARD.md, not here.
+    "ENGINEERING_RULES.md": 6_260,
     # 2,250 -> 1,900 on 2026-09-27, LOWERED: phase-1 incident retellings cut to one line (1,683).
     "AGENT_BRIEF.md": 1_900,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
@@ -328,7 +333,9 @@ BUDGETS = {
     # rows arrived with: they were rewritten ~76 tokens shorter than first drafted, and the
     # `server_*` row shed the per-field narrative design/payload.md holds in full, keeping the
     # rule and pointing there. 43 of margin; the next addition prunes again or argues again.
-    "CONVENTION.md": 7_150,
+    # 7,150 -> 7,230 on 2026-10-30 (423): §8.1 is a closed set, so the new tier-2
+    # SECURITY_STANDARD.md needs its row; nothing it supersedes lived here.
+    "CONVENTION.md": 7_230,
 }
 
 

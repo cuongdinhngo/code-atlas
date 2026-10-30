@@ -27,11 +27,13 @@ the proof itself.
    and the install line that uses the verified file.
 4. **Dry run:** a pre-release tag in a fork produces attested artifacts; recorded in the
    resolution.
-5. The release steps are written once, as `docs/runbooks/releasing.md` (bump, CHANGELOG, signed
+5. **Advisory releases:** `test_release_discipline` fails when a release that fixed an advisory
+   (its TOKEN_LEDGER row links a GHSA) has no `Security` section in its CHANGELOG entry (SEC-GV-02).
+6. The release steps are written once, as `docs/runbooks/releasing.md` (bump, CHANGELOG, signed
    tag, the workflow does the rest); none exists today, and 0.9.1 was released by hand.
 
 ## Call sites
 
 New `.github/workflows/release.yml`, `docs/runbooks/releasing.md`;
-`tests/test_release_discipline.py`, `README.md`, `SECURITY.md`; standard rows SEC-SC-11..14
-(13 recorded N/A: no PyPI).
+`tests/test_release_discipline.py`, `README.md`, `SECURITY.md`; standard rows SEC-SC-11..13
+(13 recorded N/A: no PyPI), SEC-GV-02.

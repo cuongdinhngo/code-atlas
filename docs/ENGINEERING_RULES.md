@@ -293,10 +293,29 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   same file, which R4.2 forbids. A zero-dependency adapter commits no lock; it pins the
   *grammar* instead, refusing to run on an older runtime (Python, 217).
 
+## 9. Security
+
+Each criterion and what holds it: [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md), checked row by
+row by `tests/test_security_standard.py`. Set by the maintainer on 2026-10-27 after the 0.9.1
+advisory, not promoted from `LESSONS.md`.
+
+- **R9.1** — The indexed repo is untrusted input, its index directory and database included:
+  nothing read from it picks a command, a path outside it, or what the agent is told (SEC-IN-03,
+  SEC-IN-04, SEC-MCP-06).
+- **R9.2** — A subprocess argument from the repo, the index or a tool call is validated and follows
+  `--end-of-options` or `--`; only `gitutil` spawns git, hardened (SEC-IN-02, SEC-IN-14).
+- **R9.3** — Every write under the index directory goes through `containment` (SEC-IN-04).
+- **R9.4** — A tool-surface change is a reviewed diff with a CHANGELOG line (SEC-MCP-05).
+- **R9.5** — A vulnerability is fixed privately and disclosed by advisory, with a `Security`
+  section in its release (SEC-GV-02).
+- **R9.6** — A `MUST` row is held by a guard seen failing (R6.5), never by a document alone, or is
+  `open:` on the ticket that adds one (SEC-GV-03).
+
 ---
 
 **Quick self-check before opening a PR.** Does the core have any language branch? Does an adapter
 name a repo or framework? Did the contract change without a version bump + conformance update? Is
-there a test, and was it seen failing? Is it the smallest change that ships value? Are the affected
+there a test, and was it seen failing? Does every `SEC-*` row it touches still name a real guard
+(§9)? Is it the smallest change that ships value? Are the affected
 docs updated — and did the change **prune what it superseded** rather than only append (R7.6)? If any
 answer is wrong, fix it before review.
