@@ -47,9 +47,19 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `a-zero-must-count-what-the-search-cannot-see` | 6 | 363, 397, 406, 409, 411, 415 | not yet — awaiting the maintainer's `/mango:promote` |
 | `seed-the-change-probe-with-the-first-answer` | 2 | 374, 396 | not yet — awaiting the maintainer's `/mango:promote` |
 | `confirm-the-blocked-path-runs` | 4 | 360, 365, 419, 420 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-docs-change-runs-every-doc-budget` | 2 | 408, 411 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
+| `a-docs-change-runs-every-doc-budget` | 3 | 408, 411, 423 | proposed for AGENT_BRIEF by 411 — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 423-C1 — a guard that exists can still hold a different criterion than the row citing it
+
+- type: 2 (process) · handle: `a-cited-guard-must-hold-its-row`
+- status: proposed · seen: 423
+- evidence: every `test:` in the first standard resolved, yet SEC-IN-06 ("values are bound") cited
+  the one-module-touches-SQLite test, and SECURITY.md said every index file goes through
+  `containment` while the onboarding cache does not. Only the reviewer, reading each test against
+  its row, found them. Read the cited test's body, and grep for the writers it skips, before citing.
+- destination: first sighting.
 
 ### 421-C1 — a value from a closed vocabulary is checked by membership, not by its shape
 
@@ -108,7 +118,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 408-C1 — a BACKLOG row is charged to the tier-1 budget, which `test_doc_size_budget.py` does not check
 
 - type: 2 (process) · handle: `a-docs-change-runs-every-doc-budget`
-- status: proposed · seen: 408, 411
+- status: proposed · seen: 408, 411, 423
 - evidence: #103 added three BACKLOG rows after running only the bookkeeping and doc-size tests, and `main` went red on
   `test_agent_chain_budget.py` (19,906 of 19,900 tokens), found by 408's baseline. A docs-only change still runs every
   test that reads the doc it touched — `--fast` gate at least. 411: #108, which ticketed 411–415, ran the

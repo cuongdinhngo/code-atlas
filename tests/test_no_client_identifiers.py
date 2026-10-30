@@ -43,6 +43,7 @@ from scripts.identity_markers import (
     email_allowed,
 )
 from scripts.identity_markers import digest as _digest
+from tests.test_security_standard import GROUPS
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -50,8 +51,14 @@ REPO = Path(__file__).resolve().parent.parent
 # stand-in. Anything else with this shape is a real ticket in someone's tracker.
 # `PRE-172` is this repo's own "state before ticket 172" notation, not a ticket in a tracker.
 ALLOWED_KEY_PREFIXES = frozenset(
-    {"FIELD", "PRE", "SHA", "ISO", "UTF", "RFC", "PSR", "PEP", "CVE", "CL"}
+    {"FIELD", "PRE", "SHA", "ISO", "UTF", "RFC", "PSR", "PEP", "CVE", "CWE", "CL"}
 )
+# Ids whose key-shaped tail follows a namespace: the security standard's own rows, and the
+# OpenSSF OSPS Baseline's control families the standard cites (`OSPS-VM-02`).
+NAMESPACED_KEYS = {
+    "SEC-": frozenset(GROUPS),
+    "OSPS-": frozenset({"AC", "BR", "DO", "GV", "LE", "QA", "SA", "VM"}),
+}
 # All-letter prefix, two or more: a one-letter `S-12` is a scenario label and `L26-27` a line
 # range, and both are this repo's own notation, not anyone's ticket.
 TRACKER_KEY = re.compile(r"\b([A-Z]{2,10})-\d{2,6}\b")
@@ -118,6 +125,14 @@ def test_no_banned_vocabulary_token_appears_in_any_tracked_file() -> None:
     )
 
 
+def _is_a_criterion_id(text: str, match: re.Match[str]) -> bool:
+    """A key-shaped tail after `SEC-` or `OSPS-` names a criterion or a control, not a ticket."""
+    return any(
+        text[max(0, match.start() - len(ns)) : match.start()] == ns and match.group(1) in families
+        for ns, families in NAMESPACED_KEYS.items()
+    )
+
+
 def test_no_foreign_tracker_key_appears_in_any_tracked_file() -> None:
     """An uppercase prefix, a dash and digits is a ticket in a tracker; ours are stood in for."""
     offences: list[str] = []
@@ -126,7 +141,7 @@ def test_no_foreign_tracker_key_appears_in_any_tracked_file() -> None:
         if text is None:
             continue
         for match in TRACKER_KEY.finditer(text):
-            if match.group(1) in ALLOWED_KEY_PREFIXES:
+            if match.group(1) in ALLOWED_KEY_PREFIXES or _is_a_criterion_id(text, match):
                 continue
             line = text.count("\n", 0, match.start()) + 1
             offences.append(f"{path.relative_to(REPO)}:{line} {match.group(0)}")
@@ -184,6 +199,20 @@ def test_the_tracker_arm_fires_on_a_planted_key_and_spares_ours() -> None:
     ours = TRACKER_KEY.search("FIELD" + "-" + "891")
     assert ours is not None and ours.group(1) in ALLOWED_KEY_PREFIXES
     assert TRACKER_KEY.search("SHA" + "-" + "256").group(1) in ALLOWED_KEY_PREFIXES  # type: ignore[union-attr]
+    criterion = "SEC-" + "MCP" + "-09"
+    found = TRACKER_KEY.search(criterion)
+    assert found is not None and _is_a_criterion_id(criterion, found)
+    control = "OSPS-" + "VM" + "-02"
+    found = TRACKER_KEY.search(control)
+    assert found is not None and _is_a_criterion_id(control, found)
+    for foreign in (
+        "SEC-" + "XYZ" + "-12",
+        "ABC-" + "MCP" + "-09",
+        "MCP" + "-09",
+        "OSPS-" + "MCP" + "-01",
+    ):
+        found = TRACKER_KEY.search(foreign)
+        assert found is not None and not _is_a_criterion_id(foreign, found), foreign
 
 
 def test_the_structural_arms_fire_on_planted_markers() -> None:
