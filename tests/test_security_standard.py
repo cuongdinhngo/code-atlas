@@ -207,7 +207,7 @@ def test_a_planted_row_is_refused(case: str) -> None:
 def test_a_good_row_and_a_deferred_should_are_accepted() -> None:
     assert problems(Row("SEC-GV-99", "c", "MUST", "s", HELD)) == []
     assert problems(Row("SEC-GV-99", "c", "SHOULD", "s", "deferred: no client supports it")) == []
-    assert problems(Row("SEC-GV-99", "c", "MUST", "s", f"{HELD}; open: 423")) == []
+    assert problems(Row("SEC-GV-99", "c", "MUST", "s", f"{HELD}; open: 424")) == []
 
 
 def _section(text: str, heading: str) -> str:
@@ -295,7 +295,9 @@ def test_security_md_names_every_git_command_code_atlas_runs() -> None:
 
 
 # A module reaches the network if it imports a client library or lists remote refs over git.
-NETWORK_MODULES = frozenset({"requests", "httpx", "aiohttp", "socket", "http.client", "anthropic"})
+NETWORK_MODULES = frozenset(
+    {"requests", "httpx", "aiohttp", "socket", "http.client", "urllib.request", "anthropic"}
+)
 NETWORK_NAMES = {"urllib.request": frozenset({"urlopen", "Request", "build_opener"})}
 LISTED_PACKAGE = re.compile(r"`([a-z_]+)/`")
 
@@ -305,9 +307,12 @@ def _reaches_network(tree: ast.AST, path: Path) -> bool:
         if isinstance(node, ast.Import) and any(a.name in NETWORK_MODULES for a in node.names):
             return True
         if isinstance(node, ast.ImportFrom) and node.module:
-            if node.module in NETWORK_MODULES:
+            if node.module in NETWORK_NAMES:
+                if {a.name for a in node.names} & NETWORK_NAMES[node.module]:
+                    return True
+            elif node.module in NETWORK_MODULES:
                 return True
-            if {a.name for a in node.names} & NETWORK_NAMES.get(node.module, frozenset()):
+            if any(f"{node.module}.{a.name}" in NETWORK_MODULES for a in node.names):
                 return True
         if isinstance(node, ast.Call) and _git_argument(node, path) == "ls-remote":
             return True
@@ -335,4 +340,6 @@ def test_security_md_names_every_package_that_reaches_the_network() -> None:
     )
     planted = ast.parse("from urllib.request import urlopen")
     assert _reaches_network(planted, Path("x.py"))
-    assert not _reaches_network(ast.parse("from urllib.parse import urlparse"), Path("x.py"))
+    assert _reaches_network(ast.parse("from urllib import request"), Path("x.py"))
+    for inert in ("from urllib.parse import urlparse", "from urllib.request import url2pathname"):
+        assert not _reaches_network(ast.parse(inert), Path("x.py")), inert

@@ -27,11 +27,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 ## Open work — Trust (security)
 
-423 first: later tickets fill its rows.
+Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md).
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 423 | [Security standard, conformance-tested](tasks/423_security-standard.md) | Standard | todo | 422 |
 | 424 | [CI hardening](tasks/424_ci-hardening.md) | Supply chain | todo | 423 |
 | 425 | [Locked, hashed, audited dependencies](tasks/425_dependency-lock-and-audit.md) | Supply chain | todo | 423 |
 | 426 | [Non-root, digest-pinned runtime image](tasks/426_container-hardening.md) | Container | todo | 425 |

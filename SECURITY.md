@@ -50,8 +50,8 @@ Each criterion code-atlas holds, and the test or ticket behind it, is in
 - **The index directory is code-atlas's own.** An index that git tracks, or whose directory,
   database or database sibling is a link or leads outside the repo, is refused by every entry point
   with the fix. Each file the build and the server write there goes through
-  `code_atlas/containment.py`, never through a link, `0600` in a `0700` directory, and the database is opened with `trusted_schema=OFF` and SQLite's
-  defensive mode.
+  `code_atlas/containment.py`: never through a link, `0600` in a `0700` directory. The database is
+  opened with `trusted_schema=OFF` and SQLite's defensive mode.
 - **git runs hardened.** See [Git commands](#git-commands).
 - **Text read back from the index is data.** A name stamped into the index, the recorded refusal
   and the build's progress line reach `nudge.log`, the server instructions or a hook only as a

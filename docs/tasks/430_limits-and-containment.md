@@ -35,7 +35,7 @@ One fixture per limit, each seen failing first (R6.5):
    `O_NOFOLLOW`.
 5. **Scrubbed environments:** adapters run with an allow-listed environment (no `*_TOKEN`,
    `*_KEY`, `ANTHROPIC_*`, `GH_*`); git runs with `GIT_*` variables other than the ones
-   code-atlas sets removed.
+   code-atlas sets removed (SEC-IN-13, SEC-IN-14).
 6. `generate_onboarding`'s `.code-atlas/onboarding/` cache is written through `containment`, with
    420's modes (`0700`/`0600`), closing 420's residual (SEC-IN-04, SEC-IN-12). A test asserts SQLite
    extension loading is off on every connection the store opens (SEC-IN-05).

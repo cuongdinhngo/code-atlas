@@ -4,7 +4,7 @@ slug: security-standard
 title: "The security standard lives in the repo — every SEC criterion names the test, CI step or setting that holds it, and a conformance test refuses a row with none"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [422]
 ---
 
@@ -332,16 +332,62 @@ accepted as a CI step) were fixed — see reviewer 5.
 
 ---
 
+**Reviewer round 2** (verify-only): LGTM, 7 of 7 resolved. Its three non-blocking notes were taken:
+`import urllib.request` / `from urllib import request` now count as network; 430 AC5 names
+SEC-IN-13 and SEC-IN-14; SECURITY.md's index paragraph reflowed. A positive control that cited
+`open: 423` was moved to 424 once 423 closed.
+
+Reviewed at `9787f30b` (+ the round-2 notes and bookkeeping in the finalise commit).
+
+**Gate** at `9787f30b`, host: Linux, `php` · `composer` · `node` on PATH:
+`2 failed, 5193 passed, 4 skipped` — the two failures are the baseline's host exclusions (installed
+uv tool 0.7.0); every other check PASS. `GATE RED` on those two only; Docker run recorded below.
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| review | challenger | 1 | 86,716 (host-reported subagent total) |
+| review | reviewer | 1 | 105,709 (host-reported subagent total) |
+| review | reviewer | 2 | 57,496 (host-reported subagent total) |
+
+`LEDGER TOTAL: 249,921 · top cost driver: review/reviewer`
+
+---
+
+## Phase 5 — Finalise ✋ final gate
+
+`CLAIMS: 2 claim(s) from 2 lesson entr(ies) | T1=0 T2=2 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+
+- 423-C1 (new) `a-cited-guard-must-hold-its-row` — type 2.
+- 408-C1 `a-docs-change-runs-every-doc-budget` — seen +423: the design measured the rule book,
+  CONVENTION and tier 1 but not AGENTS.md's own ceiling, which the first targeted run caught.
+
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md | mango files written: 0`
+
+`a-docs-change-runs-every-doc-budget` is now at recurrence 3 across 408, 411, 423 — the
+cross-ticket pass is `/mango:promote`, the maintainer's to run between tickets; nothing is written
+to AGENT_BRIEF here.
+
+Outward actions (standing approval, AGENTS.md *Maintainer workflow*): push
+`docs/423-security-standard`, open the PR from the template. Merge waits for the maintainer.
+
 ## Decision log
 
 | When | Decision | Why |
 |------|----------|-----|
 | 2026-10-30 | refine skipped; TIER full, SCOPE M | 0 open product decisions; N = 65; security-tagged |
+| 2026-10-30 | Gates 1–2 closed on the owner's autonomy grant | "choose the best approach … complete the work autonomously" |
+| 2026-10-30 | SEC-MCP-01 stays `open: 428` | no test asserts the absence of an HTTP transport (challenger 4) |
+| 2026-10-30 | no `set:` item kind | nothing reads a setting back until 424 |
 
 ## Session status
 
 - **Last updated:** 2026-10-30
 - **work_doc_mode:** embed · working doc: `docs/tasks/423_security-standard.md` (below the separator)
-- **Current phase:** analysis
-- **Next action:** owner approves Gate 1, then design writes the change list
-- **Blocked on:** Gate 1
+- **Current phase:** finalise
+- **Next action:** maintainer reviews and merges the PR
+- **Blocked on:** merge (maintainer)
