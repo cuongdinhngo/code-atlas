@@ -258,6 +258,9 @@ def _git_argument(call: ast.Call, path: Path) -> str | None:
         argument = call.args[0].elts[1]
         if in_gitutil and isinstance(argument, ast.Starred):
             return None  # `_run`'s own spawn: its callers above name the subcommand
+        # 427: a starred `-c` hardening run precedes the subcommand; read past it.
+        plain = (e for e in call.args[0].elts[1:] if not isinstance(e, ast.Starred))
+        argument = next(plain, argument)
     else:
         return None
     if isinstance(argument, ast.Constant) and isinstance(argument.value, str):

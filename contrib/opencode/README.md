@@ -23,5 +23,6 @@ else. code-atlas installs nothing, so no test here can exercise it.
 
 ## Behaviour
 
-`code-atlas-poke` exits 0 in every case — no index, a path outside the project, a suffix no adapter
+The plugin spawns `code-atlas-poke` only when `.code-atlas/graph.db` exists, and the script
+refuses one git tracks (427). `code-atlas-poke` exits 0 in every case — no index, a path outside the project, a suffix no adapter
 owns, or a broken install (one stderr line). It never fails your edit.

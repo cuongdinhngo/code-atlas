@@ -83,8 +83,8 @@ revision only as a full object id (or the literal `HEAD`), after `--end-of-optio
 - `git diff --name-only` — what changed since the last build.
 - `git config --get` — one value (`core.autocrlf`); it reads the system file too.
 - `git --version` — refuse a git too old for `--end-of-options`.
-- `git ls-remote` — the release check above; it runs in the session's directory, without the
-  hardening (427 moves it out).
+- `git ls-remote` — the release check above; it runs from code-atlas's own cache directory,
+  never the indexed repo, with the same hardening.
 
 ## Client-side controls
 
@@ -115,8 +115,7 @@ Keep these on in your MCP client:
 - **The rest of the indexed repo's git config applies.** Beyond the overridden keys, the commands
   above read its `.git/config`, and no per-command override reaches git's filter drivers
   (`filter.<name>.clean`, `filter.<name>.process`). Do not index a working copy whose `.git`
-  directory you did not create, such as one unpacked from an archive, outside a container — nor
-  open one with the plugin's hooks on, since the release check runs there.
+  directory you did not create, such as one unpacked from an archive, outside a container.
 - **The runtime image runs as root** unless you pass `--user`. The README shows how; 426 changes
   the default.
 

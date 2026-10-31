@@ -116,9 +116,10 @@ def test_each_hook_is_silent_in_a_repo_with_no_index(tmp_path: Path, command: st
 
 @pytest.mark.parametrize("command", _gated_commands())
 def test_each_hook_runs_its_script_in_an_indexed_repo(tmp_path: Path, command: str) -> None:
-    """The gate's other side: with `.code-atlas/` present the script really runs."""
+    """The gate's other side: with `.code-atlas/graph.db` present the script really runs."""
     project = tmp_path / "project"
     (project / ".code-atlas").mkdir(parents=True)
+    (project / ".code-atlas" / "graph.db").write_bytes(b"x")
     env = {**_fake_scripts(tmp_path), "CLAUDE_PROJECT_DIR": str(project)}
     done = subprocess.run(["bash", "-c", command], env=env, capture_output=True, text=True)
     # 376 AC3: the probe passes, and the script gets the same arguments as before.
@@ -139,6 +140,7 @@ def _without_scripts(tmp_path: Path, shell: str, command: str) -> subprocess.Com
     """Run ``command`` in an indexed repo whose PATH holds no console script at all."""
     project = tmp_path / "project"
     (project / ".code-atlas").mkdir(parents=True, exist_ok=True)
+    (project / ".code-atlas" / "graph.db").write_bytes(b"x")
     empty = tmp_path / "empty-path"
     empty.mkdir(exist_ok=True)
     env = {"PATH": str(empty), "CLAUDE_PROJECT_DIR": str(project)}
@@ -189,7 +191,8 @@ def test_the_manifest_and_marketplace_carry_the_package_version() -> None:
 def test_the_server_is_launched_by_its_console_script_name() -> None:
     """W1: no interpreter path anywhere in the plugin — the console script is on PATH."""
     server = _load(gen_skill.PLUGIN_MANIFEST_PATH)["mcpServers"]["code-atlas"]
-    assert server == {"command": "code-atlas"}
+    version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
+    assert server == {"command": "code-atlas", "args": ["--expect-version", version]}
 
 
 @pytest.mark.parametrize("path", sorted(gen_skill.GENERATED), ids=lambda p: p.name)

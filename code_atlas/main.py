@@ -13,6 +13,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from code_atlas import instructions
+from code_atlas.build_info import REPOSITORY_GIT, UNKNOWN_VERSION, package_version
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.index_trust import IndexTrustError
 from code_atlas.onboarding.layers import LayerRefiner
@@ -223,12 +224,42 @@ def allowed_tools(tools: tuple[str, ...] | None) -> tuple[str, ...]:
     return tuple(name for name in TOOL_NAMES if name in tools)
 
 
+EXPECT_VERSION_FLAG = "--expect-version"
+
+
+def version_refusal(expected: str | None, installed: str) -> str | None:
+    """The refusal naming the one fixing command when the plugin and this server differ (427).
+
+    An unknown installed version (a checkout, no metadata) cannot disagree, so it serves.
+    """
+    if expected is None or installed in (expected, UNKNOWN_VERSION):
+        return None
+    refusal = f"code-atlas: refusing to serve: the plugin is {expected}, this server is {installed}"
+    if not all(part.isdigit() for part in expected.split(".")):
+        return refusal
+    return (
+        f"{refusal} — run: uv tool install --force git+{REPOSITORY_GIT}@v{expected}"
+        f" (or pipx install --force git+{REPOSITORY_GIT}@v{expected})"
+    )
+
+
+def _expected_version(args: list[str]) -> str | None:
+    if EXPECT_VERSION_FLAG in args:
+        at = args.index(EXPECT_VERSION_FLAG) + 1
+        return args[at] if at < len(args) and not args[at].startswith("--") else None
+    return None
+
+
 def main() -> None:
     """Entry point: serve this working directory over stdio, or ``code-atlas query …`` (382)."""
     if sys.argv[1:2] == ["query"]:
         from code_atlas import query
 
         raise SystemExit(query.main(sys.argv[2:]))
+    refusal = version_refusal(_expected_version(sys.argv[1:]), package_version())
+    if refusal:
+        print(refusal, file=sys.stderr)
+        raise SystemExit(2)
     try:
         config = load_config(Path.cwd(), os.environ)
     except IndexTrustError as refused:

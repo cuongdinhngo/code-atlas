@@ -34,7 +34,6 @@ Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md).
 | 424 | [CI hardening](tasks/424_ci-hardening.md) | Supply chain | todo | 423 |
 | 425 | [Locked, hashed, audited dependencies](tasks/425_dependency-lock-and-audit.md) | Supply chain | todo | 423 |
 | 426 | [Non-root, digest-pinned runtime image](tasks/426_container-hardening.md) | Container | todo | 425 |
-| 427 | [Pinned installs, hook activation](tasks/427_distribution-pinning.md) | Distribution | todo | 423 |
 | 428 | [Tool annotations, closed schemas, surface manifest](tasks/428_tool-surface-manifest.md) | MCP surface | todo | 423 |
 | 429 | [Repo text in answers marked as data](tasks/429_untrusted-output-framing.md) | Output | todo | 428 |
 | 430 | [Limits, containment, scrubbed env](tasks/430_limits-and-containment.md) | Input | todo | 423 |

@@ -11,6 +11,7 @@ same file whose *command* set then drifted.
 """
 
 import json
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -58,3 +59,45 @@ def test_every_host_offers_the_same_hook_commands() -> None:
     union = set().union(*offers.values())
     missing = {host: sorted(union - cmds) for host, cmds in offers.items() if union - cmds}
     assert not missing, f"hook commands offered to some hosts and not others: {missing}"
+
+
+# 427: every host wakes on the index database, never the directory a repo can ship.
+CODEX_HOOKS = CONTRIB / "codex" / "hooks.json"
+OPENCODE_PLUGIN = CONTRIB / "opencode" / "code-atlas.js"
+
+
+def _gate_segments() -> tuple[str, ...]:
+    """The database path `PLUGIN_GATE` tests, split — derived, never re-typed (R6.7)."""
+    import gen_skill
+
+    path = re.search(r'\$\{CLAUDE_PROJECT_DIR:-\.\}/(\S+)"', gen_skill.PLUGIN_GATE)
+    assert path, gen_skill.PLUGIN_GATE
+    return tuple(path.group(1).split("/"))
+
+
+def _gates_before_spawn(js: str) -> bool:
+    """Whether the plugin returns early on a missing database before it spawns the script."""
+    gate = re.search(r"if \(!existsSync\(([^;]*)\)\) return;", js)
+    spawn = js.find("code-atlas-poke`")
+    if not gate or not 0 <= gate.start() < spawn:
+        return False
+    return all(f'"{segment}"' in gate.group(1) for segment in _gate_segments())
+
+
+def test_every_codex_command_starts_with_the_plugin_gate() -> None:
+    import gen_skill
+
+    hooks = json.loads(CODEX_HOOKS.read_text(encoding="utf-8"))["hooks"]
+    commands = [h["command"] for e in hooks["PostToolUse"] for h in e["hooks"]]
+    assert commands and all(c.startswith(gen_skill.PLUGIN_GATE) for c in commands), commands
+    assert {c.rpartition("exec ")[2] for c in commands} == HOOK_COMMANDS
+
+
+def test_the_opencode_plugin_tests_the_same_database_before_it_spawns() -> None:
+    assert _gate_segments() == (".code-atlas", "graph.db")
+    assert _gates_before_spawn(OPENCODE_PLUGIN.read_text(encoding="utf-8"))
+    # R6.5: the pre-427 plugin spawned unconditionally, and the check sees it.
+    ungated = "export const X = async ({ $ }) => ({ a: async () => { await $`code-atlas-poke`; }});"
+    directory_only = ungated.replace("await", 'if (!existsSync(".code-atlas")) return; await')
+    assert not _gates_before_spawn(ungated)
+    assert not _gates_before_spawn(directory_only)

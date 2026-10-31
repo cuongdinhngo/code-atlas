@@ -26,6 +26,9 @@ from code_atlas import gitutil
 BUILD_ID_CHARS = 7
 DIRTY_SUFFIX = "+dirty"
 UNKNOWN_VERSION = "unknown"
+# 427: the one place the install URL is named; a fix appends `@v<release>` to it.
+REPOSITORY_GIT = "https://github.com/cuongdinhngo/code-atlas.git"
+MARKETPLACE_REPO = "cuongdinhngo/code-atlas"
 # Action a reader (including an autonomous agent) can take — never interactive `/mcp` (267).
 SERVER_STALE_ACTION = "restart_mcp_server_process"
 SERVER_STALE_DIFFERS = ("code_atlas_package_bytes_on_disk",)

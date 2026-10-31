@@ -91,7 +91,7 @@ def test_a_core_behind_the_checkout_is_named_with_the_tool_upgrade(tmp_path: Pat
     assert done.returncode == 0
     assert seconds < HOOK_TIMEOUT
     (line,) = _skew_lines(done)
-    for part in ("'fake'", "(v99)", f"(v{CORE})", state.TOOL_STEP):
+    for part in ("'fake'", "(v99)", f"(v{CORE})", "run the README"):
         assert part in line, line
 
 
@@ -159,24 +159,23 @@ def _line(
 
 @pytest.mark.parametrize("windows", [False, True], ids=["posix", "windows"])
 def test_every_half_older_than_the_newest_is_named_in_order(windows: bool) -> None:
-    """AC2: tool, plugin and checkout on three versions — each lagging half and its command, in
+    """AC2: tool and checkout both lag a newer plugin — each half and its command (tagged, 427), in
     the Scope 2 order, the Windows disconnect only on Windows, within 90 tokens."""
     line = _line(
         installed="0.3.0",
-        plugin="0.2.0",
-        plugin_contract=CORE - 1,
-        adapters={"php": CORE + 1},
+        plugin="0.4.0",
+        plugin_contract=CORE + 1,
+        adapters={"php": CORE - 1},
         windows=windows,
     )
     assert estimate_tokens(line) <= state.TOKEN_BUDGET, line
-    assert "0.3.0" in line and "0.2.0" in line and f"v{CORE + 1}" in line
-    order = [state.TOOL_STEP, state.PLUGIN_STEP, state.RECONNECT_STEP]
+    assert "0.3.0" in line and "0.4.0" in line and f"v{CORE + 1}" in line
+    order = [state.tool_step("0.4.0"), state.CHECKOUT_STEP, state.RECONNECT_STEP]
     if windows:
         order.insert(0, state.DISCONNECT_STEP)
     positions = [line.index(step) for step in order]
     assert positions == sorted(positions), line
     assert (state.DISCONNECT_STEP in line) is windows
-    assert state.CHECKOUT_STEP not in line  # the checkout is the newest half
 
 
 def test_a_checkout_behind_a_newer_plugin_is_named_with_the_tool() -> None:
@@ -189,8 +188,22 @@ def test_a_checkout_behind_a_newer_plugin_is_named_with_the_tool() -> None:
         windows=False,
     )
     assert estimate_tokens(line) <= state.TOKEN_BUDGET, line
-    assert line.index(state.TOOL_STEP) < line.index(state.CHECKOUT_STEP)
-    assert state.PLUGIN_STEP not in line
+    assert line.index(state.tool_step("0.4.0")) < line.index(state.CHECKOUT_STEP)
+    assert state.plugin_step("0.3.0") not in line
+
+
+def test_a_lagging_plugin_is_moved_by_the_marketplace_at_the_tools_tag() -> None:
+    """427: the plugin half is `marketplace add …#v<tool>`, never an unpinned update."""
+    line = _line(
+        installed="0.3.0",
+        plugin="0.2.0",
+        plugin_contract=CORE - 1,
+        adapters={"php": CORE - 1},
+        windows=False,
+    )
+    assert estimate_tokens(line) <= state.TOKEN_BUDGET, line
+    assert state.plugin_step("0.3.0") in line or state.UPGRADING_POINTER in line, line
+    assert "plugin update" not in line
 
 
 def test_a_line_past_the_budget_collapses_to_a_pointer() -> None:

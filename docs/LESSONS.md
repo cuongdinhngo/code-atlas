@@ -48,8 +48,20 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `seed-the-change-probe-with-the-first-answer` | 2 | 374, 396 | ENGINEERING_RULES R5.10 |
 | `confirm-the-blocked-path-runs` | 4 | 360, 365, 419, 420 | AGENT_BRIEF P6 and ENGINEERING_RULES R6.5 (widened) |
 | `a-docs-change-runs-every-doc-budget` | 3 | 408, 411, 423 | AGENT_BRIEF P9 |
+| `run-the-ac-on-main-before-the-design` | 2 | 414, 427 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-word-list-is-not-a-grammar` | 2 | 410, 427 | not yet — awaiting the maintainer's `/mango:promote` |
+| `verify-the-shipped-artifact-not-the-working-tree` | 2 | 344, 427 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 427-C1 — a guard placed in the config loader misses the entry point that loads no config
+
+- type: 2 (code) · handle: `a-loader-guard-misses-the-entry-that-loads-nothing`
+- status: proposed · seen: 427
+- evidence: 420 put the tracked-index refusal in `load_config`, so every hook that loads config went
+  silent on a repo shipping `.code-atlas/` — but the release check loads none, and it alone still woke
+  and ran `git ls-remote` there. Enumerate the entry points (console scripts), not the loader's callers.
+- destination: first sighting.
 
 ### 423-C1 — a guard that exists can still hold a different criterion than the row citing it
 
@@ -73,7 +85,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 414-C1 — an AC's premise about today's behaviour is one call on `main` away
 
 - type: 2 (process) · handle: `run-the-ac-on-main-before-the-design`
-- status: proposed · seen: 414
+- status: proposed · seen: 414, 427
 - evidence: 414's AC2 said `impact` would walk a table's readers and writers once the refusal lifted; `impact`
   walks no `READS`/`WRITES` on any table, which one call on `main` shows. The design was built before that call
   and the challenger had to raise it. Run each AC's "as today" premise before the design.
@@ -109,7 +121,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 410-C1 — a stop-word list drops the real names that spell like its words
 
 - type: 2 (code) · handle: `a-word-list-is-not-a-grammar`
-- status: proposed · seen: 410
+- status: proposed · seen: 410, 427
 - evidence: the column binder skipped `day`, `year`, `path`, `rows` as keywords; `SELECT Year, Path FROM S` read no
   column and the statement counted as a `select *`. The challenger probed it; the fix reads a date part by its place
   (a date function's first argument) and keeps only reserved words in the list.
@@ -296,7 +308,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 344-C3 — a directory-marketplace install reads the working tree, so it hides an uncommitted file
 
 - type: 2 (process) · handle: `verify-the-shipped-artifact-not-the-working-tree`
-- status: proposed · seen: 344
+- status: proposed · seen: 344, 427
 - evidence: `.gitignore`'s `.mcp.json` dropped the plugin's server file; the live install from the
   checkout connected anyway. Only a clone of the branch shows what a user gets. The challenger found it
   independently. Guard: `tests/test_claude_code_plugin.py::test_every_generated_file_is_committable`.

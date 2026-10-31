@@ -41,5 +41,7 @@ rejects the file, the reference wins over this snippet.
 
 ## Behaviour
 
-Both commands always exit 0 and never block the session: no index means no output, a path they do
+Each command runs behind the same gate as the Claude Code plugin: it wakes only when
+`.code-atlas/graph.db` exists, and refuses one git tracks (427). Both commands always exit 0 and
+never block the session: no index means no output, a path they do
 not own is a no-op, and an install or config error is one line on stderr.

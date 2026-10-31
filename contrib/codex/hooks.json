@@ -5,12 +5,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; exec code-atlas-poke",
             "statusMessage": "code-atlas: poke index"
           },
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; exec code-atlas-signal",
             "statusMessage": "code-atlas: index signal"
           }
         ]

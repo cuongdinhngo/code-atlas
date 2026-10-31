@@ -10,7 +10,11 @@
   "license": "MIT",
   "mcpServers": {
     "code-atlas": {
-      "command": "code-atlas"
+      "command": "code-atlas",
+      "args": [
+        "--expect-version",
+        "0.9.1"
+      ]
     }
   }
 }
