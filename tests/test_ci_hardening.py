@@ -7,9 +7,14 @@ planted workflow below proves one arm refuses its violation (R6.5).
 PyYAML is not a dev dependency, so `load` reads the YAML subset the workflows use: maps, lists,
 block scalars, flow lists, quoted and plain scalars, plain scalars continued on deeper lines.
 
+It fails closed (I1): a flow mapping or sequence, an anchor, an alias or a merge key is an
+unsupported shape, so a workflow the reader cannot parse faithfully is refused, never skipped.
+Composite actions under `.github/actions/` are read too: pins, credentials, event expressions.
+
 The write-scope rule: a job may hold a write permission only when its workflow has no
 `pull_request` / `pull_request_target` trigger, or when the job has no `actions/checkout` step
-(it then has no pull-request code on disk to run). Anything else is a write beside PR code.
+(it then has no pull-request code on disk to run). A job that calls a reusable workflow has no
+checkout of its own, so there a write scope under a pull-request trigger is refused outright.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 WORKFLOWS = sorted((REPO / ".github" / "workflows").glob("*.y*ml"))
+ACTIONS = sorted((REPO / ".github" / "actions").glob("**/action.y*ml"))
 DEPENDABOT = REPO / ".github" / "dependabot.yml"
 
 USES = re.compile(r"^\s*(?:- )?uses:\s*(?P<ref>\S+)(?P<rest>.*)$", re.MULTILINE)
@@ -149,9 +155,36 @@ def _steps(job: dict[str, Any]) -> list[dict[str, Any]]:
     return [s for s in job.get("steps") or [] if isinstance(s, dict)]
 
 
-def problems(text: str) -> list[str]:
-    """Everything wrong with one workflow, each tagged `[arm]` and naming where."""
-    found = []
+def shape_problems(text: str) -> list[str]:
+    """Flow collections, anchors, aliases and merge keys outside quotes and block scalars."""
+    found, block = [], None
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        ind = _indent(line)
+        if block is not None and ind > block:
+            continue
+        block = None
+        body = _uncomment(line.strip())
+        while body.startswith("- "):
+            body, ind = body[2:].strip(), ind + 2
+        key = KEY.match(body)
+        value = ((key[2] or "") if key else body).strip()
+        if key and key[1] == "<<" or value[:1] in ("[", "{") or re.match(r"[&*][\w-]", value):
+            found.append(f"[shape] line {n}: unsupported YAML shape — rewrite in block style")
+        if value[:1] in ("|", ">"):
+            block = ind
+    return found
+
+
+def _event_in(step: dict[str, Any]) -> bool:
+    values = [step.get("run", "")] + list((step.get("with") or {}).values())
+    return any(EVENT_IN_RUN.search(str(v)) for v in values)
+
+
+def problems(text: str, action: bool = False) -> list[str]:
+    """Everything wrong with one workflow (or composite action), each tagged `[arm]`."""
+    found = shape_problems(text)
     for m in USES.finditer(text):
         ref = m["ref"]
         if ref.startswith("./"):
@@ -161,28 +194,40 @@ def problems(text: str) -> list[str]:
         elif not VERSION_COMMENT.match(m["rest"]):
             found.append(f"[pin] {ref} has no `# vX.Y.Z` comment")
     doc = load(text)
-    if doc.get("permissions") != {"contents": "read"}:
-        found.append(f"[permissions] top-level is {doc.get('permissions')!r}, not contents: read")
-    triggers = _triggers(doc)
+    doc = doc if isinstance(doc, dict) else {}
+    triggers: set[str] = set()
+    jobs: dict[str, Any] = {"(action)": {"steps": (doc.get("runs") or {}).get("steps")}}
+    if not action:
+        if doc.get("permissions") != {"contents": "read"}:
+            found.append(
+                f"[permissions] top-level is {doc.get('permissions')!r}, not contents: read"
+            )
+        triggers = _triggers(doc)
+        jobs = doc.get("jobs") or {}
     for forbidden in sorted(triggers & {"pull_request_target", "workflow_run"}):
         found.append(f"[trigger] {forbidden} is forbidden")
-    for name, job in (doc.get("jobs") or {}).items():
+    for name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue  # an unparsed shape; `[shape]` already names it
         steps = _steps(job)
         checks_out = any(str(s.get("uses", "")).startswith("actions/checkout@") for s in steps)
+        calls_workflow = "uses" in job
         for write in _writes(job.get("permissions")):
-            if triggers & PR_TRIGGERS and checks_out:
-                found.append(f"[write-scope] job {name}: {write} beside a pull-request checkout")
+            if triggers & PR_TRIGGERS and (checks_out or calls_workflow):
+                found.append(f"[write-scope] job {name}: {write} beside pull-request code")
         for step in steps:
             if str(step.get("uses", "")).startswith("actions/checkout@"):
                 if (step.get("with") or {}).get("persist-credentials") != "false":
                     found.append(f"[credentials] job {name}: a checkout keeps its token")
-            if EVENT_IN_RUN.search(str(step.get("run", ""))):
-                found.append(f"[interpolation] job {name}: an event expression inside run:")
+            if _event_in(step):
+                found.append(
+                    f"[interpolation] job {name}: an event expression inside run: or with:"
+                )
     return found
 
 
-def _arm(arm: str, text: str) -> list[str]:
-    return [p for p in problems(text) if p.startswith(f"[{arm}]")]
+def _arm(arm: str, text: str, action: bool = False) -> list[str]:
+    return [p for p in problems(text, action) if p.startswith(f"[{arm}]")]
 
 
 # ---- the real workflows -----------------------------------------------------------------------
@@ -200,15 +245,19 @@ def test_the_reader_found_every_workflow_and_its_jobs() -> None:
     assert len(USES.findall(WORKFLOWS[0].read_text(encoding="utf-8"))) > 0
 
 
-@pytest.mark.parametrize("arm", ["pin", "permissions", "trigger", "write-scope", "credentials"])
-@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
-def test_every_workflow_holds_the_arm(path: Path, arm: str) -> None:
-    assert _arm(arm, path.read_text(encoding="utf-8")) == []
+ARMS = ["shape", "pin", "permissions", "trigger", "write-scope", "credentials"]
+EVERY_FILE = [(p, False) for p in WORKFLOWS] + [(p, True) for p in ACTIONS]
 
 
-@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
-def test_no_run_block_interpolates_an_event_expression(path: Path) -> None:
-    assert _arm("interpolation", path.read_text(encoding="utf-8")) == []
+@pytest.mark.parametrize("arm", ARMS)
+@pytest.mark.parametrize(("path", "action"), EVERY_FILE, ids=lambda v: getattr(v, "name", ""))
+def test_every_workflow_holds_the_arm(path: Path, action: bool, arm: str) -> None:
+    assert _arm(arm, path.read_text(encoding="utf-8"), action) == []
+
+
+@pytest.mark.parametrize(("path", "action"), EVERY_FILE, ids=lambda v: getattr(v, "name", ""))
+def test_no_run_block_interpolates_an_event_expression(path: Path, action: bool) -> None:
+    assert _arm("interpolation", path.read_text(encoding="utf-8"), action) == []
 
 
 def test_every_uses_is_a_full_sha_with_a_version_comment() -> None:
@@ -251,6 +300,14 @@ def _plant(old: str, new: str) -> str:
 
 
 PLANTED = {
+    "shape": [
+        _plant("on:\n  pull_request:", "on: [pull_request]"),
+        _plant("contents: read", "{contents: read}").replace("permissions:\n  {", "permissions: {"),
+        _plant("persist-credentials: false", "persist-credentials: &off false"),
+        _plant("persist-credentials: false", "persist-credentials: *off"),
+        _plant("jobs:\n", "jobs:\n  base: &base\n    runs-on: ubuntu-latest\n"),
+        _plant("  build:\n", "  build:\n    <<: *base\n"),
+    ],
     "pin": [
         _plant(f"@{SHA}", "@v4"),
         _plant(f"@{SHA} # v4.4.0", f"@{SHA}"),
@@ -267,6 +324,11 @@ PLANTED = {
     ],
     "write-scope": [
         _plant(
+            "    runs-on: ubuntu-latest\n    steps:",
+            f"    permissions:\n      issues: write\n    uses: o/r/.github/workflows/w.yml@{SHA}\n"
+            "    steps:",
+        ),
+        _plant(
             "    runs-on: ubuntu-latest\n",
             "    runs-on: ubuntu-latest\n    permissions:\n      pull-requests: write\n",
         ),
@@ -282,6 +344,16 @@ PLANTED = {
             "- run: echo ok",
             "- run: |\n          echo hi\n          echo ${{ github.event.number }}",
         ),
+        _plant(
+            "- run: echo ok",
+            f"- uses: actions/github-script@{SHA} # v7.1.0\n"
+            "        with:\n          script: |\n"
+            "            core.info('${{ github.event.pull_request.title }}')",
+        ),
+        _plant(
+            "- run: echo ok",
+            f"- uses: x/y@{SHA} # v1.0.0\n        with:\n          arg: ${{{{ github.head_ref }}}}",
+        ),
     ],
 }
 
@@ -296,6 +368,47 @@ def test_the_good_workflow_is_clean() -> None:
 )
 def test_a_planted_violation_is_refused(arm: str, text: str) -> None:
     assert _arm(arm, text), f"a planted {arm} violation was accepted:\n{text}"
+
+
+def test_block_scalars_and_quoted_values_are_not_mistaken_for_flow_shapes() -> None:
+    text = _plant(
+        "- run: echo ok",
+        "- run: |\n          [ -f x ] && echo '{a}' *.md &x\n"
+        '      - name: "[quoted]"\n        if: ${{ !cancelled() }}',
+    )
+    assert _arm("shape", text) == []
+
+
+COMPOSITE = f"""\
+name: x
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@{SHA} # v4.4.0
+      with:
+        persist-credentials: false
+    - run: echo ok
+      shell: bash
+"""
+PLANTED_ACTION = {
+    "pin": COMPOSITE.replace(f"@{SHA}", "@v4"),
+    "credentials": COMPOSITE.replace("persist-credentials: false", "persist-credentials: true"),
+    "interpolation": COMPOSITE.replace("echo ok", "echo ${{ github.event.issue.title }}"),
+    "shape": COMPOSITE.replace("using: composite", "using: {x: composite}"),
+}
+
+
+def test_a_composite_action_is_read_like_a_workflow() -> None:
+    assert problems(COMPOSITE, action=True) == []
+    for arm, text in PLANTED_ACTION.items():
+        assert _arm(arm, text, action=True), f"action: a planted {arm} violation was accepted"
+
+
+def test_the_actions_glob_reaches_a_nested_action_file(tmp_path: Path) -> None:
+    nested = tmp_path / ".github" / "actions" / "deep" / "er" / "action.yaml"
+    nested.parent.mkdir(parents=True)
+    nested.write_text(COMPOSITE, encoding="utf-8")
+    assert sorted((tmp_path / ".github" / "actions").glob("**/action.y*ml")) == [nested]
 
 
 def test_a_write_scope_is_allowed_where_no_pull_request_code_runs() -> None:
@@ -330,14 +443,20 @@ def test_the_reader_reads_the_shapes_the_workflows_use() -> None:
 
 # ---- Dependabot (SEC-SC-05) -------------------------------------------------------------------
 
-ECOSYSTEMS = {
-    ("pip", "/"),
-    ("npm", "/adapters/typescript"),
-    ("npm", "/adapters/sql"),
-    ("composer", "/adapters/php"),
-    ("github-actions", "/"),
-    ("docker", "/docker"),
-}
+
+def _manifest_dirs(manifest: str) -> set[str]:
+    """`/adapters/<x>` for every adapter that holds ``manifest`` — derived, never hand-listed."""
+    return {
+        f"/{p.parent.relative_to(REPO).as_posix()}" for p in REPO.glob(f"adapters/*/{manifest}")
+    }
+
+
+def expected_ecosystems() -> set[tuple[str, str]]:
+    return (
+        {("pip", "/"), ("github-actions", "/"), ("docker", "/docker")}
+        | {("npm", d) for d in _manifest_dirs("package.json")}
+        | {("composer", d) for d in _manifest_dirs("composer.json")}
+    )
 
 
 def dependabot_problems(text: str) -> list[str]:
@@ -353,12 +472,18 @@ def dependabot_problems(text: str) -> list[str]:
             found.append(f"{key} has no group")
         if not (REPO / str(key[1]).lstrip("/")).is_dir():
             found.append(f"{key}: the directory does not exist")
-    found += [f"{key} is missing" for key in sorted(ECOSYSTEMS - seen)]
+    found += [f"{key} is missing" for key in sorted(expected_ecosystems() - seen)]
     return found
 
 
 def test_dependabot_covers_every_ecosystem_and_directory() -> None:
     assert dependabot_problems(DEPENDABOT.read_text(encoding="utf-8")) == []
+
+
+def test_the_expected_ecosystems_are_derived_from_the_manifests() -> None:
+    expected = expected_ecosystems()
+    assert {("npm", "/adapters/typescript"), ("npm", "/adapters/sql")} <= expected
+    assert ("composer", "/adapters/php") in expected
 
 
 def test_a_planted_dependabot_gap_is_refused() -> None:

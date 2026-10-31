@@ -54,5 +54,7 @@ jobs:
             echo "an open issue already carries this title"
             exit 0
           fi
-          { cat "${RUNNER_TEMP}/drift.txt"; printf '\nWorkflow run: %s\n' "$RUN_URL"; } > "${RUNNER_TEMP}/issue.md"
+          report="${RUNNER_TEMP}/drift.txt"
+          [ -f "$report" ] || echo "The drift check did not reach its report; see the run log." > "$report"
+          { cat "$report"; printf '\nWorkflow run: %s\n' "$RUN_URL"; } > "${RUNNER_TEMP}/issue.md"
           gh issue create --title "$title" --body-file "${RUNNER_TEMP}/issue.md"

@@ -96,7 +96,7 @@ def test_gate_fails_when_atlas_answer_is_wrong() -> None:
 def test_verdict_markdown_reports_the_numbers_and_the_pass_verdict() -> None:
     agg = _h.aggregate([_row("a", atlas=100, grep=400)])
     body = _h.verdict_markdown(agg, min_ratio=1.0, failure=None, samples_skipped=2)
-    assert _h.COMMENT_MARKER in body  # CI edits its own comment by this marker
+    assert _h.COMMENT_MARKER in body  # the report opens with its marker
     assert "| 4.0 | — | — | 0 | 100 | 400 | 1/1 | **PASS** (floor ratio 1.0) |" in body
     assert "Recall and precision are gates; cost is the win." in body
     assert "Sample-tier questions skipped: 2." in body

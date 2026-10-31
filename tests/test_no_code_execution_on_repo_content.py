@@ -1,10 +1,11 @@
 """424 — SEC-IN-07: nothing under `code_atlas/` or `adapters/` executes or loads repo content.
 
-A parser reads text; it never runs it. The guard refuses, by syntax tree for Python and by
-comment-stripped line for the JS and PHP adapters: `eval` / `exec`, the `pickle` / `marshal` /
-`shelve` modules, `yaml.load` without a safe loader, a dynamic import (`importlib.import_module`,
-`__import__`), `new Function`, a `require` / `import()` / `include` of a non-literal and a PHP
-`assert` of a string. `importlib.metadata` reads installed packages and is fine.
+A parser reads text; it never runs it. The guard refuses, by syntax tree for Python (import
+aliases resolved) and by comment-stripped line for the JS and PHP adapters: `eval` / `exec`,
+`compile` of non-literal text, the `pickle` / `marshal` / `shelve` / `runpy` modules, `yaml.load`
+without a safe loader, a dynamic import (`importlib.import_module`, `__import__`), `new Function`,
+a `require` / `import()` / `include` of a non-literal and a PHP `assert` of a string.
+`importlib.metadata` reads installed packages and is fine.
 
 A site that is legitimate is allow-listed below by exact path and construct, with the reason, and a
 stale entry fails (an unused exception is a standing hole). Planted sources prove each arm refuses.
@@ -19,7 +20,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SKIPPED = ("/vendor/", "/node_modules/", "tests/fixtures/")
-UNSAFE_MODULES = frozenset({"pickle", "cPickle", "marshal", "shelve", "dill"})
+UNSAFE_MODULES = frozenset({"pickle", "cPickle", "marshal", "shelve", "dill", "runpy"})
 SAFE_LOADERS = frozenset({"SafeLoader", "CSafeLoader"})
 
 # (path, construct) -> why this one site cannot run repo text.
@@ -49,14 +50,29 @@ def tracked(*roots: str, suffixes: tuple[str, ...]) -> list[str]:
     )
 
 
-def _dotted(node: ast.expr) -> str:
-    return ast.unparse(node)
+def _aliases(tree: ast.AST) -> dict[str, str]:
+    """Local name -> dotted name, from `import a as b` and `from a import c as d`."""
+    found: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.update({a.asname: a.name for a in node.names if a.asname})
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            found.update({a.asname or a.name: f"{node.module}.{a.name}" for a in node.names})
+    return found
+
+
+def _dotted(node: ast.expr, aliases: dict[str, str]) -> str:
+    """The call target as written, with its first name resolved through the import aliases."""
+    head, _, rest = ast.unparse(node).partition(".")
+    return ".".join(filter(None, [aliases.get(head, head), rest]))
 
 
 def python_constructs(source: str) -> list[tuple[str, int]]:
     """(construct, line) of every refused thing in ``source``."""
     found: list[tuple[str, int]] = []
-    for node in ast.walk(ast.parse(source)):
+    tree = ast.parse(source)
+    aliases = _aliases(tree)
+    for node in ast.walk(tree):
         line = getattr(node, "lineno", 0)
         if isinstance(node, ast.Import):
             found += [
@@ -69,17 +85,20 @@ def python_constructs(source: str) -> list[tuple[str, int]]:
         ):
             found.append(("unsafe-module", line))
         elif isinstance(node, ast.Call):
-            name = _dotted(node.func)
-            if name in ("eval", "exec"):
+            name = _dotted(node.func, aliases).removeprefix("builtins.")
+            literal = node.args and isinstance(node.args[0], ast.Constant)
+            if name == "compile" and not literal:
+                found.append(("compile", line))
+            elif name in ("eval", "exec"):
                 found.append((name, line))
-            elif name in ("__import__", "importlib.import_module", "import_module"):
+            elif name in ("__import__", "importlib.import_module"):
                 found.append(("import_module", line))
             elif name in ("yaml.unsafe_load", "yaml.full_load"):
                 found.append(("yaml.load", line))
             elif name == "yaml.load":
                 loader = [k.value for k in node.keywords if k.arg == "Loader"]
                 loader += node.args[1:2]
-                if not loader or _dotted(loader[0]).split(".")[-1] not in SAFE_LOADERS:
+                if not loader or _dotted(loader[0], aliases).split(".")[-1] not in SAFE_LOADERS:
                     found.append(("yaml.load", line))
     return found
 
@@ -165,6 +184,13 @@ PLANTED_PYTHON = {
     "yaml.unsafe_load": "import yaml\nyaml.unsafe_load(text)",
     "importlib.import_module": "import importlib\nimportlib.import_module(name)",
     "__import__": "__import__(name)",
+    "aliased import_module": "from importlib import import_module as im\nim(name)",
+    "aliased importlib": "import importlib as il\nil.import_module(name)",
+    "aliased yaml.load": "import yaml as y\ny.load(text)",
+    "aliased eval": "from builtins import eval as ev\nev(text)",
+    "compile of a variable": "code = compile(text, 'f', 'exec')",
+    "runpy import": "import runpy",
+    "runpy from-import": "from runpy import run_path",
 }
 PLANTED_JS = {
     "eval": "const v = eval(src);",
@@ -196,6 +222,8 @@ def test_what_the_adapters_legitimately_use_is_accepted() -> None:
         "yaml.load(t, Loader=yaml.SafeLoader)\nyaml.safe_load(t)\n"
     )
     assert python_constructs(fine_python) == []
+    assert python_constructs("import re as r\nr.compile('x')\ncompile('1', 'f', 'eval')") == []
+    assert python_constructs("import importlib as il\nil.metadata.version('x')") == []
     assert (
         text_constructs('const fs = require("node:fs");\nrequire.main === module', JS_PATTERNS)
         == []

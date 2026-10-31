@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,7 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         # The range pyproject.toml claims to support. Development happens on the newer one.
-        python-version: ["3.12", "3.13"]
+        python-version:
+          - "3.12"
+          - "3.13"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

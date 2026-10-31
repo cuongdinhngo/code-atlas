@@ -65,7 +65,7 @@ _QUESTIONS = _REPO / "scripts" / "tokens_to_answer_questions.json"
 _DEFAULT_REPORT = _REPO / "artifacts" / "tokens-to-answer-report.json"
 # Deliberately not the file ci.yml uploads: a local run may name a private repo (task 045).
 _DEFAULT_LOCAL_REPORT = _REPO / "artifacts" / "tokens-to-answer-local-report.json"
-# CI finds its own PR comment by this marker and edits it, instead of posting a new one per push.
+# The marker opens the markdown report that CI writes to the job summary (no PR comment, 424).
 COMMENT_MARKER = "<!-- tokens-to-answer-report -->"
 # Fixture-tier floor: the per-PR gate in ci.yml and scripts/gate.sh. Below 1 BY DESIGN — the
 # committed fixtures are toy repos where grep wins on volume, so this is a behaviour-lock, never
@@ -768,7 +768,7 @@ def verdict_markdown(
     min_recall: float | None = None,
     min_precision: float | None = None,
 ) -> str:
-    """Markdown block for a CI step summary or a sticky PR comment (task 034 / 055 / 135 gate)."""
+    """Markdown block for the CI job summary (task 034 / 055 / 135 gate)."""
     verdict = _gate_verdict_label(
         min_ratio=min_ratio,
         min_recall=min_recall,
@@ -1087,7 +1087,7 @@ def main(argv: list[str] | None = None) -> int:
         "--markdown",
         type=Path,
         default=None,
-        help="Also write the verdict as markdown here (CI step summary / PR comment body).",
+        help="Also write the verdict as markdown here (the CI job summary).",
     )
     parser.add_argument(
         "--notice",

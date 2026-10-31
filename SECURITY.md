@@ -107,7 +107,10 @@ CI cannot be steered by a moved tag or a leaked token: every GitHub Action is pi
 SHA, every workflow reads the repository and only a job with no pull-request code writes, and no
 checkout keeps its token. Dependabot, CodeQL and OpenSSF Scorecard run weekly, and a weekly job reads
 the repository's rulesets, private reporting, secret scanning and admins back against
-[`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), opening an issue on a difference.
+[`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), opening an issue on a difference. The identity sweep over branch and pull-request ref names runs on
+pull requests; `main` is protected, so a push to it is not a new name. The maintainer account uses
+two-factor authentication; GitHub gives no read-back of that for a user-owned repository, so it is
+attested here, not checked.
 
 ## Client-side controls
 
