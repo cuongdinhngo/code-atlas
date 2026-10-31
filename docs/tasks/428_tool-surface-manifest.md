@@ -97,7 +97,7 @@ W1–W2 count as self-resolved because the handover handed them back; each stand
 
 `BASELINE: green — the suite on feat/425-dependency-lock-and-audit at 42fa2351 (Docker: 5474 passed, 8 skipped)`
 
-`RULE SECTIONS: 6 applicable — 6 by change-type | 0 by recalled handle — §1 (change-type) ✅ R1.8: one annotation table and one schema pass in `serve()` · §3 (change-type) N/A because no contract vocabulary changes; the tool surface is the MCP schema, pinned by the manifest · §5 (change-type) ✅ R5.3: an unknown argument fails loud · §6 (change-type) ✅ R6.5: each guard seen failing; R6.7: the manifest is generated, never hand-kept · §7 (change-type) ✅ R7.2, R7.5, R7.6 · §9 (change-type) ✅ R9.4: a surface change needs a CHANGELOG line; R9.6`
+`RULE SECTIONS: 6 applicable — 6 by change-type | 0 by recalled handle — §1 (change-type) ✅ R1.8: one annotation table and one schema pass in serve() · §3 (change-type) N/A because no contract vocabulary changes; the tool surface is the MCP schema, pinned by the manifest · §5 (change-type) ✅ R5.3: an unknown argument fails loud · §6 (change-type) ✅ R6.5: each guard seen failing; R6.7: the manifest is generated, never hand-kept · §7 (change-type) ✅ R7.2, R7.5, R7.6 · §9 (change-type) ✅ R9.4: a surface change needs a CHANGELOG line; R9.6`
 
 ## Phase 2 — design
 
