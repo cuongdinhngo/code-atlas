@@ -33,6 +33,7 @@ from code_atlas.indexer import (
     full_build,
     reparse_file,
 )
+from code_atlas.limits import DEFAULT_MAX_FILE_BYTES
 from code_atlas.onboarding.artifact import CACHE_DIR, CACHE_NAME
 from code_atlas.store import GraphStore
 from code_atlas.tools import generate_onboarding
@@ -165,7 +166,7 @@ def test_a_reply_line_over_the_cap_fails_that_file_and_the_adapter_is_replaced(
     with SubprocessAdapter("fake", (sys.executable, str(FAKE), "ok"), tmp_path) as adapter:
         huge = adapter.parse("huge/h.aa")
         after = adapter.parse("src/b.aa")
-    assert not huge.ok and "over 2000 bytes" in str(huge.error)
+    assert not huge.ok and "over 2000 characters" in str(huge.error)
     assert after.ok, "the stream was left mid-line, so the next file read the tail of the last"
     assert len(boots.read_text(encoding="utf-8").split()) == 2
 
@@ -454,6 +455,42 @@ def test_a_descriptor_that_is_not_the_file_resolved_is_refused(
         containment.read_bytes(root, root / "a.aa")
 
 
+@pytest.mark.skipif(
+    not (os.path.isdir("/proc/self/fd") or sys.platform == "darwin"), reason="no fd path"
+)
+def test_a_parent_swapped_to_a_link_between_check_and_open_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The open follows a swapped parent and stat follows it too; only the fd's real path tells."""
+    from code_atlas import containment
+
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    (root / "dir").mkdir(parents=True)
+    (outside / "dir").mkdir(parents=True)
+    (root / "dir" / "a.aa").write_bytes(b"inside")
+    (outside / "dir" / "a.aa").write_bytes(b"secret")
+    real_open = os.open
+
+    def swap_then_open(path: object, *args: Any) -> int:
+        (root / "dir" / "a.aa").unlink()
+        (root / "dir").rmdir()
+        (root / "dir").symlink_to(outside / "dir")
+        return real_open(path, *args)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(containment.os, "open", swap_then_open)
+    with pytest.raises(containment.UnsafeRead, match="changed while"):
+        containment.read_bytes(root, root / "dir" / "a.aa")
+
+
+def test_a_read_over_its_limit_is_refused_whole(tmp_path: Path) -> None:
+    from code_atlas import containment
+
+    (tmp_path / "big.toml").write_bytes(b"x" * 11)
+    assert containment.read_bytes(tmp_path, tmp_path / "big.toml", limit=11) == b"x" * 11
+    with pytest.raises(containment.UnsafeRead, match="over 10 bytes"):
+        containment.read_bytes(tmp_path, tmp_path / "big.toml", limit=10)
+
+
 @posix_only
 def test_the_digest_and_the_source_read_refuse_a_swapped_link(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -657,7 +694,7 @@ def test_the_indirection_text_reader_and_orientation_refuse_a_link(
 
     root, outside = linked
     (root / "leak.txt").symlink_to(outside)
-    assert enrichment._file_text(root, "leak.txt") is None
+    assert enrichment._file_text(root, "leak.txt", DEFAULT_MAX_FILE_BYTES) is None
     monkeypatch.setattr(orientation, "resolves_inside", lambda _root, _path: True)
     text, reason = orientation._read_text(root, "leak.txt")
     assert text == "" and reason
@@ -668,7 +705,9 @@ def test_an_oversize_file_is_not_read_for_a_template_match(tmp_path: Path) -> No
     from code_atlas import enrichment
 
     (tmp_path / "big.txt").write_text("x" * (4 * 1024 * 1024 + 1), encoding="utf-8")
-    assert enrichment._file_text(tmp_path, "big.txt") is None
+    assert enrichment._file_text(tmp_path, "big.txt", DEFAULT_MAX_FILE_BYTES) is None
+    # The operator's raised cap reaches enrichment too, not only the indexer.
+    assert enrichment._file_text(tmp_path, "big.txt", 8 * 1024 * 1024) is not None
 
 
 @posix_only
