@@ -195,7 +195,18 @@ read the live `list_tools()`, every tool), 424-C1 +428 (the walk raises on a nod
 `RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
 
-**The final gate:** __DOCKER__
+**The final gate:** the suite in Docker on the final tree, and the fast gate (R9.4 included) on the host.
+
+Ran at 38258d19
+
+```
+$ scripts/docker-test.sh
+5558 passed, 8 skipped in 678.03s (0:11:18)
+$ PATH=.venv/bin:$PATH scripts/gate.sh --fast
+  21 passed · 0 failed · 2 skipped
+```
+
+`38258d19` adds only the bookkeeping on top of the reviewed `ba2f0c9a`.
 
 ### Outward actions
 
