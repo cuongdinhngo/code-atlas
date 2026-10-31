@@ -51,7 +51,7 @@ REPO = Path(__file__).resolve().parent.parent
 # stand-in. Anything else with this shape is a real ticket in someone's tracker.
 # `PRE-172` is this repo's own "state before ticket 172" notation, not a ticket in a tracker.
 ALLOWED_KEY_PREFIXES = frozenset(
-    {"FIELD", "PRE", "SHA", "ISO", "UTF", "RFC", "PSR", "PEP", "CVE", "CWE", "CL"}
+    {"FIELD", "PRE", "SHA", "ISO", "UTF", "RFC", "PSR", "PEP", "CVE", "CWE", "PYSEC", "CL"}
 )
 # Ids whose key-shaped tail follows a namespace: the security standard's own rows, and the
 # OpenSSF OSPS Baseline's control families the standard cites (`OSPS-VM-02`).

@@ -4,7 +4,7 @@ slug: dependency-lock-and-audit
 title: "What CI tests is what installs — Python dependencies locked with hashes, the MCP SDK floor above every advisory, and every ecosystem audited in CI and the gate"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [423]
 ---
 
@@ -40,7 +40,7 @@ standard rows SEC-SC-06, 07, SEC-MCP-09.
 
 ## Session status
 
-- **KEY:** 425 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute.
+- **KEY:** 425 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W2 and merges after #125.
 - `TRACK: backend` · Run mode: `autorun 427 - 430 - 424 - 425 - 428 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/425-dependency-lock-and-audit`, **stacked on `feat/424-ci-hardening`** (#125).
@@ -130,3 +130,83 @@ pip-audit` in CI (an unpinned tool at audit time).
 **Proving tests:** `tests/test_dependency_lock.py`; the audit seen red on a seeded `fastmcp==3.1.0`.
 
 `EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+## Phase 3 — execute
+
+`implementer` landed Approach 1–6 in `f58d4899`…`8007aa6f`. **Verification sweep.** File axis: the change list plus
+recorded deviations — `cross-repo.yml` and `tokens-to-answer-sample.yml` (they ran `pip install .`, caught by the
+install-line sweep), `CONTRIBUTING.md` (dev setup). Behaviour axis as approved: the `dev` extra kept (every `.[dev]`
+doc line still works) with `pip-audit` in it; `astral-sh/setup-uv` pinned by SHA (`v10.3.0`, uv `0.11.28`) replaces
+`setup-python`; the install check stays non-editable (`uv sync --frozen --no-editable` into a temp env); `composer
+audit` reads its abandoned-package policy from `COMPOSER_AUDIT_ABANDONED=report` (Composer 2.7.1 has no flag) —
+vulnerabilities still fail. Audits on the real lock: pip-audit, both `npm audit --omit=dev` and `composer audit`
+report nothing.
+
+**Seen failing (R6.5), AC4.** In a temporary worktree pinning `fastmcp==3.1.0`, re-locked and exported:
+
+```
+# execute-time record (a seeded worktree by design, not the tree under review)
+$ pip-audit --strict --require-hashes --disable-pip -r req.txt
+Found 5 known vulnerabilities in 1 package
+fastmcp 3.1.0   PYSEC-2026-2475     3.2.0
+fastmcp 3.1.0   PYSEC-2026-2476     3.2.0
+fastmcp 3.1.0   GHSA-7xgj-8392-5q4r 3.4.10,4.1.2
+exit=1
+```
+
+A seeded `lodash@4.17.15` in `adapters/sql` failed `npm audit --omit=dev` (1 high, exit 1); the floor test went red
+in that worktree too.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 79,444 tokens): 6 met · 2 partly met · 1 can't tell (AC4's record lives
+  here, below the line it may not read). Taken in `57faf512` and `c898efe4`:
+  - **Important** — the install sweep missed `npx`, a bare `uv run`, lock-bypassing flags and every file outside
+    the four it named: it now globs `.github/**`, `scripts/*.sh` and `docker/*`, joins `\` continuations, and
+    allows `npx` / `uv run` only in their pinned or frozen forms — nine planted failures, six planted passes.
+  - Minor, taken: SEC-SC-06 names the two exact-version installs without a hash (the `uv` installer in the
+    images, the CLI under test); SEC-SC-07's threshold is held by the commands (`--strict`, no ignore flags), not
+    only by the row's words; CONTRIBUTING notes a stale venv SKIPs the audit; `mcp>=1.30.0,<2`.
+  - Minor, accepted: the `audit` job is not a required check (a ruleset change, the maintainer's); the audit runs
+    on push and PR, not on a schedule.
+- **Round 2: verify-only, main loop.**
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+`Ph3/4 proven by` (`tests/test_dependency_lock.py`): AC1 → `test_the_floors_clear_every_advisory_sec_mcp_09_names`;
+AC2 → `test_uv_lock_is_committed_and_every_package_has_a_hash`, `test_the_lock_agrees_with_pyproject`,
+`test_every_install_line_in_the_repo_goes_through_a_lock`; AC3 →
+`test_the_audit_threshold_is_written_in_the_standard_and_held_by_the_commands` + `test_ci_and_gate_agree`'s four
+audit rows; AC4 → the record above; AC5 → CHANGELOG *Unreleased*; C1 → `tests/test_security_standard.py`.
+
+Reviewed at c898efe4.
+
+## Phase 5 — finalise
+
+**Durable lesson.** None new: the review's one Important finding — an install sweep over a named file list that
+missed the files and forms it did not name — is 427-C1's class (enumerate every entry, not the ones a list names)
+and 424-C1's (a line the sweep cannot classify fails). Both bump `seen` (P1).
+
+`CLAIMS: 2 claim(s) from 2 lesson entr(ies) | T1=0 T2=2 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 2 recurring | 0 superseded (0 retired) | 2 promotion candidate(s)`
+`FALSIFY: 2 candidate(s) checked | 2 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+
+**The final gate:** __DOCKER__
+
+### Outward actions
+
+Under the handover: push `feat/425-dependency-lock-and-audit`; open its PR against `feat/424-ci-hardening`.
+Deferred to the maintainer: ratify W1–W2; merge after #125; optionally make `audit` a required check.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 3 execute | `implementer` | 1 | 122,695 |
+| 4 review | ticket-blind `challenger` | 1 | 79,444 |
+| 4 review | `implementer` (review fixes, resumed) | 2 | 133,033 |
+
+`LEDGER TOTAL: 335,172 · top cost driver: 4 review / implementer` — main loop unmeasured.
