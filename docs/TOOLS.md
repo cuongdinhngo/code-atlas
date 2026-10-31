@@ -100,9 +100,10 @@
 ## The tool surface is pinned (428)
 
 - **Annotations.** Every tool declares MCP annotations from one table in `code_atlas/main.py`: the
-  queries `readOnlyHint: true`, `openWorldHint: false`; `build_or_update_index` and
-  `generate_onboarding` `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`. A tool
-  absent from the table fails server start.
+  queries `readOnlyHint: true`; `build_or_update_index` and `generate_onboarding`
+  `readOnlyHint: false`, `idempotentHint: true`, and `generate_onboarding` alone `destructiveHint: true`
+  (it deletes the pages a previous run wrote). Every tool is `openWorldHint: false`. A tool absent from
+  the table fails server start.
 - **Closed schemas.** Each input schema has `additionalProperties: false`, closed domains as `enum`,
   a `maxLength` of 4096 on any other string and a `maxItems` of 1000 on any array (a map such as
   `records_filter` is bounded in keys and values). An unknown or wrongly typed argument is refused as a

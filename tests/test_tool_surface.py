@@ -102,11 +102,13 @@ def test_every_served_tool_declares_honest_annotations(repo: Path) -> None:
         hints = tool.annotations
         assert hints is not None, f"{tool.name} declares no annotations"
         if tool.name in WRITERS:
-            assert (hints.readOnlyHint, hints.destructiveHint, hints.idempotentHint) == (
-                False,
-                False,
-                True,
-            ), tool.name
+            destructive = tool.name == "generate_onboarding"
+            assert (
+                hints.readOnlyHint,
+                hints.destructiveHint,
+                hints.idempotentHint,
+                hints.openWorldHint,
+            ) == (False, destructive, True, False), tool.name
         else:
             assert (hints.readOnlyHint, hints.openWorldHint) == (True, False), tool.name
 

@@ -86,6 +86,8 @@ TOOL_NAMES: tuple[str, ...] = (
 
 # The two tools that write (the index, the onboarding tree): idempotent, never destructive.
 WRITER_TOOLS: frozenset[str] = frozenset({build_or_update_index.NAME, generate_onboarding.NAME})
+# Deletes the pages a previous run wrote: "may delete" is destructive in the MCP spec's own terms.
+DESTRUCTIVE_TOOLS: frozenset[str] = frozenset({generate_onboarding.NAME})
 
 
 def tool_annotations(name: str) -> ToolAnnotations:
@@ -93,7 +95,12 @@ def tool_annotations(name: str) -> ToolAnnotations:
     if name not in TOOL_NAMES:
         raise ConfigError(f"tool {name!r} has no declared annotations: add it to TOOL_NAMES")
     if name in WRITER_TOOLS:
-        return ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True)
+        return ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=name in DESTRUCTIVE_TOOLS,
+            idempotentHint=True,
+            openWorldHint=False,
+        )
     return ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 
 

@@ -165,6 +165,9 @@ three stdio-frame cases, the transport scan, the unreadable-index cases.
     `*_app` attributes, ASGI server imports and dynamic transport imports; the R9.4 check needs an added CHANGELOG
     line naming a changed tool or "tool surface".
 - **Round 2: verify-only, main loop.**
+- **PR review** (rule-book reviewer on #127): the writers declared no `openWorldHint`, which MCP reads as
+  `true` — now `false`. `generate_onboarding` deletes the pages it wrote earlier; "may delete" is the spec's
+  `destructiveHint: true`, so it says so (the conservative reading); `build_or_update_index` stays `false`.
 
 ```
 # review-time record (an earlier tree by design; the final-tree run is in Phase 5)

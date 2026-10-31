@@ -24,9 +24,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   `npm audit --omit=dev` and `composer audit`, failing on any known vulnerability. The install floor
   moved to `fastmcp>=3.4.10,<4` and `mcp>=1.30.0`, above every published advisory (SEC-MCP-09). A
   user's `uv tool install git+…@vX.Y.Z` is unchanged; it resolves the new floors.
-- **The tool surface is pinned** (428). Every tool declares MCP annotations (queries read-only and
-  closed-world; `build_or_update_index` and `generate_onboarding` non-read-only, non-destructive,
-  idempotent), and every input schema is closed. Visible to a client: an unexpected tool error is
+- **The tool surface is pinned** (428). Every tool declares MCP annotations (all closed-world; queries
+  read-only; `build_or_update_index` and `generate_onboarding` non-read-only and idempotent, the
+  latter destructive, as it deletes its earlier pages), and every input schema is closed. Visible to a client: an unexpected tool error is
   masked to `Error calling tool '<name>'` (a deliberate `ValueError` refusal keeps its message), an
   argument is validated against the schema before the tool runs (a string for an integer is refused,
   not coerced), a free string over 4096 characters is refused, an array over 1000 items is refused,
