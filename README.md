@@ -154,7 +154,7 @@ claude plugin install code-atlas@code-atlas
 `code-atlas-mcp` and `codeatlas` there are other projects, so never install code-atlas by a
 package name.
 
-Its hooks stay silent in a repo with no `.code-atlas/graph.db`, or one git tracks; without the console scripts on `PATH`,
+Its hooks stay silent in a repo with no `.code-atlas/graph.db` (an index moved by `CA_DB_PATH` gets no hooks), or one git tracks; without the console scripts on `PATH`,
 the `SessionStart` hook prints the install line once and every hook exits 0 (376). Adapter `CA_<LANG>_CMD` variables stay per
 machine, as below. Already wired `.mcp.json` or the hook snippet by hand? Remove those, or each event
 fires twice ([`contrib/claude-code/`](contrib/claude-code/)).

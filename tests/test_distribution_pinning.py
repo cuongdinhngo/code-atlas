@@ -131,6 +131,16 @@ def test_the_state_hook_upgrade_lines_name_the_tagged_reinstall() -> None:
     assert "update" not in (tool + plugin) and not hasattr(state, "pinned_line")
 
 
+def test_an_unparseable_version_names_the_readme_never_a_bogus_tag() -> None:
+    line = state.skew_line(VERSION, "0.9.2rc1")
+    assert line is not None and "@v0.9.2rc1" not in line and "#v0.9.2rc1" not in line
+    assert state.UPGRADING_POINTER in line
+    assert server.version_refusal("0.9.2rc1", VERSION) == (
+        f"code-atlas: refusing to serve: the plugin is 0.9.2rc1, this server is {VERSION}"
+    )
+    assert server._expected_version(["--expect-version", "--other"]) is None
+
+
 # ---------------------------------------------------------------------------------------- AC2
 AUTO_UPDATE_ADVICE = re.compile(
     r"\b(?:turn on|turn auto-?update on|switch on|enable|enabling)\s+"

@@ -19,7 +19,7 @@ from typing import Any, NamedTuple
 from code_atlas import contract, records, routes
 from code_atlas.config import Config, ConfigError
 from code_atlas.containment import read_bytes, read_text, resolves_inside
-from code_atlas.limits import DEFAULT_MAX_FILE_BYTES, checked_pattern
+from code_atlas.limits import checked_pattern
 from code_atlas.store import GraphStore
 
 # The digest of the rule files the index was built under; "" when the knob was off (396).
@@ -547,7 +547,7 @@ def _template_ref_edges(
             if not any(fnmatch.fnmatchcase(rel, glob) for glob in rule.files):
                 continue
             if rel not in texts:
-                texts[rel] = _file_text(config.root, rel)
+                texts[rel] = _file_text(config.root, rel, config.max_file_bytes)
             read = texts[rel]
             if read is None:
                 continue
@@ -602,11 +602,11 @@ def _file_context(pattern: re.Pattern[str] | None, text: str) -> dict[str, str] 
     return dict(found.pop()) if len(found) == 1 else None
 
 
-def _file_text(root: Path, rel: str) -> tuple[str, list[int]] | None:
+def _file_text(root: Path, rel: str, max_file_bytes: int) -> tuple[str, list[int]] | None:
     """A file's text and its newline offsets, so a match's line is a bisect, not a count."""
     full = root / rel
     try:
-        if full.stat().st_size > DEFAULT_MAX_FILE_BYTES:
+        if full.stat().st_size > max_file_bytes:
             return None
         text = read_text(root, full, errors="replace")
     except OSError:
