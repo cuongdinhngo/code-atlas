@@ -117,8 +117,8 @@ def test_every_generated_hook_table_expects_this_release() -> None:
 @pytest.mark.parametrize(
     ("installed", "expected", "fix"),
     [
-        ("0.1.0", "0.2.0", state.TOOL_UPGRADE),  # the tool install lags the plugin
-        ("0.3.0", "0.2.0", state.HOOKS_UPGRADE),  # the plugin lags the tool install
+        ("0.1.0", "0.2.0", state.tool_step("0.2.0")),  # the tool install lags the plugin
+        ("0.3.0", "0.2.0", state.plugin_step("0.3.0")),  # the plugin lags the tool install
     ],
 )
 def test_a_skew_names_both_releases_and_the_side_to_move(

@@ -41,14 +41,8 @@ MARKETPLACE_PATH = REPO / ".claude-plugin" / "marketplace.json"
 REPOSITORY_URL = "https://github.com/cuongdinhngo/code-atlas"
 RELEASE_CHECK = "code-atlas-release-check"
 # A user-scope plugin fires in every project: the shell test spares a repo with no index the
-# Python spawn, so each hook is silent there (344 Scope 3).
-PLUGIN_GATE = '[ -d "${CLAUDE_PROJECT_DIR:-.}/.code-atlas" ] || exit 0; '
-# 376: a plugin can be installed before its console scripts; README step 1 is the fix.
-INSTALL_SCRIPTS = "uv tool install git+https://github.com/cuongdinhngo/code-atlas.git"
-MISSING_SCRIPTS_LINE = (
-    "code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: "
-    + INSTALL_SCRIPTS
-)
+# Python spawn. It wakes on the database, which the hook then checks git does not track (427).
+PLUGIN_GATE = '[ -f "${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db" ] || exit 0; '
 
 # An adapter announces its suffixes in its entry file; the handshake sends this same literal.
 # Reading it statically is what lets a guard check coverage without starting a subprocess.
@@ -258,8 +252,19 @@ def _package() -> dict[str, Any]:
     return dict(project["project"])
 
 
+# 427: every install line names this release's tag, derived here and never typed elsewhere.
+RELEASE_TAG = "v" + _package()["version"]
+# 376: a plugin can be installed before its console scripts; README step 1 is the fix.
+INSTALL_SCRIPTS = f"uv tool install --force git+{REPOSITORY_URL}.git@{RELEASE_TAG}"
+MISSING_SCRIPTS_LINE = (
+    "code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: "
+    + INSTALL_SCRIPTS
+)
+
+
 def render_plugin_manifest() -> str:
-    """Name, version and description from the package (R6.7); the server by its script name."""
+    """Name, version and description from the package (R6.7); the server by script name (427: and
+    the release it must be)."""
     package = _package()
     manifest = {
         "name": package["name"],
@@ -270,7 +275,12 @@ def render_plugin_manifest() -> str:
         "repository": REPOSITORY_URL,
         "license": package["license"]["text"],
         # Inline, not a plugin `.mcp.json`: this repo's .gitignore drops every `.mcp.json` (344).
-        "mcpServers": {"code-atlas": {"command": "code-atlas"}},
+        "mcpServers": {
+            "code-atlas": {
+                "command": "code-atlas",
+                "args": [EXPECT_FLAG, package["version"]],
+            }
+        },
     }
     return json.dumps(manifest, indent=2) + "\n"
 

@@ -26,7 +26,7 @@ configured adapter is launched and read for its handshake (``adapter_skew``). Ev
 the newest is named with its fix, in the order they must run, in one line.
 
 **On screen (381).** SessionStart stdout reaches only the agent, so a line a person must act on —
-version skew, a pinned tool install, a pending rebuild, a refused refresh (401) — goes out as
+version skew, a pending rebuild, a refused refresh (401) — goes out as
 JSON: ``systemMessage`` for the developer, ``additionalContext`` carrying every line for the agent.
 PreCompact keeps plain text.
 
@@ -39,11 +39,11 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
 from code_atlas import contract
+from code_atlas.build_info import MARKETPLACE_REPO, REPOSITORY_GIT
 from code_atlas.tokens import estimate_tokens
 
 # 099's 150 is a file outline; this is one sentence plus a phase, so the cap is shorter (AC5).
@@ -53,11 +53,7 @@ OCCASIONS = frozenset({"SessionStart", "PreCompact", "PostCompact"})
 PREFIX = "code-atlas: "
 EXPECT_FLAG = "--expect-version"
 EXPECT_CONTRACT_FLAG = "--expect-contract"
-TOOL_UPGRADE = "`uv tool upgrade code-atlas` (or `pipx upgrade code-atlas`)"
-HOOKS_UPGRADE = (
-    "`claude plugin marketplace update code-atlas && claude plugin update code-atlas@code-atlas` "
-    "(or re-copy the hook snippet)"
-)
+PLUGIN_REMOVE = "`claude plugin marketplace remove code-atlas`"
 CHECKOUT_UPGRADE = "`git pull` in its checkout, then reinstall its dependencies"
 # The core was installed from the adapters' own checkout, then the checkout moved: `git pull`
 # can leave it where it is, so the fix names the revision instead (418).
@@ -70,16 +66,32 @@ SAME_CHECKOUT_REINSTALL = (
 )
 # The whole-install line's steps, in the order they must run (374 Scope 2).
 DISCONNECT_STEP = "disconnect the server (`/mcp`)"
-TOOL_STEP = "`uv tool upgrade code-atlas`"
-PLUGIN_STEP = "`claude plugin update code-atlas@code-atlas`"
 CHECKOUT_STEP = "`git pull` the adapter checkout, reinstall its deps"
 SAME_CHECKOUT_STEP = "{release} in the adapter checkout, or reinstall the core from it"
 SAME_CHECKOUT_TOOL_STEP = "`uv tool install --reinstall --from <checkout> code-atlas`"
 RECONNECT_STEP = "reconnect (`/mcp`) or restart"
 UPGRADING_POINTER = "run the README's *Upgrading* steps in order"
-# uv writes `?rev=`/`?tag=` into the receipt only when the install named `@<ref>`; upgrade skips it.
-RECEIPT = "uv-receipt.toml"
-PIN_KEYS = ("rev=", "tag=")
+
+
+def tool_step(release: str | None) -> str:
+    """The tool reinstall at a release tag — `upgrade` never moves a pin — else the README (427)."""
+    if release is None:
+        return UPGRADING_POINTER
+    return f"`uv tool install --force git+{REPOSITORY_GIT}@v{release}`"
+
+
+def plugin_step(release: str | None) -> str:
+    """The marketplace re-added at a release tag, which is what moves the plugin (427)."""
+    if release is None:
+        return UPGRADING_POINTER
+    return (
+        f"{PLUGIN_REMOVE} && `claude plugin marketplace add {MARKETPLACE_REPO}#v{release}` "
+        "&& `claude plugin install code-atlas@code-atlas`"
+    )
+
+
+def _run(step: str) -> str:
+    return step if step.startswith("run ") else f"run {step}"
 SCREEN_EVENT = "SessionStart"
 # The numeric fields of the build's progress line (build_or_update_index's writer).
 PROGRESS_COUNTS = frozenset({"done", "total", "pid", "at"})
@@ -142,24 +154,33 @@ def skew_line(expected: str | None, installed: str | None = None) -> str | None:
         return None
     ahead, behind = _release(installed), _release(expected)
     # The older side is the one to move; an unparseable version names both routes.
-    fix = HOOKS_UPGRADE if ahead and behind and ahead > behind else TOOL_UPGRADE
-    if not (ahead and behind):
-        fix = f"{TOOL_UPGRADE}, or {HOOKS_UPGRADE}"
-    return f"{PREFIX}hooks expect code-atlas {expected} but {installed} is installed — run {fix}"
+    if ahead and behind:
+        fix = _run(plugin_step(installed) if ahead > behind else tool_step(expected))
+    else:
+        fix = f"{_run(tool_step(expected))}, or {_run(plugin_step(installed))}"
+    line = f"{PREFIX}hooks expect code-atlas {expected} but {installed} is installed — {fix}"
+    if estimate_tokens(line) > TOKEN_BUDGET:
+        line = line.replace(fix, UPGRADING_POINTER)
+    return line
 
 
 def _adapter_line(adapters: Mapping[str, int], fix: str) -> str:
     named = ", ".join(f"'{key}' speaks contract v{c}" for key, c in sorted(adapters.items()))
     core = contract.CONTRACT_VERSION
-    return f"{PREFIX}adapter {named} but this core speaks v{core} — run {fix}"
+    return f"{PREFIX}adapter {named} but this core speaks v{core} — {_run(fix)}"
 
 
 def _whole_line(
-    lagging: list[tuple[str, str]], newest: str, *, adapters: str, windows: bool
+    lagging: list[tuple[str, str]],
+    newest: str,
+    *,
+    adapters: str,
+    windows: bool,
+    tool_or_plugin: bool,
 ) -> str:
     """Every lagging half and its step in order; past the budget, the halves and the README."""
-    steps = [step for _, step in lagging]
-    if any(step in (TOOL_STEP, SAME_CHECKOUT_TOOL_STEP, PLUGIN_STEP) for step in steps):
+    steps = list(dict.fromkeys(step for _, step in lagging))  # two unknown releases: one pointer
+    if tool_or_plugin:
         steps = ([DISCONNECT_STEP] if windows else []) + steps + [RECONNECT_STEP]
     numbered = " ".join(f"{n}. {step}" for n, step in enumerate(steps, 1))
     halves = ", ".join(half for half, _ in lagging)
@@ -187,10 +208,10 @@ def install_line(
     release = "check out the core's release"
     if _release(installed):
         release = f"`git checkout v{installed}`"
-    checkout_upgrade, checkout_step, tool_upgrade = CHECKOUT_UPGRADE, CHECKOUT_STEP, TOOL_UPGRADE
-    tool_step = TOOL_STEP
+    checkout_upgrade, checkout_step, tool_upgrade = CHECKOUT_UPGRADE, CHECKOUT_STEP, tool_step(None)
+    tool_move = None
     if same_checkout:
-        tool_step = SAME_CHECKOUT_TOOL_STEP
+        tool_move = SAME_CHECKOUT_TOOL_STEP
         checkout_upgrade = SAME_CHECKOUT_UPGRADE.format(release=release)
         checkout_step = SAME_CHECKOUT_STEP.format(release=release)
         tool_upgrade = SAME_CHECKOUT_REINSTALL
@@ -200,6 +221,13 @@ def install_line(
     tool_lags = core < newest or bool(tool and plugin and plugin > tool)
     plugin_lags = bool(tool and plugin and plugin < tool) or bool(
         expected_contract and expected_contract < newest
+    )
+    # The release to install is known only when the other half's release or contract leads.
+    plugin_leads = bool(tool and plugin and plugin > tool) or bool(
+        expected_contract and core < expected_contract
+    )
+    tool_leads = bool(tool and plugin and plugin < tool) or bool(
+        expected_contract and expected_contract < core
     )
     behind = {key: c for key, c in known.items() if c < newest}
     ahead = {key: c for key, c in known.items() if c > core}
@@ -213,9 +241,11 @@ def install_line(
             return _adapter_line(behind, checkout_upgrade)
     lagging: list[tuple[str, str]] = []
     if tool_lags:
-        lagging.append((f"tool {installed} (v{core})", tool_step))
+        move = tool_move or tool_step(expected if plugin_leads else None)
+        lagging.append((f"tool {installed} (v{core})", move))
     if plugin_lags:
-        lagging.append((f"plugin {expected}", PLUGIN_STEP))
+        move = plugin_step(installed if tool_leads else None)
+        lagging.append((f"plugin {expected}", move))
     if behind:
         named = ", ".join(f"'{key}' v{c}" for key, c in sorted(behind.items()))
         lagging.append((f"adapter {named}", checkout_step))
@@ -227,39 +257,22 @@ def install_line(
         release = max(parsed, key=lambda v: _release(v) or (), default="")
         newest_label = f"{release} (v{newest})" if release else f"contract v{newest}"
     counted = f"{len(behind)} adapters"
-    return _whole_line(lagging, newest_label, adapters=counted, windows=windows)
+    return _whole_line(
+        lagging,
+        newest_label,
+        adapters=counted,
+        windows=windows,
+        tool_or_plugin=tool_lags or plugin_lags,
+    )
 
 
-def pinned_line(prefix: Path | None = None) -> str | None:
-    """Name a uv tool install pinned to one commit, which `uv tool upgrade` never moves (381)."""
-    receipt = (Path(sys.prefix) if prefix is None else prefix) / RECEIPT
-    try:
-        tool = tomllib.loads(receipt.read_text(encoding="utf-8")).get("tool", {})
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return None  # pipx, a checkout, a venv: no receipt, nothing pinned that uv would keep
-    for requirement in tool.get("requirements", []):
-        if not isinstance(requirement, dict) or requirement.get("name") != "code-atlas":
-            continue
-        git = requirement.get("git")
-        if not isinstance(git, str):
-            continue
-        url, _, query = git.partition("?")
-        pin = next((part for part in query.split("&") if part.startswith(PIN_KEYS)), None)
-        if pin:
-            return (
-                f"{PREFIX}this tool install is pinned to `{pin}`, which `uv tool upgrade` never "
-                f"moves — reinstall unpinned: `uv tool install --force git+{url}`"
-            )
-    return None
-
-
-def screen_lines(skew: str | None, pinned: str | None, line: str | None) -> list[str]:
+def screen_lines(skew: str | None, line: str | None) -> list[str]:
     """The lines a person must act on: the install's, a pending rebuild (381 Scope 2), and a
     refresh the hook could not run (401)."""
     from code_atlas.tools.get_index_status import REBUILD_LEAD, REFRESH_REFUSED_LEAD
 
     acted = line and (line.startswith(PREFIX + REBUILD_LEAD) or REFRESH_REFUSED_LEAD in line)
-    return [text for text in (skew, pinned, line if acted else None) if text]
+    return [text for text in (skew, line if acted else None) if text]
 
 
 def _flag(args: list[str], flag: str) -> str | None:
@@ -374,7 +387,6 @@ def main(argv: list[str] | None = None) -> int:
     verbose = _verbose(args)
     expected = _expected(args)
     skew: str | None = None
-    pinned: str | None = None
     event: object = None
     try:
         payload = json.load(sys.stdin)
@@ -385,14 +397,13 @@ def main(argv: list[str] | None = None) -> int:
         root = _project_root()
         if _indexed(root):
             skew = _install_skew(root, expected, _expected_contract(args))
-            pinned = pinned_line()
         line = state_line(root, verbose=verbose)
     except Exception as error:
         # A broken state line must never break the session boundary it rides on.
         print(f"code-atlas state skipped: {type(error).__name__}: {error}", file=sys.stderr)
         line = None
-    lines = [text for text in (skew, pinned, line) if text]
-    screen = screen_lines(skew, pinned, line)
+    lines = [text for text in (skew, line) if text]
+    screen = screen_lines(skew, line)
     if event == SCREEN_EVENT and screen:
         context = {"hookEventName": SCREEN_EVENT, "additionalContext": "\n".join(lines)}
         sent = {"systemMessage": "\n".join(screen), "hookSpecificOutput": context}

@@ -11,6 +11,9 @@ Two modes, one per ``SessionStart`` hook, so a session never waits on the networ
 - ``--expect-version <X.Y.Z>`` (sync): read the cache only; when its release is newer than the
   plugin's own, say so on screen (``systemMessage``) and to the agent (``additionalContext``).
 
+Both modes first load the project's config, so an index git tracks (420) keeps them silent (427).
+The tag listing runs hardened (``gitutil``) from the cache directory, not the indexed repo.
+
 **Cardinal rule:** exits 0 and prints nothing on stdout on any failure — offline, no ``git``, a
 timeout, an unreadable cache. ``CA_RELEASE_CHECK=0`` turns both modes off.
 """
@@ -25,6 +28,7 @@ import sys
 import time
 from pathlib import Path
 
+from code_atlas import gitutil
 from code_atlas.hooks.state import EXPECT_FLAG, PREFIX, UPGRADING_POINTER
 
 FETCH_FLAG = "--fetch"
@@ -71,12 +75,15 @@ def fetch(remote: str, *, now: float | None = None) -> str | None:
         return None
     # Record the attempt first, so an offline machine retries daily rather than every session.
     _write_cache({"checked_at": int(now), "latest": cached.get("latest") if cached else None})
+    # 427: hardened, and from the cache directory, never the indexed repo's working tree.
+    hardening = [part for setting in gitutil.HARDENED_CONFIG for part in ("-c", setting)]
     done = subprocess.run(
-        ["git", "ls-remote", "--tags", "--refs", remote],
+        ["git", *hardening, "ls-remote", "--tags", "--refs", remote],
         capture_output=True,
         text=True,
         timeout=FETCH_TIMEOUT_S,
-        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        env={**os.environ, **gitutil.HARDENED_ENV},
+        cwd=cache_path().parent,
         check=True,
     )
     latest = newest_tag(done.stdout)
@@ -112,12 +119,20 @@ def _flag(args: list[str], flag: str) -> str | None:
     return None
 
 
+def _require_project_index() -> None:
+    """Raise unless the project's index loads; git tracking it is refused here (420, 427)."""
+    from code_atlas.config import load_config
+
+    load_config(Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()))
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry: ``code-atlas-release-check``."""
     args = list(sys.argv[1:] if argv is None else argv)
     if os.environ.get(OPT_OUT, "").strip() in {"0", "false", "no"}:
         return 0
     try:
+        _require_project_index()
         remote = _flag(args, FETCH_FLAG)
         if remote:
             fetch(remote)
