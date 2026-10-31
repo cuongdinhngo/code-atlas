@@ -121,6 +121,12 @@ def open_inside(root: Path, path: Path) -> BinaryIO:
     return os.fdopen(descriptor, "rb")
 
 
+def read_text(root: Path, path: Path, *, errors: str = "strict") -> str:
+    """UTF-8 text of ``path`` through :func:`open_inside`, newlines translated as ``open`` does."""
+    text = read_bytes(root, path).decode("utf-8", errors=errors)
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def read_bytes(root: Path, path: Path) -> bytes:
     """The bytes of ``path`` read through :func:`open_inside`; ``UnsafeRead`` when it is refused."""
     with open_inside(root, path) as handle:

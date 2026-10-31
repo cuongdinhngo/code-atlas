@@ -183,8 +183,17 @@ def test_an_oversize_reply_costs_one_file_not_the_build(
 
 # ------------------------------------------------------------ AC2: regex limit
 
-REFUSED = ["(a+)+$", "(.*)*", r"(\w)\1", "a" * 513]
-ACCEPTED = [r"^get[A-Z]\w+$", r"(?:ab)*c", r"action=(\w+)"]
+REFUSED = [
+    "(a+)+$",
+    "(.*)*",
+    r"(\w)\1",
+    "a" * 513,
+    "(a|aa)+$",
+    "(a|a)*b",
+    "(?:a|a?)+$",
+    "(a?){30}a{30}",
+]
+ACCEPTED = [r"^get[A-Z]\w+$", r"(?:ab)*c", r"action=(\w+)", r"^(A|B)\w+$", r".*Handler$", r"[\w$]+"]
 
 
 def _rules(tmp_path: Path, variable: str, body: dict[str, Any]):
@@ -241,7 +250,20 @@ SITES = {
 }
 
 
-@pytest.mark.parametrize("pattern", REFUSED, ids=["nested", "star-star", "backref", "too-long"])
+@pytest.mark.parametrize(
+    "pattern",
+    REFUSED,
+    ids=[
+        "nested",
+        "star-star",
+        "backref",
+        "too-long",
+        "branch",
+        "same-branch",
+        "optional",
+        "counted",
+    ],
+)
 @pytest.mark.parametrize("site", sorted(SITES))
 def test_a_catastrophic_repo_pattern_is_refused_naming_the_rule(
     tmp_path: Path, site: str, pattern: str
@@ -461,7 +483,13 @@ def test_an_adapter_gets_an_allow_listed_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Red before 430: every secret in the host's environment reached the adapter process."""
-    secrets = ("ANTHROPIC_API_KEY", "GH_TOKEN", "GITHUB_TOKEN", "AWS_SECRET_ACCESS_KEY", "X_KEY")
+    secrets = (
+        "ANTHROPIC_API_KEY",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "AWS_SECRET_ACCESS_KEY",
+        "CA_API_KEY",
+    )
     for name in secrets:
         monkeypatch.setenv(name, "hunter2")
     seen = tmp_path / "env.json"
@@ -471,7 +499,7 @@ def test_an_adapter_gets_an_allow_listed_environment(
         pass
     names = set(json.loads(seen.read_text(encoding="utf-8")))
     assert not names & set(secrets)
-    assert {"PATH", "CA_FAKE_ENVLOG", "LC_ALL"} <= names
+    assert {"PATH", "LC_ALL"} <= names
 
 
 def test_the_allow_list_is_exactly_the_named_variables() -> None:
@@ -488,7 +516,6 @@ def test_the_allow_list_is_exactly_the_named_variables() -> None:
         "TMPDIR": "/t",
         "TMP": "/t",
         "TEMP": "/t",
-        "CA_PHP_CMD": "php",
         "SYSTEMROOT": "C:\\W",
         "COMSPEC": "cmd",
         "PATHEXT": ".EXE",
@@ -499,7 +526,14 @@ def test_the_allow_list_is_exactly_the_named_variables() -> None:
         "COMPOSER_HOME": "/c",
         "NODE_PATH": "/n",
     }
-    refused = {"GH_TOKEN": "x", "ANTHROPIC_BASE_URL": "x", "SSH_AUTH_SOCK": "x", "NPM_TOKEN": "x"}
+    refused = {
+        "CA_PHP_CMD": "php",
+        "CA_API_KEY": "x",
+        "GH_TOKEN": "x",
+        "ANTHROPIC_BASE_URL": "x",
+        "SSH_AUTH_SOCK": "x",
+        "NPM_TOKEN": "x",
+    }
     assert adapter_env({**host, **refused}) == host
 
 
@@ -580,3 +614,126 @@ def test_every_connection_the_store_opens_refuses_extension_loading(tmp_path: Pa
                 conn.load_extension("no-such-extension")
             # "not authorized" is the switch being off; a missing file would mean it was on.
             assert isinstance(refused.value, AttributeError) or "authorized" in str(refused.value)
+
+
+# ----------------------------------------------------- AC4: every repo-file reader is contained
+
+
+@pytest.fixture
+def linked(tmp_path: Path) -> tuple[Path, Path]:
+    """``root`` holding ``leak`` (a link out) and the outside file it names."""
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text(json.dumps({"k": {"a": "b"}}) + "\n", encoding="utf-8")
+    return root, outside
+
+
+@posix_only
+def test_a_linked_llm_cache_file_reads_as_empty(linked: tuple[Path, Path]) -> None:
+    from onboarding_llm.cache import ContentHashCache
+
+    root, outside = linked
+    (root / "cache.json").symlink_to(outside)
+    assert ContentHashCache(root / "cache.json", root=root).get("k") is None
+
+
+@posix_only
+def test_a_linked_project_file_is_a_config_error(linked: tuple[Path, Path]) -> None:
+    root, outside = linked
+    outside.write_text("workers = 3\n", encoding="utf-8")
+    (root / ".code-atlas.toml").symlink_to(outside)
+    with pytest.raises(ConfigError, match="cannot be read"):
+        load_config(root, {})
+
+
+@posix_only
+def test_the_indirection_text_reader_and_orientation_refuse_a_link(
+    linked: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The reader refuses on its own, even when the check before it is fooled."""
+    from code_atlas import enrichment
+    from code_atlas.onboarding import orientation
+
+    root, outside = linked
+    (root / "leak.txt").symlink_to(outside)
+    assert enrichment._file_text(root, "leak.txt") is None
+    monkeypatch.setattr(orientation, "resolves_inside", lambda _root, _path: True)
+    text, reason = orientation._read_text(root, "leak.txt")
+    assert text == "" and reason
+
+
+@posix_only
+def test_an_oversize_file_is_not_read_for_a_template_match(tmp_path: Path) -> None:
+    from code_atlas import enrichment
+
+    (tmp_path / "big.txt").write_text("x" * (4 * 1024 * 1024 + 1), encoding="utf-8")
+    assert enrichment._file_text(tmp_path, "big.txt") is None
+
+
+@posix_only
+@pytest.mark.parametrize(
+    ("variable", "module", "loader"),
+    [
+        ("CA_INDIRECTION_RULES", "code_atlas.enrichment", load_indirection_rules),
+        ("CA_ARCHITECTURE_RULES", "code_atlas.architecture_rules", load_architecture_rules),
+    ],
+)
+def test_a_rules_file_swapped_for_a_link_is_refused_by_the_read_itself(
+    linked: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+    module: str,
+    loader: Any,
+) -> None:
+    root, outside = linked
+    outside.write_text('{"rules": []}', encoding="utf-8")
+    (root / "rules.json").symlink_to(outside)
+    monkeypatch.setattr(f"{module}.resolves_inside", lambda _root, _path: True)
+    with pytest.raises(ConfigError, match="could not be read"):
+        loader(load_config(root, {variable: "rules.json"}))
+
+
+@posix_only
+def test_records_and_routes_readers_refuse_a_link(
+    linked: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from code_atlas import records, routes
+
+    root, outside = linked
+    (root / "leak.txt").symlink_to(outside)
+    (root / "leak.json").symlink_to(outside)
+    monkeypatch.setattr(records, "resolves_inside", lambda _root, _path: True)
+    monkeypatch.setattr(routes, "resolves_inside", lambda _root, _path: True)
+    with pytest.raises(OSError, match="outside"):
+        records._excluded("leak.txt", "w", root, lambda _data: None)
+    block = {"sources": ["leak.json"], "fields": {"id": "id", "targets": "t"}}
+    with pytest.raises(OSError, match="outside"):
+        records._read_block(block, "label", root, lambda _data: None)
+    with pytest.raises(OSError, match="outside"):
+        routes._tsv({"tsv": "leak.txt"}, "label", root, lambda _data: None)
+    with pytest.raises(OSError, match="outside"):
+        routes._json(
+            {"json": "leak.json", "columns": {"key": "k", "target": "t"}}, "l", root, print
+        )
+
+
+@posix_only
+def test_ignore_capabilities_and_call_site_readers_refuse_a_link(
+    linked: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from code_atlas import ignore
+    from code_atlas.onboarding import capabilities
+    from code_atlas.tools import call_site
+
+    root, outside = linked
+    outside.write_text("*.aa\n", encoding="utf-8")
+    (root / ".gitignore").symlink_to(outside)
+    monkeypatch.setattr(ignore, "resolves_inside", lambda _root, _path: True)
+    with pytest.raises(OSError, match="outside"):
+        ignore.load_ignore(root)
+    with pytest.raises(OSError, match="outside"):
+        capabilities._parse_toml(root, root / ".gitignore")
+    (root / "leak.py").symlink_to(outside)
+    monkeypatch.setattr(call_site, "file_is_current", lambda _store, _root, _rel: True)
+    assert call_site._read_lines(root, None, "leak.py", {1}) is None  # type: ignore[arg-type]

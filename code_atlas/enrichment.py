@@ -9,6 +9,7 @@ from __future__ import annotations
 import bisect
 import fnmatch
 import hashlib
+import io
 import json
 import re
 from dataclasses import dataclass
@@ -17,8 +18,8 @@ from typing import Any, NamedTuple
 
 from code_atlas import contract, records, routes
 from code_atlas.config import Config, ConfigError
-from code_atlas.containment import resolves_inside
-from code_atlas.limits import checked_pattern
+from code_atlas.containment import read_bytes, read_text, resolves_inside
+from code_atlas.limits import DEFAULT_MAX_FILE_BYTES, checked_pattern
 from code_atlas.store import GraphStore
 
 # The digest of the rule files the index was built under; "" when the knob was off (396).
@@ -128,7 +129,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         if not resolves_inside(config.root, full):
             raise ConfigError(f"indirection_rules: {relative!r} resolves outside {config.root}")
         try:
-            raw_bytes = full.read_bytes()
+            raw_bytes = read_bytes(config.root, full)
         except OSError as error:
             raise ConfigError(
                 f"indirection_rules: {relative!r} could not be read ({error})"
@@ -603,8 +604,11 @@ def _file_context(pattern: re.Pattern[str] | None, text: str) -> dict[str, str] 
 
 def _file_text(root: Path, rel: str) -> tuple[str, list[int]] | None:
     """A file's text and its newline offsets, so a match's line is a bisect, not a count."""
+    full = root / rel
     try:
-        text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        if full.stat().st_size > DEFAULT_MAX_FILE_BYTES:
+            return None
+        text = read_text(root, full, errors="replace")
     except OSError:
         return None
     return text, [index for index, char in enumerate(text) if char == "\n"]
@@ -1007,7 +1011,7 @@ def _line_text(
     text: str | None = None
     if path.is_file():
         try:
-            with path.open("r", encoding="utf-8", errors="replace") as handle:
+            with io.StringIO(read_text(root, path, errors="replace")) as handle:
                 for number, raw in enumerate(handle, start=1):
                     if number == line:
                         text = raw

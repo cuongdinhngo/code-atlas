@@ -13,7 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from code_atlas.containment import make_private_dir, safe_write
+from code_atlas.containment import make_private_dir, read_text, safe_write
 
 
 def content_key(*parts: str) -> str:
@@ -36,7 +36,7 @@ class ContentHashCache:
     def __init__(self, path: Path, *, root: Path | None = None) -> None:
         self._path = path
         self._root = root
-        self._entries: dict[str, dict[str, str]] = _read(path)
+        self._entries: dict[str, dict[str, str]] = _read(path, root)
 
     def get(self, key: str) -> dict[str, str] | None:
         """The cached entry for ``key``, or ``None`` on a miss."""
@@ -53,10 +53,12 @@ class ContentHashCache:
         safe_write(self._path, text, root=self._root)
 
 
-def _read(path: Path) -> dict[str, dict[str, str]]:
-    if not path.is_file():
+def _read(path: Path, root: Path | None) -> dict[str, dict[str, str]]:
+    try:
+        text = read_text(path.parent if root is None else root, path)
+    except OSError:  # absent, or a link out of the repo: an empty cache either way
         return {}
-    loaded = json.loads(path.read_text(encoding="utf-8"))
+    loaded = json.loads(text)
     if not isinstance(loaded, dict):
         raise ValueError(f"{path}: LLM summary cache must be a JSON object")
     return loaded

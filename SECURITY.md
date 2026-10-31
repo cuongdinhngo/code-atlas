@@ -57,7 +57,7 @@ Each criterion code-atlas holds, and the test or ticket behind it, is in
   `code_atlas/limits.py` (your environment is not). A regex from a rules file is refused, naming
   the rule, past 512 characters, with a backreference, or with a repeat inside a repeat.
 - **Adapters and git do not inherit your secrets.** An adapter starts with an allow-listed
-  environment (`PATH`, locale, `HOME`, `CA_*` and the runtimes' own homes), so a `*_TOKEN`,
+  environment (`PATH`, locale, `HOME` and the runtimes' own homes; no `CA_*`), so a `*_TOKEN`,
   `*_KEY`, `ANTHROPIC_*` or `GH_*` variable never reaches it. git starts without any `GIT_*`
   variable your shell carries.
 - **The index directory is code-atlas's own.** An index that git tracks, or whose directory,

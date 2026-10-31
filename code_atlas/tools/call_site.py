@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from code_atlas import contract
+from code_atlas.containment import read_text
 from code_atlas.indexer import file_is_current
 from code_atlas.store import GraphStore
 
@@ -79,7 +81,7 @@ def _read_lines(
     found: dict[int, str] = {}
     highest = max(wanted)
     try:
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
+        with io.StringIO(read_text(root, path, errors="replace")) as handle:
             for number, text in enumerate(handle, start=1):
                 if number in wanted:
                     found[number] = text

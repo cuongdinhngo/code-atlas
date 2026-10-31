@@ -23,7 +23,7 @@ from pathlib import Path
 
 from code_atlas import contract
 from code_atlas.config import ConfigError
-from code_atlas.containment import resolves_inside
+from code_atlas.containment import read_bytes, resolves_inside
 
 RECORDS_META_KEY = "records"
 # The counts block the build result and `get_index_status` report: never an excluded id.
@@ -135,7 +135,7 @@ def _read_block(
     skipped = 0
     matched = _matches(sources, where, root)
     for relative in matched:
-        data = (root / relative).read_bytes()
+        data = read_bytes(root, root / relative)
         digest(relative.encode("utf-8") + b"\0" + data + b"\0")
         entries, bad = _entries(relative, data)
         skipped += bad
@@ -212,7 +212,7 @@ def _excluded(
     full = root / raw
     if not full.is_file() or not resolves_inside(root, full):
         raise ConfigError(f"{where}.exclude {raw!r} is not a file under {root}")
-    data = full.read_bytes()
+    data = read_bytes(root, full)
     digest(data)
     lines = data.decode("utf-8-sig", errors="replace").splitlines()
     # `KEY-1  # why` names KEY-1: an inline comment left on the id would let the record through.

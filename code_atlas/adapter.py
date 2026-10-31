@@ -29,7 +29,7 @@ KILL_TIMEOUT = 2.0
 
 
 # What an adapter inherits from the host, and nothing else: no `*_TOKEN`, `*_KEY`, `ANTHROPIC_*`
-# or `GH_*` (430). `CA_*` carries the adapters' own switches; the rest is what a runtime needs.
+# or `GH_*`, and no `CA_*` either: no adapter reads the environment (430).
 ADAPTER_ENV_NAMES = frozenset(
     {
         "PATH", "HOME", "USER", "LOGNAME", "LANG", "TZ", "TMPDIR", "TMP", "TEMP",
@@ -37,7 +37,7 @@ ADAPTER_ENV_NAMES = frozenset(
         "COMPOSER_HOME", "NODE_PATH",
     }
 )  # fmt: skip
-ADAPTER_ENV_PREFIXES = ("LC_", "CA_")
+ADAPTER_ENV_PREFIXES = ("LC_",)
 
 
 def adapter_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:

@@ -880,15 +880,15 @@ def _refused(config: Config, path: str) -> bool:
     """Whether ``path`` must not reach an adapter now: it leads out of the repo or is oversize.
 
     The read-through and overlay paths re-parse a file the build already vetted, so the
-    vetting is repeated at the moment of the parse. A file that cannot be stat'ed is not refused.
+    vetting is repeated at the moment of the parse. A file that cannot be stat'ed is refused.
     """
     full = config.root / path
     if not resolves_inside(config.root, full):
         return True
     try:
         return full.stat().st_size > config.max_file_bytes
-    except OSError:
-        return False
+    except OSError:  # a file that cannot be stat'ed is not one to hand an adapter (430)
+        return True
 
 
 def file_is_current(store: GraphStore, root: Path, path: str) -> bool:
@@ -1021,11 +1021,11 @@ def _collect_with_census(
 
 
 def _oversize(full: Path, max_file_bytes: int) -> bool:
-    """Whether the file is above the cap; one that cannot be stat'ed fails later, at the parse."""
+    """Whether the file is above the cap, or cannot be stat'ed: either way it is left out."""
     try:
         return full.stat().st_size > max_file_bytes
     except OSError:
-        return False
+        return True
 
 
 def _indexable_untracked(

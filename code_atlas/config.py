@@ -21,6 +21,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import cast
 
+from code_atlas.containment import read_bytes, read_text
 from code_atlas.limits import CONFIG_CEILINGS, DEFAULT_MAX_FILE_BYTES
 from code_atlas.onboarding.audience import DEFAULT_AUDIENCE, resolve_audience
 
@@ -209,7 +210,7 @@ def config_identity(root: Path, env: Mapping[str, str] | None = None) -> str:
     path = root / PROJECT_FILE
     digest = hashlib.sha256()
     try:
-        digest.update(path.read_bytes() if path.is_file() else _NO_PROJECT_FILE)
+        digest.update(read_bytes(root, path) if path.is_file() else _NO_PROJECT_FILE)
     except OSError:
         # Naming the config must never raise, exactly as naming the build must not (cf. build_info).
         digest.update(_NO_PROJECT_FILE)
@@ -391,9 +392,11 @@ def _read_project_file(root: Path) -> Mapping[str, object]:
     if not path.is_file():
         return {}
     try:
-        values: Mapping[str, object] = tomllib.loads(path.read_text(encoding="utf-8"))
+        values: Mapping[str, object] = tomllib.loads(read_text(root, path))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
         raise ConfigError(f"{path}: not valid TOML ({error})") from error
+    except OSError as error:  # a link out of the repo, or unreadable (430)
+        raise ConfigError(f"{path}: cannot be read ({error})") from error
 
     unknown = sorted(
         set(values) - set(KNOB_KEYS) - {ADAPTER_CMD_TABLE, MAX_RESULTS_ALIAS_FILE}
