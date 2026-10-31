@@ -20,6 +20,7 @@ from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.contract import IMPACT_KINDS, NODE_KINDS
 from code_atlas.ignore import translate_path_pattern
+from code_atlas.limits import checked_pattern
 from code_atlas.store import GraphStore
 
 DIRECTIONS: tuple[str, ...] = ("outgoing", "incoming")
@@ -308,7 +309,11 @@ def _required_sources(
     store: GraphStore, files: Sequence[str], rule: RequiredRule
 ) -> list[tuple[str, str]]:
     """``(qname, file)`` per selected symbol, file then node order, each qname once."""
-    pattern = re.compile(rule.name) if rule.name is not None else None
+    pattern = (
+        checked_pattern(rule.name, f"architecture_rules: rule {rule.id!r}")
+        if rule.name is not None
+        else None
+    )
     found: list[tuple[str, str]] = []
     seen: set[str] = set()
     for path in _matching_files(files, rule.sources):
@@ -473,7 +478,7 @@ def _load_required_rule(label: str, rule_id: str, entry: Mapping[str, Any]) -> R
         if not isinstance(name, str) or not name:
             raise ConfigError(f"{where}: name must be a non-empty regex string")
         try:
-            re.compile(name)
+            checked_pattern(name, f"{where}: name")
         except re.error as error:
             raise ConfigError(f"{where}: name is not a valid regex ({error})") from error
     kind = entry.get("kind")

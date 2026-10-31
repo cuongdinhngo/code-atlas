@@ -18,6 +18,7 @@ from typing import Any, NamedTuple
 from code_atlas import contract, records, routes
 from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
+from code_atlas.limits import checked_pattern
 from code_atlas.store import GraphStore
 
 # The digest of the rule files the index was built under; "" when the knob was off (396).
@@ -1142,7 +1143,7 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
         if key_from != "string" or not isinstance(raw_pattern, str) or not raw_pattern:
             raise ConfigError(f"{where}.key_pattern must be a non-empty regex on a string key")
         try:
-            pattern = re.compile(raw_pattern)
+            pattern = checked_pattern(raw_pattern, f"{where}.key_pattern")
         except re.error as error:
             raise ConfigError(f"{where}.key_pattern does not compile ({error})") from error
     if key_from == "object":
@@ -1210,7 +1211,7 @@ def _rule_regex(raw: object, where: str) -> re.Pattern[str] | None:
     if not isinstance(raw, str) or not raw:
         raise ConfigError(f"{where} must be a non-empty regex")
     try:
-        return re.compile(raw)
+        return checked_pattern(raw, where)
     except re.error as error:
         raise ConfigError(f"{where} does not compile ({error})") from error
 
