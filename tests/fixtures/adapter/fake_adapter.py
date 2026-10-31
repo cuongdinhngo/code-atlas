@@ -18,6 +18,7 @@ from code_atlas.contract import CONTRACT_VERSION
 
 BOOT_LOG = "CA_FAKE_BOOTLOG"
 PATH_LOG = "CA_FAKE_PATHLOG"
+ENV_LOG = "CA_FAKE_ENVLOG"  # where a boot writes the names of the environment variables it got
 SUFFIXES = [".aa", ".bb"]
 
 # Longer than any deadline a test sets, so "silent" means silent for the whole run.
@@ -90,6 +91,19 @@ def reply(path):
         return "this line is not JSON at all"
     if path.startswith("invalid/"):
         return json.dumps({"path": path, "ok": True, "nodes": [{"kind": "Nope"}], "edges": []})
+    if path.startswith("huge/"):
+        # A valid reply far longer than any cap a test sets: the line itself is the failure.
+        nodes = [
+            {
+                "kind": "Class",
+                "name": f"Thing{index}",
+                "qualified_name": f"{path}::Thing{index}",
+                "file_path": path,
+                "line_start": 1,
+            }
+            for index in range(400)
+        ]
+        return json.dumps({"path": path, "ok": True, "nodes": nodes, "edges": []})
     if path.startswith("desync/"):
         return json.dumps({"path": "some/other/file.aa", "ok": True, "nodes": [], "edges": []})
     node = {
@@ -201,6 +215,10 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "ok"
     boot_log = os.environ.get(BOOT_LOG)
     boots = count_boot(boot_log) if boot_log else 0
+    env_log = os.environ.get(ENV_LOG)
+    if env_log:
+        with open(env_log, "w", encoding="utf-8") as log:
+            json.dump(sorted(os.environ), log)
 
     if mode == "silent-boot" or (mode == "silent-after-first-boot" and boots > 1):
         # Alive, holding the pipes open, announcing nothing: the hang a deadline has to bound.
