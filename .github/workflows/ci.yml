@@ -333,8 +333,10 @@ jobs:
         run: python3 scripts/attribution_markers.py "$RANGE"
 
       # 340: GitHub serves author/committer identity raw; 325's tree sweep never reads it.
-      - name: R2.4 — no employer or client marker in a commit identity
+      - name: R2.4 — no employer or client marker in a commit identity or ref name
         if: github.event_name == 'pull_request'
         env:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
-        run: python3 scripts/identity_markers.py "$RANGE"
+        run: |
+          python3 scripts/identity_markers.py "$RANGE" \
+            --ref "pull request head ref=$GITHUB_HEAD_REF" --ref "ref name=$GITHUB_REF_NAME"

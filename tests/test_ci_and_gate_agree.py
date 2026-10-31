@@ -60,6 +60,7 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
     "R4.1 no LLM in core": ("anthropic|onboarding_llm", "anthropic|onboarding_llm"),
     "R7.3 no AI-attribution trailer": ("attribution_markers.py", "attribution_markers.py"),
     "R2.4 commit identity (340)": ("identity_markers.py", "identity_markers.py"),
+    "R2.4 ref names (424)": ('--ref "pull request head ref=', '--ref "branch name='),
     # The one row a plain run does not spend: only `--docker` builds the image (358).
     "test image builds (358)": (
         "file: docker/Dockerfile",

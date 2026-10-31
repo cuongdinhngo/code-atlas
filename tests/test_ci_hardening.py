@@ -279,7 +279,10 @@ PLANTED = {
     "interpolation": [
         _plant("echo ok", "echo ${{ github.event.pull_request.title }}"),
         _plant("echo ok", "echo ${{ github.head_ref }}"),
-        _plant("- run: echo ok", "- run: |\n          echo hi\n          echo ${{ github.event.number }}"),
+        _plant(
+            "- run: echo ok",
+            "- run: |\n          echo hi\n          echo ${{ github.event.number }}",
+        ),
     ],
 }
 

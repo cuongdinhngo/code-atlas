@@ -8,7 +8,10 @@ change range, as R7.3 does for commit messages.
 
 Stdlib only: the CI `guardrails` job runs it on the runner's own `python3`, with no install step.
 
-    python3 scripts/identity_markers.py <rev-range>
+    python3 scripts/identity_markers.py <rev-range> [--ref "<label>=<ref name>" ...]
+
+A `--ref` value is a branch or pull-request head ref, which GitHub serves raw and nothing else reads
+(424, SEC-SC-16). An empty value is skipped; an offence names the label and arm, never the value.
 
 Exit 0 clean, 1 an offence (named by commit, field and arm — never by the value, which a public
 CI log would republish), 2 an empty or unreadable range, which must not pass vacuously (R6.5).
@@ -103,24 +106,57 @@ def commit_identity_offences(rev_range: str, repo: Path = REPO) -> tuple[int, li
     return len(commits), offences
 
 
+def ref_offences(refs: dict[str, str], banned: frozenset[str]) -> list[str]:
+    """Which arms each non-empty ref name trips, as ``<label>: <arm>``."""
+    return [
+        f"{label}: {arm}"
+        for label, value in refs.items()
+        if value
+        for arm in identity_offences(value, banned)
+    ]
+
+
+def _split_refs(argv: list[str]) -> tuple[list[str], dict[str, str]] | None:
+    rest: list[str] = []
+    refs: dict[str, str] = {}
+    it = iter(argv)
+    for arg in it:
+        if arg != "--ref":
+            rest.append(arg)
+            continue
+        label, sep, value = next(it, "").partition("=")
+        if not sep or not label:
+            return None
+        refs[label] = value
+    return rest, refs
+
+
 def main(argv: list[str], repo: Path = REPO) -> int:
-    if len(argv) != 1:
-        print("usage: identity_markers.py <rev-range>", file=sys.stderr)
+    split = _split_refs(argv)
+    if split is None or len(split[0]) != 1:
+        usage = 'usage: identity_markers.py <rev-range> [--ref "<label>=<name>" ...]'
+        print(usage, file=sys.stderr)
         return 2
+    (rev_range,), refs = split[0], split[1]
     try:
-        count, offences = commit_identity_offences(argv[0], repo)
+        count, offences = commit_identity_offences(rev_range, repo)
     except subprocess.CalledProcessError as error:
-        print(f"R2.4 — cannot read range {argv[0]!r}: {error.stderr.strip()}", file=sys.stderr)
+        print(f"R2.4 — cannot read range {rev_range!r}: {error.stderr.strip()}", file=sys.stderr)
         return 2
     if count == 0:
-        print(f"R2.4 — empty commit range {argv[0]!r}; this check would pass vacuously")
+        print(f"R2.4 — empty commit range {rev_range!r}; this check would pass vacuously")
         return 2
+    ref_found = ref_offences(refs, banned_digests())
     if offences:
         print("R2.4 — an employer/client marker in a commit identity (fix user.name/user.email, "
               "then rewrite these commits):")
         print("\n".join(f"  {line}" for line in offences))
+    if ref_found:
+        print("R2.4 — an employer/client marker in a ref name (rename the branch):")
+        print("\n".join(f"  {line}" for line in ref_found))
+    if offences or ref_found:
         return 1
-    print(f"R2.4 commit identity ok over {count} commit(s)")
+    print(f"R2.4 commit identity ok over {count} commit(s), {sum(map(bool, refs.values()))} ref(s)")
     return 0
 
 
