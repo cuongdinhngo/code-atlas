@@ -92,20 +92,21 @@ with a `len(...)==N`/listed-subset pin on it unlisted and later caught as a devi
 ## P6 — A verified assumption holds only for the path and tree it was checked on
 
 `Ratified 2026-08-30` — handle `re-verify-the-assumption-on-a-new-path` · widened 2026-10-30 —
-handle `confirm-the-blocked-path-runs` (`360-C1`).
+handle `confirm-the-blocked-path-runs` (`360-C1`) · widened 2026-10-31 — handle
+`run-the-ac-on-main-before-the-design` (`414-C1`).
 
 When a change adds a call path parallel to the one an assumption was verified on, re-verify on the
 new path; when a ticket inherits a count measured before a sibling landed, re-measure at current
-HEAD. A Gate-2 "verified" is not transitive to a path the same change introduces. **A ticket's stated
-reason a path fails is such an assumption:** run that path once and record where it really stops
-before designing around its blocker.
+HEAD. A Gate-2 "verified" is not transitive to a path the same change introduces. **A ticket's statement
+of today's behaviour — an AC's "as today" premise, or why a path fails — is such an assumption:**
+run it once on `main` and record what it really does before the design.
 
 **Why it costs.** The assumption was true of the loop it was read against and false of the loop the
 same change added. No reviewer catches it — the breaking path post-dates the check.
 
 **Falsifier.** An assumption marked verified read against one branch while an added parallel branch
 is unguarded, an AC citing a count not re-measured at pickup HEAD, or a design built on a ticket's
-stated blocker with no run of that path.
+stated blocker or "as today" premise with no run of it.
 
 ## P7 — A dimension's second value makes every aggregate over it a blend
 
@@ -152,6 +153,23 @@ A new CLI command, flag, mode or rule-file kind is named where an agent reads it
 derives the names from the code. **Why it costs.** `code-atlas query`, its modes and `route=` shipped
 documented only for humans; no agent used them until 387. **Falsifier.** A CLI flag absent from every
 agent-loaded surface while the suite is green.
+
+## P11 — Verify what a user installs from a clean clone, not the working tree
+
+`Ratified 2026-10-31` — handle `verify-the-shipped-artifact-not-the-working-tree` (`344-C3`).
+
+An ignored or uncommitted file works locally and is absent for the user. **Why it costs.** The
+plugin's `.mcp.json` was gitignored and the checkout install connected anyway. **Falsifier.** A
+shipped artifact naming a path `git ls-files` does not list.
+
+## P12 — Read a cited test against the criterion before citing it
+
+`Ratified 2026-10-31` — handle `a-cited-guard-must-hold-its-row` (`423-C1`).
+
+Before a standard row, a doc or a PR body cites a test as holding a criterion, read its body against
+that criterion and grep for the cases it skips. **Why it costs.** SEC-IN-06 cited a test that guards
+another criterion; SEC-GV-04 claimed 2FA no test reads. **Falsifier.** A cited test whose assertions
+never touch the row's subject.
 
 ---
 
