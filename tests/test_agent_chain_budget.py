@@ -70,7 +70,9 @@ REPO = Path(__file__).resolve().parent.parent
 # 19,900 -> 20,300 on 2026-10-30 (423): rule book §9 (six rules), CONVENTION §8.1's row and
 # AGENTS.md's pointer. The 65 criteria stay tier 2; tier 1 pays only the rules and the way to
 # them. Per-file split: test_doc_size_budget.
-TIER1_BUDGET = 20_300
+# 20,300 -> 21,000 on 2026-10-30 (promotion of eight recurring classes): rule book +394, brief
+# +305, measured 20,936. Per-file arguments: test_doc_size_budget.
+TIER1_BUDGET = 21_000
 
 
 def _tokens(paths: list[Path]) -> int:

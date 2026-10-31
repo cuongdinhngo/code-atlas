@@ -49,9 +49,12 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R1.8 — One decision, one implementation across every consumer.** When two or more call sites
   branch on the same classifier/resolver verdict (e.g. `status == "resolved_unique"`), the branch
   lives in one shared callable they all invoke; a new subject slot reuses it rather than
-  re-implementing it — duplicated copies drift and one goes wrong. *Falsifier:* two sites branching
-  on the same classifier status with duplicated handling instead of a shared call.
-  *Ratified 2026-08-30 · `one-rule-for-every-subject-slot` (`102-C2`).*
+  re-implementing it — duplicated copies drift and one goes wrong. **A site that reports another
+  tool's verdict** (which tools refuse) calls that tool's predicate, never a constant list. *Falsifier:*
+  two sites branching on the same classifier status with duplicated handling instead of a shared
+  call, or a status naming a tool as refusing while that tool answers `ok`.
+  *Ratified 2026-08-30 · `one-rule-for-every-subject-slot` (`102-C2`) · widened 2026-10-30 ·
+  `a-route-list-must-come-from-the-tools-verdict` (`388-C1`).*
 
 - **R1.9 — A single-answer classifier is not a membership test.** A classifier that returns **one**
   verdict per subject by taking the deepest or best match — `responsibility_layer` is deepest-wins —
@@ -149,16 +152,21 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   from the computation owning the **entire** fact the field names, never from a producer narrower
   than the field's documented meaning. Two shapes recur: the source carries the value only at some
   **detail levels**, or computes it only for some of the **cases** the field's name covers. Both ship
-  a value honest about its source and false about its subject. *Falsifier:* producers, enumerated by
-  grep, covering fewer cases than the field's name or docstring claims — or a caveat present at one
-  detail level and absent at another for the same underlying fact.
-  *Ratified 2026-08-30 · `source-the-caveat-from-the-computation` (`100-C1`).*
+  a value honest about its source and false about its subject. **A widened target widens every query
+  the answer is built from** — page, count, censuses, spreads, carriers — each with a test.
+  *Falsifier:* producers, enumerated by grep, covering fewer cases than the field's name or
+  docstring claims — or a caveat present at one detail level and absent at another for the same
+  underlying fact. *Ratified 2026-08-30 · `source-the-caveat-from-the-computation` (`100-C1`) ·
+  widened 2026-10-30 · `widen-every-query-that-shares-the-page` (`362-C1`).*
 - **R5.6 — Never attest past what the payload can distinguish.** When a field cannot separate two
   states a reader acts on differently — absent subject vs modelled zero, budget-cut walk vs complete —
   carry a field that separates them or emit no signed line/label for that answer; never sign a value
-  the payload cannot tell apart. Prove it with a test driving both states. *Falsifier:* a count/flag identical
-  across the two states with no separating field, or a test asserting only one.
-  *Ratified 2026-08-30 · `do-not-attest-past-the-payloads-resolution` (`100-C4`, `087-C2`, `088-C2`).*
+  the payload cannot tell apart. Prove it with a test driving both states. **A zero from a text
+  search** counts the rows the search cannot match (dynamic, split, qualified, keyless) and is not
+  authoritative while any exist. *Falsifier:* a count/flag identical across the two states with no
+  separating field, a test asserting only one, or an empty search answer with no such count.
+  *Ratified 2026-08-30 · `do-not-attest-past-the-payloads-resolution` (`100-C4`, `087-C2`, `088-C2`)
+  · widened 2026-10-30 · `a-zero-must-count-what-the-search-cannot-see` (`363-C1`).*
 - **R5.7 — A repo-writing tool removes only what its own manifest recorded.** Before deleting or
   overwriting a tree, read the recorded page list and remove exactly those, refusing foreign paths
   (`..`, absolute, outside the managed subdir) rather than unlinking them — the rule that guards the
@@ -170,6 +178,13 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   that applies the limit. A rank computed a layer above the cut lets page 1 hold none of the rows the
   ranking exists to surface. *Falsifier:* a paged payload whose `ORDER BY` differs from the order it
   reports ranking by. *Ratified 2026-08-30 · `rank-before-truncate` (`126-C1`).*
+- **R5.9 — A value is read from a literal by its structure, never a regex over its text.** Split at
+  top-level separators and keep only an entry that is exactly a name and one string; a nested,
+  concatenated or ternary value yields nothing. *Falsifier:* a fixture whose nested or concatenated
+  literal produces a link. *Ratified 2026-10-30 · `read-a-literal-by-its-structure-not-a-regex` (`361-C1`).*
+- **R5.10 — A memo guarded by a change probe seeds the probe when it first computes,** and its test
+  changes a real file. *Falsifier:* a first computation that leaves the probe unstamped, or a test
+  stubbing the probe. *Ratified 2026-10-30 · `seed-the-change-probe-with-the-first-answer` (`374-C1`).*
 
 ## 6. Testing (definition of done)
 
@@ -203,11 +218,12 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   `node_modules/`), and **the exclusion needs its own test asserting the sweep is still non-empty** —
   a filter that swallows the authored files restores the 0/0 vacuity the guard existed to remove.
   **This generalises to every guard:** run it against the shape it forbids (the pre-fix code, a
-  sabotaged input, an injected invalid member) and record the red run. *Falsifier:* a guard test
+  sabotaged input, an injected invalid member) and record the red run of **every arm**, not only
+  the suite. *Falsifier:* a guard test
   whose PR claims a defect class is prevented with no recorded red run.
   **The gate itself is bound by this rule** — `scripts/gate.sh` exits **2** on a skipped check and a
   skip is never a pass; the rest is AGENTS.md *Before a PR or a push*.
-  *`prove-the-guard-fails` (`093-C3`).*
+  *`prove-the-guard-fails` (`093-C3`) · widened 2026-10-30 · `confirm-the-blocked-path-runs` (`360-C1`).*
 - **R6.6 — Every language gets a static analyser in CI, at its strictest clean setting.** The core
   has `mypy`; the PHP adapter has **PHPStan at `level: max`**, and each later adapter brings the
   equivalent. Suppression is not how a finding is closed: no baseline file, no `@phpstan-ignore`, no
