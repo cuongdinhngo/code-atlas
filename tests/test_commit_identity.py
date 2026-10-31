@@ -12,7 +12,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.identity_markers import commit_identity_offences, main
+from scripts.identity_markers import (
+    commit_identity_offences,
+    digest,
+    main,
+    ref_offences,
+)
 
 CLEAN = ("Maintainer", "someone@" + "gmail.com")
 MERGE_BOT = ("GitHub", "noreply@" + "github.com")
@@ -85,3 +90,31 @@ def test_the_cli_exits_one_on_an_offence_and_zero_when_clean(repo: Path) -> None
     assert main(["HEAD~1..HEAD"], repo) == 0
     _commit(repo, (LOGON, CLEAN[1]), CLEAN)
     assert main(["HEAD~1..HEAD"], repo) == 1
+
+
+# 424 — SEC-SC-16: a branch name and a pull-request head ref are read by the same arms.
+BAD_REF = "feat/" + "acme" + ".com" + ".au-fix"
+
+
+def test_a_marker_in_a_ref_name_is_named_by_label_never_by_value() -> None:
+    found = ref_offences({"branch name": BAD_REF, "ref name": "main"}, frozenset())
+    assert found == ["branch name: corporate domain"]
+    assert BAD_REF not in " ".join(found)
+
+
+def test_a_banned_token_in_a_ref_name_is_named_by_digest() -> None:
+    word = "plantedword"
+    found = ref_offences({"pull request head ref": f"fix/{word}-thing"}, frozenset({digest(word)}))
+    assert found == [f"pull request head ref: banned digest {digest(word)}"]
+
+
+def test_a_clean_or_empty_ref_is_not_an_offence() -> None:
+    clean = {"branch name": "feat/424-ci-hardening", "pull request head ref": ""}
+    assert ref_offences(clean, frozenset()) == []
+
+
+def test_the_cli_refuses_a_marked_ref_and_accepts_a_clean_one(repo: Path) -> None:
+    _commit(repo, CLEAN, MERGE_BOT)
+    assert main(["HEAD~1..HEAD", "--ref", "branch name=feat/424-ci"], repo) == 0
+    assert main(["HEAD~1..HEAD", "--ref", f"branch name={BAD_REF}"], repo) == 1
+    assert main(["HEAD~1..HEAD", "--ref", "no equals sign"], repo) == 2

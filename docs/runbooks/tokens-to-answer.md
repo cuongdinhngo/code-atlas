@@ -35,21 +35,19 @@ The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
 `python scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 --min-precision 1.0 --markdown …
 --notice` on every PR — it fails on a wrong answer, a recall miss / `confidently_wrong`, a precision
 breach, or if the ratio regresses. It
-runs on **3.13 only** (a token count does not vary by interpreter) and reports in four places, so
+runs on **3.13 only** (a token count does not vary by interpreter) and reports in three places, so
 nobody has to open a log:
 
 | Where | What |
 |---|---|
-| **PR conversation** | One sticky comment, found by `COMMENT_MARKER` and **edited** on each push |
 | **PR → Checks tab** | A `::notice::` annotation with the headline numbers |
 | **Run → job summary** | The same markdown table |
 | **Run → Artifacts** | `tokens-to-answer-report.json` (per-question rows) |
 
-All four are emitted **whether the gate passes or fails** — a breach is exactly when the numbers need
+All three are emitted **whether the gate passes or fails** — a breach is exactly when the numbers need
 to be visible, so `--markdown` / `--notice` are written before the exit code is returned
-(`test_markdown_and_notice_are_emitted_even_when_the_gate_fails` pins this). The comment step needs
-`permissions: pull-requests: write` on the job and is `continue-on-error` because a fork PR gets a
-read-only token.
+(`test_markdown_and_notice_are_emitted_even_when_the_gate_fails` pins this). There is no PR comment
+(424): posting one needs a write token in a job that runs PR code, which SEC-SC-02 forbids.
 
 **The floor is a behavior-lock, not the value claim.** Most committed fixtures are 4-file toy repos
 where `get_index_status` overhead makes code-atlas *cost more* than reading one tiny file: the named

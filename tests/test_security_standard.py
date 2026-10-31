@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.settings_drift import READERS, parse_set_item
+
 REPO = Path(__file__).resolve().parent.parent
 STANDARD = REPO / "docs" / "SECURITY_STANDARD.md"
 RULES = REPO / "docs" / "ENGINEERING_RULES.md"
@@ -33,7 +35,7 @@ GROUPS = ("IN", "MCP", "PI", "PL", "SC", "CT", "GV")
 SEC_ID = re.compile(r"\bSEC-(" + "|".join(GROUPS) + r")-(\d{2})\b")
 ROW = re.compile(r"^\|\s*SEC-")
 LEVELS = ("MUST", "SHOULD")
-KINDS = ("test", "ci", "doc", "open", "n/a", "deferred")
+KINDS = ("test", "ci", "doc", "open", "set", "n/a", "deferred")
 HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
 # A step's `- name:` or a job's own `name:` (four spaces in); never a workflow or artifact name.
 STEP_NAME = re.compile(r"^(?:\s+- |    )name:\s*(.+?)\s*$", re.MULTILINE)
@@ -129,6 +131,13 @@ def _item_problem(kind: str, value: str, level: str) -> str | None:
             if (status == "done")
             else None
         )
+    if kind == "set":
+        item = parse_set_item(value)
+        if item is None:
+            return f"set {value!r}: not `<name> = <value>`"
+        if item[0] in READERS:
+            return None
+        return f"set {item[0]!r}: scripts/settings_drift.py has no reader"
     if not value:
         return f"{kind} with no reason"
     if kind == "deferred" and level != "SHOULD":
@@ -193,7 +202,9 @@ PLANTED = {
     "deferred MUST": "deferred: later",
     "n/a with no reason": "n/a:",
     "held MUST with only a doc": "doc: SECURITY.md#Supported versions",
-    "unknown kind": "set: private vulnerability reporting",
+    "unknown kind": "frobnicate: private vulnerability reporting",
+    "a set with no value": "set: secret_scanning",
+    "a set name no reader knows": "set: rulesets.main.invented = true",
     "empty": "",
 }
 
@@ -204,10 +215,27 @@ def test_a_planted_row_is_refused(case: str) -> None:
     assert problems(planted), f"a row with {case} was accepted"
 
 
+def _an_open_ticket() -> str:
+    """A ticket open today: a fixed number goes stale the day it closes (423, 424)."""
+    for path in sorted(TASKS.glob("[0-9][0-9][0-9]_*.md")):
+        number = path.name[:3]
+        if _task_status(number) not in ("done", None):
+            return number
+    raise AssertionError("no open ticket left to cite")
+
+
 def test_a_good_row_and_a_deferred_should_are_accepted() -> None:
     assert problems(Row("SEC-GV-99", "c", "MUST", "s", HELD)) == []
     assert problems(Row("SEC-GV-99", "c", "SHOULD", "s", "deferred: no client supports it")) == []
-    assert problems(Row("SEC-GV-99", "c", "MUST", "s", f"{HELD}; open: 424")) == []
+    open_ticket = _an_open_ticket()
+    assert problems(Row("SEC-GV-99", "c", "MUST", "s", f"{HELD}; open: {open_ticket}")) == []
+    held_by_a_setting = f"{HELD}; set: secret_scanning = enabled"
+    assert problems(Row("SEC-GV-99", "c", "MUST", "s", held_by_a_setting)) == []
+
+
+def test_a_setting_alone_does_not_hold_a_must() -> None:
+    """A `set:` is read by a scheduled job; the row still names the test that proves the reader."""
+    assert problems(Row("SEC-GV-99", "c", "MUST", "s", "set: secret_scanning = enabled"))
 
 
 def _section(text: str, heading: str) -> str:

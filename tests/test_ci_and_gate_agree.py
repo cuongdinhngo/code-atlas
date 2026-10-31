@@ -12,6 +12,7 @@ only by `gate.sh --docker` — the image build (358) — and a test below pins i
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -60,10 +61,20 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
     "R4.1 no LLM in core": ("anthropic|onboarding_llm", "anthropic|onboarding_llm"),
     "R7.3 no AI-attribution trailer": ("attribution_markers.py", "attribution_markers.py"),
     "R2.4 commit identity (340)": ("identity_markers.py", "identity_markers.py"),
+    "R2.4 ref names (424)": ('--ref "pull request head ref=', '--ref "branch name='),
     # The one row a plain run does not spend: only `--docker` builds the image (358).
     "test image builds (358)": (
         "file: docker/Dockerfile",
         'docker build -f "$root/docker/Dockerfile"',
+    ),
+}
+
+# Checks CI spends that `gate.sh` deliberately does not, each with its reason. Anything else that
+# appears in only one file fails the table above.
+CI_ONLY = {
+    "plugin validates (claude plugin validate --strict)": (
+        "claude plugin validate --strict",
+        "network install of the CLI",
     ),
 }
 
@@ -141,3 +152,21 @@ def test_only_the_docker_gate_builds_the_test_image() -> None:
     branch = branch.split("\nfi\n")[0]
     assert 'docker build -f "$root/docker/Dockerfile"' in branch
     assert gate.count('docker build -f "$root/docker/Dockerfile"') == 1
+
+
+def test_the_plugin_job_pins_an_exact_cli_and_is_the_one_ci_only_check() -> None:
+    """424 (SEC-PL-06): the CLI comes from npm at an exact version, so the gate cannot run it.
+
+    Made to fail: install it unpinned (`@latest`, a range), or add the command to gate.sh without
+    removing the exemption.
+    """
+    ci = CI.read_text(encoding="utf-8")
+    gate = GATE.read_text(encoding="utf-8")
+    for name, (command, reason) in CI_ONLY.items():
+        assert f"name: {name}" in ci and command in ci, f"ci.yml no longer runs {name}"
+        assert command not in gate, f"gate.sh now runs {name}; drop its CI_ONLY row ({reason})"
+        assert reason
+    install = re.search(r"npm install --global @anthropic-ai/claude-code@(\S+)", ci)
+    assert install, "the CLI is not installed as `npm install --global <package>@<version>`"
+    version = install.group(1)
+    assert re.fullmatch(r"\d+\.\d+\.\d+", version), f"not an exact version: {version}"
