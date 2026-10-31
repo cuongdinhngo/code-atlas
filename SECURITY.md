@@ -105,7 +105,8 @@ revision only as a full object id (or the literal `HEAD`), after `--end-of-optio
 
 CI cannot be steered by a moved tag or a leaked token: every GitHub Action is pinned to a commit
 SHA, every workflow reads the repository and only a job with no pull-request code writes, and no
-checkout keeps its token. Dependabot, CodeQL and OpenSSF Scorecard run weekly, and a weekly job reads
+checkout keeps its token. Python dependencies install from the hashed `uv.lock`, and CI and the
+gate audit it, the npm adapters and the composer adapter, failing on any known vulnerability. Dependabot, CodeQL and OpenSSF Scorecard run weekly, and a weekly job reads
 the repository's rulesets, private reporting, secret scanning and admins back against
 [`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), opening an issue on a difference. The identity sweep over branch and pull-request ref names runs on
 pull requests; `main` is protected, so a push to it is not a new name. The maintainer account uses

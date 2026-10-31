@@ -22,11 +22,11 @@ Security issues do not go in a public issue; see [`SECURITY.md`](SECURITY.md).
 
 ## Development setup
 
-You need a POSIX host (Linux, macOS, or WSL2 on its native filesystem), Python ≥ 3.12, and the
+You need a POSIX host (Linux, macOS, or WSL2 on its native filesystem), Python ≥ 3.12 with [uv](https://docs.astral.sh/uv/), and the
 runtime for each adapter: PHP ≥ 8.1 with Composer, and Node.js ≥ 18.
 
 ```bash
-python3 -m pip install -e ".[dev]"
+uv sync --frozen --extra dev   # the locked tree CI tests; then use .venv/bin or `uv run`
 composer install --working-dir=adapters/php
 npm ci --prefix adapters/typescript
 npm ci --prefix adapters/sql

@@ -180,7 +180,7 @@ there is an index, how stale it is, and what to call next. Then `build_or_update
 <details>
 <summary>Wiring it by hand, or running the server from a container</summary>
 
-**By hand:** `pip install -e .`, then `composer install --working-dir=adapters/php`, then point an
+**By hand:** `uv sync --frozen` (or `pip install -e .`), then `composer install --working-dir=adapters/php`, then point an
 `.mcp.json` at your repo — `command` = `code-atlas` (or `python3 -m code_atlas.main`), `cwd` = the
 repo to index, `env.CA_PHP_CMD` = `php /abs/path/to/code-atlas/adapters/php/index.php --server`. The
 adapter lives in this checkout, so `CA_PHP_CMD` must be an **absolute** path. Details in
