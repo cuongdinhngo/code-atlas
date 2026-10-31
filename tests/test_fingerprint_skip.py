@@ -125,7 +125,7 @@ def test_uncomputable_fingerprint_fails_loud_into_parse(
         # Stale byte hash so the byte-hash tier misses; fingerprint still matches on disk.
         store.touch_file_bytes("src/f0.aa", "not-the-real-hash", fp)
 
-    monkeypatch.setattr("code_atlas.indexer._whitespace_fingerprint", lambda _path: "")
+    monkeypatch.setattr("code_atlas.indexer._whitespace_fingerprint", lambda _path, _root=None: "")
     from code_atlas.indexer import _fingerprint_skip
 
     with GraphStore(config.db_path) as store:

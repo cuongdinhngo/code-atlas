@@ -5,8 +5,9 @@ The indexed repo is untrusted content and git stores symlinks, so a committed li
 the one containment rule; each read or write site asks it rather than carrying its own check.
 
 Every file the index keeps is opened here (420): the file itself never through a link, its
-directory a real one inside the given root, created private to the user. The onboarding cache
-beside it is ``generate_onboarding``'s, guarded by ``require_writable`` instead.
+directory a real one inside the given root, created private to the user. ``generate_onboarding``'s
+cache is written the same way (430); its page tree is guarded by ``require_writable``.
+Reads that cross the trust line go through :func:`open_inside` (430).
 """
 
 import contextlib
@@ -14,6 +15,7 @@ import errno
 import os
 import secrets
 from pathlib import Path
+from typing import BinaryIO
 
 PRIVATE_DIR = 0o700
 PRIVATE_FILE = 0o600
@@ -24,6 +26,10 @@ _PLATFORM_FLAGS = getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_BINARY", 0)
 
 class UnsafeWrite(OSError):
     """A write that would follow a link or leave its root. An ``OSError``, so best-effort stays."""
+
+
+class UnsafeRead(OSError):
+    """A read that follows a link, leaves its root, or opens a file other than the one checked."""
 
 
 def resolves_inside(root: Path, path: Path) -> bool:
@@ -93,3 +99,29 @@ def safe_append(path: Path, text: str, *, root: Path | None = None) -> None:
     descriptor = safe_open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, root=root)
     with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
         handle.write(text)
+
+
+def open_inside(root: Path, path: Path) -> BinaryIO:
+    """``path`` opened for reading only if it resolves inside ``root`` and is what was checked.
+
+    The resolved path is opened without following a final link, and the open descriptor must be the
+    very file the resolved path names: a swap between the check and the open is refused (430).
+    """
+    if not resolves_inside(root, path):
+        raise UnsafeRead(errno.ELOOP, "refusing to read outside the indexed repo", str(path))
+    resolved = path.resolve()
+    descriptor = os.open(resolved, os.O_RDONLY | _NOFOLLOW | _PLATFORM_FLAGS)
+    try:
+        opened, named = os.fstat(descriptor), os.stat(resolved)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise UnsafeRead(errno.ELOOP, "the file changed while it was opened", str(path))
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return os.fdopen(descriptor, "rb")
+
+
+def read_bytes(root: Path, path: Path) -> bytes:
+    """The bytes of ``path`` read through :func:`open_inside`; ``UnsafeRead`` when it is refused."""
+    with open_inside(root, path) as handle:
+        return handle.read()

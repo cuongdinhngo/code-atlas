@@ -35,7 +35,7 @@ from code_atlas.adapter import (
 )
 from code_atlas.adapter_skew import clear_refusals, record_refusal
 from code_atlas.config import Config, ConfigError
-from code_atlas.containment import resolves_inside
+from code_atlas.containment import open_inside, resolves_inside
 from code_atlas.enrichment import (
     INDIRECTION_FILE,
     KEYS_UNREAD_KEY,
@@ -51,6 +51,7 @@ from code_atlas.enrichment import (
     rules_digest,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
+from code_atlas.limits import DEFAULT_MAX_FILE_BYTES
 from code_atlas.resolver import delta_scope, resolve_edges
 from code_atlas.store import (
     BUILD_COMPLETE,
@@ -288,10 +289,10 @@ def _fill(
             owners = _owners(announced)
             report.phase("tree_walk")
             paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
-                config.root, tuple(owners)
+                config.root, tuple(owners), config.max_file_bytes
             )
             stubs = (
-                collect_stubs(config.root, config.stub_roots, tuple(owners))
+                collect_stubs(config.root, config.stub_roots, tuple(owners), config.max_file_bytes)
                 if config.stub_roots
                 else ()
             )
@@ -519,10 +520,10 @@ def _incremental_update(
             mark = time.monotonic()
             report.phase("tree_walk")
             paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
-                config.root, tuple(owners)
+                config.root, tuple(owners), config.max_file_bytes
             )
             stubs = (
-                collect_stubs(config.root, config.stub_roots, tuple(owners))
+                collect_stubs(config.root, config.stub_roots, tuple(owners), config.max_file_bytes)
                 if config.stub_roots
                 else ()
             )
@@ -810,7 +811,7 @@ def parse_files(
             )
             for path in paths:
                 key = owners.get(_suffix(path))
-                if key is not None:
+                if key is not None and not _refused(config, path):
                     found[path] = _parse_one(config, watchdog, announced[key], path, guests)
         finally:
             for adapter in announced.values():
@@ -847,6 +848,8 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
     Uses the same ``_write`` path as a full/incremental build so rows stay deterministic (R4).
     Soft-fails on any exception so a broken adapter never escapes a read tool (PR #41).
     """
+    if _refused(config, path):  # before any adapter sees it: the path may now lead out (375, 430)
+        return False
     try:
         parsed = parse_file(config, path)
     except (OSError, TimeoutError):
@@ -856,8 +859,8 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
     language, result = parsed
     tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
     try:
-        digest = _digest(config.root / path)
-        fingerprint = _whitespace_fingerprint(config.root / path)
+        digest = _digest(config.root / path, config.root)
+        fingerprint = _whitespace_fingerprint(config.root / path, config.root)
         _write(
             store,
             path,
@@ -873,9 +876,24 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
     return True
 
 
+def _refused(config: Config, path: str) -> bool:
+    """Whether ``path`` must not reach an adapter now: it leads out of the repo or is oversize.
+
+    The read-through and overlay paths re-parse a file the build already vetted, so the
+    vetting is repeated at the moment of the parse. A file that cannot be stat'ed is not refused.
+    """
+    full = config.root / path
+    if not resolves_inside(config.root, full):
+        return True
+    try:
+        return full.stat().st_size > config.max_file_bytes
+    except OSError:
+        return False
+
+
 def file_is_current(store: GraphStore, root: Path, path: str) -> bool:
     """True when the indexed hash equals the file's current bytes — skip a no-op reparse (§8.3)."""
-    digest = _digest(root / path)
+    digest = _digest(root / path, root)
     return bool(digest) and store.file_hash(path) == digest
 
 
@@ -885,20 +903,20 @@ def _fingerprint_skip(store: GraphStore, root: Path, path: str) -> bool:
     On a hit, refreshes the stored byte hash so the next run is a byte-hash hit. A fingerprint
     that cannot be computed (empty digest) never skips — fail loud into parse (R5.3).
     """
-    fingerprint = _whitespace_fingerprint(root / path)
+    fingerprint = _whitespace_fingerprint(root / path, root)
     if not fingerprint:
         return False
     stored = store.file_fingerprint(path)
     if stored is None or stored != fingerprint:
         return False
-    digest = _digest(root / path)
+    digest = _digest(root / path, root)
     if not digest:
         return False
     store.touch_file_bytes(path, digest, fingerprint)
     return True
 
 
-def _whitespace_fingerprint(path: Path) -> str:
+def _whitespace_fingerprint(path: Path, root: Path | None = None) -> str:
     """SHA-256 of the file with line endings normalised and trailing whitespace stripped (213).
 
     Every newline and all leading whitespace survive, so two files sharing a fingerprint share
@@ -906,9 +924,11 @@ def _whitespace_fingerprint(path: Path) -> str:
     strand ``line_start`` / ``line_end`` / ``edges.line`` at their pre-reformat values (R4.2).
     Language-agnostic: operates on bytes, never syntax (R1.1). Empty string when unreadable so
     the caller fails loud into parse (R5.3). Does not catch comment or string-literal edits.
+    ``root`` bounds the read to the repo (430); without it the file's own directory does.
     """
     try:
-        raw = path.read_bytes()
+        with open_inside(path.parent if root is None else root, path) as handle:
+            raw = handle.read()
     except OSError:
         return ""
     normalised = b"\n".join(line.rstrip() for line in raw.splitlines())
@@ -920,7 +940,7 @@ class CollectionCensus:
     """The collect walk's own tally so an outsider can reconcile ``files`` (task 082).
 
     A partition of the walked set: ``collected - skipped_suffix - skipped_ignore - skipped_escape
-    == kept`` by construction. On a git repo ``collected == len(git ls-files)``.
+    - skipped_oversize == kept`` by construction. On a git repo ``collected == len(git ls-files)``.
     ``skipped_untracked`` sits beside that partition (task 092) — never in ``collected``.
     """
 
@@ -931,19 +951,23 @@ class CollectionCensus:
     skipped_untracked: int = 0
     # A tracked path whose symlinks resolve outside the repo — never read (342). In the partition.
     skipped_escape: int = 0
+    # Above ``max_file_bytes``: never sent to an adapter, never truncated (430). In the partition.
+    skipped_oversize: int = 0
 
 
-def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
+def collect(
+    root: Path, suffixes: Sequence[str], max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
+) -> tuple[str, ...]:
     """The paths to index: tracked files of a claimed suffix, minus the ignore rules (§8.1, §11).
 
     Sorted here rather than trusted from git, so the order is a property of this core and not of
     whichever git version the host ships (R4.2).
     """
-    return _collect_with_census(root, suffixes)[0]
+    return _collect_with_census(root, suffixes, max_file_bytes)[0]
 
 
 def _collect_with_census(
-    root: Path, suffixes: Sequence[str]
+    root: Path, suffixes: Sequence[str], max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
 ) -> tuple[tuple[str, ...], CollectionCensus, tuple[str, ...], dict[str, int], dict[str, int]]:
     """``collect`` plus the by-cause census, from the SAME single walk (task 082, R4).
 
@@ -959,7 +983,7 @@ def _collect_with_census(
     tracked = gitutil.ls_files(root)
     found = _walk(root, matcher, wanted) if tracked is None else tracked
     kept: list[str] = []
-    skipped_suffix = skipped_ignore = skipped_escape = 0
+    skipped_suffix = skipped_ignore = skipped_escape = skipped_oversize = 0
     ignore_sources: Counter[str] = Counter()
     skipped_suffixes: Counter[str] = Counter()
     inside = _containment(root)
@@ -973,11 +997,19 @@ def _collect_with_census(
             ignore_sources[source] += 1
         elif not inside(path):
             skipped_escape += 1
+        elif _oversize(root / path, max_file_bytes):
+            skipped_oversize += 1
         else:
             kept.append(path)
     untracked = _indexable_untracked(root, wanted, matcher) if tracked is not None else ()
     census = CollectionCensus(
-        len(found), skipped_suffix, skipped_ignore, len(kept), len(untracked), skipped_escape
+        len(found),
+        skipped_suffix,
+        skipped_ignore,
+        len(kept),
+        len(untracked),
+        skipped_escape,
+        skipped_oversize,
     )
     return (
         tuple(sorted(kept)),
@@ -986,6 +1018,14 @@ def _collect_with_census(
         dict(ignore_sources),
         dict(skipped_suffixes),
     )
+
+
+def _oversize(full: Path, max_file_bytes: int) -> bool:
+    """Whether the file is above the cap; one that cannot be stat'ed fails later, at the parse."""
+    try:
+        return full.stat().st_size > max_file_bytes
+    except OSError:
+        return False
 
 
 def _indexable_untracked(
@@ -1020,13 +1060,18 @@ def indexable(paths: Iterable[str], root: Path, suffixes: Sequence[str]) -> tupl
 
 
 def collect_stubs(
-    root: Path, stub_roots: Sequence[str], suffixes: Sequence[str]
+    root: Path,
+    stub_roots: Sequence[str],
+    suffixes: Sequence[str],
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
 ) -> tuple[str, ...]:
     """Filesystem walk of configured dependency roots — bypasses ignore/git (task 039).
 
     ``vendor/`` is a built-in ignore and usually gitignored, so neither ``collect`` nor
     ``git ls-files`` can see it. Stub indexing walks these trees directly. A configured root
     that is missing or not a directory fails loud (R5.3) — a typo must not look like stubs-off.
+    A root that resolves outside the repo, a file whose link leads out, and an oversize file are
+    skipped (430): a stub root is the repo's own word, so it is held to the repo's bounds.
     """
     wanted = {suffix.lower() for suffix in suffixes}
     found: list[str] = []
@@ -1034,6 +1079,8 @@ def collect_stubs(
         base = root / stub
         if not base.is_dir():
             raise ConfigError(f"stub_roots: {stub!r} is not a directory under {root}")
+        if not resolves_inside(root, base):
+            continue
         for dirpath, dirnames, filenames in os.walk(base):
             dirnames[:] = sorted(d for d in dirnames if d not in _STUB_SKIP_DIRS)
             for name in filenames:
@@ -1042,6 +1089,8 @@ def collect_stubs(
                     continue
                 rel = full.relative_to(root).as_posix()
                 if _STUB_FILE_IGNORE.is_ignored(rel):
+                    continue
+                if not resolves_inside(root, full) or _oversize(full, max_file_bytes):
                     continue
                 found.append(rel)
     return tuple(sorted(dict.fromkeys(found)))
@@ -1192,6 +1241,7 @@ def _adapter(config: Config, key: str) -> SubprocessAdapter:
         config.root,
         host_root=config.host_root,
         container_root=config.container_root,
+        handshake_timeout=config.adapter_timeout,
     )
 
 
@@ -1379,10 +1429,10 @@ def _parse_all(
         language = languages[owners[_suffix(path)]]
         store.upsert_file(
             path,
-            _digest(config.root / path),
+            _digest(config.root / path, config.root),
             language,
             parsed_ok=False,
-            fingerprint=_whitespace_fingerprint(config.root / path) or None,
+            fingerprint=_whitespace_fingerprint(config.root / path, config.root) or None,
         )
         tally["failed"] += 1
         if progress is not None:
@@ -1439,7 +1489,7 @@ def _parse_group(
             alive -= 1
             continue
         path, digest, result = item
-        fingerprint = _whitespace_fingerprint(config.root / path)
+        fingerprint = _whitespace_fingerprint(config.root / path, config.root)
         _write(
             store, path, digest, language, result, tally, fingerprint=fingerprint
         )
@@ -1491,7 +1541,7 @@ def _work(
             result = embedded.merge(result, guests.reader(path))
             if is_stub_path(path, config.stub_roots) and result.ok:
                 result = as_stub_result(result)
-            results.put((path, _digest(config.root / path), result))
+            results.put((path, _digest(config.root / path, config.root), result))
     finally:
         try:
             if adapter is not None and adapter is not started:
@@ -1635,11 +1685,15 @@ def _suffix(path: str) -> str:
     return PurePosixPath(path).suffix.lower()
 
 
-def _digest(path: Path) -> str:
-    """A content hash of the file's **bytes**, or the empty string when it cannot be read."""
+def _digest(path: Path, root: Path | None = None) -> str:
+    """A content hash of the file's **bytes**, or the empty string when it cannot be read.
+
+    Streamed through :func:`open_inside`, so a file that leads out of ``root`` (the file's own
+    directory without one) hashes as unreadable rather than as the outside file (430).
+    """
     hasher = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
+        with open_inside(path.parent if root is None else root, path) as handle:
             while chunk := handle.read(_READ_CHUNK):
                 hasher.update(chunk)
     except OSError:
