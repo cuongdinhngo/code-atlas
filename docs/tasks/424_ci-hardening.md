@@ -4,7 +4,7 @@ slug: ci-hardening
 title: "CI cannot be steered by a moved tag or a leaked token — actions pinned by SHA, least-privilege tokens, Dependabot, CodeQL, Scorecard and a settings-drift check"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [423]
 ---
 
@@ -54,7 +54,7 @@ SEC-SC-01..05, 08..10, 14..16, SEC-IN-06, 07, SEC-PL-06, SEC-GV-01, SEC-GV-04.
 
 ## Session status
 
-- **KEY:** 424 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute.
+- **KEY:** 424 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer creates `SETTINGS_READ_TOKEN`, ratifies W1–W2, merges after #124, then turns on `sha_pinning_required`.
 - `TRACK: backend` · Run mode: `autorun 427 - 430 - 424 - 425 - 428 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/424-ci-hardening`, **stacked on `feat/430-limits-and-containment`** (#124).
@@ -155,3 +155,79 @@ bookkeeping.
 - The drift workflow, CodeQL and Scorecard cannot run before merge (scheduled / `main` only); their logic is
   tested offline (`settings_drift.py` on fixtures) and the workflows are proven by their first scheduled run
   (expiry: the first run after merge, read by the maintainer).
+
+## Phase 3 — execute
+
+`implementer` landed Approach 1–6 in `2279cd59`…`2b4d543d` (7 commits). **Verification sweep.** File axis: the
+change list plus recorded deviations — `tests/test_commit_identity.py` (the ref arms), `docs/runbooks/tokens-to-answer.md`
+and `scripts/tokens_to_answer.py` (the PR comment became the job summary). Behaviour axis as approved: eleven
+actions pinned (each SHA read from `gh api …/commits/<tag>`); CodeQL on push and schedule only; the Claude Code CLI
+installed at an exact version for `plugin validate --strict`, the one `CI_ONLY` check; `adapters/typescript/src/imports.js`
+allow-listed by the binary sweep (one literal NUL inside a cache key — a follow-up could spell it `\0`).
+
+**Seen failing (R6.5).** `tests/test_ci_hardening.py` on a worktree of the base: 15 failed, 25 passed (unpinned
+`uses:`, no top-level `permissions`, no `persist-credentials: false`, `pull-requests: write` beside a checkout,
+no `codeql.yml` / `dependabot.yml`); the plugin-job pin red with `@latest`; `test_store_binds_sql.py` accepted an
+early planted interpolation until its allow-list became (function, name) pairs. A read-only `settings_drift.py
+--local` against the live repo reported exactly one drift — `actions.sha_pinning_required` (W2), as designed.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 85,705 tokens): 6 met · 2 partly met · 0 not met; five SHAs re-checked
+  against their tags. Taken in `046611c9`:
+  - **Important 1** — the workflow reader passed flow-style steps, an event expression in `with: script:`, and a
+    reusable-workflow job with a write scope under a PR trigger: it now fails closed on any flow mapping, anchor,
+    alias or merge key, scans every `with:` value, refuses (c), and also reads `.github/actions/**`; each with a
+    planted case. ci.yml, codeql.yml and scorecard.yml were rewritten to block style.
+  - **Important 2** — SEC-GV-04 claimed 2FA, which no API reads for a user-owned repo: the row now holds the
+    single admin only, and the new SHOULD row SEC-GV-08 (2FA) is `deferred:` with the maintainer's attestation.
+  - Minor, taken: the issue step guards a missing report; the ref sweep's scope is stated (SEC-SC-16); the
+    execution guard resolves aliases and refuses `compile` / `runpy`; the Dependabot directories are derived from
+    the adapters' manifests.
+- **Round 2: verify-only, main loop.**
+
+```
+# review-time record (an earlier tree by design; the final-tree run is in Phase 5)
+$ .venv/bin/python -m pytest -q tests/test_ci_hardening.py tests/test_settings_drift.py tests/test_no_code_execution_on_repo_content.py tests/test_no_committed_binaries.py tests/test_store_binds_sql.py tests/test_security_standard.py tests/test_ci_and_gate_agree.py tests/test_commit_identity.py
+231 passed in 2.16s
+```
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+`Ph3/4 proven by`: AC1, AC2, AC4 → `tests/test_ci_hardening.py`; AC3 →
+`test_dependabot_covers_every_ecosystem_and_directory`; AC5 → `tests/test_commit_identity.py` ref arms +
+`test_ci_and_gate_agree`; AC6 → `tests/test_settings_drift.py`; AC7 → `tests/test_no_code_execution_on_repo_content.py`,
+`tests/test_no_committed_binaries.py`, `tests/test_store_binds_sql.py`, the plugin job; AC8 → `test_ci_and_gate_agree`;
+C1 → `tests/test_security_standard.py`.
+
+Reviewed at 046611c9.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 424-C1 `a-subset-reader-must-fail-closed` (new, type 2). Sightings (P1): 423-C1 +424 (each
+guard read against its row: SEC-GV-04 overclaimed), 427-C1 +424 (the workflow test reads every file, and `.github/actions/`).
+
+`CLAIMS: 3 claim(s) from 3 lesson entr(ies) | T1=0 T2=3 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 2 recurring | 0 superseded (0 retired) | 2 promotion candidate(s)`
+`FALSIFY: 2 candidate(s) checked | 2 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md, docs/ENGINEERING_RULES.md | mango files written: 0`
+
+**The final gate:** __DOCKER__
+
+### Outward actions
+
+Under the handover: push `feat/424-ci-hardening`; open its PR against `feat/430-limits-and-containment`.
+Deferred to the maintainer: create the `SETTINGS_READ_TOKEN` secret (W1); ratify W1–W2; merge after #124; then turn
+on `sha_pinning_required` (W2) and add the plugin-validate job to the ruleset's required checks if wanted.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 3 execute | `implementer` | 1 | 227,526 |
+| 4 review | ticket-blind `challenger` | 1 | 85,705 |
+| 4 review | `implementer` (review fixes, resumed) | 2 | 256,778 |
+
+`LEDGER TOTAL: 570,009 · top cost driver: 4 review / implementer` — main loop unmeasured.
