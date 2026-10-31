@@ -53,6 +53,16 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
         "npm ci --prefix adapters/sql",
         "npm ci --prefix adapters/sql",
     ),
+    "pip-audit on the lock (425)": ("pip-audit --strict --require-hashes", "pip-audit\" --strict"),
+    "npm audit TS adapter (425)": (
+        "npm audit --omit=dev --prefix adapters/typescript",
+        "npm audit --omit=dev --prefix adapters/typescript",
+    ),
+    "npm audit SQL adapter (425)": (
+        "npm audit --omit=dev --prefix adapters/sql",
+        "npm audit --omit=dev --prefix adapters/sql",
+    ),
+    "composer audit (425)": ("composer audit --locked", "composer audit --locked"),
     "R1.1 no language branch in core": (r"match[^\n]*\blanguage\b", r"match[^\n]*\blanguage\b"),
     "R2.2 framework denylist": (
         "tests/contract/framework_denylist.txt",
