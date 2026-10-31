@@ -40,8 +40,8 @@ CONFIG_CEILINGS: dict[str, int] = {
 def checked_pattern(pattern: str, origin: str) -> re.Pattern[str]:
     """``pattern`` compiled, or a ``ConfigError`` naming ``origin`` (the rule) when it is unsafe.
 
-    Refused: a pattern over 512 characters, any backreference, and a repeat whose body holds
-    another repeat that can run more than once (the shape of catastrophic backtracking).
+    Refused: a pattern over 512 characters, any backreference, and a repeat that can run twice whose
+    body holds a repeat or an alternation (the shape of catastrophic backtracking).
     A pattern that does not compile raises ``re.error``, which the caller already names.
     """
     from code_atlas.config import ConfigError
@@ -60,15 +60,21 @@ _REPEATS = (_sre.MAX_REPEAT, _sre.MIN_REPEAT)
 
 
 def _unsafe(node: object, *, inside_repeat: bool) -> str | None:
-    """The first reason a parsed pattern (or part of one) is refused, else ``None``."""
+    """The first reason a parsed pattern (or part of one) is refused, else ``None``.
+
+    Inside a repeat that can run twice, any further repeat (``?`` too) and any alternation is
+    refused: two ways to match the same text there is what backtracks without end.
+    """
     if isinstance(node, _sre.SubPattern):
         for op, argument in node.data:
             if op == _sre.GROUPREF:
                 return "a backreference"
+            if inside_repeat and op in _REPEATS:
+                return "a repeat inside a repeat"
+            if inside_repeat and op == _sre.BRANCH:
+                return "an alternation inside a repeat"
             if op in _REPEATS:
                 _, high, body = argument
-                if inside_repeat and high > 1:
-                    return "a repeat inside a repeat"
                 found = _unsafe(body, inside_repeat=inside_repeat or high > 1)
             else:
                 found = _unsafe(argument, inside_repeat=inside_repeat)
