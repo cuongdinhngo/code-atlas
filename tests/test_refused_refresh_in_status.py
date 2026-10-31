@@ -86,7 +86,7 @@ def test_the_session_start_line_puts_it_on_screen(
 
     line = state.state_line(built)
     assert line is not None and REFRESH_REFUSED_LEAD in line
-    assert state.screen_lines(None, None, line) == [line]
+    assert state.screen_lines(None, line) == [line]
 
 
 def test_the_next_successful_refresh_clears_it(
