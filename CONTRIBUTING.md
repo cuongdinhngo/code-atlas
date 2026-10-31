@@ -32,6 +32,8 @@ npm ci --prefix adapters/typescript
 npm ci --prefix adapters/sql
 ```
 
+A stale `.venv` without `pip-audit` makes the gate SKIP the audit; `uv sync --frozen --extra dev` fixes it.
+
 No host runtimes? `scripts/docker-test.sh` runs the full suite inside the Linux test image.
 
 ## Before you open a PR

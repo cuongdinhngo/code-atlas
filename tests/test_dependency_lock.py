@@ -130,41 +130,55 @@ def test_the_lock_agrees_with_pyproject() -> None:
 
 
 # Where the install lines live. Full-line comments are not run, so they are not read.
-SWEEP = (
-    *sorted((REPO / ".github" / "workflows").glob("*.yml")),
-    REPO / "scripts" / "gate.sh",
-    REPO / "docker" / "Dockerfile",
-    REPO / "docker" / "Dockerfile.runtime",
+SWEEP = tuple(
+    sorted(
+        {
+            *(p for ext in ("yml", "yaml") for p in (REPO / ".github").rglob(f"*.{ext}")),
+            *(REPO / "scripts").glob("*.sh"),
+            *(p for p in (REPO / "docker").iterdir() if p.is_file()),
+        }
+    )
 )
+_ARGS = r"[^&;|\\\n]*"
 # Any command that resolves or fetches packages; a bare `uv`/`pip` mention is not one.
 INSTALL = re.compile(
-    r"(?:\bpython3?\s+-m\s+)?\bpip3?\s+(?:install|download)\b[^&;|\\\n]*"
-    r"|\bpipx\s+\w+[^&;|\\\n]*"
-    r"|\buvx\b[^&;|\\\n]*"
-    r"|\buv\s+(?:pip|tool|add|sync|run\s+--with)\b[^&;|\\\n]*"
-    r"|\bnpm\s+(?:install|i|add|update|exec|x|ci)\b[^&;|\\\n]*"
-    r"|\b(?:yarn|pnpm)\s+\w+[^&;|\\\n]*"
-    r"|\bcomposer\s+(?:install|update|require)\b[^&;|\\\n]*"
+    rf"(?:\bpython3?\s+-m\s+)?\bpip3?\s+(?:install|download)\b{_ARGS}"
+    rf"|\bpipx\s+\w+{_ARGS}"
+    rf"|\buvx\b{_ARGS}"
+    rf"|\bnpx\b{_ARGS}"
+    rf"|\buv\s+(?:pip|tool|add|sync|run)\b{_ARGS}"
+    rf"|\bnpm\s+(?:install|i|add|update|exec|x|ci)\b{_ARGS}"
+    rf"|\b(?:yarn|pnpm)\s+\w+{_ARGS}"
+    rf"|\bcomposer\s+(?:install|update|require)\b{_ARGS}"
 )
 # The only forms that install: from a lock, or an exact pin of the tool that reads one.
 ALLOWED = (
     re.compile(r"uv sync\b(?=.*--(?:frozen|locked)\b)"),
+    re.compile(r"uv run\b(?=.*--(?:frozen|locked|no-sync)\b)"),
     re.compile(r"npm ci\b"),
     re.compile(r"composer install\b"),
     re.compile(r"pip3? install(?: --[\w-]+)* uv==\d+(?:\.\d+)+\s*$"),
     re.compile(r"npm install (?:--global|-g) @?[\w./-]+@\d+(?:\.\d+)+\s*$"),
+    re.compile(r"npx (?:--[\w-]+ )*@?[\w./-]+@\d+(?:\.\d+)+(?:\s|$)"),
 )
+# A flag that makes a locked install resolve for itself, or skip what the lock says.
+LOCK_BYPASS = re.compile(r"\s(?:--force|-f|--no-lock|--no-audit-lock|--legacy-peer-deps)\b")
+
+
+def _logical_lines(text: str) -> list[str]:
+    """Lines with every trailing-backslash continuation joined to the line it continues."""
+    return re.sub(r"\\[ \t]*\n[ \t]*", " ", text).splitlines()
 
 
 def install_violations(text: str) -> list[str]:
     """Every install command that is not one of `ALLOWED` — an unclassifiable one fails (424-C1)."""
     bad = []
-    for line in text.splitlines():
+    for line in _logical_lines(text):
         if line.lstrip().startswith("#"):
             continue
         for m in INSTALL.finditer(line):
             cmd = m.group(0).strip()
-            if not any(a.match(cmd) for a in ALLOWED):
+            if not any(a.match(cmd) for a in ALLOWED) or LOCK_BYPASS.search(cmd):
                 bad.append(cmd)
     return bad
 
@@ -189,6 +203,15 @@ PLANTED = [
     "yarn add left-pad",
     "pipx run pip-audit",
     "RUN pip install --no-cache-dir -e . && uv sync --frozen",
+    "npx prettier --write .",
+    "npx prettier@latest .",
+    "uv run pytest",
+    "uv run --extra dev pytest",
+    "npm ci --force",
+    "npm ci --legacy-peer-deps",
+    "composer install --force",
+    "composer install --no-lock",
+    "uv sync \\\n  --extra dev",
 ]
 ALLOWED_LINES = [
     "uv sync --frozen --extra dev",
@@ -199,6 +222,12 @@ ALLOWED_LINES = [
     "RUN pip install --no-cache-dir uv==0.11.28",
     "npm install --global @anthropic-ai/claude-code@2.1.316",
     "# pip install anything-in-a-comment",
+    "uv sync \\\n  --frozen --extra dev",
+    "npx prettier@3.3.3 --check .",
+    "uv run --frozen pytest",
+    "uv run --no-sync pytest",
+    "composer install --ignore-platform-reqs --no-dev",
+    "npm ci --ignore-scripts --prefix adapters/sql",
 ]
 
 
@@ -220,6 +249,7 @@ def test_every_install_line_in_the_repo_goes_through_a_lock() -> None:
     for name in (".github/workflows/ci.yml", "docker/Dockerfile", "docker/Dockerfile.runtime"):
         assert any(ALLOWED[0].match(m.group(0)) for m in INSTALL.finditer(sources[name])), name
     assert "--no-dev" in sources["docker/Dockerfile.runtime"]
+    assert "scripts/docker-test.sh" in sources, "the sweep must reach every script and image file"
 
 
 def test_every_lock_an_install_line_relies_on_is_committed() -> None:
@@ -236,7 +266,52 @@ def test_every_lock_an_install_line_relies_on_is_committed() -> None:
 
 
 # ---------------------------------------------------------------------------------------- AC3
-def test_the_audit_threshold_is_written_in_the_standard() -> None:
+AUDIT_FILES = (REPO / ".github" / "workflows" / "ci.yml", REPO / "scripts" / "gate.sh")
+
+
+def audit_violations(text: str) -> list[str]:
+    """Audit commands that weaken the threshold: no --strict, an ignore, or a raised audit level."""
+    bad = []
+    for line in _logical_lines(text):
+        if line.lstrip().startswith("#"):
+            continue
+        if re.search(r"pip-audit\"?\s+-", line) and "--strict" not in line:
+            bad.append(f"pip-audit without --strict: {line.strip()}")
+        if re.search(r"--ignore-vuln\b|--ignore-vulns?\b", line):
+            bad.append(f"pip-audit ignore: {line.strip()}")
+        if re.search(r"--audit-level[= ](?!low\b)\w+", line):
+            bad.append(f"audit level above low: {line.strip()}")
+        if re.search(r"composer audit\b.*--ignore\b", line):
+            bad.append(f"composer audit ignore: {line.strip()}")
+    return bad
+
+
+def test_the_audit_threshold_is_written_in_the_standard_and_held_by_the_commands() -> None:
     for rule in ("SEC-SC-06", "SEC-SC-07"):
         assert "open:" not in _row(rule)
-    assert "any known vulnerability" in _row("SEC-SC-07")
+    row = _row("SEC-SC-07")
+    for words in ("any known vulnerability", "--strict", "--ignore-vuln", "--audit-level"):
+        assert words in row, f"SEC-SC-07 must state {words!r}"
+    for path in AUDIT_FILES:
+        text = path.read_text(encoding="utf-8")
+        assert audit_violations(text) == [], path.name
+        assert "pip-audit" in text and "composer audit" in text and "npm audit" in text
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "pip-audit --require-hashes -r req.txt",
+        "pip-audit --strict --ignore-vuln GHSA-aaaa-bbbb-cccc -r req.txt",
+        "npm audit --omit=dev --audit-level=high",
+        "npm audit --audit-level critical",
+        "composer audit --locked --ignore=PKSA-1",
+    ],
+)
+def test_a_planted_weakened_audit_is_refused(line: str) -> None:
+    assert audit_violations(line), line
+
+
+def test_a_planted_strict_audit_passes() -> None:
+    assert audit_violations("pip-audit --strict --require-hashes -r r.txt") == []
+    assert audit_violations("npm audit --omit=dev --audit-level=low") == []
