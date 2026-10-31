@@ -385,13 +385,14 @@ never a silent fallback.
 | `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
 | `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here |
 | `CA_IMPACT_DEPTH` / `CA_IMPACT_MAX_NODES` | `impact_depth` / `impact_max_nodes` | `2` / `500` | hops and node budget for one impact query |
+| `CA_MAX_FILE_BYTES` | `max_file_bytes` | `4194304` (4 MiB) | a source file above this is skipped, never truncated and never sent to an adapter; `get_index_status` and the build summary count it as `skipped.oversize`. The project file cannot raise it past 64 MiB |
 | `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing, and `get_index_status` nominates candidate globs with a file count for you to choose from |
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** |
 | `CA_TOOLS` | `tools` | all 24 | comma-separated tool allow-list — see the six-tool preset below |
 | `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode. The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` |
-| `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]` choose the argv. Unset, a table there is a loud error: a repo you index must not pick the command code-atlas runs |
+| `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]`, `host_root` and `container_root` choose the argv and the path mapping. Unset, any of them there is a loud error: a repo you index must not pick the command code-atlas runs |
 
 ```toml
 # .code-atlas.toml — [adapter_cmd] is honoured only with CA_TRUST_PROJECT_FILE=1

@@ -147,6 +147,15 @@ KNOBS = (
         lambda root: 20000,
     ),
     Knob(
+        "CA_MAX_FILE_BYTES",
+        "max_file_bytes = 1000",
+        "2000",
+        lambda config: config.max_file_bytes,
+        lambda root: 2000,
+        lambda root: 1000,
+        lambda root: 4 * 1024 * 1024,
+    ),
+    Knob(
         "CA_ENTRY_POINTS",
         'entry_points = ["public/index.php"]',
         "bin/console,src/Kernel.php",
@@ -246,6 +255,7 @@ KNOBS = (
         lambda root: Path("/from-file/host"),
         lambda root: None,
         companion_env={"CA_CONTAINER_ROOT": "/from-env/container"},
+        file_env=TRUSTED,
     ),
     Knob(
         "CA_CONTAINER_ROOT",
@@ -256,6 +266,7 @@ KNOBS = (
         lambda root: Path("/from-file/container"),
         lambda root: None,
         companion_env={"CA_HOST_ROOT": "/from-env/host"},
+        file_env=TRUSTED,
     ),
     Knob(
         "CA_CALLER_ROOT",
@@ -296,7 +307,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 23
+    assert len(KNOB_KEYS) == 24
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -312,6 +323,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_ORPHANS_MAX_NODES",
         "CA_FULL_BUILD_CROSSOVER",
         "CA_PATH_INDEX_MAX",
+        "CA_MAX_FILE_BYTES",
         "CA_ENTRY_POINTS",
         "CA_STUB_ROOTS",
         "CA_WORKING_ROOTS",

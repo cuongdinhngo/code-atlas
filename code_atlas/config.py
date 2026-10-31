@@ -19,7 +19,9 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
+from typing import cast
 
+from code_atlas.limits import CONFIG_CEILINGS, DEFAULT_MAX_FILE_BYTES
 from code_atlas.onboarding.audience import DEFAULT_AUDIENCE, resolve_audience
 
 PROJECT_FILE = ".code-atlas.toml"
@@ -41,6 +43,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "orphans_max_nodes",
     "full_build_crossover",
     "path_index_max",
+    "max_file_bytes",
     "entry_points",
     "stub_roots",
     "working_roots",
@@ -131,6 +134,8 @@ class Config:
     config_env: tuple[tuple[str, str], ...] = ()
     # The caller's checkout when a client reports no roots: its worktree overlays the graph (389).
     caller_root: Path | None = None
+    # A source file above this is skipped and counted, never sent to an adapter (430).
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -231,8 +236,8 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
     """Resolve every knob for ``root``: environment, then the project file, then the default."""
     environ = os.environ if env is None else env
     file_values = _read_project_file(root)
-    host_root = _resolve_optional_path("host_root", environ, file_values)
-    container_root = _resolve_optional_path("container_root", environ, file_values)
+    host_root = _resolve_mapping_root("host_root", environ, file_values)
+    container_root = _resolve_mapping_root("container_root", environ, file_values)
     _validate_root_pair(host_root, container_root)
     db_path = root / _resolve_db_path(environ, file_values)
     from code_atlas.index_trust import check_index
@@ -286,6 +291,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         identity=config_identity(root, environ),
         config_env=_config_env_slice(environ),
         caller_root=_resolve_optional_path("caller_root", environ, file_values),
+        max_file_bytes=_resolve(
+            "max_file_bytes", _as_int, DEFAULT_MAX_FILE_BYTES, environ, file_values
+        ),
     )
 
 
@@ -301,8 +309,16 @@ def _resolve[T](
     if variable in env:
         return parse(variable, env[variable])
     if key in file_values:
-        return parse(f"{PROJECT_FILE}:{key}", file_values[key])
+        return _clamped(key, parse(f"{PROJECT_FILE}:{key}", file_values[key]))
     return default
+
+
+def _clamped[T](key: str, value: T) -> T:
+    """A project-file cap held to its ceiling; the operator's environment is not clamped (430)."""
+    ceiling = CONFIG_CEILINGS.get(key)
+    if ceiling is not None and isinstance(value, int) and value > ceiling:
+        return cast(T, ceiling)
+    return value
 
 
 def _resolve_max_candidates(
@@ -315,11 +331,13 @@ def _resolve_max_candidates(
     if MAX_RESULTS_ALIAS_ENV in env:
         return _as_int(MAX_RESULTS_ALIAS_ENV, env[MAX_RESULTS_ALIAS_ENV])
     if "max_candidates" in file_values:
-        return _as_int(f"{PROJECT_FILE}:max_candidates", file_values["max_candidates"])
+        raw = _as_int(f"{PROJECT_FILE}:max_candidates", file_values["max_candidates"])
+        return _clamped("max_candidates", raw)
     if MAX_RESULTS_ALIAS_FILE in file_values:
-        return _as_int(
+        raw = _as_int(
             f"{PROJECT_FILE}:{MAX_RESULTS_ALIAS_FILE}", file_values[MAX_RESULTS_ALIAS_FILE]
         )
+        return _clamped("max_candidates", raw)
     return DEFAULT_MAX_CANDIDATES
 
 
@@ -333,6 +351,22 @@ def _resolve_optional_path(
     if key in file_values:
         return _as_path(f"{PROJECT_FILE}:{key}", file_values[key])
     return None
+
+
+def _resolve_mapping_root(
+    key: str, env: Mapping[str, str], file_values: Mapping[str, object]
+) -> Path | None:
+    """``host_root`` / ``container_root``: from the project file only once the user trusts it (430).
+
+    They decide which host path an adapter is handed, so a repo's own file may not set them.
+    """
+    if env_name(key) not in env and key in file_values and env.get(TRUST_PROJECT_FILE_ENV) != "1":
+        raise ConfigError(
+            f"{PROJECT_FILE}:{key} sets the path mapping handed to the adapters, and a repo's own "
+            f"file is not trusted to choose it. Set {env_name(key)} in your MCP client or shell "
+            f"instead, or {TRUST_PROJECT_FILE_ENV}=1 if you trust this repo"
+        )
+    return _resolve_optional_path(key, env, file_values)
 
 
 def _validate_root_pair(host_root: Path | None, container_root: Path | None) -> None:
