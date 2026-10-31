@@ -106,7 +106,8 @@
 - **Closed schemas.** Each input schema has `additionalProperties: false`, closed domains as `enum`,
   and a `maxLength` of 4096 on any other string. An unknown or wrongly typed argument is refused as a
   tool error before the tool runs; `"10"` for an integer is not coerced.
-- **Errors** reach the client as an `isError` result naming the tool, never the exception text.
+- **Errors** reach the client as an `isError` result naming the tool, never the exception text; a
+  refusal a tool raises on purpose (`ValueError`, such as a bad `path_prefix`) keeps its message.
 - **The manifest** `tests/fixtures/tool_manifest.json` holds each tool's name, description, schema and
   annotations. After a change, run `python scripts/gen_tool_manifest.py` for the diff, then `--write`
   to accept it; `tests/test_tool_manifest.py` fails on drift, and CI and `scripts/gate.sh` fail a

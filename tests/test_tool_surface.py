@@ -269,6 +269,13 @@ def test_a_tool_raising_reaches_the_client_masked(repo: Path) -> None:
     assert is_error and secret not in text
 
 
+def test_a_deliberate_refusal_keeps_its_message(repo: Path) -> None:
+    """A `ValueError` a tool raises on purpose tells the client why; it is not masked (R5.3)."""
+    is_error, text = _call(_server(repo), "search_symbol", {"query": "a", "path_prefix": "/abs"})
+    assert is_error and "index-root-relative" in text
+    assert hygiene_offences(text, repo) == []
+
+
 def test_a_repo_with_no_index_answers_a_payload_not_an_error(repo: Path) -> None:
     """Recorded: the answer path says `reason: not_indexed` as data; it is not an isError."""
     is_error, text = _call(_server(repo), "search_symbol", {"query": "a"})

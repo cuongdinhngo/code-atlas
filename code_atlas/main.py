@@ -5,12 +5,14 @@ one seam is the only abstraction this codebase buys (R1.2). ``CA_TOOLS`` gates w
 registered; a name that is not one of them is a configuration error and fails loud (R5.3).
 """
 
+import functools
 import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from fastmcp.tools import FunctionTool
 from mcp.types import ToolAnnotations
 
@@ -93,6 +95,19 @@ def tool_annotations(name: str) -> ToolAnnotations:
     if name in WRITER_TOOLS:
         return ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True)
     return ToolAnnotations(readOnlyHint=True, openWorldHint=False)
+
+
+def refusal_is_loud(tool: Callable[..., dict[str, object]]) -> Callable[..., dict[str, object]]:
+    """A ``ValueError`` a tool raises on purpose (R5.3) keeps its message; others are masked."""
+
+    @functools.wraps(tool)
+    def loud(*args: object, **kwargs: object) -> dict[str, object]:
+        try:
+            return tool(*args, **kwargs)
+        except ValueError as refusal:
+            raise ToolError(str(refusal)) from None
+
+    return loud
 
 
 # The bound on a free string (a query, a path, a qname) in a tool's input schema (428, W1).
@@ -186,7 +201,8 @@ def build_server(
         Every tool leaves here with its annotations and a closed input schema (428).
         """
         registered = FunctionTool.from_function(
-            fit.wrap(name, config, tool) if count else tool, annotations=tool_annotations(name)
+            refusal_is_loud(fit.wrap(name, config, tool) if count else tool),
+            annotations=tool_annotations(name),
         )
         if registered.name != name:
             raise ConfigError(f"tool registered as {registered.name!r}, expected {name!r}")
