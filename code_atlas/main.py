@@ -237,6 +237,7 @@ def version_refusal(expected: str | None, installed: str) -> str | None:
     return (
         f"code-atlas: refusing to serve: the plugin is {expected}, this server is {installed}"
         f" — run: uv tool install --force git+{REPOSITORY_GIT}@v{expected}"
+        f" (or pipx install --force git+{REPOSITORY_GIT}@v{expected})"
     )
 
 
