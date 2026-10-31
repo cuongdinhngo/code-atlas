@@ -73,6 +73,12 @@ Each criterion code-atlas holds, and the test or ticket behind it, is in
   scrubbed of control, bidi and ANSI characters and capped (`code_atlas/index_text.py`). Tool
   answers that return indexed source (`read_symbol`, search) carry it as written.
 
+- **The tool surface is declared and pinned.** The server speaks stdio only, and stdout carries MCP
+  frames only. Every tool declares read-only or writer annotations, takes a closed input schema
+  (unknown arguments refused, strings bounded) and returns errors without their internals.
+  `tests/fixtures/tool_manifest.json` pins every name, description and schema, so a change to any
+  of them is a reviewed diff with a CHANGELOG line (see [`docs/TOOLS.md`](docs/TOOLS.md)).
+
 ## Network calls
 
 The core (`code_atlas/`) makes none, and a CI gate refuses an LLM import there. Two optional

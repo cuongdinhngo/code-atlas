@@ -355,6 +355,18 @@ else
     sed 's/^/      /' "$log" | head -10
 fi
 
+# Same range: a tool-surface (manifest) change with no CHANGELOG line fails (428).
+if ! git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+    _record SKIP "R9.4 tool surface changelog" "no origin/main to compare against"
+elif [ "$(git rev-list --count "$range")" -eq 0 ]; then
+    _record PASS "R9.4 tool surface changelog" "nothing unpushed to check"
+elif python3 scripts/surface_changelog.py "$range" >"$log" 2>&1; then
+    _record PASS "R9.4 tool surface changelog" "$(git rev-list --count "$range") commit(s)"
+else
+    _record FAIL "R9.4 tool surface changelog"
+    sed 's/^/      /' "$log" | head -10
+fi
+
 # Same range as R7.3; the script owns the empty-range refusal CI relies on (340). The branch name
 # is swept with it (424); a detached HEAD has none, and an empty ref is skipped.
 branch=$(git branch --show-current 2>/dev/null || true)

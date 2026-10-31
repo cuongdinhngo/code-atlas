@@ -97,6 +97,25 @@
 - Regenerable, versioned `artifact.json` under `.code-atlas/onboarding/` (`ARTIFACT_VERSION`;
   gitignored). The tour walk is bounded by `CA_IMPACT_MAX_NODES`; nothing else borrows that budget.
 
+## The tool surface is pinned (428)
+
+- **Annotations.** Every tool declares MCP annotations from one table in `code_atlas/main.py`: the
+  queries `readOnlyHint: true`; `build_or_update_index` and `generate_onboarding`
+  `readOnlyHint: false`, `idempotentHint: true`, and `generate_onboarding` alone `destructiveHint: true`
+  (it deletes the pages a previous run wrote). Every tool is `openWorldHint: false`. A tool absent from
+  the table fails server start.
+- **Closed schemas.** Each input schema has `additionalProperties: false`, closed domains as `enum`,
+  a `maxLength` of 4096 on any other string and a `maxItems` of 1000 on any array (a map such as
+  `records_filter` is bounded in keys and values). An unknown or wrongly typed argument is refused as a
+  tool error before the tool runs; `"10"` for an integer is not coerced.
+- **Errors** reach the client as an `isError` result naming the tool, never the exception text; a
+  refusal a tool raises on purpose (`ValueError`, such as a bad `path_prefix`) keeps its message.
+- **The manifest** `tests/fixtures/tool_manifest.json` holds each tool's name, description, schema and
+  annotations. After a change, run `python scripts/gen_tool_manifest.py` for the diff, then `--write`
+  to accept it; `tests/test_tool_manifest.py` fails on drift, and CI and `scripts/gate.sh` fail a
+  range that changes it without an added `CHANGELOG.md` line that says "tool surface" or names a
+  changed tool.
+
 ## What it cannot answer — reach for `grep` instead
 
 The verdict of the field retros ([protocol](runbooks/field-retro.md); the round corpus is kept

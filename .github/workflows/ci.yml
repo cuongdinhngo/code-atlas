@@ -408,6 +408,12 @@ jobs:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
         run: python3 scripts/attribution_markers.py "$RANGE"
 
+      - name: R9.4 — a tool-surface change carries a CHANGELOG line
+        if: github.event_name == 'pull_request'
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/surface_changelog.py "$RANGE"
+
       # 340: GitHub serves author/committer identity raw; 325's tree sweep never reads it.
       - name: R2.4 — no employer or client marker in a commit identity or ref name
         if: github.event_name == 'pull_request'
