@@ -24,6 +24,13 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   `npm audit --omit=dev` and `composer audit`, failing on any known vulnerability. The install floor
   moved to `fastmcp>=3.4.10,<4` and `mcp>=1.30.0`, above every published advisory (SEC-MCP-09). A
   user's `uv tool install git+…@vX.Y.Z` is unchanged; it resolves the new floors.
+- **The tool surface is pinned** (428). Every tool declares MCP annotations (queries read-only and
+  closed-world; `build_or_update_index` and `generate_onboarding` non-read-only, non-destructive,
+  idempotent), and every input schema is closed. Visible to a client: tool errors are masked to
+  `Error calling tool '<name>'`, an argument is validated against the schema before the tool runs
+  (a string for an integer is refused, not coerced), a free string over 4096 characters is refused,
+  and `find_callers` `arg_is` is an `enum`. No parameter was renamed. `tool_manifest.json` pins names,
+  descriptions and schemas; a range that changes it needs a line here.
 - **Installs and upgrades name a release tag** (427). The README, the plugin and the state hook give
   `git+…@vX.Y.Z` and `marketplace add cuongdinhngo/code-atlas#vX.Y.Z`, and the README says
   code-atlas is not the PyPI packages `code-atlas-mcp` or `codeatlas`.
