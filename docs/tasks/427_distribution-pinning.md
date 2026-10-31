@@ -184,6 +184,7 @@ tracked index through `load_config`; only the release check, which loads no conf
 Ran at d1c2b386
 
 ```
+# review-time record (an earlier tree by design; the final-tree run is in Phase 5)
 $ .venv/bin/python -m pytest -q tests/test_distribution_pinning.py tests/test_hook_offers_agree_across_hosts.py tests/test_security_standard.py
 127 passed in 2.61s
 ```
@@ -213,7 +214,20 @@ bump `seen` (P1): 410-C1, 414-C1 and 344-C3 each reach recurrence 2 — `/mango:
 `PROMOTION: 3 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md, docs/AGENT_BRIEF.md | mango files written: 0`
 
 **The final gate:** `scripts/gate.sh --fast` on the host (lint, types, guards) and the suite in Docker on the
-final tree — __DOCKER__
+final tree — one red run first: `test_refused_refresh_in_status.py` still passed the retired `pinned` slot to `screen_lines`
+(outside the implementer's targeted set), fixed in `3795bb81`.
+
+Ran at 3795bb81
+
+```
+$ scripts/docker-test.sh
+5224 passed, 8 skipped in 645.31s (0:10:45)
+$ PATH=.venv/bin:$PATH scripts/gate.sh --fast
+  16 passed · 0 failed · 2 skipped
+```
+
+Reviewed tree `d1c2b386` + the one-line test fix above; the stale-review guard's file set is unchanged
+(a test outside the reviewed set, no source file).
 
 ### Outward actions
 
