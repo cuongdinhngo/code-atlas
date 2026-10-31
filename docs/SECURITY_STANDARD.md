@@ -41,7 +41,7 @@ that depends on one is `open: 424`.
 | SEC-IN-11 | A read that crosses the trust line closes the check-then-use race (`O_NOFOLLOW`, or the opened descriptor's real path) | SHOULD | CWE-367 | open: 430 |
 | SEC-IN-12 | Files and directories code-atlas creates are user-only (`0700` directories, `0600` files) | SHOULD | OSPS Baseline | test: tests/test_index_artifact_trust.py::test_the_index_is_private; open: 430 |
 | SEC-IN-13 | Adapter subprocesses get a scrubbed environment: no API keys or tracker tokens | SHOULD | MCP Local Server Security §credentials | open: 430 |
-| SEC-IN-14 | git runs hardened on an untrusted repo (the repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden; no prompt), and a network git command never runs in the repo's working directory | MUST | git documentation; CVE-2024-32002 | test: tests/test_git_revision_arguments.py::test_every_call_carries_the_hardening; test: tests/test_git_revision_arguments.py::test_only_gitutil_runs_git; test: tests/test_git_revision_arguments.py::test_an_old_git_fails_loud; open: 427; open: 430 |
+| SEC-IN-14 | git runs hardened on an untrusted repo (the repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `diff.external` overridden; no prompt), and a network git command never runs in the repo's working directory | MUST | git documentation; CVE-2024-32002 | test: tests/test_git_revision_arguments.py::test_every_call_carries_the_hardening; test: tests/test_git_revision_arguments.py::test_only_gitutil_runs_git; test: tests/test_git_revision_arguments.py::test_an_old_git_fails_loud; test: tests/test_distribution_pinning.py::test_the_release_check_lists_tags_hardened_from_the_cache_directory; open: 430 |
 
 ## MCP — protocol and tool surface
 
@@ -72,14 +72,14 @@ that depends on one is `open: 424`.
 
 | ID | Criterion | Level | Source | Verified by |
 |---|---|---|---|---|
-| SEC-PL-01 | A hook activates on state the repo cannot ship (an index code-atlas built), not on a directory existing | MUST | Claude Code hooks §Security | open: 427 |
+| SEC-PL-01 | A hook activates on state the repo cannot ship (an index code-atlas built), not on a directory existing | MUST | Claude Code hooks §Security | test: tests/test_distribution_pinning.py::test_a_repo_shipping_its_index_keeps_every_hook_silent; test: tests/test_distribution_pinning.py::test_the_gate_wakes_on_the_database_not_the_directory; test: tests/test_distribution_pinning.py::test_the_release_check_loads_the_project_index_first |
 | SEC-PL-02 | Hook commands quote their variables, stay fast and make no network call on the session's path | MUST | Claude Code hooks §Security | test: tests/test_claude_code_plugin.py::test_every_plugin_hook_is_gated_and_names_a_declared_script; test: tests/test_claude_code_plugin.py::test_each_hook_is_silent_in_a_repo_with_no_index; open: 427 |
-| SEC-PL-03 | The plugin runs the server release it shipped with; a mismatch refuses to start rather than warns | SHOULD | MCP Local Server Security §provenance; OWASP Agentic ASI04 | open: 427 |
-| SEC-PL-04 | Every install and upgrade line names a release tag; nothing tells a user to unpin | MUST | Scorecard Pinned-Dependencies | open: 427 |
-| SEC-PL-05 | No advice to auto-update the marketplace while it tracks a branch | SHOULD | OWASP Agentic ASI04 | open: 427 |
+| SEC-PL-03 | The plugin runs the server release it shipped with; a mismatch refuses to start rather than warns | SHOULD | MCP Local Server Security §provenance; OWASP Agentic ASI04 | test: tests/test_distribution_pinning.py::test_a_server_of_another_release_refuses_with_the_one_command; test: tests/test_distribution_pinning.py::test_a_server_of_the_plugins_release_serves |
+| SEC-PL-04 | Every install and upgrade line names a release tag; nothing tells a user to unpin | MUST | Scorecard Pinned-Dependencies | test: tests/test_distribution_pinning.py::test_every_install_and_upgrade_line_names_this_release; test: tests/test_distribution_pinning.py::test_the_state_hook_upgrade_lines_name_the_tagged_reinstall |
+| SEC-PL-05 | No advice to auto-update the marketplace while it tracks a branch | SHOULD | OWASP Agentic ASI04 | test: tests/test_distribution_pinning.py::test_no_doc_advises_auto_update |
 | SEC-PL-06 | `claude plugin validate --strict` passes in CI | SHOULD | Claude Code plugins reference | open: 424 |
-| SEC-PL-07 | Skill text never tells the agent to auto-approve, widen permissions or follow tool output as instructions | MUST | OWASP Agentic Skills Top 10 | open: 427 |
-| SEC-PL-08 | Other hosts' snippets carry the same gates as the Claude Code hooks | SHOULD | Claude Code hooks §Security | test: tests/test_hook_offers_agree_across_hosts.py::test_every_host_offers_the_same_hook_commands; open: 427 |
+| SEC-PL-07 | Skill text never tells the agent to auto-approve, widen permissions or follow tool output as instructions | MUST | OWASP Agentic Skills Top 10 | test: tests/test_distribution_pinning.py::test_each_skill_lint_pattern_matches_its_planted_sentence; test: tests/test_distribution_pinning.py::test_no_shipped_skill_or_hook_text_tells_the_agent_to_widen_its_permissions |
+| SEC-PL-08 | Other hosts' snippets carry the same gates as the Claude Code hooks | SHOULD | Claude Code hooks §Security | test: tests/test_hook_offers_agree_across_hosts.py::test_every_host_offers_the_same_hook_commands; test: tests/test_hook_offers_agree_across_hosts.py::test_every_codex_command_starts_with_the_plugin_gate; test: tests/test_hook_offers_agree_across_hosts.py::test_the_opencode_plugin_tests_the_same_database_before_it_spawns |
 
 ## SC — supply chain, CI and release
 
@@ -122,4 +122,4 @@ that depends on one is `open: 424`.
 | SEC-GV-04 | The maintainer account uses 2FA and the repo has no other admin | MUST | OSPS-AC-01, OSPS-AC-02 | open: 424 |
 | SEC-GV-05 | Supported versions are stated | SHOULD | OSPS-DO-04, OSPS-DO-05 | doc: SECURITY.md#Supported versions |
 | SEC-GV-06 | Users are told which client-side controls to keep on | SHOULD | MCP Tools §User interaction; OWASP MCP Security Cheat Sheet §4 | doc: SECURITY.md#Client-side controls |
-| SEC-GV-07 | No doc tells a user to install from PyPI by name; the README says look-alike packages are not code-atlas | MUST | typosquatting defence | open: 427 |
+| SEC-GV-07 | No doc tells a user to install from PyPI by name; the README says look-alike packages are not code-atlas | MUST | typosquatting defence | test: tests/test_distribution_pinning.py::test_every_install_and_upgrade_line_names_this_release; test: tests/test_distribution_pinning.py::test_the_readme_names_the_look_alike_packages |

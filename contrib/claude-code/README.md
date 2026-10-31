@@ -27,13 +27,13 @@ PreToolUse hook's plain stdout (346).
 
 ## Install as a plugin (344) — the server, these hooks and the skill, for every project
 
-1. Put the console scripts on `PATH`: `uv tool install git+https://github.com/cuongdinhngo/code-atlas.git`
-   (or `pipx install …`). The plugin names them, and a venv's scripts are not on `PATH`.
-2. `claude plugin marketplace add cuongdinhngo/code-atlas`, then
+1. Put the console scripts on `PATH`: `uv tool install git+https://github.com/cuongdinhngo/code-atlas.git@v0.9.1`
+   (or `pipx install …@v0.9.1`). The plugin names them, and a venv's scripts are not on `PATH`.
+2. `claude plugin marketplace add cuongdinhngo/code-atlas#v0.9.1`, then
    `claude plugin install code-atlas@code-atlas` (or `/plugin` inside a session).
 
 [`plugin/`](plugin/) is generated from the same table as the snippet below, and each command — the
-snippet's too — is gated on `${CLAUDE_PROJECT_DIR}/.code-atlas`, then on its script being on `PATH`,
+snippet's too — is gated on `${CLAUDE_PROJECT_DIR}/.code-atlas/graph.db` (which the hook then refuses when git tracks it, 427), then on its script being on `PATH`,
 so a repo with no index pays one shell test (~1.5 ms) and spawns no Python. An indexed repo whose `PATH` lacks the console scripts gets one `SessionStart`
 line naming step 1, and every hook exits 0 (376). Two plugin-only hooks run at `SessionStart`:
 `code-atlas-refresh` in the background, and `code-atlas-release-check`, which says when a newer

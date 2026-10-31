@@ -17,6 +17,22 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+### Security
+
+- **Installs and upgrades name a release tag** (427). The README, the plugin and the state hook give
+  `git+…@vX.Y.Z` and `marketplace add cuongdinhngo/code-atlas#vX.Y.Z`, and the README says
+  code-atlas is not the PyPI packages `code-atlas-mcp` or `codeatlas`.
+- **The server refuses a mismatched plugin** (427). The plugin launches `code-atlas --expect-version`;
+  a server of another release exits 2 with the reinstall command instead of warning.
+- **Hooks wake on the index database** (427), not the `.code-atlas/` directory, in the plugin, the
+  Codex and OpenCode snippets; one git tracks stays silent.
+- **The release check's `git ls-remote` runs hardened** (427), from the cache directory.
+
+### Changed
+
+- The state hook's upgrade lines are the tagged reinstalls; the "pinned install" line is gone, as it
+  told you to unpin. The README no longer advises auto-update.
+
 ## 0.9.1 — 2026-10-29 · contract 20 · schema 9
 
 ### Security
