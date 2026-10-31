@@ -150,7 +150,7 @@ def test_a_ruleset_that_vanished_reads_as_every_rule_missing() -> None:
 
 def test_an_unknown_set_name_is_an_error_not_a_pass() -> None:
     with pytest.raises(sd.SettingsError, match="no reader"):
-        sd.drift({"rulesets.main.invented": ("true", "SEC-XX-01")}, _fetch(LIVE), REPO)
+        sd.drift({"rulesets.main.invented": ("true", "SEC-GV-99")}, _fetch(LIVE), REPO)
 
 
 def test_a_malformed_or_conflicting_set_item_is_an_error() -> None:
