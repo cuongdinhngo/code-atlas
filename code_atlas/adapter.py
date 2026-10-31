@@ -404,7 +404,7 @@ class SubprocessAdapter:
                 )
             if len(line) >= MAX_REPLY_BYTES and not line.endswith("\n"):
                 raise ReplyTooLong(
-                    f"adapter {self._key!r} replied with a line over {MAX_REPLY_BYTES} bytes; "
+                    f"adapter {self._key!r} replied with a line over {MAX_REPLY_BYTES} characters; "
                     "the file is not indexed"
                 )
             if line.strip():

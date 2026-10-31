@@ -22,7 +22,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **Python dependencies are locked and audited** (425). `uv.lock` pins every package with hashes; CI
   and both Docker images install from it, and CI and `scripts/gate.sh` run `pip-audit`,
   `npm audit --omit=dev` and `composer audit`, failing on any known vulnerability. The install floor
-  moved to `fastmcp>=3.4.10,<4` and `mcp>=1.30.0`, above every published advisory (SEC-MCP-09). A
+  moved to `fastmcp>=3.4.10,<4` and `mcp>=1.30.0,<2`, above every published advisory (SEC-MCP-09). A
   user's `uv tool install git+…@vX.Y.Z` is unchanged; it resolves the new floors.
 - **The tool surface is pinned** (428). Every tool declares MCP annotations (all closed-world; queries
   read-only; `build_or_update_index` and `generate_onboarding` non-read-only and idempotent, the
@@ -40,7 +40,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **The server refuses a mismatched plugin** (427). The plugin launches `code-atlas --expect-version`;
   a server of another release exits 2 with the reinstall command instead of warning.
 - **Hooks wake on the index database** (427), not the `.code-atlas/` directory, in the plugin, the
-  Codex and OpenCode snippets; one git tracks stays silent.
+  Codex and OpenCode snippets; one git tracks stays silent. An index moved by `CA_DB_PATH` gets no hooks.
 - **The release check's `git ls-remote` runs hardened** (427), from the cache directory.
 - **A source file above `CA_MAX_FILE_BYTES` is skipped, never parsed** (430). The default is 4 MiB; the
   count shows as `skipped.oversize` in `get_index_status` and the build summary. An adapter reply
@@ -51,7 +51,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **Caps in `.code-atlas.toml` are clamped to a ceiling** (430) in `code_atlas/limits.py`; the
   environment is not clamped.
 - **Stub roots and read-through repair stay inside the repo** (430), and a read that crosses the
-  trust line opens with `O_NOFOLLOW` and checks the descriptor it got.
+  trust line opens with `O_NOFOLLOW`, checks the descriptor it got (on Linux and macOS, its real
+  path, so a swapped parent directory is refused), and refuses a file over 64 MiB.
 - **`host_root` and `container_root` in `.code-atlas.toml` need `CA_TRUST_PROJECT_FILE=1`** (430),
   like `[adapter_cmd]`; the environment variables work as before.
 - **Adapters start with an allow-listed environment and git without `GIT_*`** (430): no `*_TOKEN`,

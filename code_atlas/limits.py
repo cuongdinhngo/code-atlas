@@ -16,7 +16,7 @@ _sre: Any = importlib.import_module("re._parser")
 DEFAULT_MAX_FILE_BYTES = 4 * 1024 * 1024
 # A project file may lower the file cap, never raise it past this.
 MAX_FILE_BYTES_CEILING = 64 * 1024 * 1024
-# One adapter reply line. A longer one fails that file loudly and the process is replaced.
+# One adapter reply line, in characters (the pipe is text). Longer fails the file; the process goes.
 MAX_REPLY_BYTES = 64 * 1024 * 1024
 
 MAX_PATTERN_CHARS = 512
