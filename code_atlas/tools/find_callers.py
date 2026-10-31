@@ -89,6 +89,9 @@ from code_atlas.tools.nav_result import (
 )
 
 NAME = "find_callers"
+
+# The closed set `arg_is` takes; `tests/test_tool_surface.py` pins it to `ARG_SELECTORS` (428).
+ArgSelector = Literal["null", "true", "false", "number", "string", "array", "absent", "dynamic"]
 # A bare name answers to its one Function (a stored procedure, say) — 392.
 BARE_CALLER_KINDS = tuple(kind for kind in BARE_SUBJECT_KINDS if kind in CALLABLE_KINDS)
 
@@ -128,7 +131,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         include_source: bool = False,
         arg_position: int | None = None,
-        arg_is: str | None = None,
+        arg_is: ArgSelector | None = None,
         confidence_tier: ConfidenceTier | None = None,
         limit: int | None = None,
         offset: int = 0,
