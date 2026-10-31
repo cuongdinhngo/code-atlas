@@ -6,7 +6,7 @@
 # The server indexes its working directory (/workspace) and writes .code-atlas/graph.db there.
 
 # ---- stage 1: resolve the PHP adapter's vendor tree (composer needed here only) ----
-FROM python:3.12-slim-bookworm AS adapter-deps
+FROM python:3.15-slim-bookworm AS adapter-deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml curl git unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -17,7 +17,7 @@ COPY adapters/php/composer.json adapters/php/composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress
 
 # ---- stage 2: lean runtime — server + adapter only ----
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml \
     && rm -rf /var/lib/apt/lists/*

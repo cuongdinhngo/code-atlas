@@ -1,7 +1,7 @@
 # code-atlas test/dev image — Linux, so the FULL suite runs (POSIX `fcntl`) with the PHP adapter
 # present. Mirrors CI's "lint · type · test" job: ruff · mypy · pytest, plus the adapter's composer
 # deps so the `needs_php` integration tests run instead of skipping.
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 # PHP CLI + the extensions nikic/php-parser and composer need; git/unzip/curl for composer itself.
 # Debian bookworm ships PHP 8.2 (composer.json requires >=8.1); CI uses 8.3 — the pinned parser
