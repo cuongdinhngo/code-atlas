@@ -194,7 +194,19 @@ and 424-C1's (a line the sweep cannot classify fails). Both bump `seen` (P1).
 `RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
 
-**The final gate:** __DOCKER__
+**The final gate:** the suite in Docker on the final tree, and the fast gate (audits included) on the host.
+
+Ran at 42fa2351
+
+```
+$ scripts/docker-test.sh
+5474 passed, 8 skipped in 664.70s (0:11:04)
+$ PATH=.venv/bin:$PATH scripts/gate.sh --fast
+  20 passed · 0 failed · 2 skipped
+```
+
+`42fa2351` adds only the bookkeeping and `PYSEC` to the tracker-key guard's standard prefixes (the AC4 record quotes
+pip-audit's PyPA ids) on top of the reviewed `c898efe4`.
 
 ### Outward actions
 
