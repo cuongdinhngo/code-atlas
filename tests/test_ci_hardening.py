@@ -87,8 +87,7 @@ def _value(lines: list[str], i: int, ind: int, rest: str) -> tuple[Any, int]:
         return _scalar(" ".join(parts)), j
     j = _skip(lines, i + 1)
     if j < len(lines) and (
-        _indent(lines[j]) > ind
-        or (_indent(lines[j]) == ind and lines[j].lstrip().startswith("- "))
+        _indent(lines[j]) > ind or (_indent(lines[j]) == ind and lines[j].lstrip().startswith("- "))
     ):
         return _node(lines, j)
     return None, i + 1
@@ -321,7 +320,7 @@ def test_the_reader_reads_the_shapes_the_workflows_use() -> None:
     doc = load(
         "on: [push]\njobs:\n  a:\n    steps:\n"
         "      - name: x # note\n        run: python -m x\n          -y 'z'\n"
-        "      - uses: q/r@" + SHA + " # v1.0.0\n        with:\n          k: \"v\"\n"
+        "      - uses: q/r@" + SHA + ' # v1.0.0\n        with:\n          k: "v"\n'
     )
     steps = doc["jobs"]["a"]["steps"]
     assert doc["on"] == ["push"]

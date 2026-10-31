@@ -101,6 +101,14 @@ revision only as a full object id (or the literal `HEAD`), after `--end-of-optio
 - `git ls-remote` — the release check above; it runs from code-atlas's own cache directory,
   never the indexed repo, with the same hardening.
 
+## Supply chain
+
+CI cannot be steered by a moved tag or a leaked token: every GitHub Action is pinned to a commit
+SHA, every workflow reads the repository and only a job with no pull-request code writes, and no
+checkout keeps its token. Dependabot, CodeQL and OpenSSF Scorecard run weekly, and a weekly job reads
+the repository's rulesets, private reporting, secret scanning and admins back against
+[`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), opening an issue on a difference.
+
 ## Client-side controls
 
 Keep these on in your MCP client:

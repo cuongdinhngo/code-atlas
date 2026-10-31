@@ -42,6 +42,20 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **Adapters start with an allow-listed environment and git without `GIT_*`** (430): no `*_TOKEN`,
   `*_KEY`, `ANTHROPIC_*` or `GH_*` reaches an adapter. This includes the release check's fetch.
 - **The onboarding cache under `.code-atlas/onboarding/` is `0700`/`0600`** (430) and refuses a link.
+- **CI is pinned and least-privilege** (424). Every `uses:` is a full commit SHA with its version,
+  each workflow holds `contents: read` at the top, no checkout keeps its token, and no `run:` reads an
+  event expression. The tokens-to-answer ratio is now in the job summary, not a PR comment, because
+  the comment needed a write token beside PR code.
+- **Dependabot, CodeQL and OpenSSF Scorecard** (424): weekly updates for pip, both npm adapters,
+  composer, Actions and Docker; CodeQL on Python and JavaScript/TypeScript; Scorecard to code scanning.
+- **A weekly settings-drift check** (424) reads the `main` and `v*` rulesets, private reporting, secret
+  scanning, push protection, Dependabot security updates, `sha_pinning_required` and the repo's admins
+  against the standard's new `set:` items, and opens an issue on a difference. It needs the repository
+  secret `SETTINGS_READ_TOKEN` (fine-grained, Administration: read).
+- **The identity sweep reads branch and pull-request head ref names** (424), not only commits and files.
+- **New guards** (424): no `eval`, `exec`, `pickle`, unsafe YAML or dynamic import under `code_atlas/`
+  and `adapters/`; no committed binary outside a named allow-list; `store.py` binds every value; the
+  plugin passes `claude plugin validate --strict` in CI.
 
 ### Changed
 
