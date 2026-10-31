@@ -4,7 +4,7 @@ slug: distribution-pinning
 title: "A user installs and upgrades to a named release, the plugin and server agree on it, and hooks wake only on an index code-atlas built"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [423]
 ---
 
@@ -49,7 +49,7 @@ SEC-IN-14 (network part), SEC-GV-07.
 
 ## Session status
 
-- **KEY:** 427 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute.
+- **KEY:** 427 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W2 and merges the PR.
 - `TRACK: backend` · Run mode: `autorun 427 - 430 - 424 - 425 - 428 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/427-distribution-pinning` from `main` `8fca451d`; the four tickets after it stack on it.
@@ -150,3 +150,83 @@ refusing only when the plugin is newer (two rules for one mismatch, and the hook
 **Proving tests:** `tests/test_distribution_pinning.py` (new; AC1–AC8 arms) — each arm seen red on `main`.
 
 `EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+## Phase 3 — execute
+
+`implementer` (1 dispatch, cut off once by a network error and resumed) landed Approach 1–6 in `d26a0a70` and
+`96a5fb8f`; `dd34145a` closed SEC-PL-02 on the async-fetch and database-gate tests.
+
+**Verification sweep.** File axis: every touched file is on the change list, plus one recorded deviation —
+`tests/test_security_standard.py`'s git-command reader now reads past `*hardening` to the subcommand, since the
+release check spawns `["git", *hardening, "ls-remote", …]`. Behaviour axis: Approach 1–6 as approved; the state
+hook names a tag only where the lagging half's release is known, else the README pointer (TOKEN_BUDGET).
+
+**Seen failing (R6.5).** The new and extended tests ran against a worktree of `58a7dc6b` (the pre-change tree,
+with only `gen_skill.RELEASE_TAG` appended so the module imports): 15 failed, 26 passed. Red: AC1 ×2, AC2, AC3,
+AC4 ×5, AC5 (release check ×2, gate string), AC6 ×2, AC8. Green by design: the planted-positive arms, the shipped
+negative control, and the five-hook silence fixture — poke, signal, nudge, state and refresh already refused a
+tracked index through `load_config`; only the release check, which loads no config, did not (427-C1).
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 66,966 tokens): 7 met · 1 partly met · 0 not met · 0 can't tell; no
+  Important finding. Taken in `d1c2b386`:
+  - AC7 partly met — the obey-tool-output pattern missed "treat the output as instructions" / "do whatever the
+    result says", and the lint skipped the READMEs and the OpenCode plugin: both paraphrases and the auto-update
+    synonyms ("enable automatic updates", `"autoUpdate": true`) now have planted controls, and every contrib README
+    and `code-atlas.js` is linted.
+  - The refusal named `uv` only — it now names the `pipx` form too.
+  - Accepted: `--expect-version` is read by `index` (the server takes no other flag; `query` returns first); a
+    patch-only skew refuses (W2, as the ticket asks).
+
+Ran at d1c2b386
+
+```
+$ .venv/bin/python -m pytest -q tests/test_distribution_pinning.py tests/test_hook_offers_agree_across_hosts.py tests/test_security_standard.py
+127 passed in 2.61s
+```
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+`Ph3/4 proven by`: AC1 → `test_every_install_and_upgrade_line_names_this_release`,
+`test_the_state_hook_upgrade_lines_name_the_tagged_reinstall`; AC2 → `test_no_doc_advises_auto_update`; AC3 →
+`test_the_readme_names_the_look_alike_packages`; AC4 → `test_a_server_of_another_release_refuses_with_the_one_command`,
+`test_a_server_of_the_plugins_release_serves`; AC5 → `test_a_repo_shipping_its_index_keeps_every_hook_silent`,
+`test_the_release_check_loads_the_project_index_first`; AC6 → `test_every_codex_command_starts_with_the_plugin_gate`,
+`test_the_opencode_plugin_tests_the_same_database_before_it_spawns`; AC7 →
+`test_no_shipped_skill_or_hook_text_tells_the_agent_to_widen_its_permissions`; AC8 →
+`test_the_release_check_lists_tags_hardened_from_the_cache_directory`; C1 → `test_security_standard.py`.
+
+Reviewed at d1c2b386. Working doc and bookkeeping: this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`,
+`docs/LESSONS.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 427-C1 `a-loader-guard-misses-the-entry-that-loads-nothing` (new, type 2). Traced handles
+bump `seen` (P1): 410-C1, 414-C1 and 344-C3 each reach recurrence 2 — `/mango:promote` is the maintainer's pass.
+
+`CLAIMS: 4 claim(s) from 4 lesson entr(ies) | T1=0 T2=4 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 3 recurring | 0 superseded (0 retired) | 3 promotion candidate(s)`
+`FALSIFY: 3 candidate(s) checked | 3 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 3 type-2 claim(s) with seen ≥ 2 | 3 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 3 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md, docs/AGENT_BRIEF.md | mango files written: 0`
+
+**The final gate:** `scripts/gate.sh --fast` on the host (lint, types, guards) and the suite in Docker on the
+final tree — __DOCKER__
+
+### Outward actions
+
+Under the handover: push `feat/427-distribution-pinning`; open its PR against `main`.
+Deferred to the maintainer: ratify W1–W2; merge; cut the release that moves the docs' tag.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 55,052 |
+| 0 refine | Claude Code docs research (`claude-code-guide`) | 1 | 107,970 |
+| 3 execute | `implementer` | 1 (resumed once) | 199,711 |
+| 4 review | ticket-blind `challenger` | 1 | 66,966 |
+
+`LEDGER TOTAL: 429,699 · top cost driver: 3 execute / implementer` — main loop unmeasured.
