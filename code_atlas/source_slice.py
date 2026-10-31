@@ -10,7 +10,7 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
-from code_atlas.containment import resolves_inside
+from code_atlas.containment import read_bytes, resolves_inside
 
 # One site for the body-size default (288 / R6.7). Above this, ``read_symbol`` elides by default.
 # 600 keeps the field's decisive 508-line read whole and degrades the wasteful 720-line case.
@@ -41,7 +41,7 @@ def comment_block(path: Path, line_start: int, *, root: Path) -> str:
     """Contiguous comment lines immediately above ``line_start`` (1-based), joined with newlines."""
     if not readable(root, path) or line_start < 1:
         return ""
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    lines = _lines(root, path)
     if line_start > len(lines):
         return ""
     top = _comment_top(lines, line_start)
@@ -60,12 +60,25 @@ def declaration_slice(
     """
     if not readable(root, path):
         return ""
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    lines = _lines(root, path)
     if line_start < 1 or line_start > len(lines):
         return ""
     end = min(max(line_end, line_start), len(lines))
     top = _comment_top(lines, line_start) if include_comments else line_start
     return "".join(lines[top - 1 : end])
+
+
+def _lines(root: Path, path: Path) -> list[str]:
+    """The file's lines, read through ``read_bytes`` so a link swapped in since the check fails.
+
+    Universal newlines, as ``read_text`` gave; a refused or failed read is no lines (430).
+    """
+    try:
+        raw = read_bytes(root, path)
+    except OSError:
+        return []
+    text = raw.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+    return text.splitlines(keepends=True)
 
 
 def readable(root: Path, path: Path) -> bool:

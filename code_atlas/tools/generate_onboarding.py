@@ -18,7 +18,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from code_atlas.config import Config, as_working_roots
-from code_atlas.containment import require_writable
+from code_atlas.containment import make_private_dir, require_writable, safe_write
 from code_atlas.contract import split_qname
 from code_atlas.onboarding.architecture_diff import (
     MANIFEST_KEYS,
@@ -460,10 +460,8 @@ def _write(
     cache = root / CACHE_DIR
     for level in (cache.parent, cache):
         require_writable(root, level)
-    cache.mkdir(parents=True, exist_ok=True)
-    require_writable(root, cache / CACHE_NAME).write_text(
-        cache_json(artifact), encoding="utf-8", newline="\n"
-    )
+    make_private_dir(cache)
+    safe_write(require_writable(root, cache / CACHE_NAME), cache_json(artifact), root=root)
     return tuple(sorted(written))
 
 

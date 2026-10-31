@@ -5,25 +5,36 @@ The indexed repo is untrusted content and git stores symlinks, so a committed li
 the one containment rule; each read or write site asks it rather than carrying its own check.
 
 Every file the index keeps is opened here (420): the file itself never through a link, its
-directory a real one inside the given root, created private to the user. The onboarding cache
-beside it is ``generate_onboarding``'s, guarded by ``require_writable`` instead.
+directory a real one inside the given root, created private to the user. ``generate_onboarding``'s
+cache is written the same way (430); its page tree is guarded by ``require_writable``.
+Reads that cross the trust line go through :func:`open_inside` (430).
 """
 
 import contextlib
 import errno
 import os
 import secrets
+import sys
 from pathlib import Path
+from typing import BinaryIO
+
+from code_atlas.limits import MAX_FILE_BYTES_CEILING
 
 PRIVATE_DIR = 0o700
 PRIVATE_FILE = 0o600
 # Windows has neither flag; there a link is refused by a check before the open instead.
 _NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
 _PLATFORM_FLAGS = getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_BINARY", 0)
+# No read through the trust line returns more than this; a source file has its own, lower cap.
+MAX_READ_BYTES = MAX_FILE_BYTES_CEILING
 
 
 class UnsafeWrite(OSError):
     """A write that would follow a link or leave its root. An ``OSError``, so best-effort stays."""
+
+
+class UnsafeRead(OSError):
+    """A read that follows a link, leaves its root, or opens a file other than the one checked."""
 
 
 def resolves_inside(root: Path, path: Path) -> bool:
@@ -93,3 +104,58 @@ def safe_append(path: Path, text: str, *, root: Path | None = None) -> None:
     descriptor = safe_open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, root=root)
     with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
         handle.write(text)
+
+
+def _descriptor_path(descriptor: int) -> str | None:
+    """Where an open descriptor really is, from the kernel; ``None`` where it cannot say."""
+    proc = f"/proc/self/fd/{descriptor}"
+    if os.path.islink(proc):
+        return os.readlink(proc)
+    if sys.platform == "darwin":
+        import fcntl
+
+        return os.fsdecode(fcntl.fcntl(descriptor, fcntl.F_GETPATH, bytes(1024))).rstrip("\0")
+    return None
+
+
+def open_inside(root: Path, path: Path) -> BinaryIO:
+    """``path`` opened for reading only if it resolves inside ``root`` and is what was checked.
+
+    The final link is never followed, and the open descriptor must be the file the resolved path
+    names and, where the kernel reports it, inside ``root``: a swapped parent is refused too (430).
+    """
+    if not resolves_inside(root, path):
+        raise UnsafeRead(errno.ELOOP, "refusing to read outside the indexed repo", str(path))
+    resolved = path.resolve()
+    descriptor = os.open(resolved, os.O_RDONLY | _NOFOLLOW | _PLATFORM_FLAGS)
+    try:
+        opened, named = os.fstat(descriptor), os.stat(resolved)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise UnsafeRead(errno.ELOOP, "the file changed while it was opened", str(path))
+        actual = _descriptor_path(descriptor)
+        if actual is not None and not Path(actual).is_relative_to(root.resolve()):
+            raise UnsafeRead(errno.ELOOP, "the file changed while it was opened", str(path))
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return os.fdopen(descriptor, "rb")
+
+
+def read_text(
+    root: Path, path: Path, *, errors: str = "strict", limit: int = MAX_READ_BYTES
+) -> str:
+    """UTF-8 text of ``path`` through :func:`open_inside`, newlines translated as ``open`` does."""
+    text = read_bytes(root, path, limit=limit).decode("utf-8", errors=errors)
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def read_bytes(root: Path, path: Path, *, limit: int = MAX_READ_BYTES) -> bytes:
+    """The bytes of ``path`` read through :func:`open_inside`; ``UnsafeRead`` when it is refused.
+
+    A file over ``limit`` is refused whole, never truncated: a partial file reads as complete.
+    """
+    with open_inside(root, path) as handle:
+        data = handle.read(limit + 1)
+    if len(data) > limit:
+        raise UnsafeRead(errno.EFBIG, f"refusing to read over {limit} bytes", str(path))
+    return data

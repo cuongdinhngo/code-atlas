@@ -82,7 +82,7 @@ def fetch(remote: str, *, now: float | None = None) -> str | None:
         capture_output=True,
         text=True,
         timeout=FETCH_TIMEOUT_S,
-        env={**os.environ, **gitutil.HARDENED_ENV},
+        env=gitutil.git_env(),
         cwd=cache_path().parent,
         check=True,
     )

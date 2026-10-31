@@ -136,6 +136,10 @@ def _connect(
     if schema_distrust_supported():
         conn.execute("PRAGMA trusted_schema=OFF")
     conn.setconfig(sqlite3.SQLITE_DBCONFIG_DEFENSIVE, True)
+    # Some builds leave the C-API loader on by default; a loaded extension is native code (430).
+    conn.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, False)
+    if hasattr(conn, "enable_load_extension"):
+        conn.enable_load_extension(False)
     return conn
 
 

@@ -10,22 +10,52 @@ launch, a child that died, a reply for the wrong path — raises :class:`Adapter
 """
 
 import json
+import os
+import queue
 import subprocess
+import threading
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import IO, Protocol, runtime_checkable
 
 from code_atlas import contract
-from code_atlas.config import ConfigError, to_adapter_path
+from code_atlas.config import DEFAULT_ADAPTER_TIMEOUT, ConfigError, to_adapter_path
+from code_atlas.limits import MAX_REPLY_BYTES
 
 # Escalation budget for stop(); module-level so a test can shorten the wait on a deliberate hang.
 STOP_TIMEOUT = 5.0
 KILL_TIMEOUT = 2.0
 
 
+# What an adapter inherits from the host, and nothing else: no `*_TOKEN`, `*_KEY`, `ANTHROPIC_*`
+# or `GH_*`, and no `CA_*` either: no adapter reads the environment (430).
+ADAPTER_ENV_NAMES = frozenset(
+    {
+        "PATH", "HOME", "USER", "LOGNAME", "LANG", "TZ", "TMPDIR", "TMP", "TEMP",
+        "SYSTEMROOT", "COMSPEC", "PATHEXT", "WINDIR", "APPDATA", "LOCALAPPDATA", "USERPROFILE",
+        "COMPOSER_HOME", "NODE_PATH",
+    }
+)  # fmt: skip
+ADAPTER_ENV_PREFIXES = ("LC_",)
+
+
+def adapter_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The allow-listed environment an adapter process is started with (430)."""
+    source = os.environ if environ is None else environ
+    return {
+        name: value
+        for name, value in source.items()
+        if name.upper() in ADAPTER_ENV_NAMES or name.upper().startswith(ADAPTER_ENV_PREFIXES)
+    }
+
+
 class AdapterError(Exception):
     """A broken adapter process or command — a config/programmer error, so it fails loud (R5.3)."""
+
+
+class ReplyTooLong(AdapterError):
+    """One adapter reply line reached the cap; the stream is now mid-line and cannot be trusted."""
 
 
 class AdapterContractError(AdapterError):
@@ -125,6 +155,7 @@ class SubprocessAdapter:
         host_root: Path | None = None,
         container_root: Path | None = None,
         stderr_path: Path | None = None,
+        handshake_timeout: float = DEFAULT_ADAPTER_TIMEOUT,
     ) -> None:
         # `key` is only the configuration key and error label; the adapter's real name arrives in
         # the handshake, so the core never has to agree with the user about what a language is.
@@ -134,6 +165,7 @@ class SubprocessAdapter:
         self._host_root = host_root
         self._container_root = container_root
         self._stderr_path = stderr_path
+        self._handshake_timeout = handshake_timeout
         self._process: subprocess.Popen[str] | None = None
         self._killed = False
         self._stderr: IO[str] | None = None
@@ -176,6 +208,7 @@ class SubprocessAdapter:
                 text=True,
                 encoding="utf-8",
                 bufsize=1,
+                env=adapter_env(),
             )
         except OSError as error:
             self._close_stderr()
@@ -214,6 +247,9 @@ class SubprocessAdapter:
             line = self._read_line(process)
         except UnicodeDecodeError as error:
             return _failure(path, f"adapter emitted undecodable output ({error})")
+        except ReplyTooLong as error:
+            self._restart()
+            return _failure(path, str(error))
         try:
             reply = json.loads(line)
         except json.JSONDecodeError as error:
@@ -270,10 +306,24 @@ class SubprocessAdapter:
             self._stderr.close()
             self._stderr = None
 
-    def _read_handshake(self) -> dict[str, object]:
-        """Read and check the one meta line an adapter opens with (§4.1)."""
+    def _restart(self) -> None:
+        """Replace a process whose stream is mid-line; a failed launch leaves it for the caller."""
+        process, announced = self._process, self._meta
+        if process is not None:
+            process.kill()
+        self.stop()
         try:
-            meta = json.loads(self._read_line(self._running()))
+            self.start()
+        except AdapterError:
+            self._meta = announced  # the name is still true; the next request fails loud
+
+    def _read_handshake(self) -> dict[str, object]:
+        """Read and check the one meta line an adapter opens with (§4.1).
+
+        Bounded by ``handshake_timeout`` whether or not a build's watchdog guards the call (430).
+        """
+        try:
+            meta = json.loads(self._read_line_within(self._running(), self._handshake_timeout))
         except (AdapterError, UnicodeDecodeError, json.JSONDecodeError) as error:
             self.stop()
             raise AdapterError(f"adapter {self._key!r} did not announce itself: {error}") from error
@@ -315,14 +365,47 @@ class SubprocessAdapter:
                 f"adapter {self._key!r} stopped accepting requests at {path!r} ({error})"
             ) from error
 
+    def _read_line_within(self, process: subprocess.Popen[str], timeout: float) -> str:
+        """:meth:`_read_line` on a thread; a silent adapter is killed once ``timeout`` runs out."""
+        box: queue.Queue[tuple[str | None, BaseException | None]] = queue.Queue(maxsize=1)
+
+        def read() -> None:
+            try:
+                box.put((self._read_line(process), None))
+            except BaseException as error:  # handed to the caller's thread, which re-raises it
+                box.put((None, error))
+
+        reader = threading.Thread(target=read, name="code-atlas-handshake", daemon=True)
+        reader.start()
+        try:
+            line, error = box.get(timeout=timeout)
+        except queue.Empty:
+            self.kill()  # the parked read returns once the child dies
+            reader.join(KILL_TIMEOUT)
+            raise AdapterError(
+                f"adapter {self._key!r} announced nothing within {timeout:g}s (adapter_timeout)"
+            ) from None
+        if error is not None:
+            raise error
+        assert line is not None
+        return line
+
     def _read_line(self, process: subprocess.Popen[str]) -> str:
-        """The next non-blank line, or a loud failure when the adapter has gone away."""
+        """The next non-blank line, or a loud failure when the adapter has gone away.
+
+        A line that reaches ``MAX_REPLY_BYTES`` raises :class:`ReplyTooLong` (430).
+        """
         assert process.stdout is not None
         while True:
-            line = process.stdout.readline()
+            line = process.stdout.readline(MAX_REPLY_BYTES)
             if not line:
                 raise AdapterError(
                     f"adapter {self._key!r} exited (code {process.poll()}) with the stream open"
+                )
+            if len(line) >= MAX_REPLY_BYTES and not line.endswith("\n"):
+                raise ReplyTooLong(
+                    f"adapter {self._key!r} replied with a line over {MAX_REPLY_BYTES} characters; "
+                    "the file is not indexed"
                 )
             if line.strip():
                 return line

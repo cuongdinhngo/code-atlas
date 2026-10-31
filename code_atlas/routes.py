@@ -26,7 +26,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from code_atlas import contract
 from code_atlas.config import ConfigError
-from code_atlas.containment import resolves_inside
+from code_atlas.containment import read_bytes, resolves_inside
 
 ROUTES_META_KEY = "routes"
 # JSON-source rows whose short-class target named several classes and no `prefer` chose one (397).
@@ -217,7 +217,7 @@ def _tsv(
         raise ConfigError(
             f"indirection_rules: {label!r} routes.tsv {relative!r} is not a file under {root}"
         )
-    data = full.read_bytes()
+    data = read_bytes(root, full)
     digest(data)
     try:
         # utf-8-sig: a spreadsheet export's byte-order mark is not part of the first column's name.
@@ -272,7 +272,7 @@ def _json(
         raise ConfigError(
             f"indirection_rules: {label!r} routes.json {relative!r} is not a file under {root}"
         )
-    data = full.read_bytes()
+    data = read_bytes(root, full)
     digest(data)
     try:
         document: object = json.loads(data.decode("utf-8-sig"))

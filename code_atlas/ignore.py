@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from code_atlas.containment import resolves_inside
+from code_atlas.containment import read_text, resolves_inside
 
 BUILTIN_PATTERNS: tuple[str, ...] = (
     "vendor/",
@@ -102,7 +102,7 @@ def load_ignore(root: Path) -> IgnoreMatcher:
         path = root / name
         if path.is_file() and resolves_inside(root, path):
             origin = source_name(name)
-            for line in path.read_text(encoding="utf-8").splitlines():
+            for line in read_text(root, path).splitlines():
                 if (rule := compile_pattern(line, source=origin)) is not None:
                     rules.append(rule)
     return IgnoreMatcher(tuple(rules))

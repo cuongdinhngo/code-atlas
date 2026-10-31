@@ -214,6 +214,17 @@ def _kill_tree(proc: "subprocess.Popen[str]") -> None:
         proc.kill()
 
 
+def git_env(*, system_config: bool = False) -> dict[str, str]:
+    """The environment git runs in: every ``GIT_*`` variable dropped, then the hardening set (430).
+
+    A ``GIT_DIR`` or ``GIT_CONFIG_*`` the user's shell carries would redirect reads of the repo
+    code-atlas was pointed at; only the variables code-atlas sets itself reach git.
+    """
+    skipped = ("GIT_CONFIG_NOSYSTEM",) if system_config else ()
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+    return {**env, **{k: v for k, v in HARDENED_ENV.items() if k not in skipped}}
+
+
 def _run(
     root: Path, *arguments: str, revision: str | None = None, system_config: bool = False
 ) -> str | None:
@@ -229,8 +240,7 @@ def _run(
         arguments = (*arguments, "--end-of-options", revision, "--")
     if arguments[:1] == ("diff",):
         arguments = ("diff", "--no-ext-diff", "--no-textconv", *arguments[1:])
-    skipped = ("GIT_CONFIG_NOSYSTEM",) if system_config else ()
-    env = {**os.environ, **{k: v for k, v in HARDENED_ENV.items() if k not in skipped}}
+    env = git_env(system_config=system_config)
     hardening = [part for setting in HARDENED_CONFIG for part in ("-c", setting)]
     try:
         proc = subprocess.Popen(
