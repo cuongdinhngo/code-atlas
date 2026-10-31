@@ -228,6 +228,29 @@ jobs:
       - name: Static analysis (mypy --strict) — the Python adapter (R6.6)
         run: mypy --config-file adapters/python/pyproject.toml
 
+  # 424 (SEC-PL-06): the plugin manifest, skills and hooks are validated by the CLI that loads them.
+  # No gate.sh counterpart: it installs the CLI from the npm registry (see test_ci_and_gate_agree).
+  plugin:
+    name: plugin validates (claude plugin validate --strict)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      # An exact version, so a moved npm tag cannot change what CI runs; Dependabot does not read it.
+      - name: Install the pinned Claude Code CLI
+        run: npm install --global @anthropic-ai/claude-code@2.1.316
+
+      - name: Validate the plugin (claude plugin validate --strict)
+        run: claude plugin validate --strict contrib/claude-code/plugin
+
   # 358: the image behind `scripts/docker-test.sh` and `gate.sh --docker` rests on a floating base,
   # apt's PHP and composer's installer; build it here so a drift fails a PR, not the next local run.
   # Build only: the suite already runs in the test job. No `needs`, so it runs beside the others.
