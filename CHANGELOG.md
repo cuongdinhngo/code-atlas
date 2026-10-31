@@ -36,7 +36,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **Caps in `.code-atlas.toml` are clamped to a ceiling** (430) in `code_atlas/limits.py`; the
   environment is not clamped.
 - **Stub roots and read-through repair stay inside the repo** (430), and a read that crosses the
-  trust line opens with `O_NOFOLLOW` and checks the descriptor it got.
+  trust line opens with `O_NOFOLLOW`, checks the descriptor it got (on Linux and macOS, its real
+  path, so a swapped parent directory is refused), and refuses a file over 64 MiB.
 - **`host_root` and `container_root` in `.code-atlas.toml` need `CA_TRUST_PROJECT_FILE=1`** (430),
   like `[adapter_cmd]`; the environment variables work as before.
 - **Adapters start with an allow-listed environment and git without `GIT_*`** (430): no `*_TOKEN`,

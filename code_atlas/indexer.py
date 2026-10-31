@@ -1021,11 +1021,11 @@ def _collect_with_census(
 
 
 def _oversize(full: Path, max_file_bytes: int) -> bool:
-    """Whether the file is above the cap, or cannot be stat'ed: either way it is left out."""
+    """Whether the file is above the cap; an unstat-able file is kept, for the read to count it."""
     try:
         return full.stat().st_size > max_file_bytes
     except OSError:
-        return True
+        return False
 
 
 def _indexable_untracked(
