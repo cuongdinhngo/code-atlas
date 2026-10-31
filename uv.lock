@@ -492,7 +492,7 @@ llm = [
 requires-dist = [
     { name = "anthropic", marker = "extra == 'llm'", specifier = ">=0.69" },
     { name = "fastmcp", specifier = ">=3.4.10,<4" },
-    { name = "mcp", specifier = ">=1.30.0" },
+    { name = "mcp", specifier = ">=1.30.0,<2" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "pip-audit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
