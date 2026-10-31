@@ -4,7 +4,7 @@ slug: limits-and-containment
 title: "The indexed repo cannot exhaust code-atlas or reach past it — every read, regex, reply and subprocess is bounded, every path contained, and adapters get a scrubbed environment"
 phase: 2
 milestone: Trust
-status: todo
+status: done
 depends_on: [423]
 ---
 
@@ -52,7 +52,7 @@ architecture-rule loading, `onboarding_llm/cache.py`; standard rows SEC-IN-01, 0
 
 ## Session status
 
-- **KEY:** 430 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute.
+- **KEY:** 430 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1–W3 and merges after #123.
 - `TRACK: backend` · Run mode: `autorun 427 - 430 - 424 - 425 - 428 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/430-limits-and-containment`, **stacked on `feat/427-distribution-pinning`** (#123).
@@ -87,7 +87,7 @@ findings are the citations below.
 | H7 | stub roots | how | a root that does not resolve inside the repo is skipped, and so is a file link that leads out (`indexer.py:1023-1047`) |
 | H8 | read-through repair | how | `reparse_file` (`indexer.py:842`) refuses a path that no longer resolves inside, and `FreshnessGuard.ensure` answers it as not current |
 | W1 | the size cap's default | want | **ASSUMED (awaiting ratification):** `CA_MAX_FILE_BYTES` defaults to 4 MiB (4,194,304); a project file may lower it, never raise it past 64 MiB |
-| W2 | the adapter environment allow-list | want | **ASSUMED (awaiting ratification):** `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_*`, `TZ`, `TMPDIR`/`TMP`/`TEMP`, `CA_*`, the Windows process variables (`SYSTEMROOT`, `COMSPEC`, `PATHEXT`, `WINDIR`, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`), and the runtimes' own homes (`COMPOSER_HOME`, `NODE_PATH`); nothing else |
+| W2 | the adapter environment allow-list | want | **ASSUMED (awaiting ratification):** `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_*`, `TZ`, `TMPDIR`/`TMP`/`TEMP`, the Windows process variables (`SYSTEMROOT`, `COMSPEC`, `PATHEXT`, `WINDIR`, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`), and the runtimes' own homes (`COMPOSER_HOME`, `NODE_PATH`); nothing else — `CA_*` left out in review (no adapter reads the environment, and a `CA_*` variable could carry a secret) |
 | W3 | git's environment | want | **ASSUMED (awaiting ratification):** every `GIT_*` variable is dropped except the ones code-atlas sets; a `GIT_DIR` a host hook exports no longer redirects code-atlas's reads |
 
 ## Phase 1 — analysis
@@ -155,3 +155,89 @@ bookkeeping (`docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, `docs/LESSONS.md`, this 
 **Proving tests:** `tests/test_limits_and_containment.py` (new; one arm per limit) — each arm seen red on the base.
 
 `EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+## Phase 3 — execute
+
+`implementer` landed Approach 1–8 in `06c8a88a`…`01b98d53` (7 commits). **Verification sweep.** File axis: the
+change list plus recorded deviations — `code_atlas/source_slice.py` (where `read_symbol`'s source read lives),
+`code_atlas/tools/collection.py` (the `oversize` count in the census), `docs/TOOLS.md` (the new knob, derived by
+`test_orientation`), and the two module-count guards (107 → 108). Behaviour axis: Approach 1–8 as approved;
+`_digest`/`_whitespace_fingerprint` stream through `containment.open_inside` instead of loading the file; an
+over-long reply restarts the adapter and fails one file; oversize and escaped paths are refused in `parse_files`
+as well as `reparse_file`, so the overlay and `read_symbol` paths are covered.
+
+**Seen failing (R6.5).** `tests/test_limits_and_containment.py` on a worktree of the base `4fb9f998`: 46 failed,
+4 passed (the positive "normal pattern still loads" guards; extension loading, red only on a base sabotaged with
+`enable_load_extension(True)`). Not exercised: the `O_NOFOLLOW` flag on its own — the descriptor-identity check
+that backs it is red on the base.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+
+- **`challenger` round 1** (ticket-blind, 70,803 tokens): 10 met · 4 partly met · 1 not met · 3 can't tell.
+  Taken in `cd290a41` and `b8d4b7c6`:
+  - **Important 1** — the regex limit allowed repeated alternation (`(a|aa)+$`, 10.6 s on 41 characters):
+    inside a repeat that can run twice, any nested repeat or `BRANCH` is now refused; four planted patterns red
+    before, refused after. `(\w|\d)+$` parses to one character class and is linear (17 µs), so it loads.
+  - **Important 2** — the LLM cache read followed links: it now reads through `containment.read_text`.
+  - **Important 3** — ten more repo-file readers still checked then read (orientation, enrichment ×3,
+    architecture rules, records, routes, ignore, capabilities, call-site, the project file): each now reads
+    through `containment`, each with a link-out test.
+  - Minor, taken: `CA_*` no longer reaches an adapter (W2 narrowed); a file that cannot be stat'ed is skipped.
+  - Minor, accepted: the 64 MiB reply cap (bounded; one reply per file); `architecture_diff.py:114` takes a
+    path its only caller already refuses outside the root.
+- **Round 2: verify-only, main loop.** The four patterns probed refused; the new arms and the standard green.
+
+```
+# review-time record (an earlier tree by design; the final-tree run is in Phase 5)
+$ .venv/bin/python -m pytest -q tests/test_limits_and_containment.py tests/test_security_standard.py
+154 passed in 3.73s
+```
+
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W3 standing for ratification.
+`Ph3/4 proven by` (all `tests/test_limits_and_containment.py`): AC1 →
+`test_an_oversize_file_is_skipped_counted_and_never_sent_to_an_adapter`,
+`test_a_reply_line_over_the_cap_fails_that_file_and_the_adapter_is_replaced`; AC2 →
+`test_a_catastrophic_repo_pattern_is_refused_naming_the_rule`; AC3 →
+`test_the_handshake_is_bounded_by_adapter_timeout_outside_a_build`,
+`test_a_project_file_cap_is_clamped_and_the_environment_is_not`; AC4 →
+`test_a_stub_root_that_leads_out_and_a_stub_file_that_leads_out_are_skipped`,
+`test_read_through_repair_refuses_a_file_swapped_for_a_link_out`,
+`test_a_project_file_mapping_root_needs_the_trust_flag_the_environment_does_not`,
+`test_a_descriptor_that_is_not_the_file_resolved_is_refused`; AC5 →
+`test_an_adapter_gets_an_allow_listed_environment`, `test_git_env_drops_every_git_variable_but_the_ones_code_atlas_sets`;
+AC6 → `test_the_onboarding_cache_is_private_and_a_linked_cache_file_is_refused`,
+`test_every_connection_the_store_opens_refuses_extension_loading`; AC7 → SECURITY.md's two limitations removed;
+C1 → `test_security_standard.py`.
+
+Reviewed at b8d4b7c6.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 430-C1 `redos-is-overlap-not-nesting` (new, type 2). Sightings: 427-C1 +430 (the readers the
+ticket did not name were found only by enumerating every reader), 410-C1 +430 and 413-C1 +430 (traced, P1).
+
+`CLAIMS: 4 claim(s) from 4 lesson entr(ies) | T1=0 T2=4 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 3 recurring | 0 superseded (0 retired) | 3 promotion candidate(s)`
+`FALSIFY: 3 candidate(s) checked | 3 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 3 type-2 claim(s) with seen ≥ 2 | 3 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 3 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+
+**The final gate:** __DOCKER__
+
+### Outward actions
+
+Under the handover: push `feat/430-limits-and-containment`; open its PR against `feat/427-distribution-pinning`.
+Deferred to the maintainer: ratify W1–W3; merge after #123.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | read-only `explorer` (call-site map) | 1 | 87,965 |
+| 3 execute | `implementer` | 1 | 271,384 |
+| 4 review | ticket-blind `challenger` | 1 | 70,803 |
+| 4 review | `implementer` (review fixes, resumed) | 2 | 314,236 |
+
+`LEDGER TOTAL: 744,388 · top cost driver: 4 review / implementer` — main loop unmeasured.

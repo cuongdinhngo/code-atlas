@@ -49,15 +49,27 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `confirm-the-blocked-path-runs` | 4 | 360, 365, 419, 420 | AGENT_BRIEF P6 and ENGINEERING_RULES R6.5 (widened) |
 | `a-docs-change-runs-every-doc-budget` | 3 | 408, 411, 423 | AGENT_BRIEF P9 |
 | `run-the-ac-on-main-before-the-design` | 2 | 414, 427 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-word-list-is-not-a-grammar` | 2 | 410, 427 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-word-list-is-not-a-grammar` | 3 | 410, 427, 430 | not yet — awaiting the maintainer's `/mango:promote` |
 | `verify-the-shipped-artifact-not-the-working-tree` | 2 | 344, 427 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-loader-guard-misses-the-entry-that-loads-nothing` | 2 | 427, 430 | not yet — awaiting the maintainer's `/mango:promote` |
+| `validate-a-parameter-before-the-first-return` | 2 | 413, 430 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
+
+### 430-C1 — a ReDoS guard keyed on nested quantifiers misses alternation repeated inside one
+
+- type: 2 (code) · handle: `redos-is-overlap-not-nesting`
+- status: proposed · seen: 430
+- evidence: 430's first `checked_pattern` refused a repeat inside a repeat and allowed `(a|aa)+$`, which took
+  10.6 s on 41 characters — the blow-up is ambiguity (two ways to match the same text under one repeat), and
+  nesting is only one source of it. The challenger probed it; the limit now refuses any branch or optional
+  inside a repeat that can run twice.
+- destination: first sighting.
 
 ### 427-C1 — a guard placed in the config loader misses the entry point that loads no config
 
 - type: 2 (code) · handle: `a-loader-guard-misses-the-entry-that-loads-nothing`
-- status: proposed · seen: 427
+- status: proposed · seen: 427, 430
 - evidence: 420 put the tracked-index refusal in `load_config`, so every hook that loads config went
   silent on a repo shipping `.code-atlas/` — but the release check loads none, and it alone still woke
   and ran `git ls-remote` there. Enumerate the entry points (console scripts), not the loader's callers.
@@ -94,7 +106,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 413-C1 — a parameter refused deep in one answer path is ignored on every path that returns first
 
 - type: 2 (code) · handle: `validate-a-parameter-before-the-first-return`
-- status: proposed · seen: 413
+- status: proposed · seen: 413, 430
 - evidence: `records_filter` was checked where `read_symbol` attaches records; an unknown subject, a stale or
   outside-root read and no index returned before it and ignored an undeclared name. The challenger found it; the check
   now runs at each tool's entry with the other argument checks.
@@ -121,7 +133,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 410-C1 — a stop-word list drops the real names that spell like its words
 
 - type: 2 (code) · handle: `a-word-list-is-not-a-grammar`
-- status: proposed · seen: 410, 427
+- status: proposed · seen: 410, 427, 430
 - evidence: the column binder skipped `day`, `year`, `path`, `rows` as keywords; `SELECT Year, Path FROM S` read no
   column and the statement counted as a `select *`. The challenger probed it; the fix reads a date part by its place
   (a date function's first argument) and keeps only reserved words in the list.
