@@ -41,16 +41,30 @@ Each criterion code-atlas holds, and the test or ticket behind it, is in
 - **Indexed code is parsed, never executed.** Each adapter uses a parser only: `nikic/php-parser`,
   the TypeScript compiler API, Python's `ast`, and a purpose-built T-SQL scanner.
 - **The indexed repo cannot choose what code-atlas runs.** A `.code-atlas.toml` with an
-  `[adapter_cmd]` table is a loud error unless you set `CA_TRUST_PROJECT_FILE=1` yourself.
+  `[adapter_cmd]` table, or a `host_root` or `container_root`, is a loud error unless you set
+  `CA_TRUST_PROJECT_FILE=1` yourself.
 - **The indexed repo cannot aim the index outside itself.** A `db_path` set in `.code-atlas.toml`
   must resolve inside the repo; only the `CA_DB_PATH` environment variable may point elsewhere.
 - **Reads and writes stay inside the repo.** A path code-atlas reads from, or writes into, the
   indexed repo is resolved with symlinks followed and refused if it lands outside
-  (`code_atlas/containment.py`).
+  (`code_atlas/containment.py`). That covers stub roots and a read-through repair, and a read that
+  crosses the line opens its file with `O_NOFOLLOW` and checks the descriptor is the file it
+  resolved.
+- **The indexed repo cannot exhaust code-atlas.** A file above `CA_MAX_FILE_BYTES` (4 MiB) is
+  skipped and counted as `skipped.oversize`, never truncated and never sent to an adapter; an
+  adapter reply line over 64 MiB fails that file and replaces the adapter; the adapter handshake
+  is bounded by `adapter_timeout`. Every cap `.code-atlas.toml` sets is clamped to a ceiling in
+  `code_atlas/limits.py` (your environment is not). A regex from a rules file is refused, naming
+  the rule, past 512 characters, with a backreference, or with a repeat inside a repeat.
+- **Adapters and git do not inherit your secrets.** An adapter starts with an allow-listed
+  environment (`PATH`, locale, `HOME`, `CA_*` and the runtimes' own homes), so a `*_TOKEN`,
+  `*_KEY`, `ANTHROPIC_*` or `GH_*` variable never reaches it. git starts without any `GIT_*`
+  variable your shell carries.
 - **The index directory is code-atlas's own.** An index that git tracks, or whose directory,
   database or database sibling is a link or leads outside the repo, is refused by every entry point
   with the fix. Each file the build and the server write there goes through
-  `code_atlas/containment.py`: never through a link, `0600` in a `0700` directory. The database is
+  `code_atlas/containment.py`: never through a link, `0600` in a `0700` directory, as is the
+  onboarding cache under `.code-atlas/onboarding/`. The database is
   opened with `trusted_schema=OFF` and SQLite's defensive mode.
 - **git runs hardened.** See [Git commands](#git-commands).
 - **Text read back from the index is data.** A name stamped into the index, the recorded refusal
@@ -75,7 +89,8 @@ pieces outside it do:
 
 Every command below runs with `shell=False` and a timeout. In the indexed repo, `code_atlas/gitutil.py`
 is the only spawner: it overrides the repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`
-and `diff.external`, sets `GIT_CONFIG_NOSYSTEM=1` and `GIT_TERMINAL_PROMPT=0`, and accepts a stored
+and `diff.external`, drops every `GIT_*` variable of yours, sets `GIT_CONFIG_NOSYSTEM=1` and
+`GIT_TERMINAL_PROMPT=0`, and accepts a stored
 revision only as a full object id (or the literal `HEAD`), after `--end-of-options`.
 
 - `git ls-files` — which files to index, and whether git tracks the index.
@@ -100,12 +115,6 @@ Keep these on in your MCP client:
 
 ## Known limitations
 
-- **Two symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
-  and an indexed file swapped for a link out of the repo since the build — `read_symbol` refuses it,
-  but another tool's read-through repair still re-parses it. Both close in 430.
-- **The onboarding cache is written with default modes.** `generate_onboarding` refuses a link
-  under `.code-atlas/onboarding/` but writes its cache with your umask's modes, not `0600`/`0700`
-  (430).
 - **`trusted_schema` stays on where SQLite is too old for it.** A build older than the 3.45 tested
   here (3.40 in Debian bookworm, the runtime image's base) refuses the index's own full-text
   triggers with it off, so there only defensive mode applies.

@@ -27,6 +27,21 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **Hooks wake on the index database** (427), not the `.code-atlas/` directory, in the plugin, the
   Codex and OpenCode snippets; one git tracks stays silent.
 - **The release check's `git ls-remote` runs hardened** (427), from the cache directory.
+- **A source file above `CA_MAX_FILE_BYTES` is skipped, never parsed** (430). The default is 4 MiB; the
+  count shows as `skipped.oversize` in `get_index_status` and the build summary. An adapter reply
+  line over 64 MiB fails that file and restarts the adapter, and the adapter handshake is bounded by
+  `adapter_timeout`.
+- **A regex in a rules file is refused when it can backtrack catastrophically** (430): past 512
+  characters, with a backreference, or with a repeat inside a repeat. The error names the rule.
+- **Caps in `.code-atlas.toml` are clamped to a ceiling** (430) in `code_atlas/limits.py`; the
+  environment is not clamped.
+- **Stub roots and read-through repair stay inside the repo** (430), and a read that crosses the
+  trust line opens with `O_NOFOLLOW` and checks the descriptor it got.
+- **`host_root` and `container_root` in `.code-atlas.toml` need `CA_TRUST_PROJECT_FILE=1`** (430),
+  like `[adapter_cmd]`; the environment variables work as before.
+- **Adapters start with an allow-listed environment and git without `GIT_*`** (430): no `*_TOKEN`,
+  `*_KEY`, `ANTHROPIC_*` or `GH_*` reaches an adapter. This includes the release check's fetch.
+- **The onboarding cache under `.code-atlas/onboarding/` is `0700`/`0600`** (430) and refuses a link.
 
 ### Changed
 
