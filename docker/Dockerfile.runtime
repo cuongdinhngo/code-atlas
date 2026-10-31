@@ -22,11 +22,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml \
     && rm -rf /var/lib/apt/lists/*
 
-# The server, runtime deps only (pyproject's base deps — not the [dev] extra).
+# The server from uv.lock (425), runtime deps only: no `dev` extra, and not editable.
 WORKDIR /opt/code-atlas
-COPY pyproject.toml README.md ./
+RUN pip install --no-cache-dir uv==0.11.28
+ENV PATH="/opt/code-atlas/.venv/bin:$PATH"
+COPY pyproject.toml uv.lock README.md ./
 COPY code_atlas ./code_atlas
-RUN pip install --no-cache-dir .
+RUN uv sync --frozen --no-dev --no-editable
 RUN python -c "from code_atlas.build_info import server_identity; i=server_identity(); assert i['version'] and len(i['build'])==7"
 
 # The adapter source + its resolved vendor tree from stage 1 (referenced by CA_PHP_CMD's abs path).

@@ -51,16 +51,17 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `run-the-ac-on-main-before-the-design` | 2 | 414, 427 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-word-list-is-not-a-grammar` | 3 | 410, 427, 430 | not yet — awaiting the maintainer's `/mango:promote` |
 | `verify-the-shipped-artifact-not-the-working-tree` | 2 | 344, 427 | not yet — awaiting the maintainer's `/mango:promote` |
-| `a-loader-guard-misses-the-entry-that-loads-nothing` | 3 | 427, 430, 424 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-loader-guard-misses-the-entry-that-loads-nothing` | 4 | 427, 430, 424, 425 | not yet — awaiting the maintainer's `/mango:promote` |
 | `validate-a-parameter-before-the-first-return` | 2 | 413, 430 | not yet — awaiting the maintainer's `/mango:promote` |
 | `a-cited-guard-must-hold-its-row` | 2 | 423, 424 | not yet — awaiting the maintainer's `/mango:promote` |
+| `a-subset-reader-must-fail-closed` | 2 | 424, 425 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
 
 ### 424-C1 — a guard that reads a format with a subset parser must refuse what it cannot parse
 
 - type: 2 (code) · handle: `a-subset-reader-must-fail-closed`
-- status: proposed · seen: 424
+- status: proposed · seen: 424, 425
 - evidence: `test_ci_hardening.py` read workflows with a block-style YAML subset; a flow-style step
   `- {uses: actions/checkout@v4}` was invisible to the pin, credential and interpolation arms, so the guard
   passed the shape it could not see. The challenger planted it; the reader now refuses any flow mapping,
@@ -80,7 +81,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 427-C1 — a guard placed in the config loader misses the entry point that loads no config
 
 - type: 2 (code) · handle: `a-loader-guard-misses-the-entry-that-loads-nothing`
-- status: proposed · seen: 427, 430, 424
+- status: proposed · seen: 427, 430, 424, 425
 - evidence: 420 put the tracked-index refusal in `load_config`, so every hook that loads config went
   silent on a repo shipping `.code-atlas/` — but the release check loads none, and it alone still woke
   and ran `git ls-remote` there. Enumerate the entry points (console scripts), not the loader's callers.

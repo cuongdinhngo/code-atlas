@@ -9,11 +9,12 @@ description = "Local-first MCP server that indexes a codebase into SQLite and ex
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
-dependencies = ["fastmcp>=3,<4"]
+# Floors clear every advisory in SECURITY_STANDARD SEC-MCP-09; the lock pins what CI tests (425).
+dependencies = ["fastmcp>=3.4.10,<4", "mcp>=1.30.0,<2"]
 classifiers = ["License :: OSI Approved :: MIT License"]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "mypy"]
+dev = ["pytest", "ruff", "mypy", "pip-audit"]
 # Opt-in LLM summarizer (task 090); never required by the core or the CI gate (R4.1). Floor is
 # recent enough to resolve current Claude model ids (Sonnet 5 / Opus 5 era); latest at write is 0.122.
 llm = ["anthropic>=0.69"]

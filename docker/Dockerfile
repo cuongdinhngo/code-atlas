@@ -31,9 +31,15 @@ RUN npm ci --prefix adapters/typescript
 COPY adapters/sql/package.json adapters/sql/package-lock.json adapters/sql/
 RUN npm ci --prefix adapters/sql
 
-# 2) The source, then an editable install so imports and console entry points resolve like CI.
+# 2) Python deps from uv.lock (425), keyed on the lock so source edits don't re-resolve them; then
+#    the source and an editable install, so imports and console entry points resolve like CI.
+#    uv is pinned to the version CI uses (setup-uv in ci.yml).
+RUN pip install --no-cache-dir uv==0.11.28
+ENV PATH="/app/.venv/bin:$PATH"
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --extra dev --no-install-project
 COPY . .
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN uv sync --frozen --extra dev
 # 268: one-line install surface — the console script must resolve after install. Not `--help`:
 # `code-atlas` takes no arguments and would start the stdio server here.
 RUN command -v code-atlas >/dev/null

@@ -3,7 +3,7 @@
 #
 # This is the only gate before a push: while the repo is private its Actions fail in ~3 s unrun,
 # and public they run after the push, so `gh pr checks <n>` is no substitute (AGENTS.md). It
-# mirrors CI's test · adapters · guardrails jobs; the fourth, test-image, only under --docker,
+# mirrors CI's test · adapters · audit · guardrails jobs; the fourth, test-image, only under --docker,
 # whose first step builds that image (358). Keep it in step with
 # ci.yml: a check here that ci.yml lacks, or the reverse, means one of the two is lying about what
 # was verified — `tests/test_ci_and_gate_agree.py` is what enforces that.
@@ -85,6 +85,12 @@ _run() {  # _run <name> <command...>
     fi
 }
 
+# 425: an audit asks an advisory database, so offline it cannot run — SKIP (exit 2), never PASS.
+_reach() {  # _reach <host>
+    "$py" -c "import socket,sys; socket.create_connection((sys.argv[1], 443), 5).close()" "$1" \
+        >/dev/null 2>&1
+}
+
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 
@@ -101,7 +107,7 @@ _run "bytecode invalidation (checked-hash, 146)" \
 
 # ci.yml step "Install check": the declared console scripts resolve and import. Derived from
 # [project.scripts], never listed (R6.7). Weaker than CI's by construction: CI checks a fresh
-# non-editable `pip install .`, while from the repo root importlib.metadata prefers the checked-out
+# non-editable locked install (`uv sync --frozen --no-editable`), while from the repo root importlib.metadata prefers the checked-out
 # `code_atlas.egg-info` over site-packages — so this verifies the *declaration*, and it prints which
 # metadata it read so that is not mistaken for a check of your installed venv.
 if "$py" - <<'PY' >"$log" 2>&1
@@ -120,7 +126,7 @@ assert declared, "no [project.scripts] found; this check would pass vacuously"
 if declared != set(eps):
     sys.exit(
         f"declared {sorted(declared)} != installed {sorted(eps)}\n"
-        "if this is a stale dev venv, reinstall: uv pip install -e '.[dev]'"
+        "if this is a stale dev venv, reinstall: uv sync --frozen --extra dev"
     )
 for name in sorted(eps):
     eps[name].load()
@@ -246,6 +252,45 @@ if [ -x "$bin/mypy" ]; then
         "$bin/mypy" --config-file adapters/python/pyproject.toml
 else
     _record SKIP "mypy --strict (R6.6, Python adapter)" "mypy not in .venv"
+fi
+
+echo "== job: audit =="
+
+# Threshold (SEC-SC-06/07): any known vulnerability fails; no severity floor, no ignore list.
+if [ ! -x "$bin/pip-audit" ]; then
+    _record SKIP "pip-audit (locked Python deps)" "pip-audit not in .venv"
+elif ! command -v uv >/dev/null 2>&1; then
+    _record SKIP "pip-audit (locked Python deps)" "uv not on PATH"
+elif ! _reach pypi.org; then
+    _record SKIP "pip-audit (locked Python deps)" "pypi.org unreachable"
+else
+    req=$(mktemp)
+    _run "pip-audit (locked Python deps)" sh -c '
+        uv export --frozen --all-extras --no-emit-project --format requirements-txt \
+            --output-file "$1" &&
+        "$2/pip-audit" --strict --require-hashes --disable-pip -r "$1"' sh "$req" "$bin"
+    rm -f "$req"
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+    _record SKIP "npm audit (adapters/typescript)" "npm not on PATH"
+    _record SKIP "npm audit (adapters/sql)" "npm not on PATH"
+elif ! _reach registry.npmjs.org; then
+    _record SKIP "npm audit (adapters/typescript)" "registry.npmjs.org unreachable"
+    _record SKIP "npm audit (adapters/sql)" "registry.npmjs.org unreachable"
+else
+    _run "npm audit (adapters/typescript)" npm audit --omit=dev --prefix adapters/typescript
+    _run "npm audit (adapters/sql)" npm audit --omit=dev --prefix adapters/sql
+fi
+
+if ! command -v composer >/dev/null 2>&1; then
+    _record SKIP "composer audit (adapters/php)" "composer not on PATH"
+elif ! _reach repo.packagist.org; then
+    _record SKIP "composer audit (adapters/php)" "repo.packagist.org unreachable"
+else
+    _run "composer audit (adapters/php)" \
+        env COMPOSER_AUDIT_ABANDONED=report \
+        composer audit --locked --no-interaction --working-dir=adapters/php
 fi
 
 echo "== job: guardrails =="

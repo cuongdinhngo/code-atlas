@@ -19,6 +19,11 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 
 ### Security
 
+- **Python dependencies are locked and audited** (425). `uv.lock` pins every package with hashes; CI
+  and both Docker images install from it, and CI and `scripts/gate.sh` run `pip-audit`,
+  `npm audit --omit=dev` and `composer audit`, failing on any known vulnerability. The install floor
+  moved to `fastmcp>=3.4.10,<4` and `mcp>=1.30.0,<2`, above every published advisory (SEC-MCP-09). A
+  user's `uv tool install git+…@vX.Y.Z` is unchanged; it resolves the new floors.
 - **Installs and upgrades name a release tag** (427). The README, the plugin and the state hook give
   `git+…@vX.Y.Z` and `marketplace add cuongdinhngo/code-atlas#vX.Y.Z`, and the README says
   code-atlas is not the PyPI packages `code-atlas-mcp` or `codeatlas`.
