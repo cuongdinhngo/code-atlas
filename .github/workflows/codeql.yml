@@ -1,0 +1,48 @@
+name: CodeQL
+
+# Analysis only (424, SEC-SC-08). Push to main and a weekly run, never `pull_request`: its
+# `security-events: write` then sits in a job that runs no pull-request code (SEC-SC-02).
+# No scripts/gate.sh counterpart: the scan needs GitHub's CodeQL service and uploads to code scanning.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Tuesday 05:17 UTC
+    - cron: "17 5 * * 2"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Analyse with CodeQL
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}

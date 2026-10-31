@@ -1,0 +1,51 @@
+# 424 (SEC-SC-05): every ecosystem the repo installs from, weekly, one grouped PR per ecosystem.
+# The FROM lines in docker/ are pinned by digest in 426; this entry keeps those digests fresh.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /adapters/typescript
+    schedule:
+      interval: weekly
+    groups:
+      npm-typescript-adapter:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /adapters/sql
+    schedule:
+      interval: weekly
+    groups:
+      npm-sql-adapter:
+        patterns: ["*"]
+
+  - package-ecosystem: composer
+    directory: /adapters/php
+    schedule:
+      interval: weekly
+    groups:
+      composer:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]

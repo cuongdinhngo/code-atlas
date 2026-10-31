@@ -1,0 +1,58 @@
+name: Settings drift
+
+# Scheduled only (424, SEC-SC-10, SEC-GV-04). Reads the repo's settings back and fails, opening an
+# issue, when one differs from the `set:` items in docs/SECURITY_STANDARD.md. No scripts/gate.sh
+# counterpart: the settings live on GitHub, and the logic is tested offline (test_settings_drift).
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly Thursday 06:00 UTC
+    - cron: "0 6 * * 4"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: Settings drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # The settings endpoints need an admin-read token, which GITHUB_TOKEN lacks. An empty secret
+      # fails the script with a message naming SETTINGS_READ_TOKEN and its scope.
+      - name: Read the settings back against the standard
+        env:
+          GH_TOKEN: ${{ secrets.SETTINGS_READ_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          status=0
+          python3 scripts/settings_drift.py > "${RUNNER_TEMP}/drift.txt" 2>&1 || status=$?
+          cat "${RUNNER_TEMP}/drift.txt"
+          exit $status
+
+      - name: Open an issue on drift
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Repository settings differ from docs/SECURITY_STANDARD.md"
+          if gh issue list --state open --limit 100 --json title --jq '.[].title' | grep -Fxq "$title"; then
+            echo "an open issue already carries this title"
+            exit 0
+          fi
+          { cat "${RUNNER_TEMP}/drift.txt"; printf '\nWorkflow run: %s\n' "$RUN_URL"; } > "${RUNNER_TEMP}/issue.md"
+          gh issue create --title "$title" --body-file "${RUNNER_TEMP}/issue.md"
