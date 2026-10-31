@@ -234,9 +234,11 @@ def version_refusal(expected: str | None, installed: str) -> str | None:
     """
     if expected is None or installed in (expected, UNKNOWN_VERSION):
         return None
+    refusal = f"code-atlas: refusing to serve: the plugin is {expected}, this server is {installed}"
+    if not all(part.isdigit() for part in expected.split(".")):
+        return refusal
     return (
-        f"code-atlas: refusing to serve: the plugin is {expected}, this server is {installed}"
-        f" — run: uv tool install --force git+{REPOSITORY_GIT}@v{expected}"
+        f"{refusal} — run: uv tool install --force git+{REPOSITORY_GIT}@v{expected}"
         f" (or pipx install --force git+{REPOSITORY_GIT}@v{expected})"
     )
 
@@ -244,7 +246,7 @@ def version_refusal(expected: str | None, installed: str) -> str | None:
 def _expected_version(args: list[str]) -> str | None:
     if EXPECT_VERSION_FLAG in args:
         at = args.index(EXPECT_VERSION_FLAG) + 1
-        return args[at] if at < len(args) else None
+        return args[at] if at < len(args) and not args[at].startswith("--") else None
     return None
 
 

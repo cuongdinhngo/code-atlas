@@ -25,7 +25,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **The server refuses a mismatched plugin** (427). The plugin launches `code-atlas --expect-version`;
   a server of another release exits 2 with the reinstall command instead of warning.
 - **Hooks wake on the index database** (427), not the `.code-atlas/` directory, in the plugin, the
-  Codex and OpenCode snippets; one git tracks stays silent.
+  Codex and OpenCode snippets; one git tracks stays silent. An index moved by `CA_DB_PATH` gets no hooks.
 - **The release check's `git ls-remote` runs hardened** (427), from the cache directory.
 
 ### Changed

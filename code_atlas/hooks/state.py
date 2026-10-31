@@ -75,14 +75,14 @@ UPGRADING_POINTER = "run the README's *Upgrading* steps in order"
 
 def tool_step(release: str | None) -> str:
     """The tool reinstall at a release tag — `upgrade` never moves a pin — else the README (427)."""
-    if release is None:
+    if release is None or _release(release) is None:
         return UPGRADING_POINTER
     return f"`uv tool install --force git+{REPOSITORY_GIT}@v{release}`"
 
 
 def plugin_step(release: str | None) -> str:
     """The marketplace re-added at a release tag, which is what moves the plugin (427)."""
-    if release is None:
+    if release is None or _release(release) is None:
         return UPGRADING_POINTER
     return (
         f"{PLUGIN_REMOVE} && `claude plugin marketplace add {MARKETPLACE_REPO}#v{release}` "
