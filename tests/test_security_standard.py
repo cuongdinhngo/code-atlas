@@ -215,10 +215,20 @@ def test_a_planted_row_is_refused(case: str) -> None:
     assert problems(planted), f"a row with {case} was accepted"
 
 
+def _an_open_ticket() -> str:
+    """A ticket open today: a fixed number goes stale the day it closes (423, 424)."""
+    for path in sorted(TASKS.glob("[0-9][0-9][0-9]_*.md")):
+        number = path.name[:3]
+        if _task_status(number) not in ("done", None):
+            return number
+    raise AssertionError("no open ticket left to cite")
+
+
 def test_a_good_row_and_a_deferred_should_are_accepted() -> None:
     assert problems(Row("SEC-GV-99", "c", "MUST", "s", HELD)) == []
     assert problems(Row("SEC-GV-99", "c", "SHOULD", "s", "deferred: no client supports it")) == []
-    assert problems(Row("SEC-GV-99", "c", "MUST", "s", f"{HELD}; open: 424")) == []
+    open_ticket = _an_open_ticket()
+    assert problems(Row("SEC-GV-99", "c", "MUST", "s", f"{HELD}; open: {open_ticket}")) == []
     held_by_a_setting = f"{HELD}; set: secret_scanning = enabled"
     assert problems(Row("SEC-GV-99", "c", "MUST", "s", held_by_a_setting)) == []
 
