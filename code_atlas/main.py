@@ -98,13 +98,18 @@ def tool_annotations(name: str) -> ToolAnnotations:
 
 
 def refusal_is_loud(tool: Callable[..., dict[str, object]]) -> Callable[..., dict[str, object]]:
-    """A ``ValueError`` a tool raises on purpose (R5.3) keeps its message; others are masked."""
+    """An exact ``ValueError`` (a tool's deliberate refusal, R5.3) keeps its message.
+
+    A subclass (``JSONDecodeError``, ``UnicodeDecodeError``) can quote file content: it is masked.
+    """
 
     @functools.wraps(tool)
     def loud(*args: object, **kwargs: object) -> dict[str, object]:
         try:
             return tool(*args, **kwargs)
         except ValueError as refusal:
+            if type(refusal) is not ValueError:
+                raise
             raise ToolError(str(refusal)) from None
 
     return loud
@@ -116,8 +121,19 @@ _SCHEMA_KEYS = frozenset(
     {
         "type", "properties", "required", "additionalProperties", "anyOf", "enum", "const",
         "items", "default", "title", "description", "maxLength", "minLength", "minimum", "maximum",
+        "propertyNames", "maxProperties", "minItems", "maxItems",
     }
 )  # fmt: skip
+MAX_ARRAY_ITEMS = 1000
+# A map parameter (no named properties, e.g. `records_filter`): bounded keys and values.
+MAP_KEY_LENGTH = 256
+MAP_MAX_PROPERTIES = 64
+MAP_LIST_ITEMS = 100
+_MAP_SCALARS: tuple[dict[str, object], ...] = (
+    {"type": "string", "maxLength": MAX_STRING_LENGTH},
+    {"type": "number"},
+    {"type": "boolean"},
+)
 _SCALAR_TYPES = frozenset({"integer", "number", "boolean", "null"})
 
 
@@ -134,12 +150,27 @@ def close_schema(node: object, where: str = "input schema") -> None:
     for branch in node.get("anyOf", ()):
         close_schema(branch, f"{where}/anyOf")
     kind = node.get("type")
-    if kind == "object":
+    if kind == "object" and "properties" not in node:
+        node["additionalProperties"] = {
+            "anyOf": [
+                *_MAP_SCALARS,
+                {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": MAP_LIST_ITEMS,
+                    "items": {"anyOf": list(_MAP_SCALARS)},
+                },
+            ]
+        }
+        node["propertyNames"] = {"maxLength": MAP_KEY_LENGTH}
+        node["maxProperties"] = MAP_MAX_PROPERTIES
+    elif kind == "object":
         node["additionalProperties"] = False
-        for field, sub in node.get("properties", {}).items():
+        for field, sub in node["properties"].items():
             close_schema(sub, f"{where}/{field}")
     elif kind == "array":
         close_schema(node.get("items"), f"{where}/items")
+        node.setdefault("maxItems", MAX_ARRAY_ITEMS)
     elif kind == "string":
         if not any(key in node for key in ("enum", "const", "maxLength")):
             node["maxLength"] = MAX_STRING_LENGTH

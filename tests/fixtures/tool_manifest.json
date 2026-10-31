@@ -652,6 +652,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -694,7 +695,43 @@
           "records_filter": {
             "anyOf": [
               {
-                "additionalProperties": false,
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "maxLength": 4096,
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "maxLength": 4096,
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      },
+                      "maxItems": 100,
+                      "minItems": 1,
+                      "type": "array"
+                    }
+                  ]
+                },
+                "maxProperties": 64,
+                "propertyNames": {
+                  "maxLength": 256
+                },
                 "type": "object"
               },
               {
@@ -800,6 +837,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -913,6 +951,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -928,6 +967,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -947,7 +987,43 @@
           "records_filter": {
             "anyOf": [
               {
-                "additionalProperties": false,
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "maxLength": 4096,
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "maxLength": 4096,
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      },
+                      "maxItems": 100,
+                      "minItems": 1,
+                      "type": "array"
+                    }
+                  ]
+                },
+                "maxProperties": 64,
+                "propertyNames": {
+                  "maxLength": 256
+                },
                 "type": "object"
               },
               {
@@ -974,6 +1050,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -1026,6 +1103,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -1041,6 +1119,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {
@@ -1233,7 +1312,43 @@
           "records_filter": {
             "anyOf": [
               {
-                "additionalProperties": false,
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "maxLength": 4096,
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "maxLength": 4096,
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      },
+                      "maxItems": 100,
+                      "minItems": 1,
+                      "type": "array"
+                    }
+                  ]
+                },
+                "maxProperties": 64,
+                "propertyNames": {
+                  "maxLength": 256
+                },
                 "type": "object"
               },
               {
@@ -1361,6 +1476,7 @@
                   "maxLength": 4096,
                   "type": "string"
                 },
+                "maxItems": 1000,
                 "type": "array"
               },
               {

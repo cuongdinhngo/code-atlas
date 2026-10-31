@@ -29,9 +29,11 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   idempotent), and every input schema is closed. Visible to a client: an unexpected tool error is
   masked to `Error calling tool '<name>'` (a deliberate `ValueError` refusal keeps its message), an
   argument is validated against the schema before the tool runs (a string for an integer is refused,
-  not coerced), a free string over 4096 characters is refused, and `find_callers` `arg_is` is an
-  `enum`. No parameter was renamed. `tool_manifest.json` pins names, descriptions and schemas; a
-  range that changes it needs a line here.
+  not coerced), a free string over 4096 characters is refused, an array over 1000 items is refused,
+  and `find_callers` `arg_is` is an `enum`. `records_filter` keeps taking a string, number, boolean
+  or a list of up to 100 of them per key, with at most 64 keys of up to 256 characters. No parameter
+  was renamed. `tool_manifest.json` pins names, descriptions and schemas; a range that changes it
+  needs a line here that says "tool surface" or names a changed tool.
 - **Installs and upgrades name a release tag** (427). The README, the plugin and the state hook give
   `git+…@vX.Y.Z` and `marketplace add cuongdinhngo/code-atlas#vX.Y.Z`, and the README says
   code-atlas is not the PyPI packages `code-atlas-mcp` or `codeatlas`.

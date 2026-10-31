@@ -70,6 +70,15 @@ def _listed(server: Any) -> list[Any]:
     return asyncio.run(once())
 
 
+def _records_env(root: Path) -> dict[str, str]:
+    return {
+        "CA_TRUST_PROJECT_FILE": "1",
+        "CA_WORKERS": "1",
+        "CA_DB_PATH": str(root / ".code-atlas" / "graph.db"),
+        "CA_INDIRECTION_RULES": "rules.json",
+    }
+
+
 def _call(server: Any, name: str, arguments: dict[str, object]) -> tuple[bool, str]:
     """(is_error, text) of one call, never raising on a tool error."""
 
@@ -117,12 +126,22 @@ def schema_offences(node: Any, where: str) -> list[str]:
     if not isinstance(node, dict):
         return [f"{where}: not a schema object"]
     found = [f"{where}: {key}" for key in ("$ref", "oneOf", "allOf", "not") if key in node]
-    if node.get("type") == "object":
+    if node.get("type") == "object" and "properties" not in node:
+        extra = node.get("additionalProperties")
+        if not isinstance(extra, dict):
+            found.append(f"{where}: a map closed to nothing or open to anything")
+        else:
+            found += schema_offences(extra, f"{where}{{}}")
+        if "maxProperties" not in node or "maxLength" not in node.get("propertyNames", {}):
+            found.append(f"{where}: map without maxProperties and a key length bound")
+    elif node.get("type") == "object":
         if node.get("additionalProperties") is not False:
             found.append(f"{where}: object without additionalProperties: false")
-        for field, sub in node.get("properties", {}).items():
+        for field, sub in node["properties"].items():
             found += schema_offences(sub, f"{where}.{field}")
     if node.get("type") == "array":
+        if "maxItems" not in node:
+            found.append(f"{where}: array without maxItems")
         found += schema_offences(node.get("items"), f"{where}[]")
     if node.get("type") == "string" and not any(k in node for k in ("enum", "const", "maxLength")):
         found.append(f"{where}: {_UNBOUNDED}")
@@ -144,12 +163,15 @@ def test_the_walk_sees_an_open_schema() -> None:
         "type": "object",
         "properties": {
             "q": {"type": "string"},
-            "inner": {"type": "object", "properties": {}},
+            "inner": {"type": "object", "properties": {"a": {"type": "integer"}}},
+            "shut": {"type": "object", "additionalProperties": False},
+            "list": {"type": "array", "items": {"type": "integer"}},
             "r": {"$ref": "#/$defs/x"},
         },
     }
     found = " ".join(schema_offences(planted, "t"))
     assert _UNBOUNDED in found and "additionalProperties" in found and "$ref" in found
+    assert "closed to nothing" in found and "array without maxItems" in found
 
 
 def test_a_free_string_is_bounded_and_a_closed_domain_is_an_enum(repo: Path) -> None:
@@ -189,6 +211,45 @@ def test_close_schema_closes_nested_objects_and_array_items() -> None:
     close_schema(schema)
     assert schema["additionalProperties"] is False
     assert schema["properties"]["xs"]["items"]["maxLength"] == MAX_STRING_LENGTH
+
+
+# --- a map parameter (records_filter) still takes the filters the tools accept --------------------
+
+
+@pytest.fixture(scope="module")
+def records_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    from tests.test_record_attributes import DECLARED, build
+
+    return build(tmp_path_factory.mktemp("surface") / "repo", attributes=DECLARED).root
+
+
+_FILTER_CALLS = {
+    "read_symbol": {"qname": "handlers.repo.save"},
+    "find_references": {"qname": "handlers.repo.save"},
+    "impact": {"qnames": ["handlers.repo.save"]},
+}
+
+
+@pytest.mark.parametrize("name", sorted(_FILTER_CALLS))
+@pytest.mark.parametrize("records_filter", [{"tier": ["A"]}, {"tier": "A"}, {"flag": True}])
+def test_a_valid_records_filter_is_accepted(
+    records_repo: Path, name: str, records_filter: dict[str, object]
+) -> None:
+    config = load_config(records_repo, _records_env(records_repo))
+    is_error, text = _call(
+        build_server(config), name, {**_FILTER_CALLS[name], "records_filter": records_filter}
+    )
+    assert not is_error, text
+
+
+@pytest.mark.parametrize("name", sorted(_FILTER_CALLS))
+def test_an_invalid_records_filter_is_still_refused(records_repo: Path, name: str) -> None:
+    config = load_config(records_repo, _records_env(records_repo))
+    for bad in ({"nope": "x"}, {"tier": {"a": 1}}, {"tier": []}, {"t" * 300: "x"}):
+        is_error, _ = _call(
+            build_server(config), name, {**_FILTER_CALLS[name], "records_filter": bad}
+        )
+        assert is_error, bad
 
 
 # --- strict input: an unknown argument is refused ------------------------------------------------
@@ -267,6 +328,23 @@ def test_a_tool_raising_reaches_the_client_masked(repo: Path) -> None:
     with mock.patch("sqlite3.connect", side_effect=OSError(secret)):
         is_error, text = _call(server, "search_symbol", {"query": "a"})
     assert is_error and secret not in text
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        json.JSONDecodeError("file content leaks here", "doc", 0),
+        UnicodeDecodeError("utf-8", b"\xff", 0, 1, "file content leaks here"),
+    ],
+)
+def test_a_valueerror_subclass_is_masked(repo: Path, error: ValueError) -> None:
+    """Only an exact `ValueError` is a deliberate refusal; a decode error can quote a file."""
+    server = _server(repo)
+    assert not _call(server, "build_or_update_index", {})[0]
+    with mock.patch("sqlite3.connect", side_effect=error):
+        is_error, text = _call(server, "search_symbol", {"query": "a"})
+    assert is_error and "leaks here" not in text
+    assert "Error calling tool" in text
 
 
 def test_a_deliberate_refusal_keeps_its_message(repo: Path) -> None:
@@ -380,27 +458,56 @@ _NON_STDIO_RUNNERS = frozenset(
 )  # fmt: skip
 
 
+_SERVER_STACKS = ("uvicorn", "starlette", "hypercorn")
+_APP_FACTORIES = frozenset({"http_app", "streamable_http_app", "sse_app"})
+# `subprocess.run(argv)` and `asyncio.run(coro)` are not the server's `run`.
+_NOT_THE_SERVER = frozenset({"subprocess", "asyncio"})
+
+
+def _is_transport_module(module: str) -> bool:
+    root, _, rest = module.partition(".")
+    return root in _SERVER_STACKS or (
+        root in _TRANSPORT_PACKAGES and bool(_SERVER_TRANSPORT.search(rest))
+    )
+
+
+def _is_stdio(node: ast.expr) -> bool:
+    return isinstance(node, ast.Constant) and node.value == "stdio"
+
+
 def transport_offences(source: str, name: str = "<source>") -> list[str]:
-    """`.run(transport=…)` other than "stdio", and any fastmcp/mcp HTTP or SSE server import."""
+    """Any way code under `code_atlas/` could serve over HTTP or SSE, or hide that it does."""
     found: list[str] = []
     for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            attr = node.func.attr
-            if attr in _NON_STDIO_RUNNERS:
-                found.append(f"{name}:{node.lineno}: .{attr}() is not stdio")
-            for kw in node.keywords if attr in ("run", "run_async") else ():
-                stdio = isinstance(kw.value, ast.Constant) and kw.value.value == "stdio"
-                if kw.arg == "transport" and not stdio:
-                    found.append(f"{name}:{node.lineno}: run(transport=…) is not stdio")
+        where = f"{name}:{getattr(node, 'lineno', 0)}"
+        if isinstance(node, ast.Attribute) and node.attr in _APP_FACTORIES:
+            found.append(f"{where}: .{node.attr} builds an HTTP app")
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Attribute) and func.attr in _NON_STDIO_RUNNERS:
+                found.append(f"{where}: .{func.attr}() is not stdio")
+            runs = isinstance(func, ast.Attribute) and func.attr in ("run", "run_async")
+            owner = func.value.id if runs and isinstance(func.value, ast.Name) else ""  # type: ignore[union-attr]
+            if runs and owner not in _NOT_THE_SERVER:
+                if node.args and not _is_stdio(node.args[0]):
+                    found.append(f"{where}: run() first argument is not stdio")
+                for kw in node.keywords:
+                    if kw.arg is None:
+                        found.append(f"{where}: run(**kwargs) hides the transport")
+                    elif kw.arg == "transport" and not _is_stdio(kw.value):
+                        found.append(f"{where}: run(transport=…) is not stdio")
+            dynamic = (isinstance(func, ast.Attribute) and func.attr == "import_module") or (
+                isinstance(func, ast.Name) and func.id == "__import__"
+            )
+            if dynamic and node.args and isinstance(node.args[0], ast.Constant):
+                if isinstance(node.args[0].value, str) and _is_transport_module(node.args[0].value):
+                    found.append(f"{where}: dynamic import of {node.args[0].value}")
         modules: list[str] = []
         if isinstance(node, ast.Import):
             modules = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom) and node.module:
             modules = [node.module] + [f"{node.module}.{alias.name}" for alias in node.names]
-        for module in modules:
-            root, _, rest = module.partition(".")
-            if root in _TRANSPORT_PACKAGES and _SERVER_TRANSPORT.search(rest):
-                found.append(f"{name}:{node.lineno}: imports {module}")
+        found += [f"{where}: imports {m}" for m in modules if _is_transport_module(m)]
     return found
 
 
@@ -425,6 +532,16 @@ def test_no_http_or_sse_transport_under_code_atlas() -> None:
         "from mcp.server.sse import SseServerTransport",
         "from mcp.server.streamable_http import StreamableHTTPServerTransport",
         "import mcp.server.sse",
+        'server.run("http")',
+        "server.run(**options)",
+        "app = server.http_app()",
+        "app = server.streamable_http_app()",
+        "app = mcp.sse_app()",
+        "import uvicorn",
+        "from starlette.applications import Starlette",
+        "import hypercorn.asyncio",
+        'importlib.import_module("mcp.server.sse")',
+        '__import__("uvicorn")',
     ],
 )
 def test_the_transport_guard_sees_a_planted_offence(source: str) -> None:
@@ -436,6 +553,10 @@ def test_the_transport_guard_sees_a_planted_offence(source: str) -> None:
     [
         "server.run()",
         'server.run(transport="stdio")',
+        'server.run("stdio")',
+        "subprocess.run(argv, check=True)",
+        "asyncio.run(main())",
+        'importlib.import_module("json")',
         "from fastmcp import FastMCP",
         "from fastmcp.tools import FunctionTool",
     ],
