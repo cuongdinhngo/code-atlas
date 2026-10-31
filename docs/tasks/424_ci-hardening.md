@@ -214,7 +214,20 @@ guard read against its row: SEC-GV-04 overclaimed), 427-C1 +424 (the workflow te
 `RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md, docs/ENGINEERING_RULES.md | mango files written: 0`
 
-**The final gate:** __DOCKER__
+**The final gate:** the suite in Docker on `d4d95c73`: `1 failed, 5413 passed, 8 skipped` — the one failure was
+the standard's accepted-row control citing `open: 424`, red the moment 424 closed (423 hit the same). It now
+derives an open ticket at run time (`83a530de`, a test-only change); that file re-run in Docker on the final tree:
+
+Ran at 83a530de
+
+```
+$ scripts/docker-test.sh pytest -q tests/test_security_standard.py
+88 passed in 0.97s
+$ PATH=.venv/bin:$PATH scripts/gate.sh --fast
+  16 passed · 0 failed · 2 skipped
+```
+
+Every other test passed in that Docker run; the host's full suite at `046611c9` was `5418 passed, 4 skipped`.
 
 ### Outward actions
 
