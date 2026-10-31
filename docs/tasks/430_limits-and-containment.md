@@ -224,7 +224,21 @@ ticket did not name were found only by enumerating every reader), 410-C1 +430 an
 `RECURRING-T2: 3 type-2 claim(s) with seen ≥ 2 | 3 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 3 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
 
-**The final gate:** __DOCKER__
+**The final gate:** the suite in Docker on the final tree, after one red run that was a real finding: the image's
+SQLite (Debian bookworm) left the C-API extension loader **on**, so `load_extension` tried to open the file —
+`_connect` now turns it off explicitly (`38f019d6`), and the test that caught it holds SEC-IN-05.
+
+Ran at 38f019d6
+
+```
+$ scripts/docker-test.sh
+5299 passed, 8 skipped in 663.89s (0:11:03)
+$ PATH=.venv/bin:$PATH scripts/gate.sh --fast
+  16 passed · 0 failed · 2 skipped
+```
+
+The loader fix is a three-line change in `store._connect`, outside the reviewed tree `b8d4b7c6`; its proof is
+the review-era test going green in the image, where it was red.
 
 ### Outward actions
 
