@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
 # Floors clear every advisory in SECURITY_STANDARD SEC-MCP-09; the lock pins what CI tests (425).
-dependencies = ["fastmcp>=3.4.10,<4", "mcp>=1.30.0,<2"]
+dependencies = ["fastmcp>=3.4.10,<5", "mcp>=1.30.0,<3"]
 classifiers = ["License :: OSI Approved :: MIT License"]
 
 [project.optional-dependencies]
