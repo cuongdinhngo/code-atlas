@@ -58,16 +58,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
-### 424-C1 — a guard that reads a format with a subset parser must refuse what it cannot parse
-
-- type: 2 (code) · handle: `a-subset-reader-must-fail-closed`
-- status: proposed · seen: 424, 425, 428
-- evidence: `test_ci_hardening.py` read workflows with a block-style YAML subset; a flow-style step
-  `- {uses: actions/checkout@v4}` was invisible to the pin, credential and interpolation arms, so the guard
-  passed the shape it could not see. The challenger planted it; the reader now refuses any flow mapping,
-  anchor, alias or merge key. A partial reader reports "unsupported shape", never "nothing found".
-- destination: first sighting.
-
 ### 430-C1 — a ReDoS guard keyed on nested quantifiers misses alternation repeated inside one
 
 - type: 2 (code) · handle: `redos-is-overlap-not-nesting`
@@ -78,25 +68,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   inside a repeat that can run twice.
 - destination: first sighting.
 
-### 427-C1 — a guard placed in the config loader misses the entry point that loads no config
-
-- type: 2 (code) · handle: `a-loader-guard-misses-the-entry-that-loads-nothing`
-- status: proposed · seen: 427, 430, 424, 425, 428
-- evidence: 420 put the tracked-index refusal in `load_config`, so every hook that loads config went
-  silent on a repo shipping `.code-atlas/` — but the release check loads none, and it alone still woke
-  and ran `git ls-remote` there. Enumerate the entry points (console scripts), not the loader's callers.
-- destination: first sighting.
-
-### 423-C1 — a guard that exists can still hold a different criterion than the row citing it
-
-- type: 2 (process) · handle: `a-cited-guard-must-hold-its-row`
-- status: proposed · seen: 423, 424
-- evidence: every `test:` in the first standard resolved, yet SEC-IN-06 ("values are bound") cited
-  the one-module-touches-SQLite test, and SECURITY.md said every index file goes through
-  `containment` while the onboarding cache does not. Only the reviewer, reading each test against
-  its row, found them. Read the cited test's body, and grep for the writers it skips, before citing.
-- destination: first sighting.
-
 ### 421-C1 — a value from a closed vocabulary is checked by membership, not by its shape
 
 - type: 2 (code) · handle: `a-closed-vocabulary-is-checked-by-membership`
@@ -104,24 +75,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: the first cut let a nudge shape `kind` and the build's progress line through a
   "one printable line" check, so `ignore previous rules` still reached the agent as code-atlas.
   Both seats found it; `contract.SHAPE_KINDS` and `indexer.BUILD_PHASES` already named the set.
-- destination: first sighting.
-
-### 414-C1 — an AC's premise about today's behaviour is one call on `main` away
-
-- type: 2 (process) · handle: `run-the-ac-on-main-before-the-design`
-- status: proposed · seen: 414, 427
-- evidence: 414's AC2 said `impact` would walk a table's readers and writers once the refusal lifted; `impact`
-  walks no `READS`/`WRITES` on any table, which one call on `main` shows. The design was built before that call
-  and the challenger had to raise it. Run each AC's "as today" premise before the design.
-- destination: first sighting.
-
-### 413-C1 — a parameter refused deep in one answer path is ignored on every path that returns first
-
-- type: 2 (code) · handle: `validate-a-parameter-before-the-first-return`
-- status: proposed · seen: 413, 430
-- evidence: `records_filter` was checked where `read_symbol` attaches records; an unknown subject, a stale or
-  outside-root read and no index returned before it and ignored an undeclared name. The challenger found it; the check
-  now runs at each tool's entry with the other argument checks.
 - destination: first sighting.
 
 ### 412-C1 — a new tool parameter is read by the surface guards before any reviewer
@@ -140,15 +93,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: 411's `scripts/gate.sh` baseline ran in the background while the first edits landed in the same
   checkout, so its pytest read a mix of both trees; it was stopped and the base's CI run (same tree) taken
   instead. Take the baseline before the first edit, or from CI on the base SHA.
-- destination: first sighting.
-
-### 410-C1 — a stop-word list drops the real names that spell like its words
-
-- type: 2 (code) · handle: `a-word-list-is-not-a-grammar`
-- status: proposed · seen: 410, 427, 430
-- evidence: the column binder skipped `day`, `year`, `path`, `rows` as keywords; `SELECT Year, Path FROM S` read no
-  column and the statement counted as a `select *`. The challenger probed it; the fix reads a date part by its place
-  (a date function's first argument) and keeps only reserved words in the list.
 - destination: first sighting.
 
 ### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
@@ -329,17 +273,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   research said the server runs from the plugin root.
 - destination: first sighting.
 
-### 344-C3 — a directory-marketplace install reads the working tree, so it hides an uncommitted file
-
-- type: 2 (process) · handle: `verify-the-shipped-artifact-not-the-working-tree`
-- status: proposed · seen: 344, 427
-- evidence: `.gitignore`'s `.mcp.json` dropped the plugin's server file; the live install from the
-  checkout connected anyway. Only a clone of the branch shows what a user gets. The challenger found it
-  independently. Guard: `tests/test_claude_code_plugin.py::test_every_generated_file_is_committable`.
-- destination: first sighting.
-
-*None yet.*
-
 ### 343-C1 — Claude Code keeps only a 2,048-character prefix of an MCP server's `instructions`
 
 - type: 5 (environment) · area: `routing surface / server instructions` · verified-at: 2026-09-29, Claude Code 2.1.284
@@ -366,3 +299,10 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | 362-C1 | `widen-every-query-that-shares-the-page` | ENGINEERING_RULES R5.5 |
 | 361-C1 | `read-a-literal-by-its-structure-not-a-regex` | ENGINEERING_RULES R5.9 |
 | 360-C1 | `confirm-the-blocked-path-runs` | AGENT_BRIEF P6, ENGINEERING_RULES R6.5 |
+| 427-C1 | `a-loader-guard-misses-the-entry-that-loads-nothing` | ENGINEERING_RULES R6.7 |
+| 410-C1 | `a-word-list-is-not-a-grammar` | ENGINEERING_RULES R6.7 |
+| 424-C1 | `a-subset-reader-must-fail-closed` | ENGINEERING_RULES R6.5 |
+| 413-C1 | `validate-a-parameter-before-the-first-return` | ENGINEERING_RULES R5.11 |
+| 414-C1 | `run-the-ac-on-main-before-the-design` | AGENT_BRIEF P6 |
+| 344-C3 | `verify-the-shipped-artifact-not-the-working-tree` | AGENT_BRIEF P11 |
+| 423-C1 | `a-cited-guard-must-hold-its-row` | AGENT_BRIEF P12 |
