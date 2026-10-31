@@ -277,7 +277,9 @@ jobs:
         run: npm audit --omit=dev --prefix adapters/sql
 
       - name: Audit the PHP adapter (composer audit)
-        run: composer audit --locked --abandoned=report --no-interaction --working-dir=adapters/php
+        env:
+          COMPOSER_AUDIT_ABANDONED: report
+        run: composer audit --locked --no-interaction --working-dir=adapters/php
 
   # 424 (SEC-PL-06): the plugin manifest, skills and hooks are validated by the CLI that loads them.
   # No gate.sh counterpart: it installs the CLI from the npm registry (see test_ci_and_gate_agree).

@@ -289,7 +289,8 @@ elif ! _reach repo.packagist.org; then
     _record SKIP "composer audit (adapters/php)" "repo.packagist.org unreachable"
 else
     _run "composer audit (adapters/php)" \
-        composer audit --locked --abandoned=report --no-interaction --working-dir=adapters/php
+        env COMPOSER_AUDIT_ABANDONED=report \
+        composer audit --locked --no-interaction --working-dir=adapters/php
 fi
 
 echo "== job: guardrails =="
