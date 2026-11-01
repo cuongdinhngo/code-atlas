@@ -79,8 +79,13 @@ def status(root: Path) -> int:
     """
     try:
         from code_atlas.config import load_config
+        from code_atlas.hooks.state import checked_progress
 
-        line = read_build_progress(load_config(root).db_path)
+        raw = read_build_progress(load_config(root).db_path)
+        # The progress file is the repo's to write: show only a line the build writes (429).
+        line = checked_progress(raw)
+        if raw is not None and line is None:
+            line = "a build is running — its progress line is not one the build writes"
     except Exception as error:  # noqa: BLE001 — a broken read is an exit code, never a traceback
         _say(f"failed: {type(error).__name__}: {error}")
         return FAILED

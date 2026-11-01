@@ -10,12 +10,12 @@ is opened here, inside the call, because the caller's thread owns the connection
 
 import os
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import asdict
 from typing import Literal
 
 from code_atlas import contract, gitutil, records
-from code_atlas.adapter import AdapterContractError, AdapterError
+from code_atlas.adapter import AdapterContractError, AdapterError, shipped_adapters
 from code_atlas.adapter_skew import contract_fix, installed_from
 from code_atlas.config import Config
 from code_atlas.index_lock import (
@@ -26,6 +26,7 @@ from code_atlas.index_lock import (
     publish_build_progress,
     try_index_write_lock,
 )
+from code_atlas.index_text import checked_name, scrubbed
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     COVERAGE_LOSS,
@@ -78,6 +79,8 @@ BUSY = "busy"
 # One reason for any adapter-unusable build (unconfigured / bad handshake): the caller's situation
 # is the same — no build ran, here is the tree and why — and ``detail`` carries the specifics (064).
 NO_USABLE_ADAPTER = "no_usable_adapter"
+# Text a refusal quotes from the adapter or the index stamp: one line, cut here (429).
+REFUSAL_TEXT_CAP = 1000
 
 # Opening the index for a busy-branch staleness read may hit a foreign schema or, in a cold-start
 # race, a write-locked DB; either degrades to ``unknown`` rather than raising (R5.3, C2).
@@ -192,7 +195,7 @@ def _adapter_refused(
         "requested_full": full,
         "performed": False,
         "reason": NO_USABLE_ADAPTER,
-        "detail": str(broken),
+        "detail": scrubbed(broken, REFUSAL_TEXT_CAP),
         "index_root": config.index_root,
         "db_path": str(config.db_path),
         "seconds": round(time.monotonic() - started, 3),
@@ -459,13 +462,16 @@ def _coverage_refused(
     The 050/201 shape, and deliberately **no** `route`: no registered tool can configure an
     adapter, so this carries a hint instead of a tool that could not answer (R5.4c).
     """
-    return {
+    named, unrecognised = known_languages(lost, config)
+    refused: dict[str, object] = {
         "mode": REFUSED,
         "requested_full": full,
         "performed": False,
         "reason": COVERAGE_LOSS,
-        "lost_languages": list(lost),
-        "covered_languages": store.get_meta(COVERED_LANGUAGES_KEY) or "",
+        "lost_languages": list(named),
+        "covered_languages": scrubbed(
+            store.get_meta(COVERED_LANGUAGES_KEY) or "", REFUSAL_TEXT_CAP
+        ),
         "configured_languages": sorted(config.adapter_cmds),
         "hint": COVERAGE_LOSS_HINT,
         "in_band_option": COVERAGE_LOSS_IN_BAND,
@@ -473,6 +479,23 @@ def _coverage_refused(
         "db_path": str(config.db_path),
         "seconds": round(time.monotonic() - started, 3),
     }
+    if unrecognised:
+        refused[LOST_UNRECOGNISED] = unrecognised
+    return refused
+
+
+# The count of lost ids code-atlas does not know; both refusals and the status say it (429).
+LOST_UNRECOGNISED = "lost_unrecognised"
+
+
+def known_languages(lost: Sequence[str], config: Config) -> tuple[tuple[str, ...], int]:
+    """The lost ids code-atlas knows — shipped or configured — and a count of the rest (421, 429).
+
+    The stamp is the indexed repo's to write; a name that is neither is counted, never spoken.
+    """
+    known = {name.lower() for name in (*shipped_adapters(), *config.adapter_cmds)}
+    named = tuple(name for name in lost if checked_name(name) and name in known)
+    return named, len(lost) - len(named)
 
 
 def _incomplete_refused(config: Config, *, full: bool, started: float) -> dict[str, object]:

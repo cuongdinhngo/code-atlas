@@ -53,9 +53,11 @@ def _heuristic_name(kwargs: object) -> str:
     """Pull the ``Current heuristic layer name:`` line out of the injected prompt."""
     messages = kwargs["messages"]  # type: ignore[index]
     content = messages[0]["content"]
-    for line in content.splitlines():
+    lines = content.splitlines()
+    for index, line in enumerate(lines):
         if line.startswith("Current heuristic layer name:"):
-            return line.split(":", 1)[1].strip()
+            # The name sits inside a <repo_data> block on the next lines (429).
+            return lines[index + 2].strip()
     return "?"
 
 

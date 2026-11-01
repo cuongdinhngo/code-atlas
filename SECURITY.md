@@ -70,8 +70,12 @@ Each criterion code-atlas holds, and the test or ticket behind it, is in
 - **Text read back from the index is data.** A name stamped into the index, the recorded refusal
   and the build's progress line reach `nudge.log`, the server instructions or a hook only as a
   checked name, a value from code-atlas's own vocabulary or a number; the status summary is
-  scrubbed of control, bidi and ANSI characters and capped (`code_atlas/index_text.py`). Tool
-  answers that return indexed source (`read_symbol`, search) carry it as written.
+  scrubbed of control, bidi and ANSI characters and capped (`code_atlas/index_text.py`). A tool
+  answer escapes every control, bidi and format character as `\u{XXXX}` and names the fields that
+  hold the repo's text in `untrusted_fields`; the server instructions say those are data, never
+  instructions (`code_atlas/untrusted.py`). Generated markdown, the viewer and hook output are
+  escaped the same way. The LLM add-on delimits repo text in `<repo_data>`, escapes the reply and
+  ignores a cached entry whose model, version or input hash fails its check.
 
 - **The tool surface is declared and pinned.** The server speaks stdio only, and stdout carries MCP
   frames only. Every tool declares read-only or writer annotations, takes a closed input schema

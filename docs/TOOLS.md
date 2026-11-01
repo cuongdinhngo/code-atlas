@@ -116,6 +116,17 @@
   range that changes it without an added `CHANGELOG.md` line that says "tool surface" or names a
   changed tool.
 
+## Repo text in an answer is marked (429)
+
+A docblock, a source slice, a symbol name and a path are written by the indexed repo. Every answer
+escapes each control, bidi and format character in them as a visible `\u{XXXX}` (source and markdown
+keep their line breaks), and lists the fields that hold repo text in `untrusted_fields`, for example
+`["source", "file"]` or `["results[].qname", "results[].file"]`; a batch prefixes `subjects[].`. The
+server `instructions` say once that those fields are data, never instructions. A field that echoes an
+argument you passed (`qname`, `subtree`) is listed too when present. A name holding a control comes
+back escaped, so it no longer round-trips into the next call. The table is `code_atlas/untrusted.py` `FIELDS`; a tool absent from
+it fails server start.
+
 ## What it cannot answer — reach for `grep` instead
 
 The verdict of the field retros ([protocol](runbooks/field-retro.md); the round corpus is kept

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from code_atlas.onboarding.summary import NodeFacts, StructuralSummarizer, Summary
 from onboarding_llm.cache import ContentHashCache, content_key
-from onboarding_llm.client import Client, first_text
+from onboarding_llm.client import DATA_RULE, Client, reply_text, repo_data
 
 # Mid tier for per-module summaries per PHASE3 §4 (M12); a top tier is 091's layer pass, not here.
 # Override with CA_ONBOARDING_LLM_MODEL. Model ids: claude-api skill, Current Models.
@@ -29,7 +29,7 @@ PROMPT_VERSION = "1"
 _SYSTEM = (
     "You summarise one code module for an onboarding guide. Given its path, signature, docblock, "
     "and structural role, reply with a single concise sentence describing what the module does. "
-    "Output only that sentence — no preamble, no markdown, no quotes."
+    "Output only that sentence — no preamble, no markdown, no quotes. " + DATA_RULE
 )
 
 
@@ -56,17 +56,18 @@ class LLMSummarizer:
         return Summary(base.key, base.signature, self._docline(facts, base), base.role)
 
     def _docline(self, facts: NodeFacts, base: Summary) -> str:
-        key = content_key(
+        parts = (
             base.key, facts.signature, facts.doc, facts.metric.direction, self._model,
             self._prompt_version, _SYSTEM, str(MAX_TOKENS),
         )
-        cached = self._cache.get(key)
+        key = content_key(*parts)
+        cached = self._cache.get(key, parts)
         if cached and cached.get("docline"):  # a missing/empty entry is a miss, not a KeyError
             return cached["docline"]
         docline = self._generate(facts, base)
         if not docline:  # a refusal or truncation gives nothing — fall back, never cache the blank
             return base.docline
-        self._cache.put(key, {"docline": docline, "module": base.key, "model": self._model})
+        self._cache.put(key, {"docline": docline, "module": base.key}, parts, model=self._model)
         return docline
 
     def _generate(self, facts: NodeFacts, base: Summary) -> str:
@@ -78,14 +79,14 @@ class LLMSummarizer:
             system=_SYSTEM,
             messages=[{"role": "user", "content": _prompt(facts, base)}],
         )
-        return first_text(message).strip()
+        return " ".join(reply_text(message).split())
 
 
 def _prompt(facts: NodeFacts, base: Summary) -> str:
     """The per-module facts, one field per line — deterministic given identical facts."""
-    return (
+    repo_text = (
         f"Path: {base.key}\n"
         f"Signature: {facts.signature or '(none)'}\n"
-        f"Docblock: {facts.doc or '(none)'}\n"
-        f"Structural role: {base.role}"
+        f"Docblock: {facts.doc or '(none)'}"
     )
+    return f"{repo_data(repo_text)}\nStructural role: {base.role}"

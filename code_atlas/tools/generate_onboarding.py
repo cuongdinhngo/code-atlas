@@ -13,6 +13,7 @@ manifest recorded, and nothing else (R5.7).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -20,6 +21,7 @@ from typing import Literal
 from code_atlas.config import Config, as_working_roots
 from code_atlas.containment import make_private_dir, require_writable, safe_write
 from code_atlas.contract import split_qname
+from code_atlas.index_text import escaped, escaped_tree
 from code_atlas.onboarding.architecture_diff import (
     MANIFEST_KEYS,
     diff_architecture,
@@ -382,7 +384,8 @@ def _arch_diff_markdown_for(
     if not prior_manifest.is_file():
         return None
     # The one set ``load_architecture_snapshot`` strips, so the two sides cannot drift apart.
-    after_clean = {k: v for k, v in after.items() if k not in MANIFEST_KEYS}
+    # The prior manifest was written escaped, so this snapshot is escaped to compare (429).
+    after_clean = escaped_tree({k: v for k, v in after.items() if k not in MANIFEST_KEYS})
     report = diff_architecture(load_architecture_snapshot(prior_manifest), after_clean)
     return render_architecture_diff(report)
 
@@ -455,7 +458,9 @@ def _write(
         if document is not None and not wants.wants_document(document):
             (out / name).unlink(missing_ok=True)
             continue
-        require_writable(root, out / name).write_text(text, encoding="utf-8", newline="\n")
+        require_writable(root, out / name).write_text(
+            _escaped_page(name, text), encoding="utf-8", newline="\n"
+        )
         written.append(f"{OUTPUT_DIR}/{name}")
     cache = root / CACHE_DIR
     for level in (cache.parent, cache):
@@ -463,6 +468,22 @@ def _write(
     make_private_dir(cache)
     safe_write(require_writable(root, cache / CACHE_NAME), cache_json(artifact), root=root)
     return tuple(sorted(written))
+
+
+def _escaped_page(name: str, text: str) -> str:
+    """A page as written: every control, bidi and format character of the repo's text visible (429).
+
+    Markdown keeps its line breaks; the manifest is re-dumped as ``manifest_json`` dumps it; the
+    viewer escapes its own dataset where it embeds it.
+    """
+    if name == MANIFEST_NAME:
+        return (
+            json.dumps(
+                escaped_tree(json.loads(text)), sort_keys=True, ensure_ascii=False, indent=2
+            )
+            + "\n"
+        )
+    return text if name == VIEWER_NAME else escaped(text, multiline=True)
 
 
 def _payload(

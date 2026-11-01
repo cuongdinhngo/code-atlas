@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 
 from code_atlas.hooks import additional_context
+from code_atlas.index_text import escaped
 from code_atlas.tokens import estimate_tokens
 
 # 061: the cap IS the design. The field: ~150 tokens lands, "past ~500 I would treat it as chrome".
@@ -50,7 +51,7 @@ def _verbose(argv: list[str]) -> bool:
 
 def _note(message: str, *, verbose: bool) -> None:
     if verbose:
-        print(f"code-atlas signal: {message}", file=sys.stderr)
+        print(f"code-atlas signal: {escaped(message)}", file=sys.stderr)
 
 
 def _project_root() -> Path:
@@ -108,9 +109,9 @@ def read_signal(root: Path, rel: str, *, verbose: bool = False) -> str | None:
     if len(symbols) < MIN_SYMBOLS:
         _note(f"silent: {rel} holds {len(symbols)} symbols", verbose=verbose)
         return None
-    parts = [f"{row['name']}:{row['line_start']}" for row in symbols]
+    parts = [f"{escaped(row['name'])}:{row['line_start']}" for row in symbols]
     suffix = " (index may be behind)" if behind else ""
-    return _fit(f"code-atlas: {rel} defines {len(symbols)} symbols — ", parts, suffix)
+    return _fit(f"code-atlas: {escaped(rel)} defines {len(symbols)} symbols — ", parts, suffix)
 
 
 def write_signal(root: Path, rel: str, *, verbose: bool = False) -> str | None:
@@ -133,7 +134,7 @@ def write_signal(root: Path, rel: str, *, verbose: bool = False) -> str | None:
         _note(f"silent: no adapter owns {rel}", verbose=verbose)
         return None
     return (
-        f"code-atlas: {rel} is untracked — symbol queries answer `not_indexed` "
+        f"code-atlas: {escaped(rel)} is untracked — symbol queries answer `not_indexed` "
         "until it is committed and reindexed (092)."
     )
 
@@ -208,7 +209,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except Exception as error:
         # A broken signal must never break the read it rides along with.
-        print(f"code-atlas signal skipped: {type(error).__name__}: {error}", file=sys.stderr)
+        reason = escaped(f"{type(error).__name__}: {error}")
+        print(f"code-atlas signal skipped: {reason}", file=sys.stderr)
         return 0
     if line:
         print(additional_context(event, line) if event else line)

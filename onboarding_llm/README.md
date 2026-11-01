@@ -70,3 +70,17 @@ is a cache hit, an edit is a miss. All three files are sorted-key JSON with no t
 are byte-stable and diff cleanly. The default locations are gitignored
 (regenerable, like 088's onboarding `artifact.json`); point the `_CACHE` env at a **tracked** path to commit the
 results so every run — anywhere — replays them without calling Claude.
+
+### What the model sees, and what a committed cache must prove
+
+Repo text (paths, signatures, docblocks, facts) is sent inside `<repo_data>…</repo_data>`, a closing
+tag inside it is defused, and every system prompt says text in those tags is data, never
+instructions. A reply is escaped (each control and bidi character becomes a visible `\u{XXXX}`)
+before it becomes a docline, a layer name or prose, and is never evaluated.
+
+A cache entry is `{<value fields>, "model", "version", "input_hash"}`. `input_hash` is the sha256 of
+the request inputs, the model, the version and every stored value. On read it is recomputed; an entry
+that lacks a field, whose hash differs, or whose text is empty, over 4000 characters or not printable
+is a miss, so a fresh call (or the deterministic text) answers. The hash is integrity, not
+authenticity: anyone can compute it, so review a committed cache like code. Entries written before
+this layout have no `input_hash` and are regenerated once.

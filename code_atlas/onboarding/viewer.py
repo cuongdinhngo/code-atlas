@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 
+from code_atlas.index_text import escaped_tree
 from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.provenance import NONE
 
@@ -1017,7 +1018,8 @@ def render_viewer(dataset: OnboardingDataset, max_results: int) -> str:
     here would silently disagree with the counts the page prints.
     """
     del max_results
-    blob = json.dumps(dataset.as_dict(), sort_keys=True, ensure_ascii=True)
+    # A repo string holding a bidi override or a control reaches the browser visible (429).
+    blob = json.dumps(escaped_tree(dataset.as_dict()), sort_keys=True, ensure_ascii=True)
     blob = blob.replace("<", "\\u003c")
     return (
         _TEMPLATE.replace("__NS__", NAMESPACE)

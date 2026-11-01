@@ -53,6 +53,7 @@ from code_atlas.tools import (
     trace_capability,
 )
 from code_atlas.tools.schema_guard import guard
+from code_atlas.untrusted import framed
 
 SERVER_NAME = "code-atlas"
 
@@ -236,10 +237,12 @@ def build_server(
     def serve(name: str, tool: Callable[..., dict[str, object]]) -> None:
         """Register ``tool`` under ``name``, counting every return (task 260).
 
-        Every tool leaves here with its annotations and a closed input schema (428).
+        Every tool leaves here with its annotations and a closed input schema (428), and its
+        answer framed: repo text escaped and named in ``untrusted_fields`` (429).
         """
+        marked = framed(name, tool)
         registered = FunctionTool.from_function(
-            refusal_is_loud(fit.wrap(name, config, tool) if count else tool),
+            refusal_is_loud(fit.wrap(name, config, marked) if count else marked),
             annotations=tool_annotations(name),
         )
         if registered.name != name:

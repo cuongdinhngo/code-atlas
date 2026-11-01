@@ -60,6 +60,7 @@ from code_atlas.tools import (  # noqa: E402
     subtree_dependencies,
     trace_capability,
 )
+from code_atlas.untrusted import framed  # noqa: E402 — the framing a client receives (429)
 
 _QUESTIONS = _REPO / "scripts" / "tokens_to_answer_questions.json"
 _DEFAULT_REPORT = _REPO / "artifacts" / "tokens-to-answer-report.json"
@@ -137,7 +138,14 @@ def normalize_env_paths(payload: object) -> object:
 
 
 def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
-    """One repo's tool callables, keyed by name (the recipe's vocabulary)."""
+    """One repo's tool callables, keyed by name (the recipe's vocabulary).
+
+    Each is framed as ``serve`` frames it (429), so the count is the answer a client receives.
+    """
+    return {name: framed(name, tool) for name, tool in _raw_tools(config).items()}
+
+
+def _raw_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
     return {
         get_index_status.NAME: get_index_status.create(config, _TOOL_NAMES),
         search_symbol.NAME: search_symbol.create(config),
