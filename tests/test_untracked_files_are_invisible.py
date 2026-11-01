@@ -77,6 +77,7 @@ def test_untracked_indexable_file_is_visible_not_absent(tmp_path: Path) -> None:
         "try_instead": TRY_INSTEAD_BUILD_OR_UPDATE_INDEX,
         "try_instead_hint": TRY_INSTEAD_HINT_UNTRACKED,
         "untracked_path": UNTRACKED,
+        "untrusted_fields": ["untracked_path", "answered_about_ref"],  # 429
         **server_provenance(),
     }
 

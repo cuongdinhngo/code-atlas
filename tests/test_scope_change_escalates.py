@@ -152,7 +152,8 @@ def test_a_removed_adapter_is_named_too(tmp_path: Path) -> None:
     refused = build_tool(config_for(tmp_path, ONE_ADAPTER))(full=False)
     assert refused["mode"] == "refused"
     assert refused["reason"] == "coverage_loss"
-    assert refused["lost_languages"] == ["second"]
+    # `second` left the configuration: no id code-atlas knows now, so counted, not named (429).
+    assert refused["lost_languages"] == [] and refused["lost_unrecognised"] == 1
 
     payload = build_tool(config_for(tmp_path, ONE_ADAPTER))(
         full=False, allow_coverage_loss=True

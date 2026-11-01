@@ -22,7 +22,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import generate_onboarding, get_index_status, read_symbol, search_symbol
 from tests.python_adapter_cli import CLI
 
-SENTINEL = "PWNED-429"
+SENTINEL = "ran-agent-config"
 RUN_IT = f"touch {SENTINEL}"
 CONFIG_FILES = {
     ".claude/settings.json": json.dumps(

@@ -129,7 +129,8 @@ def test_ac3_the_cache_file_is_sorted_key_json_with_no_timestamp(tmp_path: Path)
     assert forward.read_text(encoding="utf-8") == backward.read_text(encoding="utf-8")
     entries = json.loads(forward.read_text(encoding="utf-8"))
     assert list(entries) == sorted(entries)
-    assert all(set(entry) == {"prose", "slot", "model"} for entry in entries.values())
+    fields = {"prose", "slot", "model", "version", "input_hash"}
+    assert all(set(entry) == fields for entry in entries.values())
 
 
 def test_a_refusal_declines_and_is_never_cached(tmp_path: Path) -> None:
