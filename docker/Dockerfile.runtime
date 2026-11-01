@@ -1,12 +1,6 @@
-# code-atlas RUNTIME image — ships the MCP server itself over stdio, with the PHP adapter.
-# Lean: no pytest/ruff/mypy, no composer at runtime (composer runs only in the build stage).
-# Runs as the fixed non-root user 10001; git is here so the tracked-index check can answer (420).
-#
-# An MCP client launches it per project: the repo read-only at /workspace, its .code-atlas/ the one
-# writable mount (`mkdir -p .code-atlas` first). `scripts/container_smoke.py` runs exactly this:
-#   docker run -i --rm --user "$(id -u):$(id -g)" --read-only --tmpfs /tmp --cap-drop=ALL \
-#     --security-opt=no-new-privileges --network=none -v /path/to/project:/workspace:ro \
-#     -v /path/to/project/.code-atlas:/workspace/.code-atlas code-atlas-server
+# code-atlas RUNTIME image: the MCP server over stdio plus the PHP adapter, as the fixed non-root
+# user 10001. Lean (no test tools, no composer); git is here so a committed index is refused (420).
+# Run line: README.md, *In a container*; scripts/container_smoke.py runs it.
 
 # ---- stage 1: resolve the PHP adapter's vendor tree (composer needed here only) ----
 # python:3.12-slim-bookworm, by digest (Dependabot moves it)
@@ -33,7 +27,7 @@ ENV PATH="/opt/code-atlas/.venv/bin:$PATH"
 COPY pyproject.toml uv.lock README.md ./
 COPY code_atlas ./code_atlas
 RUN pip install --no-cache-dir uv==0.11.28 \
-    && uv sync --frozen --no-dev --no-editable \
+    && uv sync --no-cache --frozen --no-dev --no-editable \
     && pip uninstall --yes uv
 RUN python -c "from code_atlas.build_info import server_identity; i=server_identity(); assert i['version'] and len(i['build'])==7"
 
