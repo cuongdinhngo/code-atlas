@@ -13,7 +13,7 @@ FROM python:3.12-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb06
 RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml \
         nodejs npm \
-        git unzip ca-certificates \
+        git unzip ca-certificates openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Composer into a stable path, from its digest-pinned image (never a piped installer).

@@ -46,7 +46,12 @@ TAGS = {
     "target": "tag",
     "conditions": {"ref_name": {"include": ["refs/tags/v*"], "exclude": []}},
     "bypass_actors": [],
-    "rules": [{"type": "deletion"}, {"type": "update"}, {"type": "non_fast_forward"}],
+    "rules": [
+        {"type": "deletion"},
+        {"type": "update"},
+        {"type": "non_fast_forward"},
+        {"type": "required_signatures"},
+    ],
 }
 LIVE: dict[str, Any] = {
     f"repos/{REPO}/rulesets": [{"id": 1}, {"id": 2}],
@@ -115,6 +120,9 @@ PLANTED = {
     ),
     "rulesets.tags.update": _with(
         f"repos/{REPO}/rulesets/2", lambda r: r["rules"].remove({"type": "update"})
+    ),
+    "rulesets.tags.required_signatures": _with(
+        f"repos/{REPO}/rulesets/2", lambda r: r["rules"].remove({"type": "required_signatures"})
     ),
     "private_vulnerability_reporting": _with(
         f"repos/{REPO}/private-vulnerability-reporting", lambda r: r.update(enabled=False)

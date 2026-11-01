@@ -130,6 +130,7 @@ READERS: Mapping[str, Reader] = {
     "rulesets.tags.deletion": _ruleset_reader(*_TAGS, "deletion"),
     "rulesets.tags.update": _ruleset_reader(*_TAGS, "update"),
     "rulesets.tags.non_fast_forward": _ruleset_reader(*_TAGS, "non_fast_forward"),
+    "rulesets.tags.required_signatures": _ruleset_reader(*_TAGS, "required_signatures"),
     "rulesets.tags.bypass": _bypass(*_TAGS),
     "private_vulnerability_reporting": _private_reporting,
     "secret_scanning": _security("secret_scanning"),
