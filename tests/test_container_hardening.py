@@ -9,6 +9,7 @@ file can lie with.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -20,7 +21,19 @@ from scripts.container_smoke import IMAGE_USER, RUN_FLAGS
 REPO = Path(__file__).resolve().parent.parent
 DOCKER = REPO / "docker"
 RUNTIME = DOCKER / "Dockerfile.runtime"
-DOCKERFILES = (DOCKER / "Dockerfile", RUNTIME)
+PRUNED = {"node_modules", "vendor", ".venv", "venv", ".git", ".mango", ".pytest_cache"}
+
+
+def find_dockerfiles(root: Path) -> list[Path]:
+    """Every `Dockerfile*` under `root`, so a third image is read without a list to update."""
+    found = []
+    for here, dirs, names in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in PRUNED and not d.startswith("pytest-of-")]
+        found += [Path(here) / n for n in names if n.startswith("Dockerfile")]
+    return sorted(found)
+
+
+DOCKERFILES = find_dockerfiles(REPO)
 DIGEST = re.compile(r"^[^@\s:]+(?::[^@\s]+)?@sha256:[0-9a-f]{64}$")
 TAGGED = re.compile(r"^[^@\s]+:[^@\s]+@sha256:[0-9a-f]{64}$")
 
@@ -60,6 +73,24 @@ def pin_problems(text: str) -> list[str]:
     return problems
 
 
+def test_the_dockerfile_walk_finds_both_known_images() -> None:
+    assert {DOCKER / "Dockerfile", RUNTIME} <= set(DOCKERFILES)
+
+
+def test_the_dockerfile_walk_finds_a_third_and_skips_vendored_trees(tmp_path: Path) -> None:
+    for name in (
+        "Dockerfile",
+        "svc/Dockerfile.dev",
+        "node_modules/x/Dockerfile",
+        ".venv/Dockerfile",
+    ):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("FROM python:3.12\n", encoding="utf-8")
+    found = [p.relative_to(tmp_path).as_posix() for p in find_dockerfiles(tmp_path)]
+    assert found == ["Dockerfile", "svc/Dockerfile.dev"]
+    assert any(pin_problems(p.read_text("utf-8")) for p in find_dockerfiles(tmp_path))
+
+
 def test_every_from_and_copy_from_is_pinned_by_digest() -> None:
     seen = 0
     for dockerfile in DOCKERFILES:
@@ -67,14 +98,18 @@ def test_every_from_and_copy_from_is_pinned_by_digest() -> None:
         assert pin_problems(text) == [], dockerfile.name
         seen += len(re.findall(r"^\s*FROM\s", text, re.M | re.I))
     assert seen >= 3, "fewer FROM lines than the two Dockerfiles carry: the walk read nothing"
-    # Composer comes from its image in both files, not from an installer script.
-    for dockerfile in DOCKERFILES:
+
+
+def test_every_dockerfile_that_runs_composer_gets_it_from_its_pinned_image() -> None:
+    users = [d for d in DOCKERFILES if "composer install" in d.read_text("utf-8")]
+    assert {DOCKER / "Dockerfile", RUNTIME} <= set(users)
+    for dockerfile in users:
         assert re.search(r"COPY --from=composer:\S+@sha256:", dockerfile.read_text("utf-8"))
 
 
 def test_no_piped_installer_anywhere_under_docker() -> None:
     files = [p for p in DOCKER.rglob("*") if p.is_file()]
-    assert DOCKERFILES[0] in files and RUNTIME in files
+    assert {DOCKER / "Dockerfile", RUNTIME} <= set(files)
     for path in files:
         for line in _instructions(path.read_text(encoding="utf-8")):
             assert not PIPED.search(line), f"{path.name}: a piped installer: {line}"
@@ -139,11 +174,12 @@ def test_the_readme_run_line_carries_every_documented_flag() -> None:
     assert "mkdir -p .code-atlas" in section
 
 
-def test_the_dockerfile_header_shows_the_hardened_run_line() -> None:
-    header = "\n".join(RUNTIME.read_text(encoding="utf-8").splitlines()[:14])
-    flat = re.sub(r"[#\\\s]+", " ", header)
-    missing = [flag for flag in RUN_FLAGS if flag.startswith("--") and flag not in flat]
-    assert missing == []
+def test_the_dockerfile_header_points_at_the_run_line_instead_of_copying_it() -> None:
+    header = RUNTIME.read_text(encoding="utf-8").splitlines()[:3]
+    assert any(
+        "README.md, *In a container*" in line and "container_smoke.py" in line for line in header
+    )
+    assert not any("--cap-drop" in line for line in header), "a third copy of the run line"
 
 
 # --- context hygiene: .dockerignore and .gitignore ------------------------------------------------
@@ -186,6 +222,8 @@ def _glob(part: str) -> str:
             if end < 0:
                 raise Unclassifiable(part)
             body = part[i + 1 : end].replace("\\", "")
+            if "-" in body:
+                raise Unclassifiable(f"a character range is not modelled: {part}")
             out += "[" + ("^" if body.startswith("^") else "") + re.escape(body.lstrip("^")) + "]"
             i = end
         elif c == "\\":
@@ -287,6 +325,7 @@ def test_the_ci_job_builds_smokes_and_scans_without_pushing() -> None:
     for setting in ("fail-build: true", "severity-cutoff: critical", "only-fixed: true"):
         assert setting in scan, setting
     assert "contents: read" in job
+    assert not re.search(r":\s*write\b|write-all", job), "the job grants more than read"
     assert job.index("container_smoke.py") < job.index("anchore/scan-action")
 
 
@@ -330,7 +369,7 @@ def test_the_piped_installer_pattern_catches_each_shape(line: str) -> None:
 
 
 def test_the_dockerignore_matcher_refuses_a_line_it_cannot_place() -> None:
-    for bad in ("!keep.txt\n", "a\\*b\n", "[abc\n", "# only a comment\n"):
+    for bad in ("!keep.txt\n", "a\\*b\n", "[abc\n", "*.[a-z]\n", "# only a comment\n"):
         with pytest.raises(Unclassifiable):
             dockerignore_matcher(bad)
 
