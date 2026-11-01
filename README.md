@@ -186,20 +186,28 @@ repo to index, `env.CA_PHP_CMD` = `php /abs/path/to/code-atlas/adapters/php/inde
 adapter lives in this checkout, so `CA_PHP_CMD` must be an **absolute** path. Details in
 [`adapters/php/README.md`](adapters/php/README.md).
 
-**In a container** — no host Python or PHP needed; the image bundles the pinned adapters:
+**In a container** — no host Python or PHP needed; the image bundles the pinned adapters and runs as
+user 10001. The repo is mounted read-only; its `.code-atlas/` is the one writable mount:
 
 ```bash
 docker build -f docker/Dockerfile.runtime -t code-atlas-server .
+mkdir -p .code-atlas   # in the repo you index; the mount below needs it to exist
+docker run -i --rm --user "$(id -u):$(id -g)" --read-only --tmpfs /tmp --cap-drop=ALL \
+  --security-opt=no-new-privileges --network=none \
+  -v "$PWD":/workspace:ro -v "$PWD/.code-atlas":/workspace/.code-atlas code-atlas-server
 ```
 
 ```jsonc
-// .mcp.json — the server indexes the mounted repo and writes .code-atlas/graph.db into it
+// .mcp.json — use your own uid:gid (`id -u`, `id -g`) so the repo's owner is the user git trusts
 {"mcpServers": {"code-atlas": {"command": "docker",
-  "args": ["run", "-i", "--rm", "-v", "/abs/path/to/your-project:/workspace", "code-atlas-server"]}}}
+  "args": ["run", "-i", "--rm", "--user", "1000:1000", "--read-only", "--tmpfs", "/tmp",
+    "--cap-drop=ALL", "--security-opt=no-new-privileges", "--network=none",
+    "-v", "/abs/path/to/your-project:/workspace:ro",
+    "-v", "/abs/path/to/your-project/.code-atlas:/workspace/.code-atlas", "code-atlas-server"]}}}
 ```
 
-MCP speaks over stdio, so `-i` is required; the server indexes `/workspace`, so mount the repo
-there. Add `"--user", "1000:1000"` to keep `.code-atlas/` writes owned by you. See [`docker/`](docker/).
+MCP speaks over stdio, so `-i` is required. A repo that commits its `.code-atlas/` is refused, as on
+the host. See [`docker/`](docker/).
 </details>
 
 <details>
