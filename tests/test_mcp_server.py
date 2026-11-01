@@ -61,7 +61,8 @@ MAIN = REPO / "code_atlas" / "main.py"
 
 # The ~100-token budget of §12's "call first" tool, pinned to characters at ~4 chars per token.
 # §12 ~100-token entry point; 316's leading ``summary`` adds ~50–60 chars on a small fixture.
-MINIMAL_BUDGET = 500
+# 429: +45 for ``untrusted_fields`` naming the two git refs (a branch name is the repo's to write).
+MINIMAL_BUDGET = 545
 
 # Long enough for a cold interpreter start on a loaded CI runner, short enough to fail a hang fast.
 STDIO_TIMEOUT = 90.0
