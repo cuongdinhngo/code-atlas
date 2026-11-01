@@ -25,7 +25,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
 from code_atlas import records, routes
-from code_atlas.adapter import AdapterContractError, shipped_adapters, unconfigured_adapters
+from code_atlas.adapter import AdapterContractError, unconfigured_adapters
 from code_atlas.adapter_skew import contract_fix, installed_from, read_refusals
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
@@ -33,7 +33,7 @@ from code_atlas.contract import CONTRACT_VERSION
 from code_atlas.enrichment import rules_drift
 from code_atlas.gitutil import dirty_paths, is_object_id
 from code_atlas.index_lock import build_holds_live_db, build_in_progress, read_refresh_refused
-from code_atlas.index_text import checked_name, scrubbed
+from code_atlas.index_text import scrubbed
 from code_atlas.index_trust import check_index
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
@@ -59,7 +59,7 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import claim, fit, schema_guard
-from code_atlas.tools.build_or_update_index import NO_USABLE_ADAPTER
+from code_atlas.tools.build_or_update_index import NO_USABLE_ADAPTER, known_languages
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
@@ -445,9 +445,7 @@ def _attach_build_state(
 
 def _known_languages(lost: Sequence[str], config: Config) -> tuple[tuple[str, ...], int]:
     """The lost ids code-atlas knows — shipped or configured — and a count of the rest (421)."""
-    known = {name.lower() for name in (*shipped_adapters(), *config.adapter_cmds)}
-    named = tuple(name for name in lost if checked_name(name) and name in known)
-    return named, len(lost) - len(named)
+    return known_languages(lost, config)
 
 
 def _attach_unconfigured_adapters(status: dict[str, object], config: Config) -> None:
