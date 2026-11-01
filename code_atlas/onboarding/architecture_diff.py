@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from code_atlas.index_text import escaped_tree
 from code_atlas.onboarding.dataset import derive_caveats
 from code_atlas.onboarding.reachability import BUCKETS
 
@@ -115,7 +116,8 @@ def load_architecture_snapshot(path: Path | str) -> dict[str, Any]:
     raw = json.loads(text)
     if not isinstance(raw, dict):
         raise ValueError(f"architecture snapshot must be a JSON object, got {type(raw).__name__}")
-    return {key: value for key, value in raw.items() if key not in MANIFEST_KEYS}
+    # Escaped on load (idempotent), so a manifest written before 429 diffs like a new one.
+    return escaped_tree({key: value for key, value in raw.items() if key not in MANIFEST_KEYS})
 
 
 def diff_architecture(

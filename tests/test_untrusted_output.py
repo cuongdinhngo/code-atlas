@@ -390,10 +390,12 @@ CALLS: dict[str, list[dict[str, Any]]] = {
         {"queries": BATCH_QUERIES},
         {"query": "saevZq9"},
         {"query": "orders_save_edit"},
+        {"query": SAVE, "path_prefix": "inc/"},
     ],
     "file_outline": [{"path": f"{HOSTILE_DIR}/ordersZq9.py"}],
     "read_symbol": [
         {"qname": SAVE},
+        {"qname": SAVE, "path_prefix": "inc/"},
         {"qname": "saveZq9"},
         {"qname": MISSING},
         {"qname": ORDERS},
