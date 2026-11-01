@@ -384,7 +384,8 @@ def _arch_diff_markdown_for(
     if not prior_manifest.is_file():
         return None
     # The one set ``load_architecture_snapshot`` strips, so the two sides cannot drift apart.
-    after_clean = {k: v for k, v in after.items() if k not in MANIFEST_KEYS}
+    # The prior manifest was written escaped, so this snapshot is escaped to compare (429).
+    after_clean = escaped_tree({k: v for k, v in after.items() if k not in MANIFEST_KEYS})
     report = diff_architecture(load_architecture_snapshot(prior_manifest), after_clean)
     return render_architecture_diff(report)
 

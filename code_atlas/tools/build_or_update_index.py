@@ -480,8 +480,12 @@ def _coverage_refused(
         "seconds": round(time.monotonic() - started, 3),
     }
     if unrecognised:
-        refused["lost_unrecognised"] = unrecognised
+        refused[LOST_UNRECOGNISED] = unrecognised
     return refused
+
+
+# The count of lost ids code-atlas does not know; both refusals and the status say it (429).
+LOST_UNRECOGNISED = "lost_unrecognised"
 
 
 def known_languages(lost: Sequence[str], config: Config) -> tuple[tuple[str, ...], int]:

@@ -59,7 +59,11 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import claim, fit, schema_guard
-from code_atlas.tools.build_or_update_index import NO_USABLE_ADAPTER, known_languages
+from code_atlas.tools.build_or_update_index import (
+    LOST_UNRECOGNISED,
+    NO_USABLE_ADAPTER,
+    known_languages,
+)
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
@@ -439,7 +443,7 @@ def _attach_build_state(
             "in_band_option": COVERAGE_LOSS_IN_BAND,
         }
         if unrecognised:
-            loss["lost_unrecognised"] = unrecognised
+            loss[LOST_UNRECOGNISED] = unrecognised
         status[COVERAGE_LOSS_PENDING] = loss
 
 
@@ -538,8 +542,8 @@ def _compose_summary(payload: dict[str, object]) -> str:
     loss = payload.get(COVERAGE_LOSS_PENDING)
     if payload.get("indexed") and isinstance(loss, dict):
         lost = [str(name) for name in loss.get("lost_languages") or ()]
-        if loss.get("lost_unrecognised"):
-            lost.append(f"{loss['lost_unrecognised']} unrecognised")
+        if loss.get(LOST_UNRECOGNISED):
+            lost.append(f"{loss[LOST_UNRECOGNISED]} unrecognised")
         sentence += f" — {COVERAGE_LOSS}: {', '.join(lost)} — {COVERAGE_LOSS_HINT}"
     if payload.get("indexed"):
         sentence += _refresh_refused_clause(payload)

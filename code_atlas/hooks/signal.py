@@ -209,7 +209,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except Exception as error:
         # A broken signal must never break the read it rides along with.
-        print(f"code-atlas signal skipped: {type(error).__name__}: {error}", file=sys.stderr)
+        reason = escaped(f"{type(error).__name__}: {error}")
+        print(f"code-atlas signal skipped: {reason}", file=sys.stderr)
         return 0
     if line:
         print(additional_context(event, line) if event else line)

@@ -16,7 +16,11 @@ NAME_CAP = 256
 _ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[@-_]?)")
 _WHITESPACE = frozenset("\t\n\r\v\f")
 # Controls, invisible format characters (the bidi marks, zero-width) and the line separators.
-_HOSTILE = frozenset({"Cc", "Cf", "Zl", "Zp"})
+# Surrogates too, and the blank-looking characters no category flags: a conjoining-joiner, the
+# Hangul fillers and the braille blank. Private use and variation selectors stay: real text.
+_HOSTILE = frozenset({"Cc", "Cf", "Cs", "Zl", "Zp"})
+_BLANK = "\u034f\u115f\u1160\u2800\u3164\uffa0"
+_BLANK_RUN = re.compile(f"[{_BLANK}]")
 
 
 def checked_name(value: object) -> str | None:
@@ -46,11 +50,11 @@ def escaped(text: object, multiline: bool = False) -> str:
     value = str(text)
     keep = "\n\t" if multiline else ""
     probe = value.translate({ord(c): None for c in keep}) if keep else value
-    if probe.isprintable():
+    if probe.isprintable() and not _BLANK_RUN.search(probe):
         return value
     return "".join(
         char
-        if char in keep or unicodedata.category(char) not in _HOSTILE
+        if char in keep or (unicodedata.category(char) not in _HOSTILE and char not in _BLANK)
         else f"\\u{{{ord(char):04X}}}"
         for char in value
     )

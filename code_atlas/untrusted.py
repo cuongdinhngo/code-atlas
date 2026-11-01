@@ -37,23 +37,29 @@ _RECORDS = (
     "records[].id",
     "records[].title",
     "records[].url",
-    "records[].via",
     "records[].attributes.*",
 )
 _ROWS = ("results[].qname", "results[].file")
-_MISS = ("resolved_qname", "candidates[]", "untracked_path", "untracked_paths[]")
+_MISS = ("candidates[]", "untracked_path", "untracked_paths[]")
+_RESOLVED = ("resolved_qname",)
 _REF = ("answered_about_ref",)
 _UNPROVEN = ("unproven[].qname", "unproven[].file")
 _CALLS = ("results[].source", "results[].call_sources[]")
 
 FIELDS: dict[str, tuple[str, ...]] = {
-    "get_index_status": ("routes_ambiguous[].route", "routes_ambiguous[].target", *_REF),
+    "get_index_status": (
+        "routes_ambiguous[].route",
+        "routes_ambiguous[].target",
+        "head_ref",
+        "last_ref",
+    ),
     "build_or_update_index": ("last_ref",),
     "search_symbol": (
         *_ROWS,
         "candidates[].qname",
         "candidates[].name",
         "did_you_mean[].qname",
+        "did_you_mean[].name",
         *_ROUTES,
         *_REF,
     ),
@@ -68,17 +74,25 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "params[].type",
         "supertypes[].qname",
         "supertypes[].name",
+        "qname",
         *_RECORDS,
         *_MISS,
         *_REF,
     ),
-    "find_callers": (*_ROWS, *_CALLS, *_MISS, *_REF),
-    "find_references": (*_ROWS, *_CALLS, *_RECORDS, *_MISS, *_REF),
-    "find_implementations": (*_ROWS, *_MISS, *_REF),
+    "find_callers": (*_ROWS, *_CALLS, *_RESOLVED, *_MISS, *_REF),
+    "find_references": (*_ROWS, "results[].source", *_RECORDS, *_RESOLVED, *_MISS, *_REF),
+    "find_implementations": (*_ROWS, *_RESOLVED, *_MISS, *_REF),
     "find_view_data": ("results[].key", "results[].file", *_REF),
-    "include_graph": ("results[].path", "results[].file", "results[].target_raw", *_REF),
-    "impact": (*_ROWS, *_RECORDS, *_ROUTES, *_MISS, *_REF),
-    "impact_modules": ("results[].module", "results[].exemplar", *_REF),
+    "include_graph": (
+        "results[].path",
+        "results[].file",
+        "unlinked_includes[].qname",
+        "unlinked_includes[].file",
+        "unlinked_includes[].target_raw",
+        *_REF,
+    ),
+    "impact": (*_ROWS, *_RECORDS, "records[].via", "resolved_qnames.*", *_ROUTES, *_MISS, *_REF),
+    "impact_modules": ("results[].module", "results[].exemplar"),
     "subtree_dependencies": (
         "qname",
         "subtree",
@@ -87,9 +101,9 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "depended_on_paths[].path",
         *_REF,
     ),
-    "reachable_from": (*_ROWS, *_UNPROVEN, "qname", "entry_points[]"),
-    "find_orphans": (*_ROWS, *_UNPROVEN, "qname", "entry_points[]"),
-    "explain_path": ("path[].source_qname", "path[].target_qname", "path[].file", *_REF),
+    "reachable_from": (*_ROWS, *_UNPROVEN, "qname", "entry_points[]", *_REF),
+    "find_orphans": (*_ROWS, *_UNPROVEN, "qname", "entry_points[]", *_REF),
+    "explain_path": ("path[].source_qname", "path[].target_qname", "path[].file"),
     "architecture_overview": (
         "results[].layer",
         "modules[].module",
@@ -118,7 +132,7 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "results[].via_qname",
         "rules[].rule_id",
     ),
-    "check_column_defaults": ("results[].column", "results[].default", *_REF),
+    "check_column_defaults": ("results[].column", "results[].default"),
     "diff_architecture": (
         "markdown",
         "message",
@@ -148,6 +162,7 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "results[].route.route",
         "results[].route.target",
         "results[].route.file",
+        "nearest_routes[]",
     ),
 }
 

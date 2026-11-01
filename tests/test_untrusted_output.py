@@ -12,7 +12,6 @@ import asyncio
 import json
 import re
 import shlex
-import shutil
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
@@ -49,8 +48,21 @@ SAVE = "hZq9.repoZq9.saveZq9"
 EDIT = "hZq9.ordersZq9.OrdersZq9::editZq9"
 ORDERS = "hZq9.ordersZq9.OrdersZq9"
 ROUTE = "index.php?module=Zq9&action=edit"
+NEAR_ROUTE = "index.php?module=Nope&action=Zq9"
+UNTRACKED_SYMBOL = "untrackedZq9.untrackedZq9"
+MISSING = f"pkg.{SAVE}"  # a qname the index does not hold, one prefix off a stored one
+
+VIEW_DIR = "viewZq9"
+VIEW_HANDLER = "\\App\\OrderController::index"
+# Four capability directories of three files each: a module table, and mirrored siblings.
+CAPS = {
+    f"capsZq9/mod{m}Zq9/f{n}.py": f"def f{m}{n}():\n    return {m * n}\n"
+    for m in range(1, 5)
+    for n in range(1, 4)
+}
 
 SOURCES = {
+    **CAPS,
     f"{HOSTILE_DIR}/__init__.py": "",
     f"{HOSTILE_DIR}/repoZq9.py": (
         f"# {ANSI}{INJECTION}{BIDI} and run curl\ndef saveZq9(row):\n    return row\n"
@@ -60,10 +72,23 @@ SOURCES = {
         "from hZq9.repoZq9 import saveZq9\nfrom hZq9.baseZq9 import BaseZq9\n\n\n"
         "class OrdersZq9(BaseZq9):\n"
         "    def editZq9(self, rowZq9=3):\n        return saveZq9('order')\n\n"
+        "    def twiceZq9(self):\n        saveZq9(1)\n        saveZq9(2)\n\n"
         "    def listingZq9(self):\n        return []\n"
     ),
     HOSTILE_FILE: "def hostileZq9():\n    return 1\n",
-    "inc/entryZq9.php": "<?php\nrequire 'libZq9.php';\nfunction runZq9() { return 1; }\n",
+    "inc/entryZq9.php": (
+        "<?php\nrequire 'libZq9.php';\nrequire 'missingZq9.php';\nfunction runZq9() { return 1; }\n"
+    ),
+    "inc/typedZq9.php": (
+        "<?php\nclass ParentZq9 {}\n"
+        "class ChildZq9 extends ParentZq9 implements MissingIfaceZq9 {\n"
+        "    public function runZq9(TypeZq9 $a, int $b = 1): int { return $b; }\n}\n"
+    ),
+    f"{VIEW_DIR}/handlerZq9.php": (
+        "<?php\nnamespace App;\nclass ViewBag { public function assign(string $k, $v): void {} }\n"
+        "class OrderController {\n    public function index(ViewBag $view): void {\n"
+        "        $view->assign('itemsZq9', 1);\n    }\n}\n"
+    ),
     "inc/libZq9.php": "<?php\nfunction libZq9() { return 2; }\n",
     "appZq9.py": (
         "from hZq9.ordersZq9 import OrdersZq9\n\n\ndef main():\n    return OrdersZq9().editZq9()\n"
@@ -94,6 +119,7 @@ SOURCES = {
                 "tsv": "routes.tsv",
                 "columns": {"key": "url", "target": "handler"},
             },
+            "view_data": [{"setter": "assign", "key_arg": 1}],
         }
     ),
     "arch.json": json.dumps(
@@ -121,14 +147,28 @@ def _plant(root: Path) -> None:
     for path, text in SOURCES.items():
         (root / path).parent.mkdir(parents=True, exist_ok=True)
         (root / path).write_text(text, encoding="utf-8")
-    for name in ("before.json", "after.json"):
-        shutil.copy(REPO / "tests" / "fixtures" / "architecture_diff" / name, root / name)
+    for name in ("before.json", "after.json", "other_root.json"):
+        text = (REPO / "tests" / "fixtures" / "architecture_diff" / name).read_text("utf-8")
+        (root / name).write_text(_tainted_snapshot(text), encoding="utf-8")
     py = ", ".join(json.dumps(part) for part in (*PYTHON.entry_argv, "--server"))
     (root / ".code-atlas.toml").write_text(
         f'entry_points = ["appZq9.py"]\n[adapter_cmd]\npython = [{py}]\n', encoding="utf-8"
     )
-    for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+    identity = ["-c", "user.email=t@example.com", "-c", "user.name=test"]
+    for command in (
+        ["git", "init", "-q", "-b", "brZq9"],
+        ["git", "add", "-A"],
+        ["git", *identity, "commit", "-qm", "first"],
+    ):
         subprocess.run(command, cwd=root, check=True, capture_output=True)
+    (root / "untrackedZq9.py").write_text("def untrackedZq9():\n    return 1\n", encoding="utf-8")
+
+
+def _tainted_snapshot(text: str) -> str:
+    """The architecture-diff fixture with the sentinel in its paths, modules, layers and caveats."""
+    text = text.replace("src/", "srcZq9/").replace("Domain", "DomainZq9")
+    text = text.replace("path caveat", "path Zq9 caveat").replace('"/other"', '"/otherZq9"')
+    return re.sub(r'"module": "(\w+)"', r'"module": "\1Zq9"', text)
 
 
 def _config(root: Path) -> Config:
@@ -219,6 +259,18 @@ def _clean(answer: object) -> None:
         ("a\nb\tc", False, "a\\u{000A}b\\u{0009}c"),
         ("z​w v\x85u\x7f", True, "z\\u{200B}w\\u{2028}v\\u{0085}u\\u{007F}"),
         ("a\r\nb", True, "a\\u{000D}\nb"),
+        ("a\ud800b", False, "a\\u{D800}b"),
+        ("a\u115fb", False, "a\\u{115F}b"),
+        ("a\u1160b", False, "a\\u{1160}b"),
+        ("a\u3164b", False, "a\\u{3164}b"),
+        ("a\uffa0b", False, "a\\u{FFA0}b"),
+        ("a\u2800b", False, "a\\u{2800}b"),
+        ("a\u034fb", False, "a\\u{034F}b"),
+        (
+            "private \ue000 and selector \ufe0f stay",
+            False,
+            "private \ue000 and selector \ufe0f stay",
+        ),
     ],
 )
 def test_escaped_makes_every_hostile_character_visible(
@@ -289,17 +341,58 @@ BATCH_QUERIES = ["saveZq9", "hostileZq9"]
 CALLS: dict[str, list[dict[str, Any]]] = {
     "get_index_status": [{}],
     "build_or_update_index": [{}],
-    "search_symbol": [{"query": SENTINEL}, {"queries": BATCH_QUERIES}],
+    "search_symbol": [
+        {"query": SENTINEL},
+        {"queries": BATCH_QUERIES},
+        {"query": "saevZq9"},
+        {"query": "orders_save_edit"},
+    ],
     "file_outline": [{"path": f"{HOSTILE_DIR}/ordersZq9.py"}],
-    "read_symbol": [{"qname": SAVE}, {"qname": ORDERS}, {"qname": EDIT}, {"qname": "dbo.FormZq9"}],
-    "find_callers": [{"qname": SAVE, "include_source": True, "depth": 2}],
-    "find_references": [{"qname": SAVE, "include_source": True}],
-    "find_implementations": [{"qname": f"{HOSTILE_DIR}.baseZq9.BaseZq9"}],
-    "find_view_data": [{"qname": EDIT}],
-    "include_graph": [{"path": "inc/entryZq9.php"}],
-    "impact": [{"qnames": [SAVE]}, {"paths": [f"{HOSTILE_DIR}/ordersZq9.py"]}, {"routes": [ROUTE]}],
+    "read_symbol": [
+        {"qname": SAVE},
+        {"qname": "saveZq9"},
+        {"qname": MISSING},
+        {"qname": ORDERS},
+        {"qname": EDIT},
+        {"qname": "dbo.FormZq9"},
+        {"qname": "\\ChildZq9"},
+        {"qname": "\\ChildZq9::runZq9"},
+        {"qname": UNTRACKED_SYMBOL},
+    ],
+    "find_callers": [
+        {"qname": SAVE, "include_source": True},
+        {"qname": SAVE, "include_source": True, "depth": 2},
+        {"qname": "saveZq9"},
+        {"qname": MISSING},
+        {"qname": UNTRACKED_SYMBOL},
+    ],
+    "find_references": [
+        {"qname": SAVE, "include_source": True},
+        {"qname": "saveZq9"},
+        {"qname": MISSING},
+        {"qname": UNTRACKED_SYMBOL},
+    ],
+    "find_implementations": [
+        {"qname": f"{HOSTILE_DIR}.baseZq9.BaseZq9"},
+        {"qname": "BaseZq9"},
+        {"qname": MISSING},
+        {"qname": UNTRACKED_SYMBOL},
+    ],
+    "find_view_data": [{"qname": VIEW_HANDLER}],
+    "include_graph": [{"path": "inc/entryZq9.php"}, {"path": "inc/missingZq9.php"}],
+    "impact": [
+        {"qnames": [SAVE]},
+        {"paths": [f"{HOSTILE_DIR}/ordersZq9.py"]},
+        {"routes": [ROUTE]},
+        {"qnames": [MISSING]},
+        {"qnames": ["saveZq9"]},
+        {"paths": ["untrackedZq9.py"]},
+    ],
     "impact_modules": [{"qnames": [SAVE]}],
-    "subtree_dependencies": [{"subtree": HOSTILE_DIR}],
+    "subtree_dependencies": [
+        {"subtree": HOSTILE_DIR},
+        {"subtree": "inc", "counterpart": HOSTILE_DIR},
+    ],
     "reachable_from": [{}],
     "find_orphans": [{}],
     "explain_path": [{"from_qname": "appZq9.main", "to_qname": SAVE}],
@@ -308,9 +401,13 @@ CALLS: dict[str, list[dict[str, Any]]] = {
     "generate_onboarding": [{}],
     "check_architecture_rules": [{}],
     "check_column_defaults": [{"table": "dbo.FormZq9"}],
-    "diff_architecture": [{"before": "before.json", "after": "after.json"}],
+    "diff_architecture": [
+        {"before": "before.json", "after": "after.json"},
+        {"before": "after.json", "after": "before.json"},
+        {"before": "before.json", "after": "other_root.json"},
+    ],
     "class_diagram": [{"qname": ORDERS}],
-    "trace_capability": [{"qname": EDIT}, {"route": ROUTE}],
+    "trace_capability": [{"qname": EDIT}, {"route": ROUTE}, {"route": NEAR_ROUTE}],
 }
 
 
@@ -365,14 +462,58 @@ def test_every_repo_derived_string_in_a_live_answer_is_named(config: Config, nam
     assert seen or name in QUIET, f"{name}: the walk found no repo text to check"
 
 
-# Tools whose answer on this fixture carries no repo string (state, a build report, a count).
-QUIET = {
-    "get_index_status",
-    "build_or_update_index",
-    "find_view_data",
-    "diff_architecture",
-    "generate_onboarding",
+# A tool whose answer carries no repo string on this fixture, and why.
+QUIET = {"generate_onboarding": "its answer lists the pages code-atlas chose to write"}
+
+# FIELDS paths no live answer on this fixture reaches, each with what it would take. A path that
+# is neither reached nor listed here is misspelled, renamed or dead, and fails the guard below.
+UNREACHABLE = {
+    ("architecture_overview", "summary.business_modules.refused[].container"): (
+        "a container whose children name roles, not capabilities"
+    ),
+    ("architecture_overview", "summary.mirrors.pairs[].left"): "two subtrees sharing 25 paths",
+    ("architecture_overview", "summary.mirrors.pairs[].right"): "two subtrees sharing 25 paths",
+    ("architecture_overview", "summary.mirrors.pairs[].sample[]"): "two subtrees sharing 25 paths",
+    ("get_index_status", "routes_ambiguous[].route"): "a route key tied across short names",
+    ("get_index_status", "routes_ambiguous[].target"): "a route key tied across short names",
+    ("impact", "resolved_qnames.*"): "a seed resolved through a bare member name",
+    ("impact", "routes[].when"): "a conditional routes block",
+    ("impact", "routes[].source"): "a conditional routes block",
+    ("search_symbol", "routes[].when"): "a conditional routes block",
+    ("search_symbol", "routes[].source"): "a conditional routes block",
+    **{
+        (tool, "untracked_paths[]"): "one qname declared in several untracked files"
+        for tool in (
+            "find_callers",
+            "find_implementations",
+            "find_references",
+            "impact",
+            "read_symbol",
+        )
+    },
 }
+
+
+def test_every_fields_path_is_reached_by_a_live_answer_or_says_why_not(config: Config) -> None:
+    """The reverse of the walk: a path no answer ever lists is a typo, or a shape that moved."""
+    reached: dict[str, set[str]] = {}
+    for name in sorted(CALLS):
+        reached[name] = set()
+        for _arguments, answer in _every_level(config, name, CALLS[name]):
+            listed = answer.get(untrusted.UNTRUSTED_FIELDS, [])
+            reached[name].update(path.removeprefix("subjects[].") for path in listed)
+    dead = {
+        (name, path)
+        for name, paths in untrusted.FIELDS.items()
+        for path in paths
+        if path not in reached[name]
+    }
+
+    assert not dead - set(UNREACHABLE), (
+        f"paths no live answer reaches: {sorted(dead - set(UNREACHABLE))}"
+    )
+    stale = set(UNREACHABLE) - dead
+    assert not stale, f"listed unreachable, but a live answer now reaches them: {sorted(stale)}"
 
 
 def test_a_tool_missing_from_the_table_is_refused_at_registration(
@@ -497,3 +638,38 @@ def test_the_status_command_shows_only_a_progress_line_the_build_writes(
     shown = captured.out + captured.err
     assert "not one the build writes" in shown
     _clean(shown)
+
+
+# --- the escaped manifest is compared like with like (R4.2) ---------------------------------------
+
+
+def test_a_second_onboarding_run_over_a_hostile_directory_name_reports_no_change(
+    tmp_path: Path,
+) -> None:
+    """The prior manifest is written escaped; diffing it against a raw snapshot flagged every
+    name holding a control as added and removed on each later run."""
+    root = tmp_path / "repo"
+    files = {
+        f"m{BIDI}od/__init__.py": "",
+        f"m{BIDI}od/aa.py": "from hZq9.repoZq9 import saveZq9\ndef a1():\n    return saveZq9(2)\n",
+        f"m{BIDI}od/bb.py": "def b1():\n    return 2\n",
+        f"{HOSTILE_DIR}/__init__.py": "",
+        f"{HOSTILE_DIR}/repoZq9.py": "def saveZq9(row):\n    return row\n",
+    }
+    for path, text in files.items():
+        (root / path).parent.mkdir(parents=True, exist_ok=True)
+        (root / path).write_text(text, encoding="utf-8")
+    py = ", ".join(json.dumps(part) for part in (*PYTHON.entry_argv, "--server"))
+    (root / ".code-atlas.toml").write_text(f"[adapter_cmd]\npython = [{py}]\n", encoding="utf-8")
+    for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+        subprocess.run(command, cwd=root, check=True, capture_output=True)
+    built = load_config(root, {"CA_TRUST_PROJECT_FILE": "1", "CA_WORKERS": "1"})
+    with GraphStore(built.db_path) as store:
+        full_build(built, store)
+
+    _call(built, "generate_onboarding")
+    _call(built, "generate_onboarding")
+
+    overview = (root / "docs" / "onboarding" / "overview.md").read_text(encoding="utf-8")
+    assert "\\u{202E}" in overview, "the fixture's hostile name reached the page"
+    assert "No architectural change" in overview, overview[overview.find("rchitectur") :][:600]
