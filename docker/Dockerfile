@@ -1,9 +1,10 @@
 # code-atlas test/dev image — Linux, so the FULL suite runs (POSIX `fcntl`) with the PHP adapter
 # present. Mirrors CI's "lint · type · test" job: ruff · mypy · pytest, plus the adapter's composer
 # deps so the `needs_php` integration tests run instead of skipping.
-FROM python:3.12-slim-bookworm
+# python:3.12-slim-bookworm, by digest (Dependabot moves it)
+FROM python:3.12-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb064f8ee1fd42d02ebcd9d337
 
-# PHP CLI + the extensions nikic/php-parser and composer need; git/unzip/curl for composer itself.
+# PHP CLI + the extensions nikic/php-parser and composer need; git/unzip for composer itself.
 # Debian bookworm ships PHP 8.2 (composer.json requires >=8.1); CI uses 8.3 — the pinned parser
 # build in composer.lock, not the runtime minor, is what keeps parses deterministic (R4.2).
 # `nodejs` is a TEST dependency, not a runtime one: the onboarding map builds its content in the
@@ -12,12 +13,11 @@ FROM python:3.12-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml \
         nodejs npm \
-        git unzip curl ca-certificates \
+        git unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Composer into a stable path.
-RUN curl -sS https://getcomposer.org/installer \
-    | php -- --install-dir=/usr/local/bin --filename=composer
+# Composer into a stable path, from its digest-pinned image (never a piped installer).
+COPY --from=composer:2@sha256:4ed71c38c6d788eb4e4e3747b5332f5b40d5b5a6fcadd5062a1a70986a118e0a /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /app
 
