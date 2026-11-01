@@ -208,8 +208,8 @@ BASE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)")
 def _git_env(home: Path | None = None) -> dict[str, str]:
     """git with no user or system config, so a signing key never leaks in from the host."""
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
-    env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.test")
-    env.update(GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.test")
+    env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@example.com")
+    env.update(GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
     if home:
         env["HOME"] = str(home)
     return env
@@ -275,7 +275,7 @@ def _keypair(directory: Path, name: str) -> Path:
 
 
 def _signers_file(path: Path, *keys: Path) -> Path:
-    lines = [f"{k.name}@example.test {k.with_suffix('.pub').read_text().strip()}" for k in keys]
+    lines = [f"{k.name}@example.com {k.with_suffix('.pub').read_text().strip()}" for k in keys]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 

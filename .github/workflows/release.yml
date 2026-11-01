@@ -66,13 +66,10 @@ jobs:
             touch release/PRERELEASE
           fi
 
-      # What a user installs: the hashed lock without dev tools, then the wheel on top.
+      # What a user installs: the hashed lock without dev tools, and code-atlas itself built
+      # from the tag, not editable — the same install the CI install job checks.
       - name: Install what a user installs, into a clean environment
-        run: |
-          uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/requirements.txt"
-          uv venv "$RUNNER_TEMP/sbom-venv"
-          uv pip install --python "$RUNNER_TEMP/sbom-venv/bin/python" --require-hashes -r "$RUNNER_TEMP/requirements.txt"
-          uv pip install --python "$RUNNER_TEMP/sbom-venv/bin/python" --no-deps release/*.whl
+        run: UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/sbom-venv" uv sync --frozen --no-dev --no-editable
 
       - name: Write the SBOM (CycloneDX)
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
