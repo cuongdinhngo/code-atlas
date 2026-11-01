@@ -300,10 +300,14 @@ BUDGETS = {
     # 6,260 -> 6,700 on 2026-10-30 (promotion), argued. Eight classes at recurrence 2-15; P2 ran
     # first, so four WIDENED R1.8, R5.5, R5.6 and R6.5 rather than add a rule, and two are new
     # (R5.9, R5.10). Nothing in tier 1 retold them; their claims are tier 2 (LESSONS.md).
-    "ENGINEERING_RULES.md": 6_700,
+    # 6,700 -> 7,000 on 2026-10-31 (promotion after the 427-428 stack), argued. Seven classes at
+    # recurrence 2-5: P2 ran first, so R6.5 and R6.7 were WIDENED for three; R5.11 is new.
+    # Nothing in tier 1 retold them; their claims are tier 2.
+    "ENGINEERING_RULES.md": 7_000,
     # 2,250 -> 1,900 on 2026-09-27, LOWERED: phase-1 incident retellings cut to one line (1,683).
     # 1,900 -> 2,250 on 2026-10-30 (promotion): P9 and P10 new, P6 widened, same pass as above.
-    "AGENT_BRIEF.md": 2_250,
+    # 2,250 -> 2,600 on 2026-10-31 (same pass): P11 and P12 new, P6 widened.
+    "AGENT_BRIEF.md": 2_600,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
     # (contract v10). The §3 bullet is the tightest statement of its qname and `extra` fields; there
     # is no superseded line to prune, so the ceiling rises one step rather than displacing content.

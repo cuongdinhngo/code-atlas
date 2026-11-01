@@ -185,6 +185,9 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R5.10 — A memo guarded by a change probe seeds the probe when it first computes,** and its test
   changes a real file. *Falsifier:* a first computation that leaves the probe unstamped, or a test
   stubbing the probe. *Ratified 2026-10-30 · `seed-the-change-probe-with-the-first-answer` (`374-C1`).*
+- **R5.11 — A tool validates every parameter at its entry, before any return;** a check in one answer
+  path is skipped by every path that returns first. *Falsifier:* an invalid parameter accepted on an
+  early return (no index, unknown subject). *Ratified 2026-10-31 · `validate-a-parameter-before-the-first-return` (`413-C1`).*
 
 ## 6. Testing (definition of done)
 
@@ -219,11 +222,13 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   a filter that swallows the authored files restores the 0/0 vacuity the guard existed to remove.
   **This generalises to every guard:** run it against the shape it forbids (the pre-fix code, a
   sabotaged input, an injected invalid member) and record the red run of **every arm**, not only
-  the suite. *Falsifier:* a guard test
+  the suite. **A guard reading a format with a partial parser refuses a shape it cannot parse**, never
+  reports it clean. *Falsifier:* a guard test
   whose PR claims a defect class is prevented with no recorded red run.
   **The gate itself is bound by this rule** — `scripts/gate.sh` exits **2** on a skipped check and a
   skip is never a pass; the rest is AGENTS.md *Before a PR or a push*.
-  *`prove-the-guard-fails` (`093-C3`) · widened 2026-10-30 · `confirm-the-blocked-path-runs` (`360-C1`).*
+  *`prove-the-guard-fails` (`093-C3`) · widened 2026-10-30 · `confirm-the-blocked-path-runs` (`360-C1`) ·
+  `a-subset-reader-must-fail-closed` (`424-C1`).*
 - **R6.6 — Every language gets a static analyser in CI, at its strictest clean setting.** The core
   has `mypy`; the PHP adapter has **PHPStan at `level: max`**, and each later adapter brings the
   equivalent. Suppression is not how a finding is closed: no baseline file, no `@phpstan-ignore`, no
@@ -236,13 +241,17 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   builds it) rather than re-typing the members. A hand-kept list is precisely what drifts when member
   N+1 arrives, and it drifts **silently**, because the guard still passes. *Falsifier:* a literal
   list of valid members inside a test or tool where a derivation was available, or a new member that
-  ships without failing any guard.
+  ships without failing any guard. **A guard in a shared helper covers only its callers:** one meant
+  for every entry point (console script, workflow file, served tool, repo-file reader) enumerates
+  them where they are defined.
   **A text sweep is not a derivation.** A guard deciding a fact about source reads the source's
   grammar (`ast.walk`, a parser); a substring or regex sweep derives from the wrong grammar and
   matches comments, docstrings and prose. *Falsifier:* a guard deciding a source fact from
-  `read_text()` plus a pattern where a parse was available.
+  `read_text()` plus a pattern where a parse was available. A product reader classifies a value by its
+  place in the grammar too; a stop-word list keeps only reserved words.
   *Ratified 2026-08-30 · `derived-not-listed-invariant` (`093-C2`, `095-C1`, `097-C1`) ·
-  `read-the-syntax-not-the-text` (`187-C1`, `192-C3`).*
+  `read-the-syntax-not-the-text` (`187-C1`, `192-C3`) · widened 2026-10-31 ·
+  `a-loader-guard-misses-the-entry-that-loads-nothing` (`427-C1`), `a-word-list-is-not-a-grammar` (`410-C1`).*
 - **R6.8 — An AC phrased as a failure mode needs a guard that can exhibit it.** Close a "would fail
   if X" AC with a test that reaches X and is seen failing (R6.5); if the code structurally cannot
   reach X, name the different boundary the test really guards and split the claim. Run it against a

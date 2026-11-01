@@ -72,7 +72,9 @@ REPO = Path(__file__).resolve().parent.parent
 # them. Per-file split: test_doc_size_budget.
 # 20,300 -> 21,000 on 2026-10-30 (promotion of eight recurring classes): rule book +394, brief
 # +305, measured 20,936. Per-file arguments: test_doc_size_budget.
-TIER1_BUDGET = 21_000
+# 21,000 -> 21,600 on 2026-10-31 (promotion of seven classes, 427-428 stack): rule book +233,
+# brief +260, measured 21,295; BACKLOG's five closed Trust rows paid part.
+TIER1_BUDGET = 21_600
 
 
 def _tokens(paths: list[Path]) -> int:
