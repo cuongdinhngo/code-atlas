@@ -5,15 +5,28 @@ edit is a miss. The on-disk form is sorted-key JSON with no timestamps, so it is
 **committable** — a committed cache makes every later run (and any diff) deterministic (R4.2) — at
 a path outside the index directory, which is refused once tracked (420). The core never sees this
 file; it is written only by the opt-in ``onboarding_llm`` path.
+
+A committed cache is text anyone can edit, so an entry is read only with its provenance (429): the
+model, the cache ``version`` and an ``input_hash`` over the request inputs and the stored value. An
+entry missing one, or whose hash no longer matches, or whose text is not bounded and printable, is
+a miss — the deterministic text or a fresh call answers. The hash is integrity, not authenticity:
+a committed cache is reviewed like code.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from code_atlas.containment import make_private_dir, read_text, safe_write
+
+# Bump to ignore every entry an older layout wrote; 1 was the layout with no provenance.
+CACHE_VERSION = "2"
+# A cached text is one short generated line; longer, or not printable, is not one code-atlas stored.
+MAX_TEXT = 4000
+_PROVENANCE = ("model", "version", "input_hash")
 
 
 def content_key(*parts: str) -> str:
@@ -38,19 +51,41 @@ class ContentHashCache:
         self._root = root
         self._entries: dict[str, dict[str, str]] = _read(path, root)
 
-    def get(self, key: str) -> dict[str, str] | None:
-        """The cached entry for ``key``, or ``None`` on a miss."""
-        return self._entries.get(key)
+    def get(self, key: str, inputs: Sequence[str]) -> dict[str, str] | None:
+        """The cached entry for ``key`` when its provenance holds for ``inputs``, else ``None``."""
+        entry = self._entries.get(key)
+        return entry if entry is not None and _trusted(entry, inputs) else None
 
-    def put(self, key: str, entry: dict[str, str]) -> None:
-        """Store ``entry`` under ``key`` and flush the whole cache to disk, deterministically."""
-        self._entries[key] = entry
+    def put(self, key: str, entry: Mapping[str, str], inputs: Sequence[str], *, model: str) -> None:
+        """Seal ``entry`` with its provenance, store it under ``key`` and flush the whole cache."""
+        sealed = {**entry, "model": model, "version": CACHE_VERSION}
+        sealed["input_hash"] = _input_hash(sealed, inputs)
+        self._entries[key] = sealed
         self._flush()
 
     def _flush(self) -> None:
         make_private_dir(self._path.parent)
         text = json.dumps(self._entries, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
         safe_write(self._path, text, root=self._root)
+
+
+def _input_hash(entry: Mapping[str, str], inputs: Sequence[str]) -> str:
+    """sha256 over the request inputs, the model and version, and every stored value."""
+    stored = [f"{name}={entry[name]}" for name in sorted(entry) if name != "input_hash"]
+    return content_key(*inputs, *stored)
+
+
+def _trusted(entry: object, inputs: Sequence[str]) -> bool:
+    """An entry carries every provenance field, a matching hash, and only bounded printable text."""
+    if not isinstance(entry, dict):
+        return False
+    if not all(isinstance(value, str) for value in entry.values()):
+        return False
+    if any(name not in entry for name in _PROVENANCE) or entry["version"] != CACHE_VERSION:
+        return False
+    if not all(0 < len(value) <= MAX_TEXT and value.isprintable() for value in entry.values()):
+        return False
+    return entry["input_hash"] == _input_hash(entry, inputs)
 
 
 def _read(path: Path, root: Path | None) -> dict[str, dict[str, str]]:

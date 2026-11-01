@@ -672,7 +672,7 @@ def test_a_linked_llm_cache_file_reads_as_empty(linked: tuple[Path, Path]) -> No
 
     root, outside = linked
     (root / "cache.json").symlink_to(outside)
-    assert ContentHashCache(root / "cache.json", root=root).get("k") is None
+    assert ContentHashCache(root / "cache.json", root=root).get("k", ()) is None
 
 
 @posix_only

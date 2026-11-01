@@ -17,7 +17,7 @@ from collections.abc import Mapping
 from code_atlas.onboarding.layers import LayerAssignment
 from code_atlas.onboarding.metrics import GraphMetrics
 from onboarding_llm.cache import ContentHashCache, content_key
-from onboarding_llm.client import Client, first_text
+from onboarding_llm.client import DATA_RULE, Client, reply_text, repo_data
 
 # Top tier for the layer-refinement pass per PHASE3 §4 (090's per-module summaries use a mid tier).
 # Override with CA_ONBOARDING_LLM_LAYER_MODEL. Model ids: claude-api skill, Current Models.
@@ -41,7 +41,7 @@ _SYSTEM = (
     "You name one architectural layer of a codebase for an onboarding guide. Given the files it "
     "contains and their dependency roles, reply with a short layer name in Title Case (1-3 words, "
     "e.g. 'Controllers', 'Domain Services', 'Data Access'). Output only that name — no preamble, "
-    "no punctuation, no quotes."
+    "no punctuation, no quotes. " + DATA_RULE
 )
 
 
@@ -79,16 +79,17 @@ class LLMLayerRefiner:
         return renames
 
     def _name_for(self, layer: str, mods: list[str], direction_of: Mapping[str, str]) -> str:
-        key = content_key(
+        parts = (
             layer, "\n".join(mods), self._model, self._prompt_version, _SYSTEM, str(MAX_TOKENS)
         )
-        cached = self._cache.get(key)
+        key = content_key(*parts)
+        cached = self._cache.get(key, parts)
         if cached and cached.get("layer_name"):  # a missing/empty entry is a miss, not a KeyError
             return cached["layer_name"]
         name = self._generate(layer, mods, direction_of)
         if not name:  # a refusal or truncation gives nothing — skip, never cache the blank
             return ""
-        self._cache.put(key, {"layer_name": name, "old": layer, "model": self._model})
+        self._cache.put(key, {"layer_name": name, "old": layer}, parts, model=self._model)
         return name
 
     def _generate(self, layer: str, mods: list[str], direction_of: Mapping[str, str]) -> str:
@@ -100,7 +101,7 @@ class LLMLayerRefiner:
             system=_SYSTEM,
             messages=[{"role": "user", "content": _prompt(layer, mods, direction_of)}],
         )
-        return _clean(first_text(message))
+        return _clean(reply_text(message))
 
 
 def _prompt(layer: str, mods: list[str], direction_of: Mapping[str, str]) -> str:
@@ -109,7 +110,8 @@ def _prompt(layer: str, mods: list[str], direction_of: Mapping[str, str]) -> str
     lines = [f"- {path} ({direction_of.get(path, 'unknown')})" for path in shown]
     if len(mods) > len(shown):
         lines.append(f"- ...and {len(mods) - len(shown)} more")
-    return f"Current heuristic layer name: {layer}\nFiles in this layer:\n" + "\n".join(lines)
+    files = repo_data("\n".join(lines))
+    return f"Current heuristic layer name: {layer}\nFiles in this layer:\n{files}"
 
 
 def _clean(text: str) -> str:

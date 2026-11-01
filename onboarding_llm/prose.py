@@ -23,7 +23,7 @@ from code_atlas.onboarding.prose import (
     request_key,
 )
 from onboarding_llm.cache import ContentHashCache, content_key
-from onboarding_llm.client import Client, first_text
+from onboarding_llm.client import DATA_RULE, Client, reply_text, repo_data
 
 # Top tier: prose is the highest-judgment slot on the page (PHASE3 §4; 090's per-module
 # summaries use a mid tier). Override with CA_ONBOARDING_LLM_PROSE_MODEL.
@@ -44,7 +44,8 @@ _COMMON = (
     "map. Every number, ranking and grouping on that map is already derived from a static index — "
     "you are given those facts and must not contradict, recompute or add to them. Never invent a "
     "file, directory, framework or language that is not in the facts. Do not restate a path or a "
-    "name as if it were an explanation. Output only the prose: no preamble, no markdown, no quotes."
+    "name as if it were an explanation. Output only the prose: no preamble, no markdown, no "
+    "quotes. " + DATA_RULE
 )
 
 _SYSTEM = {
@@ -93,16 +94,15 @@ class LLMProseWriter:
         system = _SYSTEM.get(request.slot)
         if system is None:  # an unknown slot is declined, never guessed at
             return ""
-        key = content_key(
-            request_key(request), self._model, self._prompt_version, system, str(MAX_TOKENS)
-        )
-        cached = self._cache.get(key)
+        parts = (request_key(request), self._model, self._prompt_version, system, str(MAX_TOKENS))
+        key = content_key(*parts)
+        cached = self._cache.get(key, parts)
         if cached and cached.get("prose"):  # a missing/empty entry is a miss, not a KeyError
             return cached["prose"]
         prose = self._generate(request, system)
         if not prose:  # a refusal or truncation gives nothing — decline, never cache the blank
             return ""
-        self._cache.put(key, {"prose": prose, "slot": request.slot, "model": self._model})
+        self._cache.put(key, {"prose": prose, "slot": request.slot}, parts, model=self._model)
         return prose
 
     def _generate(self, request: ProseRequest, system: str) -> str:
@@ -114,7 +114,7 @@ class LLMProseWriter:
             system=system,
             messages=[{"role": "user", "content": prompt(request)}],
         )
-        return " ".join(first_text(message).split())
+        return " ".join(reply_text(message).split())
 
 
 def prompt(request: ProseRequest) -> str:
@@ -123,9 +123,9 @@ def prompt(request: ProseRequest) -> str:
     lines = [f"{label}: {value}" for label, value in shown]
     if len(request.facts) > len(shown):
         lines.append(f"...and {len(request.facts) - len(shown)} more facts")
-    body = "\n".join(lines)
-    previous = f"\n\nPrevious step:\n{request.previous}" if request.previous else ""
+    body = repo_data("\n".join(lines))
+    previous = f"\n\nPrevious step:\n{repo_data(request.previous)}" if request.previous else ""
     return (
         f"Facts:\n{body}\n\nThe deterministic sentence this replaces "
-        f"(keep every figure it states):\n{request.default}{previous}"
+        f"(keep every figure it states):\n{repo_data(request.default)}{previous}"
     )
