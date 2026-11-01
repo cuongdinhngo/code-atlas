@@ -20,7 +20,7 @@ _WHITESPACE = frozenset("\t\n\r\v\f")
 # Hangul fillers and the braille blank. Private use and variation selectors stay: real text.
 _HOSTILE = frozenset({"Cc", "Cf", "Cs", "Zl", "Zp"})
 _BLANK = "\u034f\u115f\u1160\u2800\u3164\uffa0"
-_BLANK_RUN = re.compile(f"[{_BLANK}]")
+_BLANK_CHAR = re.compile(f"[{_BLANK}]")
 
 
 def checked_name(value: object) -> str | None:
@@ -50,7 +50,7 @@ def escaped(text: object, multiline: bool = False) -> str:
     value = str(text)
     keep = "\n\t" if multiline else ""
     probe = value.translate({ord(c): None for c in keep}) if keep else value
-    if probe.isprintable() and not _BLANK_RUN.search(probe):
+    if probe.isprintable() and not _BLANK_CHAR.search(probe):
         return value
     return "".join(
         char

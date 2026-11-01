@@ -9,6 +9,8 @@ record, route and rule the tools can echo. Every assertion goes through the real
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import fcntl
 import json
 import re
 import shlex
@@ -22,6 +24,7 @@ from fastmcp import Client
 
 from code_atlas import untrusted
 from code_atlas.config import Config, ConfigError, load_config
+from code_atlas.index_lock import LOCK_NAME
 from code_atlas.index_text import escaped, escaped_tree
 from code_atlas.indexer import full_build
 from code_atlas.main import TOOL_NAMES, build_server
@@ -46,14 +49,16 @@ HOSTILE_DIR = "hZq9"
 HOSTILE_FILE = f"{HOSTILE_DIR}/na{BIDI}meZq9.py"
 SAVE = "hZq9.repoZq9.saveZq9"
 EDIT = "hZq9.ordersZq9.OrdersZq9::editZq9"
+LISTING = "hZq9.ordersZq9.OrdersZq9::listingZq9"
 ORDERS = "hZq9.ordersZq9.OrdersZq9"
 ROUTE = "index.php?module=Zq9&action=edit"
 NEAR_ROUTE = "index.php?module=Nope&action=Zq9"
 UNTRACKED_SYMBOL = "untrackedZq9.untrackedZq9"
+UNTRACKED_TWIN = "\\DupUntrackedZq9"  # declared in two untracked files
 MISSING = f"pkg.{SAVE}"  # a qname the index does not hold, one prefix off a stored one
 
 VIEW_DIR = "viewZq9"
-VIEW_HANDLER = "\\App\\OrderController::index"
+VIEW_HANDLER = "\\AppZq9\\OrderController::index"
 # Four capability directories of three files each: a module table, and mirrored siblings.
 CAPS = {
     f"capsZq9/mod{m}Zq9/f{n}.py": f"def f{m}{n}():\n    return {m * n}\n"
@@ -84,8 +89,10 @@ SOURCES = {
         "class ChildZq9 extends ParentZq9 implements MissingIfaceZq9 {\n"
         "    public function runZq9(TypeZq9 $a, int $b = 1): int { return $b; }\n}\n"
     ),
+    "otherZq9/libZq9.php": "<?php\nfunction otherLibZq9() { return 3; }\n",
     f"{VIEW_DIR}/handlerZq9.php": (
-        "<?php\nnamespace App;\nclass ViewBag { public function assign(string $k, $v): void {} }\n"
+        "<?php\nnamespace AppZq9;\n"
+        "class ViewBag { public function assign(string $k, $v): void {} }\n"
         "class OrderController {\n    public function index(ViewBag $view): void {\n"
         "        $view->assign('itemsZq9', 1);\n    }\n}\n"
     ),
@@ -106,7 +113,9 @@ SOURCES = {
             }
         ]
     ),
-    "routes.tsv": f"url\thandler\thits\n/{ROUTE}\t{EDIT}\t12\n",
+    "routes.tsv": "url\thandler\thits\tcondition\tat\n"
+    f"/{ROUTE}\t{EDIT}\t12\tregionZq9=A\tx.phpZq9:12\n"
+    f"/{ROUTE}\t{LISTING}\t3\tregionZq9=B\tx.phpZq9:12\n",
     "rules.json": json.dumps(
         {
             "records": {
@@ -117,7 +126,12 @@ SOURCES = {
             "routes": {
                 "significant": ["module", "action"],
                 "tsv": "routes.tsv",
-                "columns": {"key": "url", "target": "handler"},
+                "columns": {
+                    "key": "url",
+                    "target": "handler",
+                    "when": "condition",
+                    "source": "at",
+                },
             },
             "view_data": [{"setter": "assign", "key_arg": 1}],
         }
@@ -162,6 +176,9 @@ def _plant(root: Path) -> None:
     ):
         subprocess.run(command, cwd=root, check=True, capture_output=True)
     (root / "untrackedZq9.py").write_text("def untrackedZq9():\n    return 1\n", encoding="utf-8")
+    for twin in ("A", "B"):  # one stem in two untracked files: the subject names both
+        (root / f"untracked{twin}Zq9").mkdir()
+        (root / f"untracked{twin}Zq9" / "DupUntrackedZq9.php").write_text("<?php\n", "utf-8")
 
 
 def _tainted_snapshot(text: str) -> str:
@@ -195,6 +212,9 @@ def config(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Config]:
     built = _config(root)
     with GraphStore(built.db_path) as store:
         full_build(built, store)
+    # An indexed file edited after the build: the index is behind, and says which file.
+    with (root / "appZq9.py").open("a", encoding="utf-8") as handle:
+        handle.write("\n# edited after the build\n")
     yield built
 
 
@@ -211,22 +231,46 @@ def _call(config: Config, name: str, **arguments: Any) -> dict[str, Any]:
 
 
 def _every_level(config: Config, name: str, sets: list[dict[str, Any]]) -> list[tuple[dict, dict]]:
-    """Each argument set answered at every detail level the tool's schema offers."""
+    """Each argument set answered at every detail level the tool's schema offers.
+
+    A tool whose schema has ``sign`` is also asked, for its first set, to sign the answer.
+    ``hold_write_lock`` is no argument: it holds the index write lock for that call.
+    """
 
     async def go() -> list[tuple[dict, dict]]:
         async with Client(build_server(config)) as client:
             tool = next(t for t in await client.list_tools() if t.name == name)
-            levels = tool.inputSchema["properties"].get("detail_level", {}).get("enum") or [None]
+            properties = tool.inputSchema["properties"]
+            levels = properties.get("detail_level", {}).get("enum") or [None]
+            arms = list(sets)
+            if "sign" in properties:
+                arms.append({**sets[0], "sign": True})
             answers = []
-            for arguments in sets:
+            for arguments in arms:
+                held = {k: v for k, v in arguments.items() if k != "hold_write_lock"}
                 for level in levels:
-                    given = {**arguments, **({"detail_level": level} if level else {})}
-                    result = await client.call_tool(name, given, raise_on_error=False)
+                    given = {**held, **({"detail_level": level} if level else {})}
+                    with _write_lock(config, arguments.get("hold_write_lock", False)):
+                        result = await client.call_tool(name, given, raise_on_error=False)
                     assert result.structured_content is not None, (name, given, result)
-                    answers.append((arguments, dict(result.structured_content)))
+                    answers.append((held, dict(result.structured_content)))
             return answers
 
     return asyncio.run(go())
+
+
+@contextlib.contextmanager
+def _write_lock(config: Config, hold: bool) -> Iterator[None]:
+    """An external writer holding ``write.lock``: the build tool answers its busy branch."""
+    if not hold:
+        yield
+        return
+    with (config.db_path.parent / LOCK_NAME).open("a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _strings(node: Any) -> Iterator[str]:
@@ -340,7 +384,7 @@ def test_the_onboarding_pages_and_viewer_hold_no_live_control(config: Config) ->
 BATCH_QUERIES = ["saveZq9", "hostileZq9"]
 CALLS: dict[str, list[dict[str, Any]]] = {
     "get_index_status": [{}],
-    "build_or_update_index": [{}],
+    "build_or_update_index": [{}, {"hold_write_lock": True}],
     "search_symbol": [
         {"query": SENTINEL},
         {"queries": BATCH_QUERIES},
@@ -358,6 +402,7 @@ CALLS: dict[str, list[dict[str, Any]]] = {
         {"qname": "\\ChildZq9"},
         {"qname": "\\ChildZq9::runZq9"},
         {"qname": UNTRACKED_SYMBOL},
+        {"qname": UNTRACKED_TWIN},
     ],
     "find_callers": [
         {"qname": SAVE, "include_source": True},
@@ -365,27 +410,35 @@ CALLS: dict[str, list[dict[str, Any]]] = {
         {"qname": "saveZq9"},
         {"qname": MISSING},
         {"qname": UNTRACKED_SYMBOL},
+        {"qname": UNTRACKED_TWIN},
     ],
     "find_references": [
         {"qname": SAVE, "include_source": True},
         {"qname": "saveZq9"},
         {"qname": MISSING},
         {"qname": UNTRACKED_SYMBOL},
+        {"qname": UNTRACKED_TWIN},
     ],
     "find_implementations": [
         {"qname": f"{HOSTILE_DIR}.baseZq9.BaseZq9"},
         {"qname": "BaseZq9"},
         {"qname": MISSING},
         {"qname": UNTRACKED_SYMBOL},
+        {"qname": UNTRACKED_TWIN},
     ],
-    "find_view_data": [{"qname": VIEW_HANDLER}],
-    "include_graph": [{"path": "inc/entryZq9.php"}, {"path": "inc/missingZq9.php"}],
+    "find_view_data": [{"qname": VIEW_HANDLER}, {"qname": "OrderController::index"}],
+    "include_graph": [
+        {"path": "inc/entryZq9.php"},
+        {"path": "inc/missingZq9.php"},
+        {"path": "otherZq9/libZq9.php"},
+    ],
     "impact": [
         {"qnames": [SAVE]},
         {"paths": [f"{HOSTILE_DIR}/ordersZq9.py"]},
         {"routes": [ROUTE]},
         {"qnames": [MISSING]},
         {"qnames": ["saveZq9"]},
+        {"qnames": [UNTRACKED_TWIN]},
         {"paths": ["untrackedZq9.py"]},
     ],
     "impact_modules": [{"qnames": [SAVE]}],
@@ -395,12 +448,15 @@ CALLS: dict[str, list[dict[str, Any]]] = {
     ],
     "reachable_from": [{}],
     "find_orphans": [{}],
-    "explain_path": [{"from_qname": "appZq9.main", "to_qname": SAVE}],
+    "explain_path": [
+        {"from_qname": "appZq9.main", "to_qname": SAVE},
+        {"from_qname": "main", "to_qname": "saveZq9"},
+    ],
     "architecture_overview": [{}],
     "guided_tour": [{}],
     "generate_onboarding": [{}],
     "check_architecture_rules": [{}],
-    "check_column_defaults": [{"table": "dbo.FormZq9"}],
+    "check_column_defaults": [{"table": "dbo.FormZq9"}, {"table": "FormZq9"}],
     "diff_architecture": [
         {"before": "before.json", "after": "after.json"},
         {"before": "after.json", "after": "before.json"},
@@ -477,20 +533,6 @@ UNREACHABLE = {
     ("get_index_status", "routes_ambiguous[].route"): "a route key tied across short names",
     ("get_index_status", "routes_ambiguous[].target"): "a route key tied across short names",
     ("impact", "resolved_qnames.*"): "a seed resolved through a bare member name",
-    ("impact", "routes[].when"): "a conditional routes block",
-    ("impact", "routes[].source"): "a conditional routes block",
-    ("search_symbol", "routes[].when"): "a conditional routes block",
-    ("search_symbol", "routes[].source"): "a conditional routes block",
-    **{
-        (tool, "untracked_paths[]"): "one qname declared in several untracked files"
-        for tool in (
-            "find_callers",
-            "find_implementations",
-            "find_references",
-            "impact",
-            "read_symbol",
-        )
-    },
 }
 
 

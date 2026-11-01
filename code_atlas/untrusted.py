@@ -43,6 +43,7 @@ _ROWS = ("results[].qname", "results[].file")
 _MISS = ("candidates[]", "untracked_path", "untracked_paths[]")
 _RESOLVED = ("resolved_qname",)
 _REF = ("answered_about_ref",)
+_CLAIM = ("claim",)
 _UNPROVEN = ("unproven[].qname", "unproven[].file")
 _CALLS = ("results[].source", "results[].call_sources[]")
 
@@ -52,8 +53,10 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "routes_ambiguous[].target",
         "head_ref",
         "last_ref",
+        "behind_because[].path",
+        *_CLAIM,
     ),
-    "build_or_update_index": ("last_ref",),
+    "build_or_update_index": ("last_ref", "head_ref"),
     "search_symbol": (
         *_ROWS,
         "candidates[].qname",
@@ -79,20 +82,30 @@ FIELDS: dict[str, tuple[str, ...]] = {
         *_MISS,
         *_REF,
     ),
-    "find_callers": (*_ROWS, *_CALLS, *_RESOLVED, *_MISS, *_REF),
-    "find_references": (*_ROWS, "results[].source", *_RECORDS, *_RESOLVED, *_MISS, *_REF),
+    "find_callers": (*_ROWS, *_CALLS, *_RESOLVED, *_MISS, *_REF, *_CLAIM),
+    "find_references": (*_ROWS, "results[].source", *_RECORDS, *_RESOLVED, *_MISS, *_REF, *_CLAIM),
     "find_implementations": (*_ROWS, *_RESOLVED, *_MISS, *_REF),
-    "find_view_data": ("results[].key", "results[].file", *_REF),
+    "find_view_data": ("results[].key", "results[].file", "results[].qname", *_RESOLVED, *_REF),
     "include_graph": (
         "results[].path",
         "results[].file",
         "unlinked_includes[].qname",
         "unlinked_includes[].file",
         "unlinked_includes[].target_raw",
+        "same_basename_included[]",
         *_REF,
     ),
-    "impact": (*_ROWS, *_RECORDS, "records[].via", "resolved_qnames.*", *_ROUTES, *_MISS, *_REF),
-    "impact_modules": ("results[].module", "results[].exemplar"),
+    "impact": (
+        *_ROWS,
+        *_RECORDS,
+        "records[].via",
+        "resolved_qnames.*",
+        *_ROUTES,
+        *_MISS,
+        *_REF,
+        *_CLAIM,
+    ),
+    "impact_modules": ("results[].module", "results[].exemplar", *_CLAIM),
     "subtree_dependencies": (
         "qname",
         "subtree",
@@ -103,7 +116,13 @@ FIELDS: dict[str, tuple[str, ...]] = {
     ),
     "reachable_from": (*_ROWS, *_UNPROVEN, "qname", "entry_points[]", *_REF),
     "find_orphans": (*_ROWS, *_UNPROVEN, "qname", "entry_points[]", *_REF),
-    "explain_path": ("path[].source_qname", "path[].target_qname", "path[].file"),
+    "explain_path": (
+        "path[].source_qname",
+        "path[].target_qname",
+        "path[].file",
+        "from_qname",
+        "to_qname",
+    ),
     "architecture_overview": (
         "results[].layer",
         "modules[].module",
@@ -132,7 +151,7 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "results[].via_qname",
         "rules[].rule_id",
     ),
-    "check_column_defaults": ("results[].column", "results[].default"),
+    "check_column_defaults": ("results[].column", "results[].default", *_RESOLVED),
     "diff_architecture": (
         "markdown",
         "message",
@@ -162,6 +181,8 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "results[].route.route",
         "results[].route.target",
         "results[].route.file",
+        "results[].route.when",
+        "results[].route.source",
         "nearest_routes[]",
     ),
 }
