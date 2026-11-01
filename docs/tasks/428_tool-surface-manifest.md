@@ -70,8 +70,8 @@ walk refuses a schema node it does not recognise).
 | H5 | error hygiene | how | `mask_error_details=True`; a test drives a bad argument and an unreadable index and asserts `isError`, no `Traceback`, and no path outside the repo |
 | H6 | stdout discipline | how | a subprocess test speaks JSON-RPC to `code-atlas` over stdio with an adapter that writes to its own stdout and stderr, and reads only well-formed frames back |
 | H7 | stdio only | how | an AST test refuses `run(transport=…)` other than stdio and any `sse` / `http` / `streamable` transport import under `code_atlas/` (SEC-MCP-01) |
-| W1 | the default string bound | want | **ASSUMED (awaiting ratification):** 4,096 characters for a free string (a query, a path, a qname); a field that legitimately carries more (none known) gets its own bound |
-| W2 | strict validation | want | **ASSUMED (awaiting ratification):** an unknown argument is an error, not ignored — a client sending an old parameter name now hears it |
+| W1 | the default string bound | want | **RATIFIED 2026-11-01 (maintainer):** 4,096 characters for a free string (a query, a path, a qname); a field that legitimately carries more (none known) gets its own bound |
+| W2 | strict validation | want | **RATIFIED 2026-11-01 (maintainer):** an unknown argument is an error, not ignored — a client sending an old parameter name now hears it |
 
 ## Phase 1 — analysis
 
@@ -82,7 +82,7 @@ walk refuses a schema node it does not recognise).
 `TIER: full`
 `STRUCTURE: native`
 
-W1–W2 count as self-resolved because the handover handed them back; each stands `ASSUMED` for the maintainer.
+W1–W2 count as self-resolved because the handover handed them back; each stood `ASSUMED` until the maintainer ratified all of them on 2026-11-01.
 
 | ID | Source | Verbatim | Interpretation | Status |
 |---|---|---|---|---|
@@ -175,7 +175,7 @@ $ .venv/bin/python -m pytest -q tests/test_tool_surface.py tests/test_tool_manif
 171 passed in 8.31s
 ```
 
-Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 ratified 2026-11-01.
 `Ph3/4 proven by` (`T` = `tests/test_tool_surface.py`, `M` = `tests/test_tool_manifest.py`): AC1 →
 `T::test_every_served_tool_declares_honest_annotations`; AC2 → `T::test_every_input_schema_is_closed`,
 `T::test_an_unknown_argument_is_refused_as_an_error`, `T::test_a_valid_records_filter_is_accepted`; AC3 →

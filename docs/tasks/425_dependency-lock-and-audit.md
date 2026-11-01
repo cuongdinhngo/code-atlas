@@ -73,8 +73,8 @@ cannot classify).
 | H4 | the audit tools | how | `pip-audit` (on an exported, hashed requirements file of the lock), `npm audit --omit=dev` per adapter, `composer audit`; each in `ci.yml` and `gate.sh` (parity) |
 | H5 | "fails at the threshold" | how | any known vulnerability with a fix available fails; the threshold is written in SEC-SC-06/07 |
 | H6 | the install-line test | how | reads every install line in `ci.yml`, `gate.sh` and both Dockerfiles; a `pip install` / `npm install` / `composer install` without the lock form fails |
-| W1 | `pip-audit` is a dev dependency | want | **ASSUMED (awaiting ratification):** it joins the `dev` lock group, pinned like the others, rather than a one-off `pipx run` in CI |
-| W2 | the audit's network need in the gate | want | **ASSUMED (awaiting ratification):** the gate runs the audits (they query advisory databases); offline, the gate reports the audit step SKIP (exit 2, not a pass), the existing rule for a check that cannot run |
+| W1 | `pip-audit` is a dev dependency | want | **RATIFIED 2026-11-01 (maintainer):** it joins the `dev` lock group, pinned like the others, rather than a one-off `pipx run` in CI |
+| W2 | the audit's network need in the gate | want | **RATIFIED 2026-11-01 (maintainer):** the gate runs the audits (they query advisory databases); offline, the gate reports the audit step SKIP (exit 2, not a pass), the existing rule for a check that cannot run |
 
 ## Phase 1 — analysis
 
@@ -85,7 +85,7 @@ cannot classify).
 `TIER: full`
 `STRUCTURE: native`
 
-W1–W2 count as self-resolved because the handover handed them back; each stands `ASSUMED` for the maintainer.
+W1–W2 count as self-resolved because the handover handed them back; each stood `ASSUMED` until the maintainer ratified all of them on 2026-11-01.
 
 | ID | Source | Verbatim | Interpretation | Status |
 |---|---|---|---|---|
@@ -173,7 +173,7 @@ in that worktree too.
     on push and PR, not on a schedule.
 - **Round 2: verify-only, main loop.**
 
-Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 ratified 2026-11-01.
 `Ph3/4 proven by` (`tests/test_dependency_lock.py`): AC1 → `test_the_floors_clear_every_advisory_sec_mcp_09_names`;
 AC2 → `test_uv_lock_is_committed_and_every_package_has_a_hash`, `test_the_lock_agrees_with_pyproject`,
 `test_every_install_line_in_the_repo_goes_through_a_lock`; AC3 →

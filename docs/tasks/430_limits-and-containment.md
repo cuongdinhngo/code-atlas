@@ -86,9 +86,9 @@ findings are the citations below.
 | H6 | clamps | how | `_as_int` (`config.py:438`) gains a per-key ceiling for values read from the project file; the environment is the operator's and is not clamped |
 | H7 | stub roots | how | a root that does not resolve inside the repo is skipped, and so is a file link that leads out (`indexer.py:1023-1047`) |
 | H8 | read-through repair | how | `reparse_file` (`indexer.py:842`) refuses a path that no longer resolves inside, and `FreshnessGuard.ensure` answers it as not current |
-| W1 | the size cap's default | want | **ASSUMED (awaiting ratification):** `CA_MAX_FILE_BYTES` defaults to 4 MiB (4,194,304); a project file may lower it, never raise it past 64 MiB |
-| W2 | the adapter environment allow-list | want | **ASSUMED (awaiting ratification):** `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_*`, `TZ`, `TMPDIR`/`TMP`/`TEMP`, the Windows process variables (`SYSTEMROOT`, `COMSPEC`, `PATHEXT`, `WINDIR`, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`), and the runtimes' own homes (`COMPOSER_HOME`, `NODE_PATH`); nothing else — `CA_*` left out in review (no adapter reads the environment, and a `CA_*` variable could carry a secret) |
-| W3 | git's environment | want | **ASSUMED (awaiting ratification):** every `GIT_*` variable is dropped except the ones code-atlas sets; a `GIT_DIR` a host hook exports no longer redirects code-atlas's reads |
+| W1 | the size cap's default | want | **RATIFIED 2026-11-01 (maintainer):** `CA_MAX_FILE_BYTES` defaults to 4 MiB (4,194,304); a project file may lower it, never raise it past 64 MiB |
+| W2 | the adapter environment allow-list | want | **RATIFIED 2026-11-01 (maintainer):** `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_*`, `TZ`, `TMPDIR`/`TMP`/`TEMP`, the Windows process variables (`SYSTEMROOT`, `COMSPEC`, `PATHEXT`, `WINDIR`, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`), and the runtimes' own homes (`COMPOSER_HOME`, `NODE_PATH`); nothing else — `CA_*` left out in review (no adapter reads the environment, and a `CA_*` variable could carry a secret) |
+| W3 | git's environment | want | **RATIFIED 2026-11-01 (maintainer):** every `GIT_*` variable is dropped except the ones code-atlas sets; a `GIT_DIR` a host hook exports no longer redirects code-atlas's reads |
 
 ## Phase 1 — analysis
 
@@ -99,7 +99,7 @@ findings are the citations below.
 `TIER: full`
 `STRUCTURE: native`
 
-W1–W3 count as self-resolved because the handover handed them back; each stands `ASSUMED` for the maintainer.
+W1–W3 count as self-resolved because the handover handed them back; each stood `ASSUMED` until the maintainer ratified all of them on 2026-11-01.
 
 | ID | Source | Verbatim | Interpretation | Status |
 |---|---|---|---|---|
@@ -195,7 +195,7 @@ $ .venv/bin/python -m pytest -q tests/test_limits_and_containment.py tests/test_
 154 passed in 3.73s
 ```
 
-Verdict: clean (challenger only — REVIEWER: OFF), W1–W3 standing for ratification.
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W3 ratified 2026-11-01.
 `Ph3/4 proven by` (all `tests/test_limits_and_containment.py`): AC1 →
 `test_an_oversize_file_is_skipped_counted_and_never_sent_to_an_adapter`,
 `test_a_reply_line_over_the_cap_fails_that_file_and_the_adapter_is_replaced`; AC2 →
