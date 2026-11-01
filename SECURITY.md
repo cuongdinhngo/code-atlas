@@ -119,7 +119,8 @@ checkout keeps its token. Python dependencies install from the hashed `uv.lock`,
 gate audit it, the npm adapters and the composer adapter, failing on any known vulnerability. Dependabot, CodeQL and OpenSSF Scorecard run weekly, and a weekly job reads
 the repository's rulesets, private reporting, secret scanning and admins back against
 [`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), opening an issue on a difference. The identity sweep over branch and pull-request ref names runs on
-pull requests; `main` is protected, so a push to it is not a new name. Release tags are signed and the release workflow is described under *Releases*. The maintainer account uses
+pull requests; `main` is protected, so a push to it is not a new name. Release tags are signed;
+the release workflow is described under *Releases*. The maintainer account uses
 two-factor authentication; GitHub gives no read-back of that for a user-owned repository, so it is
 attested here, not checked.
 
