@@ -150,6 +150,18 @@ claude plugin marketplace add cuongdinhngo/code-atlas#v0.9.1
 claude plugin install code-atlas@code-atlas
 ```
 
+**Verify the release first.** Each GitHub Release carries the wheel, a CycloneDX SBOM and a signed
+build-provenance attestation from the workflow that built it from the signed tag. Check the wheel,
+then install that file ([`releasing.md`](docs/runbooks/releasing.md) has the steps):
+
+```bash
+gh release download vX.Y.Z --repo cuongdinhngo/code-atlas --pattern '*.whl'
+gh attestation verify code_atlas-X.Y.Z-py3-none-any.whl --repo cuongdinhngo/code-atlas
+uv tool install ./code_atlas-X.Y.Z-py3-none-any.whl
+```
+
+Releases from 0.10.0 on carry this proof; the `@v0.9.1` install above is the unattested hand-cut one.
+
 **Install from this repository only.** code-atlas is not published on PyPI: the packages
 `code-atlas-mcp` and `codeatlas` there are other projects, so never install code-atlas by a
 package name.
