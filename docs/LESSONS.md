@@ -51,12 +51,21 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `run-the-ac-on-main-before-the-design` | 2 | 414, 427 | AGENT_BRIEF P6 (widened) |
 | `a-word-list-is-not-a-grammar` | 3 | 410, 427, 430 | ENGINEERING_RULES R6.7 (widened) |
 | `verify-the-shipped-artifact-not-the-working-tree` | 2 | 344, 427 | AGENT_BRIEF P11 |
-| `a-loader-guard-misses-the-entry-that-loads-nothing` | 5 | 427, 430, 424, 425, 428 | ENGINEERING_RULES R6.7 (widened) |
+| `a-loader-guard-misses-the-entry-that-loads-nothing` | 6 | 427, 430, 424, 425, 428, 429 | ENGINEERING_RULES R6.7 (widened) |
 | `validate-a-parameter-before-the-first-return` | 2 | 413, 430 | ENGINEERING_RULES R5.11 |
 | `a-cited-guard-must-hold-its-row` | 2 | 423, 424 | AGENT_BRIEF P12 |
 | `a-subset-reader-must-fail-closed` | 3 | 424, 425, 428 | ENGINEERING_RULES R6.5 (widened) |
 
 ## Live claims
+
+### 429-C1 — a coverage walk proves only the answer shapes it asks for
+
+- type: 2 (code) · handle: `a-coverage-walk-tries-every-answer-shape`
+- status: proposed · seen: 429
+- evidence: 429's walk asked each tool one argument shape and found every repo field it reached; the reviewer then
+  found nine more twice over, in shapes the walk never asked for — a short name that resolves, a typo, a behind
+  index, a busy build, `sign=True`. Each shape a tool can answer in needs its own call, plus a reverse guard.
+- destination: first sighting.
 
 ### 430-C1 — a ReDoS guard keyed on nested quantifiers misses alternation repeated inside one
 
