@@ -27,6 +27,7 @@ CACHE_VERSION = "2"
 # A cached text is one short generated line; longer, or not printable, is not one code-atlas stored.
 MAX_TEXT = 4000
 _PROVENANCE = ("model", "version", "input_hash")
+_RENDERED = ("docline", "prose", "layer_name")
 
 
 def content_key(*parts: str) -> str:
@@ -83,7 +84,10 @@ def _trusted(entry: object, inputs: Sequence[str]) -> bool:
         return False
     if any(name not in entry for name in _PROVENANCE) or entry["version"] != CACHE_VERSION:
         return False
-    if not all(0 < len(value) <= MAX_TEXT and value.isprintable() for value in entry.values()):
+    if not all(0 < len(value) <= MAX_TEXT for value in entry.values()):
+        return False
+    # Only what is rendered must be printable; a path or old name may hold any character.
+    if not all(entry[name].isprintable() for name in (*_PROVENANCE, *_RENDERED) if name in entry):
         return False
     return entry["input_hash"] == _input_hash(entry, inputs)
 

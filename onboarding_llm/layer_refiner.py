@@ -111,7 +111,7 @@ def _prompt(layer: str, mods: list[str], direction_of: Mapping[str, str]) -> str
     if len(mods) > len(shown):
         lines.append(f"- ...and {len(mods) - len(shown)} more")
     files = repo_data("\n".join(lines))
-    return f"Current heuristic layer name: {layer}\nFiles in this layer:\n{files}"
+    return f"Current heuristic layer name:\n{repo_data(layer)}\nFiles in this layer:\n{files}"
 
 
 def _clean(text: str) -> str:
