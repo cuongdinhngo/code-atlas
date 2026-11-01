@@ -304,8 +304,43 @@ jobs:
       - name: Validate the plugin (claude plugin validate --strict)
         run: claude plugin validate --strict contrib/claude-code/plugin
 
+  # 426: the image an MCP client actually runs. Build it, run it under the documented hardened
+  # flags (a fixed non-root user, a read-only root, no network), then scan it. Never pushed.
+  runtime-image:
+    name: runtime image · hardened smoke · scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build docker/Dockerfile.runtime (loaded locally, never pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile.runtime
+          load: true
+          push: false
+          tags: code-atlas-server:ci
+
+      - name: Run the runtime image under the hardened flags
+        run: python3 scripts/container_smoke.py code-atlas-server:ci
+
+      # A fixable critical fails the job; an unfixed one, or a lower severity, is reported only.
+      - name: Scan the runtime image (grype, fixable criticals)
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: code-atlas-server:ci
+          fail-build: true
+          severity-cutoff: critical
+          only-fixed: true
+
   # 358: the image behind `scripts/docker-test.sh` and `gate.sh --docker` rests on a floating base,
-  # apt's PHP and composer's installer; build it here so a drift fails a PR, not the next local run.
+  # apt's PHP and the pinned composer image; build it here so a drift fails a PR, not the next local run.
   # Build only: the suite already runs in the test job. No `needs`, so it runs beside the others.
   test-image:
     name: test image builds (docker/Dockerfile)
