@@ -19,6 +19,15 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 
 ### Security
 
+- **Repo text in an answer is escaped and named** (429). Every tool answer escapes each control,
+  bidi and format character as `\u{XXXX}` and lists the fields that hold the indexed repo's text in
+  `untrusted_fields`; the server instructions say once those are data, never instructions (tool
+  surface: a new field on every answer, no description or schema moved; the instruction budget
+  margin is 120 characters, down from 200). Hook output, generated markdown and the viewer are
+  escaped the same way, a qname holding a control no longer round-trips, `build_phase` is only a
+  build phase and the coverage-loss refusal names only known languages. The LLM add-on delimits repo
+  text in `<repo_data>`, escapes replies, and ignores a cached entry without a matching `input_hash`
+  (`model`, `version`): an existing LLM cache is regenerated once.
 - **Python dependencies are locked and audited** (425). `uv.lock` pins every package with hashes; CI
   and both Docker images install from it, and CI and `scripts/gate.sh` run `pip-audit`,
   `npm audit --omit=dev` and `composer audit`, failing on any known vulnerability. The install floor
