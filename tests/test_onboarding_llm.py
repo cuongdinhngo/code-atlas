@@ -362,3 +362,17 @@ def _inputs_for(facts: NodeFacts) -> tuple[str, ...]:
         base.key, facts.signature, facts.doc, facts.metric.direction, "claude-sonnet-5",
         summarizer.PROMPT_VERSION, summarizer._SYSTEM, str(summarizer.MAX_TOKENS),
     )
+
+
+def test_a_layer_name_with_a_no_break_space_is_cached_and_served(tmp_path: Path) -> None:
+    """An entry is trusted by the predicate that produced its value: ``escaped`` keeps a NBSP, so
+    an ``isprintable`` check would make every such entry miss, and the model be paid each run."""
+    from onboarding_llm.layer_refiner import LLMLayerRefiner
+
+    def refiner(client: object) -> LLMLayerRefiner:
+        return LLMLayerRefiner(client, "m", ContentHashCache(tmp_path / "c.json"))  # type: ignore[arg-type]
+
+    name = "Data\u00a0Access"
+    assert refiner(_RecordingClient(name))._name_for("source", ["a.php"], {}) == name
+
+    assert refiner(_RaisingClient())._name_for("source", ["a.php"], {}) == name

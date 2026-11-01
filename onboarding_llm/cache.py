@@ -21,6 +21,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from code_atlas.containment import make_private_dir, read_text, safe_write
+from code_atlas.index_text import escaped
 
 # Bump to ignore every entry an older layout wrote; 1 was the layout with no provenance.
 CACHE_VERSION = "2"
@@ -86,8 +87,10 @@ def _trusted(entry: object, inputs: Sequence[str]) -> bool:
         return False
     if not all(0 < len(value) <= MAX_TEXT for value in entry.values()):
         return False
-    # Only what is rendered must be printable; a path or old name may hold any character.
-    if not all(entry[name].isprintable() for name in (*_PROVENANCE, *_RENDERED) if name in entry):
+    # What is rendered must already be what ``escaped`` makes of it: the predicate that produced it.
+    # A path or old name is never rendered, so it may hold any character.
+    shown = (*_PROVENANCE, *_RENDERED)
+    if any(escaped(entry[name], multiline=True) != entry[name] for name in shown if name in entry):
         return False
     return entry["input_hash"] == _input_hash(entry, inputs)
 
