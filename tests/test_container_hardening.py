@@ -142,9 +142,8 @@ def test_the_readme_run_line_carries_every_documented_flag() -> None:
 def test_the_dockerfile_header_shows_the_hardened_run_line() -> None:
     header = "\n".join(RUNTIME.read_text(encoding="utf-8").splitlines()[:14])
     flat = re.sub(r"[#\\\s]+", " ", header)
-    for flag in RUN_FLAGS:
-        if flag.startswith("--"):
-            assert flag in flat, flag
+    missing = [flag for flag in RUN_FLAGS if flag.startswith("--") and flag not in flat]
+    assert missing == []
 
 
 # --- context hygiene: .dockerignore and .gitignore ------------------------------------------------
