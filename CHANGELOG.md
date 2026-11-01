@@ -81,11 +81,20 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **New guards** (424): no `eval`, `exec`, `pickle`, unsafe YAML or dynamic import under `code_atlas/`
   and `adapters/`; no committed binary outside a named allow-list; `store.py` binds every value; the
   plugin passes `claude plugin validate --strict` in CI.
+- **The runtime image runs as user 10001, from pinned bases** (426). Visible to a client: the run
+  line changed (README, *In a container*): `--user`, `--read-only`, `--tmpfs /tmp`, `--cap-drop=ALL`,
+  `--security-opt=no-new-privileges`, `--network=none`, the repo mounted `:ro` and its `.code-atlas/`
+  the one writable mount, which must exist first. The image now has `git`, so with `--user` set to the
+  repo's owner a committed index is refused inside it. Every `FROM` is a digest, composer comes from its pinned image, and CI builds,
+  smoke-tests (`scripts/container_smoke.py`) and Grype-scans the image for a fixable critical.
 
 ### Changed
 
 - The state hook's upgrade lines are the tagged reinstalls; the "pinned install" line is gone, as it
   told you to unpin. The README no longer advises auto-update.
+- **Breaking for an old container run line** (426): the runtime image no longer runs as root, so a
+  `.mcp.json` without `--user` cannot write `.code-atlas/` in a repo you own. Switch to the README's
+  new line, with `--user` set to your uid:gid.
 
 ## 0.9.1 — 2026-10-29 · contract 20 · schema 9
 

@@ -31,7 +31,6 @@ Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md).
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 426 | [Non-root, digest-pinned runtime image](tasks/426_container-hardening.md) | Container | todo | 425 |
 | 431 | [Release pipeline with provenance](tasks/431_release-pipeline.md) | Release | todo | 424, 425 |
 
 ## Open work — Pillar 2 · Onboarding
