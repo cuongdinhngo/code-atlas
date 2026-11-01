@@ -20,7 +20,7 @@
   "track": "backend",
   "breakpoints": null,
   "design_doc_path": "DESIGN.md",
-  "cost_tier": "standard",
+  "cost_tier": "max",
 
   "token_optimizer": {
     "rtk": "expect",

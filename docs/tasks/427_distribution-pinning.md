@@ -79,8 +79,8 @@ were added from the code read (H7, H8).
 | H6 | hook activation | how | the shell gate wakes on the index **database** (`.code-atlas/graph.db`), not the directory; every Python entry behind it already goes through `load_config` → `index_trust.check_index` (`index_trust.py:77`) and is silent on the refusal; the release check, which loads no config, gains the same check |
 | H7 | other hosts | how | Codex's commands carry `PLUGIN_GATE` itself (`${CLAUDE_PROJECT_DIR:-.}` reads `.` there); OpenCode's plugin checks the database file before it spawns |
 | H8 | the release check's git | how | `ls-remote` runs from the cache directory with `gitutil.HARDENED_CONFIG` / `HARDENED_ENV`; the core gains no network call (R4.1) |
-| W1 | auto-update advice | want | **ASSUMED (awaiting ratification):** the marketplace is added at a release tag (`cuongdinhngo/code-atlas#vX.Y.Z`, Claude Code `plugins/cli-reference.md`); the README's "turn on auto-update" section is removed, and one line says not to enable it for a marketplace added without a tag |
-| W2 | what is a mismatch | want | **ASSUMED (awaiting ratification):** any inequality between the plugin's release and a server whose version is known refuses; the one command installs the plugin's release (`uv tool install --force git+…@v<plugin>`), which fixes either direction; contract skew stays the hook's warning; no escape hatch beyond launching without the flag |
+| W1 | auto-update advice | want | **RATIFIED 2026-11-01 (maintainer):** the marketplace is added at a release tag (`cuongdinhngo/code-atlas#vX.Y.Z`, Claude Code `plugins/cli-reference.md`); the README's "turn on auto-update" section is removed, and one line says not to enable it for a marketplace added without a tag |
+| W2 | what is a mismatch | want | **RATIFIED 2026-11-01 (maintainer):** any inequality between the plugin's release and a server whose version is known refuses; the one command installs the plugin's release (`uv tool install --force git+…@v<plugin>`), which fixes either direction; contract skew stays the hook's warning; no escape hatch beyond launching without the flag |
 
 ## Phase 1 — analysis
 
@@ -91,7 +91,7 @@ were added from the code read (H7, H8).
 `TIER: full`
 `STRUCTURE: native`
 
-W1–W2 count as self-resolved because the handover handed them back; each stands `ASSUMED` for the maintainer.
+W1–W2 count as self-resolved because the handover handed them back; each stood `ASSUMED` until the maintainer ratified all of them on 2026-11-01.
 
 | ID | Source | Verbatim | Interpretation | Status |
 |---|---|---|---|---|
@@ -189,7 +189,7 @@ $ .venv/bin/python -m pytest -q tests/test_distribution_pinning.py tests/test_ho
 127 passed in 2.61s
 ```
 
-Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 ratified 2026-11-01.
 `Ph3/4 proven by`: AC1 → `test_every_install_and_upgrade_line_names_this_release`,
 `test_the_state_hook_upgrade_lines_name_the_tagged_reinstall`; AC2 → `test_no_doc_advises_auto_update`; AC3 →
 `test_the_readme_names_the_look_alike_packages`; AC4 → `test_a_server_of_another_release_refuses_with_the_one_command`,

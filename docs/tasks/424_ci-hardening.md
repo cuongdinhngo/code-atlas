@@ -87,8 +87,8 @@ not the ones a helper loads).
 | H6 | the repo-setting item kind | how | `set: <name> = <value>` in SECURITY_STANDARD rows; `tests/test_security_standard.py` checks every `set:` name is one `scripts/settings_drift.py` reads, and the drift script reads its expected values from those items (R6.7, one source) |
 | H7 | guard placement | how | SEC-IN-07 grep and SEC-SC-14 binary sweep as tests (they run in `pytest`, so the gate mirrors them for free); SEC-IN-06 an AST test over `store.py`; SEC-PL-06 a CI job installing the pinned Claude Code CLI, with no gate counterpart (a network install), named in `test_ci_and_gate_agree`'s exemption with its reason |
 | H8 | Dependabot scope | how | `pip` (`/`), `npm` (`/adapters/typescript`, `/adapters/sql`), `composer` (`/adapters/php`), `github-actions` (`/`), `docker` (`/docker`); weekly, one group per ecosystem |
-| W1 | the drift check's credential | want | **ASSUMED (awaiting ratification):** the settings endpoints need an admin-read token, which `GITHUB_TOKEN` lacks; the workflow reads `secrets.SETTINGS_READ_TOKEN` (a fine-grained token, *Administration: read*) and fails loudly naming it when absent. Creating it is the maintainer's |
-| W2 | `sha_pinning_required` | want | **ASSUMED (awaiting ratification):** the standard records `true`; until the maintainer turns it on (a settings write, outside this run's authorisation) the drift check reports that one drift |
+| W1 | the drift check's credential | want | **RATIFIED 2026-11-01 (maintainer):** the settings endpoints need an admin-read token, which `GITHUB_TOKEN` lacks; the workflow reads `secrets.SETTINGS_READ_TOKEN` (a fine-grained token, *Administration: read*) and fails loudly naming it when absent. Creating it is the maintainer's |
+| W2 | `sha_pinning_required` | want | **RATIFIED 2026-11-01 (maintainer):** the standard records `true`; until the maintainer turns it on (a settings write, outside this run's authorisation) the drift check reports that one drift |
 
 ## Phase 1 — analysis
 
@@ -99,7 +99,7 @@ not the ones a helper loads).
 `TIER: full`
 `STRUCTURE: native`
 
-W1–W2 count as self-resolved because the handover handed them back; each stands `ASSUMED` for the maintainer.
+W1–W2 count as self-resolved because the handover handed them back; each stood `ASSUMED` until the maintainer ratified all of them on 2026-11-01.
 
 | ID | Source | Verbatim | Interpretation | Status |
 |---|---|---|---|---|
@@ -194,7 +194,7 @@ $ .venv/bin/python -m pytest -q tests/test_ci_hardening.py tests/test_settings_d
 231 passed in 2.16s
 ```
 
-Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 standing for ratification.
+Verdict: clean (challenger only — REVIEWER: OFF), W1–W2 ratified 2026-11-01.
 `Ph3/4 proven by`: AC1, AC2, AC4 → `tests/test_ci_hardening.py`; AC3 →
 `test_dependabot_covers_every_ecosystem_and_directory`; AC5 → `tests/test_commit_identity.py` ref arms +
 `test_ci_and_gate_agree`; AC6 → `tests/test_settings_drift.py`; AC7 → `tests/test_no_code_execution_on_repo_content.py`,
