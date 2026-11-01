@@ -209,8 +209,8 @@ docker run -i --rm --user "$(id -u):$(id -g)" --read-only --tmpfs /tmp --cap-dro
 `generate_onboarding` writes `docs/onboarding/` under the repo, which this line mounts read-only; to
 run it, `mkdir -p docs/onboarding` and add `-v "$PWD/docs/onboarding":/workspace/docs/onboarding`.
 
-MCP speaks over stdio, so `-i` is required. A repo that commits its `.code-atlas/` is refused, as on
-the host. See [`docker/`](docker/).
+MCP speaks over stdio, so `-i` is required. With `--user` set to the repo's owner, a repo that commits its
+`.code-atlas/` is refused, as on the host. See [`docker/`](docker/).
 </details>
 
 <details>
