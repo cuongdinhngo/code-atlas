@@ -27,11 +27,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 ## Open work — Trust (security)
 
-Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md).
-
-| # | Task | Theme | Status | Depends on |
-|---|---|---|---|---|
-| 431 | [Release pipeline with provenance](tasks/431_release-pipeline.md) | Release | todo | 424, 425 |
+Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
+landed; what is left is the maintainer's switches each task file names.
 
 ## Open work — Pillar 2 · Onboarding
 

@@ -76,6 +76,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   index, a busy build, `sign=True`. Each shape a tool can answer in needs its own call, plus a reverse guard.
 - destination: first sighting.
 
+### 431-C1 — a trust root read from the input it judges proves nothing
+
+- type: 2 (code) · handle: `a-trust-root-never-rides-in-the-input`
+- status: proposed · seen: 431
+- evidence: 431's release workflow verified the tag against `.github/allowed_signers` read from the tagged tree, so a
+  commit could add its own key and sign with it; the planted test held the signers file fixed and never saw it. The
+  ticket-blind challenger did. The file now comes from `main`, the tagged commit must be on `main`, and a planted
+  variant reading the tag's tree is red.
+- destination: first sighting.
+
 ### 430-C1 — a ReDoS guard keyed on nested quantifiers misses alternation repeated inside one
 
 - type: 2 (code) · handle: `redos-is-overlap-not-nesting`
