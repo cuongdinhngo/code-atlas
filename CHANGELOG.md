@@ -20,7 +20,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 ### Security
 
 - **A release is built by a workflow, with proof** (431). The `Release` workflow runs on a signed `v*`
-  tag: it verifies the SSH signature against `.github/allowed_signers` (no file, no release),
+  tag: it verifies the SSH signature against `main`'s `.github/allowed_signers` (no file, no
+  release) and requires the tagged commit to be on `main`,
   builds the sdist and wheel with no write scope, then attests build provenance and a CycloneDX
   SBOM and creates the GitHub Release. Check a wheel with `gh attestation verify`; the README and
   `docs/runbooks/releasing.md` show how. Tests now fail a release tag from 0.10.0 on that is

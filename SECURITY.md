@@ -127,8 +127,9 @@ attested here, not checked.
 ## Releases
 
 A release is built by the `Release` workflow, not a laptop. It verifies the tag's SSH signature
-against `.github/allowed_signers` and refuses to run without that file, builds the sdist and wheel
-with no write scope, and in a second job with no checkout attests build provenance (SLSA Build L2,
+against `.github/allowed_signers` as `main` holds it, never the tag's own tree, refuses a tagged
+commit `main` does not hold and refuses to run without that file, so the trust root is what a
+reviewed pull request put on `main`. It builds the sdist and wheel with no write scope, and in a second job with no checkout attests build provenance (SLSA Build L2,
 Sigstore) and a CycloneDX SBOM, then publishes the GitHub Release. Verify a wheel before you
 install it:
 

@@ -7,7 +7,7 @@ workflow verifies, builds, attests and publishes. Nothing here needs a token of 
 ## One-time setup
 
 1. **Pick the signing key.** An SSH key you sign with (`ssh-keygen -t ed25519`), kept off the repo.
-2. **Commit `.github/allowed_signers`**, one line per key allowed to sign a release:
+2. **Commit `.github/allowed_signers` to `main`** by pull request, one line per key allowed to sign:
    `<email> ssh-ed25519 AAAA…` (the public key). Until this file exists the workflow refuses every
    tag, by design: no release without a signature it can verify.
 3. **Turn on the tag ruleset's signature rule** (Settings, Rules, the `v*` tag ruleset, *Require
@@ -51,6 +51,6 @@ verifies signatures from 0.10.0 on (`SIGNED_FROM`).
 
 | Step | Cause | Fix |
 |---|---|---|
-| Verify the tag signature | no `.github/allowed_signers`, an unsigned or lightweight tag, or a key not in the file | commit the file or key, then cut the next version with a signed tag; a tag is never moved |
+| Verify the tag signature | no `.github/allowed_signers` on `main`, a tagged commit `main` does not hold, an unsigned or lightweight tag, or a key not in `main`'s file | land the file or key on `main`, then cut the next version with a signed tag on a `main` commit; a tag is never moved |
 | Check the tag, pyproject.toml and the CHANGELOG | the three name different versions | fix and release the next version; a tag is never moved (the ruleset forbids it) |
 | Release | the tag has a Release already | none needed; a Release is never replaced |
