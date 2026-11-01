@@ -51,8 +51,9 @@ def test_the_guard_has_something_to_check() -> None:
     # candidate_tests (308), capabilities (263), hooks/state (322), containment (342);
     # hooks/nudge (345), adapter_skew (374), query (382), symbol_changes (384),
     # routes (385), records (407), index_trust (420), index_text (421), limits (430);
+    # untrusted (429);
         # 303/305-307 removed (304)
-    assert len(core_modules()) == 108
+    assert len(core_modules()) == 109
     assert len(LANGUAGE_NAMES) == 9
     assert LANGUAGE_NAME.search("a PHP file") and LANGUAGE_BRANCH.search('if language == "x":')
     assert MODULE_CONVENTION.search('(f"{rel}.py", f"{rel}/__init__.py")')
