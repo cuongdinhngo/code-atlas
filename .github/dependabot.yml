@@ -9,6 +9,12 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    # The <4 / <2 caps are deliberate (425): a new major is a ticket, not a weekly bump.
+    ignore:
+      - dependency-name: fastmcp
+        update-types: ["version-update:semver-major"]
+      - dependency-name: mcp
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /adapters/typescript
@@ -17,6 +23,10 @@ updates:
     groups:
       npm-typescript-adapter:
         patterns: ["*"]
+    # TypeScript 7 drops the JS compiler API this adapter parses with (SyntaxKind, readConfigFile).
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /adapters/sql
@@ -49,3 +59,7 @@ updates:
     groups:
       docker:
         patterns: ["*"]
+    # The Python line is chosen with the CI matrix, not by a bot; digest refreshes still flow.
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
