@@ -37,3 +37,12 @@ node_modules/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Secrets and keys (426): never committed, never in a build context
+.env*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*

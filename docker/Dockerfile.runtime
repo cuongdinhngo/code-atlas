@@ -1,34 +1,34 @@
-# code-atlas RUNTIME image — ships the MCP server itself over stdio, with the PHP adapter.
-# Lean: no pytest/ruff/mypy, no composer/git at runtime (composer runs only in the build stage).
-#
-# An MCP client launches it per project, mounting the repo to index at /workspace:
-#   docker run -i --rm -v /path/to/project:/workspace code-atlas-server
-# The server indexes its working directory (/workspace) and writes .code-atlas/graph.db there.
+# code-atlas RUNTIME image: the MCP server over stdio plus the PHP adapter, as the fixed non-root
+# user 10001. Lean (no test tools, no composer); git is here so a committed index is refused (420).
+# Run line: README.md, *In a container*; scripts/container_smoke.py runs it.
 
 # ---- stage 1: resolve the PHP adapter's vendor tree (composer needed here only) ----
-FROM python:3.12-slim-bookworm AS adapter-deps
+# python:3.12-slim-bookworm, by digest (Dependabot moves it)
+FROM python:3.12-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb064f8ee1fd42d02ebcd9d337 AS adapter-deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        php-cli php-mbstring php-xml curl git unzip ca-certificates \
+        php-cli php-mbstring php-xml git unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN curl -sS https://getcomposer.org/installer \
-    | php -- --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:2@sha256:4ed71c38c6d788eb4e4e3747b5332f5b40d5b5a6fcadd5062a1a70986a118e0a /usr/bin/composer /usr/local/bin/composer
 WORKDIR /opt/code-atlas/adapters/php
 COPY adapters/php/composer.json adapters/php/composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress
 
 # ---- stage 2: lean runtime — server + adapter only ----
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb064f8ee1fd42d02ebcd9d337
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        php-cli php-mbstring php-xml \
+        php-cli php-mbstring php-xml git \
     && rm -rf /var/lib/apt/lists/*
 
 # The server from uv.lock (425), runtime deps only: no `dev` extra, and not editable.
+# uv is a build tool: it is removed in the same layer, so the image ships no installer (and a scan
+# of it reports no uv advisory).
 WORKDIR /opt/code-atlas
-RUN pip install --no-cache-dir uv==0.11.28
 ENV PATH="/opt/code-atlas/.venv/bin:$PATH"
 COPY pyproject.toml uv.lock README.md ./
 COPY code_atlas ./code_atlas
-RUN uv sync --frozen --no-dev --no-editable
+RUN pip install --no-cache-dir uv==0.11.28 \
+    && uv sync --no-cache --frozen --no-dev --no-editable \
+    && pip uninstall --yes uv
 RUN python -c "from code_atlas.build_info import server_identity; i=server_identity(); assert i['version'] and len(i['build'])==7"
 
 # The adapter source + its resolved vendor tree from stage 1 (referenced by CA_PHP_CMD's abs path).
@@ -38,8 +38,14 @@ COPY --from=adapter-deps /opt/code-atlas/adapters/php/vendor ./adapters/php/vend
 # How the core spawns the PHP adapter for .php files.
 ENV CA_PHP_CMD="php /opt/code-atlas/adapters/php/index.php --server"
 
+# A fixed non-root user with no login shell. HOME is /tmp so git and Python find a writable home
+# under --read-only; `--user` overrides both ids, and the repo's owner is the one git trusts.
+RUN groupadd --system --gid 10001 atlas \
+    && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin atlas
+ENV HOME=/tmp
+
 # The server indexes its working directory; mount the target repo here. Runs over stdio, so a client
-# must attach stdin (`docker run -i`). Tip: pass `--user $(id -u):$(id -g)` to keep .code-atlas
-# writes owned by you rather than root.
+# must attach stdin (`docker run -i`).
 WORKDIR /workspace
+USER 10001:10001
 ENTRYPOINT ["code-atlas"]

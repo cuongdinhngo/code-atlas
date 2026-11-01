@@ -87,6 +87,14 @@ CI_ONLY = {
         "claude plugin validate --strict",
         "network install of the CLI",
     ),
+    "Run the runtime image under the hardened flags": (
+        "scripts/container_smoke.py",
+        "builds and runs the runtime image; the gate's one image route is the test image",
+    ),
+    "Scan the runtime image (grype, fixable criticals)": (
+        "anchore/scan-action",
+        "fetches a vulnerability database from the network on every run",
+    ),
 }
 
 

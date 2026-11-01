@@ -51,12 +51,21 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `run-the-ac-on-main-before-the-design` | 2 | 414, 427 | AGENT_BRIEF P6 (widened) |
 | `a-word-list-is-not-a-grammar` | 3 | 410, 427, 430 | ENGINEERING_RULES R6.7 (widened) |
 | `verify-the-shipped-artifact-not-the-working-tree` | 2 | 344, 427 | AGENT_BRIEF P11 |
-| `a-loader-guard-misses-the-entry-that-loads-nothing` | 5 | 427, 430, 424, 425, 428 | ENGINEERING_RULES R6.7 (widened) |
+| `a-loader-guard-misses-the-entry-that-loads-nothing` | 6 | 427, 430, 424, 425, 428, 426 | ENGINEERING_RULES R6.7 (widened) |
 | `validate-a-parameter-before-the-first-return` | 2 | 413, 430 | ENGINEERING_RULES R5.11 |
 | `a-cited-guard-must-hold-its-row` | 2 | 423, 424 | AGENT_BRIEF P12 |
 | `a-subset-reader-must-fail-closed` | 3 | 424, 425, 428 | ENGINEERING_RULES R6.5 (widened) |
 
 ## Live claims
+
+### 426-C1 — a sandbox claim holds only for the writers it was run against
+
+- type: 2 (code) · handle: `a-sandbox-claim-calls-every-writer`
+- status: proposed · seen: 426
+- evidence: 426's design mounted the repo read-only on the premise that every server write lands in `.code-atlas/`,
+  read from the index writers; `generate_onboarding` writes `docs/onboarding/` and failed under the line. The
+  smoke only sent `initialize`, so it never wrote. The reviewer ran the tool; the smoke now calls each writer.
+- destination: first sighting.
 
 ### 430-C1 — a ReDoS guard keyed on nested quantifiers misses alternation repeated inside one
 

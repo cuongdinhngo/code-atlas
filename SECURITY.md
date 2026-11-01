@@ -137,14 +137,15 @@ Keep these on in your MCP client:
   here (3.40 in Debian bookworm, the runtime image's base) refuses the index's own full-text
   triggers with it off, so there only defensive mode applies.
 - **A committed index is refused only where git can answer.** If git cannot run in the repo (not
-  installed, or refusing a `.git` owned by another user, as in the runtime image), the index is not
-  known to be tracked and is opened, still under the link, mode and SQLite defences above.
+  installed, or refusing a `.git` owned by another user), the index is not known to be tracked and is
+  opened, still under the link, mode and SQLite defences above. In the runtime image, `--user` set to
+  the repo's owner is what lets git answer. The documented run line mounts the repo read-only with
+  one writable mount, the index; `generate_onboarding` writes `docs/onboarding/`, so it needs that
+  directory mounted too (README, *In a container*).
 - **The rest of the indexed repo's git config applies.** Beyond the overridden keys, the commands
   above read its `.git/config`, and no per-command override reaches git's filter drivers
   (`filter.<name>.clean`, `filter.<name>.process`). Do not index a working copy whose `.git`
   directory you did not create, such as one unpacked from an archive, outside a container.
-- **The runtime image runs as root** unless you pass `--user`. The README shows how; 426 changes
-  the default.
 
 A report that breaks one of the guarantees above is in scope. A report that restates a known
 limitation is not, unless it shows a worse consequence than the one listed here.
