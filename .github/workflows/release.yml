@@ -24,21 +24,29 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
-      # A checkout of a tag push can leave a lightweight ref, so the annotated tag object is fetched
-      # again (anonymously; the repository is public). No signers file means no release (W2).
+      # The trust root is main's signers file, never the tag's own tree (a tagged commit could add
+      # its key), and the tagged commit must be on main, which only a reviewed pull request reaches.
+      # The annotated tag object is fetched again: a tag-push checkout can leave a lightweight ref.
       - name: Verify the tag signature
         run: |
-          if [ ! -s .github/allowed_signers ]; then
-            echo "no .github/allowed_signers: a release needs a signed tag; see docs/runbooks/releasing.md"
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}" \
+            "refs/heads/main:refs/remotes/origin/main"
+          git show origin/main:.github/allowed_signers > "$RUNNER_TEMP/allowed_signers" || true
+          if [ ! -s "$RUNNER_TEMP/allowed_signers" ]; then
+            echo "no .github/allowed_signers on main: a release needs a signed tag; see docs/runbooks/releasing.md"
             exit 1
           fi
-          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
           if [ "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" != "$GITHUB_SHA" ]; then
             echo "the tag no longer points at the commit that triggered this run"
             exit 1
           fi
-          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag "$GITHUB_REF_NAME"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "the tagged commit is not on main; tag a commit main holds"
+            exit 1
+          fi
+          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$RUNNER_TEMP/allowed_signers" verify-tag "$GITHUB_REF_NAME"
 
       - name: Check the tag, pyproject.toml and the CHANGELOG name one version
         run: python3 scripts/release_notes.py check "$GITHUB_REF_NAME"

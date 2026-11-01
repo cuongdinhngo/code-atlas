@@ -407,8 +407,12 @@ def release_shape(text: str) -> list[str]:
     building = next((i for i, r in enumerate(runs) if "uv build" in r), None)
     if verify is None or building is None or verify > building:
         found.append("the tag signature must be verified before anything is built")
-    if not any("! -s .github/allowed_signers" in r and "exit 1" in r for r in runs):
-        found.append("a missing signers file must fail the job")
+    if not any("git show origin/main:.github/allowed_signers" in r and "exit 1" in r for r in runs):
+        found.append("the signers file must come from main, and its absence must fail the job")
+    if any("allowedSignersFile=.github/" in r for r in runs):
+        found.append("verify-tag trusts the tag's own tree; read the signers file from main")
+    if not any('merge-base --is-ancestor "$GITHUB_SHA" origin/main' in r for r in runs):
+        found.append("the tagged commit is never checked to be on main")
     if not any("release_notes.py check" in r for r in runs):
         found.append("tag, pyproject and CHANGELOG are never checked to agree")
     psteps = [s for s in publish.get("steps") or [] if isinstance(s, dict)]
@@ -424,6 +428,10 @@ def release_shape(text: str) -> list[str]:
     for action in ("attest-build-provenance", "attest-sbom", "download-artifact"):
         if not any(f"actions/{action}@" in u for u in uses):
             found.append(f"publish does not use actions/{action}")
+    provenance = next((s for s in psteps if "attest-build-provenance" in str(s.get("uses"))), {})
+    subjects = str((provenance.get("with") or {}).get("subject-path", ""))
+    if not ("release/*.whl" in subjects and "release/*.tar.gz" in subjects):
+        found.append("provenance must cover the wheel and the sdist the Release carries")
     if not any("--verify-tag" in str(s.get("run", "")) for s in psteps):
         found.append("the Release is not created with --verify-tag")
     return found
@@ -453,7 +461,17 @@ def _release_variants() -> dict[str, str]:
         "verify after build": swap('verify-tag "$GITHUB_REF_NAME"', "describe").replace(
             keep, extra + keep
         ),
-        "a signers guard removed": swap("! -s .github/allowed_signers", "! -s .github/other"),
+        "a signers guard removed": swap(
+            "git show origin/main:.github/allowed_signers", "git show origin/main:.github/other"
+        ),
+        "signers read from the tag's tree": swap(
+            'allowedSignersFile="$RUNNER_TEMP/allowed_signers"',
+            "allowedSignersFile=.github/allowed_signers",
+        ),
+        "a tag off main": swap(
+            'merge-base --is-ancestor "$GITHUB_SHA" origin/main', "rev-parse HEAD"
+        ),
+        "provenance misses the sdist": swap("            release/*.tar.gz\n\n", "\n"),
         "no agreement check": swap("release_notes.py check", "release_notes.py notes"),
         "a checkout in publish": swap(
             "    steps:\n      # The download",
