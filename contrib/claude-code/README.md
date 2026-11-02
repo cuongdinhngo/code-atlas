@@ -27,9 +27,9 @@ PreToolUse hook's plain stdout (346).
 
 ## Install as a plugin (344) — the server, these hooks and the skill, for every project
 
-1. Put the console scripts on `PATH`: `uv tool install git+https://github.com/cuongdinhngo/code-atlas.git@v0.9.1`
-   (or `pipx install …@v0.9.1`). The plugin names them, and a venv's scripts are not on `PATH`.
-2. `claude plugin marketplace add cuongdinhngo/code-atlas#v0.9.1`, then
+1. Put the console scripts on `PATH`: `uv tool install git+https://github.com/cuongdinhngo/code-atlas.git@v0.10.0`
+   (or `pipx install …@v0.10.0`). The plugin names them, and a venv's scripts are not on `PATH`.
+2. `claude plugin marketplace add cuongdinhngo/code-atlas#v0.10.0`, then
    `claude plugin install code-atlas@code-atlas` (or `/plugin` inside a session).
 
 [`plugin/`](plugin/) is generated from the same table as the snippet below, and each command — the

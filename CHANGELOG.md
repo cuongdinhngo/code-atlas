@@ -17,6 +17,12 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.10.0 — 2026-11-02 · contract 20 · schema 9
+
+The security track 423–431 against [`SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), and the first
+release built by the `Release` workflow from a signed tag, with attested provenance and SBOM.
+No rebuild, no adapter update. A container run line without `--user` must change (below).
+
 ### Security
 
 - **A release is built by a workflow, with proof** (431). The `Release` workflow runs on a signed `v*`
