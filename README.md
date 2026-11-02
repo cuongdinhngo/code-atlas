@@ -137,16 +137,16 @@ and T-SQL via npm, Python needs nothing), and writes `<your-project>/.mcp.json` 
 interpreter, each `CA_<LANG>_CMD` and the working directory filled in — the three things that are easy
 to get wrong by hand. Run it with no path to print the snippet instead of writing it.
 
-To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git@v0.9.1
-code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git@v0.9.1 code-atlas` —
+To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git@v0.10.0
+code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git@v0.10.0 code-atlas` —
 the adapters still need their own runtimes on `PATH`, and a checkout to launch them from.
 
 **In Claude Code, install it as a plugin** — the server, the hooks and the skill in one step, for every
 project. The plugin launches the console scripts by name, so put them on `PATH` with a tool install:
 
 ```bash
-uv tool install git+https://github.com/cuongdinhngo/code-atlas.git@v0.9.1   # or: pipx install git+…@v0.9.1
-claude plugin marketplace add cuongdinhngo/code-atlas#v0.9.1
+uv tool install git+https://github.com/cuongdinhngo/code-atlas.git@v0.10.0   # or: pipx install git+…@v0.10.0
+claude plugin marketplace add cuongdinhngo/code-atlas#v0.10.0
 claude plugin install code-atlas@code-atlas
 ```
 
@@ -160,7 +160,7 @@ gh attestation verify code_atlas-X.Y.Z-py3-none-any.whl --repo cuongdinhngo/code
 uv tool install ./code_atlas-X.Y.Z-py3-none-any.whl
 ```
 
-Releases from 0.10.0 on carry this proof; the `@v0.9.1` install above is the unattested hand-cut one.
+Releases from 0.10.0 on carry this proof; 0.9.1 and earlier were cut by hand and carry none.
 
 **Install from this repository only.** code-atlas is not published on PyPI: the packages
 `code-atlas-mcp` and `codeatlas` there are other projects, so never install code-atlas by a
@@ -502,7 +502,7 @@ vulnerabilities go through [`SECURITY.md`](SECURITY.md).
 
 - **Shipped.** Phase 1 (closed 2026-09-27): the core, the onboarding system map and four adapters —
   PHP, TypeScript/JavaScript, T-SQL and Python — with **24 tools**. Phase 2 so far: releases
-  0.2.0–0.9.1 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
+  0.2.0–0.10.0 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
 - **Open.** Graph coverage and freshness work; each ticket and its gate is in
   [`docs/BACKLOG.md`](docs/BACKLOG.md). Nothing is open on the onboarding map.
 - **Deferred.** The C#/.NET adapter — the only language left, held since 2026-08-04

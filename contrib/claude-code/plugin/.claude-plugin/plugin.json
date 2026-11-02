@@ -1,6 +1,6 @@
 {
   "name": "code-atlas",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Local-first MCP server that indexes a codebase into SQLite and exposes token-efficient search/read/navigation/impact tools.",
   "author": {
     "name": "cuongdinhngo"
@@ -13,7 +13,7 @@
       "command": "code-atlas",
       "args": [
         "--expect-version",
-        "0.9.1"
+        "0.10.0"
       ]
     }
   }
