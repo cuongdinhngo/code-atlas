@@ -119,9 +119,27 @@ checkout keeps its token. Python dependencies install from the hashed `uv.lock`,
 gate audit it, the npm adapters and the composer adapter, failing on any known vulnerability. Dependabot, CodeQL and OpenSSF Scorecard run weekly, and a weekly job reads
 the repository's rulesets, private reporting, secret scanning and admins back against
 [`docs/SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), opening an issue on a difference. The identity sweep over branch and pull-request ref names runs on
-pull requests; `main` is protected, so a push to it is not a new name. The maintainer account uses
+pull requests; `main` is protected, so a push to it is not a new name. Release tags are signed;
+the release workflow is described under *Releases*. The maintainer account uses
 two-factor authentication; GitHub gives no read-back of that for a user-owned repository, so it is
 attested here, not checked.
+
+## Releases
+
+A release is built by the `Release` workflow, not a laptop. It verifies the tag's SSH signature
+against `.github/allowed_signers` as `main` holds it, never the tag's own tree, refuses a tagged
+commit `main` does not hold and refuses to run without that file, so the trust root is what a
+reviewed pull request put on `main`. It builds the sdist and wheel with no write scope, and in a second job with no checkout attests build provenance (SLSA Build L2,
+Sigstore) and a CycloneDX SBOM, then publishes the GitHub Release. Verify a wheel before you
+install it:
+
+```bash
+gh attestation verify code_atlas-X.Y.Z-py3-none-any.whl --repo cuongdinhngo/code-atlas
+```
+
+0.9.1 and earlier were tagged by hand and carry no attestation. code-atlas is not on PyPI, so there
+is no Trusted Publishing to configure. [`docs/runbooks/releasing.md`](docs/runbooks/releasing.md)
+has the steps.
 
 ## Client-side controls
 

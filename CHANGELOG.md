@@ -19,6 +19,14 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 
 ### Security
 
+- **A release is built by a workflow, with proof** (431). The `Release` workflow runs on a signed `v*`
+  tag: it verifies the SSH signature against `main`'s `.github/allowed_signers` (no file, no
+  release) and requires the tagged commit to be on `main`,
+  builds the sdist and wheel with no write scope, then attests build provenance and a CycloneDX
+  SBOM and creates the GitHub Release. Check a wheel with `gh attestation verify`; the README and
+  `docs/runbooks/releasing.md` show how. Tests now fail a release tag from 0.10.0 on that is
+  unsigned, and a release that fixed an advisory without a `### Security` entry naming it. 0.9.1
+  and earlier stay unsigned history.
 - **Repo text in an answer is escaped and named** (429). Every tool answer escapes each control,
   bidi and format character as `\u{XXXX}` and lists the fields that hold the indexed repo's text in
   `untrusted_fields`; the server instructions say once those are data, never instructions (tool

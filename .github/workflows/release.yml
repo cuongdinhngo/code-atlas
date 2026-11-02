@@ -1,0 +1,130 @@
+name: Release
+
+# A release is built here, never on a laptop (431, SEC-SC-11, SEC-SC-12). A `v*` tag push runs two
+# jobs. `build` holds no write scope: it verifies the signed tag, builds from it and writes the
+# SBOM. `publish` has no checkout, so it runs no repo code: it attests and creates the Release.
+# docs/runbooks/releasing.md has the steps; a user verifies with `gh attestation verify`.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # The trust root is main's signers file, never the tag's own tree (a tagged commit could add
+      # its key), and the tagged commit must be on main, which only a reviewed pull request reaches.
+      # The annotated tag object is fetched again: a tag-push checkout can leave a lightweight ref.
+      - name: Verify the tag signature
+        run: |
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}" \
+            "refs/heads/main:refs/remotes/origin/main"
+          git show origin/main:.github/allowed_signers > "$RUNNER_TEMP/allowed_signers" || true
+          if [ ! -s "$RUNNER_TEMP/allowed_signers" ]; then
+            echo "no .github/allowed_signers on main: a release needs a signed tag; see docs/runbooks/releasing.md"
+            exit 1
+          fi
+          if [ "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" != "$GITHUB_SHA" ]; then
+            echo "the tag no longer points at the commit that triggered this run"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "the tagged commit is not on main; tag a commit main holds"
+            exit 1
+          fi
+          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$RUNNER_TEMP/allowed_signers" verify-tag "$GITHUB_REF_NAME"
+
+      - name: Check the tag, pyproject.toml and the CHANGELOG name one version
+        run: python3 scripts/release_notes.py check "$GITHUB_REF_NAME"
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.28"
+          python-version: "3.12"
+          cache-dependency-glob: uv.lock
+
+      - name: Build the sdist and the wheel from the tag
+        run: |
+          mkdir release
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" uv build --out-dir release
+          python3 scripts/release_notes.py notes "${GITHUB_REF_NAME#v}" > release/notes.md
+          if python3 scripts/release_notes.py prerelease "${GITHUB_REF_NAME#v}"; then
+            touch release/PRERELEASE
+          fi
+
+      # What a user installs: the hashed lock without dev tools, and code-atlas itself built
+      # from the tag, not editable — the same install the CI install job checks.
+      - name: Install what a user installs, into a clean environment
+        run: UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/sbom-venv" uv sync --frozen --no-dev --no-editable
+
+      - name: Write the SBOM (CycloneDX)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: ${{ runner.temp }}/sbom-venv
+          format: cyclonedx-json
+          output-file: release/sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Keep the release files for the publish job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: release
+          if-no-files-found: error
+
+  publish:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      # The download checks the digest the upload recorded, and fails on a mismatch.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: release
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release/*.whl
+            release/*.tar.gz
+
+      - name: Attest the SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: release/*.whl
+          sbom-path: release/sbom.cdx.json
+
+      # A PEP 440 pre-release is a GitHub pre-release, so a dry run never reads as the latest.
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flag=""
+          if [ -f release/PRERELEASE ]; then
+            flag="--prerelease"
+          fi
+          gh release create "$GITHUB_REF_NAME" release/*.whl release/*.tar.gz release/sbom.cdx.json \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" \
+            --notes-file release/notes.md $flag
