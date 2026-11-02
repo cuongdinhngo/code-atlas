@@ -76,9 +76,9 @@ judged by the same arms with no new list. The test image (`docker/Dockerfile`) h
 | H8 | the ruleset setting | how | a `rulesets.tags.required_signatures` reader in `scripts/settings_drift.py`; SEC-SC-11 carries it as a `set:` item, so the weekly drift job reports it until it is switched on |
 | H9 | `ssh-keygen` in the test image | how | `openssh-client` joins the test image's apt line, so the planted signing arms run in Docker as on the host; the runtime image is unchanged |
 | H10 | the standard rows | how | SEC-SC-11 and SEC-SC-12 lose `open: 431` and name their tests and `ci: Release`; SEC-SC-13 stays `n/a`; SEC-GV-02 names its test |
-| W1 | commit signing | want | **ASSUMED (awaiting ratification):** release tags are signed and verified; commits on `main` are not required to be signed — with merge commits, a required-signature rule on `main` refuses every PR whose branch commits are unsigned, which is a workflow change for the maintainer to choose |
-| W2 | the signing key | want | **ASSUMED (awaiting ratification):** `.github/allowed_signers` is the maintainer's to commit (which key signs is theirs to choose); until it exists the workflow refuses every tag and the runbook says why — fail closed, no release without a verifiable signature |
-| W3 | the tag ruleset | want | **ASSUMED (awaiting ratification):** `rulesets.tags.required_signatures = true` is the expected value; switching it on is a settings write outside this run, so the drift job reports that one drift until the maintainer does (as 424-W2) |
+| W1 | commit signing | want | **RATIFIED 2026-11-02 (maintainer):** release tags are signed and verified; commits on `main` are not required to be signed — with merge commits, a required-signature rule on `main` refuses every PR whose branch commits are unsigned, which is a workflow change for the maintainer to choose |
+| W2 | the signing key | want | **RATIFIED 2026-11-02 (maintainer):** `.github/allowed_signers` is the maintainer's to commit (which key signs is theirs to choose); until it exists the workflow refuses every tag and the runbook says why — fail closed, no release without a verifiable signature |
+| W3 | the tag ruleset | want | **RATIFIED 2026-11-02 (maintainer):** `rulesets.tags.required_signatures = true` is the expected value; switching it on is a settings write outside this run, so the drift job reports that one drift until the maintainer does (as 424-W2) |
 
 ## Phase 1 — analysis
 
@@ -89,7 +89,7 @@ judged by the same arms with no new list. The test image (`docker/Dockerfile`) h
 `TIER: full`
 `STRUCTURE: native`
 
-W1–W3 count as self-resolved because the handover handed them back; each stands `ASSUMED` for the maintainer.
+W1–W3 count as self-resolved because the handover handed them back; each stood `ASSUMED` until the maintainer ratified all three on 2026-11-02.
 
 | ID | Source | Verbatim | Interpretation | Status |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ W1–W3 count as self-resolved because the handover handed them back; each stand
 | AC1 | Acc 1 | "release tags are signed (SSH signing); the `v*` ruleset requires it; `test_release_discipline` verifies the top release's tag signature where the key is known" | H5, H8, W1–W3 | ⚠ |
 | AC2 | Acc 2 | "`release.yml` on a `v*` tag push: builds sdist and wheel … CycloneDX SBOM, attests build provenance … creates the GitHub Release" | H1–H4, H7 | ⚠ |
 | AC3 | Acc 3 | "README and SECURITY.md show `gh attestation verify` on the wheel, and the install line that uses the verified file" | docs | ⚠ |
-| AC4 | Acc 4 | "a pre-release tag in a fork produces attested artifacts; recorded in the resolution" | an outward run, deferred (EXCLUSIONS) | ⚠ |
+| AC4 | Acc 4 | "a pre-release tag in a fork produces attested artifacts; recorded in the resolution" | met 2026-11-02 in a throwaway public copy: [run](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379616572) | ✅ |
 | AC5 | Acc 5 | "fails when a release that fixed an advisory … has no `Security` section" | H6 | ⚠ |
 | AC6 | Acc 6 | "The release steps are written once, as `docs/runbooks/releasing.md`" | the runbook | ⚠ |
 | C1 | Call sites | "standard rows SEC-SC-11..13 (13 recorded N/A: no PyPI), SEC-GV-02" | H10 | ⚠ |
@@ -138,9 +138,9 @@ reusable workflow (Build L3) — a second toolchain for a level the ticket does 
 
 `EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
-- **AC4 (the fork dry run)** needs a push of a pre-release tag to a fork and a workflow run there — an outward
-  action outside this run's handover. `expiry:` the first `v*` pre-release run of `release.yml` in a fork, whose
-  run URL replaces this line in the resolution.
+- **AC4 — expired 2026-11-02.** Signed `v0.10.0rc1` in a throwaway public copy (attestations need a public repo):
+  [run 41379616572](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379616572) green, a pre-release with wheel, sdist, SBOM; `gh attestation verify` exit 0
+  for both artifacts and the SBOM, 1 against another repo. An unsigned tag: [run 41379796826](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379796826) red.
 
 ## Phase 3 — execute
 
@@ -177,7 +177,7 @@ reviewer step ran (no `reviewer`, no `reviewer-max`, no native `/code-review`).
     on `main` (`merge-base --is-ancestor`), and checkout fetches full history. `release_shape` names both, and the
     planted variants "signers read from the tag's tree" and "a tag off main" are red — seen failing with the two new
     rules disabled (3 failed, 10 passed), green restored (46 passed).
-  - **Important 2, not taken**: commit signing — W1, `ASSUMED`, for the maintainer.
+  - **Important 2, not taken**: commit signing — W1, ratified 2026-11-02 (not required).
   - **Important 3, not taken**: AC4 — the recorded exclusion; the first real tag also needs W2's signers file.
   - **Important 4, partly taken**: SECURITY.md now says the trust root is `main`'s file; the ruleset setting stays
     W3's drift until the maintainer switches it on.
@@ -231,8 +231,8 @@ $ scripts/docker-test.sh
 ### Outward actions
 
 Under the handover: push `feat/431-release-pipeline`; open its PR against `main`.
-Deferred to the maintainer: ratify W1–W3; commit `.github/allowed_signers` to `main` (W2); switch on the `v*` tag
-ruleset's signature rule (W3); run a pre-release tag in a fork and record its run URL here (AC4); merge.
+Deferred to the maintainer: ratify W1–W3 (ratified 2026-11-02); commit `.github/allowed_signers` to `main` (W2); switch on the `v*` tag
+ruleset's signature rule (W3); run a pre-release tag in a fork and record its run URL here (AC4, done 2026-11-02); merge.
 
 ## Cost ledger
 

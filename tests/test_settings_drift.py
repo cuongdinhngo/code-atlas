@@ -22,6 +22,7 @@ CHECKS = [
     "lint · type · test (py3.12)",
     "lint · type · test (py3.13)",
     "rulebook grep-gates",
+    "runtime image · hardened smoke · scan",
     "test image builds (docker/Dockerfile)",
 ]
 MAIN = {
