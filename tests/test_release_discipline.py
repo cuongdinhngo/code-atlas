@@ -71,7 +71,6 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
-@pytest.mark.xfail(_version() == "0.10.0", strict=True, reason="v0.10.0 not yet tagged (432)")
 def test_the_top_release_is_tagged() -> None:
     """381 AC3: a release is a tagged `vX.Y.Z`; commits after it are not a newer release."""
     top = HEADING.findall((REPO / "CHANGELOG.md").read_text(encoding="utf-8"))[0][0]
