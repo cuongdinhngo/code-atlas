@@ -9,7 +9,6 @@ file can lie with.
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -21,16 +20,18 @@ from scripts.container_smoke import IMAGE_USER, RUN_FLAGS
 REPO = Path(__file__).resolve().parent.parent
 DOCKER = REPO / "docker"
 RUNTIME = DOCKER / "Dockerfile.runtime"
-PRUNED = {"node_modules", "vendor", ".venv", "venv", ".git", ".mango", ".pytest_cache"}
 
 
 def find_dockerfiles(root: Path) -> list[Path]:
-    """Every `Dockerfile*` under `root`, so a third image is read without a list to update."""
-    found = []
-    for here, dirs, names in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in PRUNED and not d.startswith("pytest-of-")]
-        found += [Path(here) / n for n in names if n.startswith("Dockerfile")]
-    return sorted(found)
+    """Every `Dockerfile*` git would commit under `root` (tracked or new, never ignored), so a third
+    image is read without a list to update and a gitignored cache of other repos is not."""
+    listed = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        capture_output=True,
+        check=True,
+    ).stdout.decode()
+    found = [root / p for p in listed.split("\0") if p and Path(p).name.startswith("Dockerfile")]
+    return sorted(p for p in found if p.is_file())
 
 
 DOCKERFILES = find_dockerfiles(REPO)
@@ -77,12 +78,15 @@ def test_the_dockerfile_walk_finds_both_known_images() -> None:
     assert {DOCKER / "Dockerfile", RUNTIME} <= set(DOCKERFILES)
 
 
-def test_the_dockerfile_walk_finds_a_third_and_skips_vendored_trees(tmp_path: Path) -> None:
+def test_the_dockerfile_walk_finds_a_third_and_skips_ignored_trees(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, capture_output=True)
+    (tmp_path / ".gitignore").write_text("node_modules/\n.venv/\ncache/\n", encoding="utf-8")
     for name in (
         "Dockerfile",
         "svc/Dockerfile.dev",
         "node_modules/x/Dockerfile",
         ".venv/Dockerfile",
+        "cache/other-repo/Dockerfile",
     ):
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text("FROM python:3.12\n", encoding="utf-8")
