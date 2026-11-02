@@ -97,7 +97,7 @@ W1–W3 count as self-resolved because the handover handed them back; each stood
 | AC1 | Acc 1 | "release tags are signed (SSH signing); the `v*` ruleset requires it; `test_release_discipline` verifies the top release's tag signature where the key is known" | H5, H8, W1–W3 | ⚠ |
 | AC2 | Acc 2 | "`release.yml` on a `v*` tag push: builds sdist and wheel … CycloneDX SBOM, attests build provenance … creates the GitHub Release" | H1–H4, H7 | ⚠ |
 | AC3 | Acc 3 | "README and SECURITY.md show `gh attestation verify` on the wheel, and the install line that uses the verified file" | docs | ⚠ |
-| AC4 | Acc 4 | "a pre-release tag in a fork produces attested artifacts; recorded in the resolution" | an outward run, deferred (EXCLUSIONS) | ⚠ |
+| AC4 | Acc 4 | "a pre-release tag in a fork produces attested artifacts; recorded in the resolution" | met 2026-11-02 in a throwaway public copy: [run](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379616572) | ✅ |
 | AC5 | Acc 5 | "fails when a release that fixed an advisory … has no `Security` section" | H6 | ⚠ |
 | AC6 | Acc 6 | "The release steps are written once, as `docs/runbooks/releasing.md`" | the runbook | ⚠ |
 | C1 | Call sites | "standard rows SEC-SC-11..13 (13 recorded N/A: no PyPI), SEC-GV-02" | H10 | ⚠ |
@@ -138,9 +138,9 @@ reusable workflow (Build L3) — a second toolchain for a level the ticket does 
 
 `EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
-- **AC4 (the fork dry run)** needs a push of a pre-release tag to a fork and a workflow run there — an outward
-  action outside this run's handover. `expiry:` the first `v*` pre-release run of `release.yml` in a fork, whose
-  run URL replaces this line in the resolution.
+- **AC4 — expired 2026-11-02.** Signed `v0.10.0rc1` in a throwaway public copy (attestations need a public repo):
+  [run 41379616572](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379616572) green, a pre-release with wheel, sdist, SBOM; `gh attestation verify` exit 0
+  for both artifacts and the SBOM, 1 against another repo. An unsigned tag: [run 41379796826](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379796826) red.
 
 ## Phase 3 — execute
 
@@ -232,7 +232,7 @@ $ scripts/docker-test.sh
 
 Under the handover: push `feat/431-release-pipeline`; open its PR against `main`.
 Deferred to the maintainer: ratify W1–W3 (ratified 2026-11-02); commit `.github/allowed_signers` to `main` (W2); switch on the `v*` tag
-ruleset's signature rule (W3); run a pre-release tag in a fork and record its run URL here (AC4); merge.
+ruleset's signature rule (W3); run a pre-release tag in a fork and record its run URL here (AC4, done 2026-11-02); merge.
 
 ## Cost ledger
 
