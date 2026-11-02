@@ -32,6 +32,20 @@ workflow verifies, builds, attests and publishes. Nothing here needs a token of 
 A PEP 440 pre-release (`X.Y.ZrcN`, `aN`, `bN`, `.devN`) is created as a GitHub pre-release, so a
 dry run in a fork never reads as the latest release. Try one there before the first real tag.
 
+## Signing keys — another machine, a lost or stolen key
+
+A key, not a machine, may release: the workflow trusts the lines of `main`'s `allowed_signers`, the
+tag ruleset the signing keys on the GitHub account. Every change below lands on `main` by pull
+request, and every new key is also added on GitHub (Settings, SSH keys, *Signing key*).
+
+- **Another machine.** Give it its own key and add its line; never copy a key between machines.
+  A hardware key (`ssh-keygen -t ed25519-sk`) signs from any machine it is plugged into.
+- **A lost key.** Add the replacement's line and keep the old one, so the tags it signed still
+  verify (`test_release_discipline` checks every tag from 0.10.0 against this file).
+- **A stolen key.** Prefix its line with `valid-before="YYYYMMDD"` (the day it left your hands) and
+  remove it on GitHub: tags it signed earlier still verify, later ones fail. A thief can backdate a
+  tag, so check any tag dated near that day by hand.
+
 ## Verify a release
 
 ```bash
