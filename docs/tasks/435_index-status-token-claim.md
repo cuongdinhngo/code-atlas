@@ -4,7 +4,7 @@ slug: index-status-token-claim
 title: "README's \"~100-token get_index_status\" — make the number true and hold it with a test"
 phase: 2
 milestone: Docs
-status: todo
+status: in-progress
 depends_on: []
 ---
 
@@ -42,7 +42,7 @@ first.
 
 ## Session status
 
-- **KEY:** 435 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review.
+- **KEY:** 435 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's merge.
 - `TRACK: backend` · Run mode: `autorun 434 - 435 - 436 --no-reviewer`, second — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` ·
   `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `docs/435-index-status-token-claim` from `main` at `e08d4b75`. Contract `.mango/run-contract-435.txt`. RECONCILE t0:
@@ -91,7 +91,7 @@ that". `tests/test_mcp_server.py`: `test_the_readme_quotes_what_the_minimal_payl
 compares it with `estimate_tokens` of the fixture's `minimal` payload, ±20%; the budget comment stops saying "~100-token".
 **Rejected:** a smaller `minimal` — it drops a field 061/316/429 pinned; a hard-coded number in the test — it would agree
 with the README and drift from the payload together.
-**Change list:** `README.md`, `tests/test_mcp_server.py`; bookkeeping (`docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, this file).
+**Change list:** `README.md`, `tests/test_mcp_server.py`, `docs/PLAN.md`, `docs/CONVENTION.md` (added at review); bookkeeping (`docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, this file).
 **Proving test:** `tests/test_mcp_server.py::test_the_readme_quotes_what_the_minimal_payload_measures`.
 
 `EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
@@ -101,3 +101,48 @@ with the README and drift from the payload together.
 Main loop, no dispatch. **Verification sweep:** 2 files, both on the change list. **Seen failing (R6.5):** the README put
 back to "~100" → the test red (1 failed); "~130" → green. Every test file that reads the README plus the doc-size
 budget: 546 passed, 2 deselected (the host's PATH-tool skew pair). `ruff check` clean.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`. The rule-book reviewer was waived by the run's argument; no reviewer
+step ran (no `reviewer`, no `reviewer-max`, no native `/code-review`).
+
+- **`challenger` round 1** (ticket-blind, 51,727 tokens, at `e4011822`): 2 met · 1 partly met (AC1) · 1 can't tell (the
+  analysis record, which it may not read).
+  - **Important 1, taken** in `022ac39c`: `docs/PLAN.md:491` and `docs/CONVENTION.md:222` still said "~100 tok". Both now name
+    `minimal` at ~130; PLAN sat at its 20,000-token ceiling, so the same row drops "bounded" to stay there.
+  - **Important 2, taken** in `022ac39c`: "~130 on a fresh index" read as true only for the fixture. Measured after
+    `code-atlas-build` on this repo (784 files, current): `minimal` 539 chars, ~134 tokens; behind, ~215. The README now
+    says ~130 on a current index and ~200 on a behind one, and why.
+  - **Minor, taken:** the regex anchors on the number, not the sentence. **Not taken:** a second, behind fixture for the
+    ~200 figure — the behind payload grows with what it names, so one fixed number would pin a repo, not the tool;
+    `json.dumps` vs the wire — `estimate_tokens` is the repo's one definition and the budget test uses the same.
+- Seen after the fix: with the README at "~100" the test is red; at "~130" green. README-reading tests + budgets: 546 passed.
+
+Verdict: clean (challenger only — REVIEWER: OFF), both Importants landed.
+`Ph3/4 proven by`: AC1 → the README sentence and the measurements above; AC2 →
+`test_the_readme_quotes_what_the_minimal_payload_measures`; AC3 → not triggered (no payload change); G1 → AC1 + AC2.
+
+Reviewed at 022ac39c
+
+## Phase 5 — finalise
+
+**Durable lesson.** 435-C1 `a-claim-lives-in-every-copy` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `docs/435-index-status-token-claim`; open its PR against `main`. Deferred to the maintainer: merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | ticket-blind `challenger` | 1 | 51,727 |
+
+`LEDGER TOTAL: 51,727 · top cost driver: 4 review / challenger` — main loop unmeasured.
