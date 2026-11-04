@@ -38,20 +38,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What does this file define, and on what lines — without printing the source?
 
-        Call this before you read or port a large file — it is the symbol map, not a body.
-        Returns each symbol with its ``line_start``/``line_end``, never bodies. ``path`` may be
-        absolute (under the repo root) or ``./``-prefixed; it is normalised to the repo-relative
-        form stored in the index. ``found`` is false when that path is not indexed.
-
-        ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store symbol order (057).
-        ``total_count`` is the file's full symbol count, not the page length — when the map is
-        capped, ``truncated`` is true and ``result_kinds`` names how many symbols of each kind
-        the file holds — omitted for a single-kind file, where it would restate ``total_count``
-        — so a one-page reader can see what the page omitted (067/123). Asked from another
-        worktree of this repo, a file that worktree changed or added is outlined from its bytes,
-        and the answer carries ``overlay: worktree`` (389). ``caller_root`` names that worktree
-        for this call alone — an absolute path inside a checkout of this repository, ahead of the
-        roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
+        Call before reading or porting a large file; for one symbol's body use read_symbol. ``path``
+        is repo-relative; ``found`` is false when not indexed. Page with ``limit``/``offset``.
+        Returns symbol lines, never bodies. ``total_count`` is the full symbol count; ``truncated``
+        means the page omitted some.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

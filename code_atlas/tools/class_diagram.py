@@ -51,9 +51,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Mermaid class diagram for one class plus its ancestry, or every type in one file.
 
-        Inheritance arrows are ``EXTENDS`` / ``IMPLEMENTS`` / ``USES_TRAIT`` only. Associations
-        come from declared property and parameter types — never from CALLS/NEW. ``limit`` caps
-        members per type and is disclosed when it bites. Pass ``qname`` or ``path``, not both.
+        Pass ``qname`` or ``path``, not both. Arrows are inheritance and trait use; associations
+        come from declared types, never calls. ``limit`` caps members per type.
         """
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:

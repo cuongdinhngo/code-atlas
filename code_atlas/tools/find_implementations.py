@@ -45,14 +45,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Which types extend or implement this one? Direct subtypes only (not transitive).
 
-        ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store edge order (057).
-        ``EXTENDS``/``IMPLEMENTS`` are resolver-linked when present; an empty linked page still
-        routes through the shared empty-inbound predicate (264) so unlinked evidence of any mapped
-        kind cannot read as bare ``no_matches``. ``subject_refreshed_only`` is ``true`` only when
-        read-through freshness reparsed the subject's file this call — neighbors were not
-        re-verified (035 / 061). For transitive subtypes, see ``impact``. A leading-anchor
-        difference from the stored qname is re-pointed; ``resolved_qname`` names the stored
-        form (075/122). An exact stored qname is unchanged.
+        For transitive subtypes use impact. ``qname`` is required; page with ``limit``/``offset``.
+        An empty page checks for unlinked evidence first: read ``reason`` before treating zero as
+        none.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

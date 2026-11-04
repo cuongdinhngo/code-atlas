@@ -68,24 +68,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What does this file pull in, and what pulls it in?
 
-        ``direction`` is ``imports`` (what this file includes), ``imported_by`` (who includes it),
-        or ``both``. ``depth`` defaults to 1 (direct); deeper values BFS over linked ``INCLUDES``
-        only, capped by ``CA_MAX_RESULTS``. ``unresolved_includes`` counts bare/dynamic includes on
-        the seed's ``imports`` side and is omitted for ``imported_by`` (inbound unresolved is not a
-        confident zero — 065). An empty inbound answer with unlinked includes whose path tail
-        could be this file returns ``reason=relationship_not_modelled``, lists them in
-        ``unlinked_includes``, and adds a ``try_instead_hint`` but deliberately NO ``try_instead`` —
-        no registered tool reads unlinked include text (093); more fitting includes than the page
-        limit says ``unlinked_includes_truncated``; path matching ignores case. When none could,
-        an indexed file's zero is attested:
-        ``no_matches`` naming any included same-named file in ``same_basename_included``, and
-        ``authoritative: true`` unless ``dynamic_includes_unchecked`` counts includes naming no
-        file at all (363).
-        An empty inbound answer on a file whose **language** emits no ``INCLUDES`` at all returns
-        ``reason=relation_unmodelled_for_language`` instead of a confident zero: the relation is
-        carried under another edge kind here (186). Where that kind is ``IMPORTS``, which 188 links,
-        ``try_instead`` names ``find_references``; where the language emits neither, it stays a hint
-        with no route.
+        Use for file-level links; for symbols use find_references. ``path`` is required;
+        ``direction`` is ``imports``, ``imported_by`` or ``both``; ``depth`` defaults to 1. An empty
+        inbound answer is a real zero only with ``authoritative: true``;
+        ``relationship_not_modelled`` / ``relation_unmodelled_for_language`` mean the relation is
+        not linked here (see ``unlinked_includes``, ``try_instead_hint``).
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")

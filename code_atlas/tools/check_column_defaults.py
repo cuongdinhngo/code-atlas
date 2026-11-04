@@ -244,29 +244,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Which writers of this table omit a column that has a DEFAULT, and what is that DEFAULT?
 
-        Answers the defect class *"a column whose value comes from a DEFAULT because every writer
-        omits it"*. With no ``column``, scans every column of ``table`` that declares a DEFAULT;
-        with one, reports just that column. Each row carries ``omitted_count`` against
-        ``writers_total`` — a ratio, not a bare list — plus ``omitted_by`` and ``named_by`` at
-        ``standard``. A writer that named no columns at all is ``unmeasured``, never counted as
-        omitting; a table with no recorded writers answers ``status: table_has_no_writers`` and
-        carries **no** ``omitted_by``, because an empty list there would claim a zero the graph
-        cannot see. When linked writers exist but unlinked ``WRITES`` still name the table, the
-        envelope carries ``writers_partial`` and a hint naming the remaining forms (215). Duplicate
-        ``CONTAINS`` declarations collapse to one row with ``declarations`` when N>1. Needs a
-        SQL-layer index (task 022); ``column`` takes the full member qname
-        (``dbo.Trans::ChangeUser``) or the bare column name.
-
-        ``table`` may be bare (``Trans``): one indexed Table of that name is measured and named in
-        ``resolved_qname``; several (one per schema) answer ``reason: subject_ambiguous`` with no
-        rows and each qualified candidate in ``ambiguous_definitions``; none answers
-        ``no_such_symbol`` with ``try_instead: search_symbol`` (320).
-
-        ``default_expr`` replaces ``table`` as the subject (391): every column whose stored
-        ``DEFAULT`` is that expression — compared without case, brackets, whitespace or outer
-        parentheses — each row naming its ``table`` and measured against that table's writers,
-        with ``writers_partial`` per row. Pass exactly one of ``table`` and ``default_expr``;
-        ``column`` narrows a ``table`` only.
+        Needs a SQL-layer index. Pass exactly one of ``table`` and ``default_expr``; ``column``
+        narrows a table. Each row gives ``omitted_count`` of ``writers_total``; a writer naming no
+        columns is ``unmeasured``. ``table_has_no_writers`` carries no ``omitted_by`` (the graph
+        cannot see a zero); ``writers_partial`` means unlinked writes remain.
         """
         if (table is None) == (default_expr is None):
             raise ValueError("pass exactly one of table and default_expr")

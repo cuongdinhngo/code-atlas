@@ -26,16 +26,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """How does one symbol reach another — the shortest path between them?
 
-        Walks outgoing CALLS/NEW/INCLUDES/EXTENDS/IMPLEMENTS from ``from_qname`` to ``to_qname``
-        (same kinds as
-        ``impact`` / ``reachable_from``). Default ``depth`` is unset — walk until
-        the frontier empties or ``CA_IMPACT_MAX_NODES`` binds. A RESOLVED-only path
-        is ``status=path``; a path that needs HEURISTIC/DYNAMIC hops is
-        ``unproven``. Missing endpoints → ``unknown``; bound hit before ``to`` →
-        ``incomplete``; both present with no route → ``no_path``.
-
-        Path search is over linked IMPACT kinds — ``no_path`` is modelled, not
-        ``relationship_not_modelled`` (task 065).
+        Pass ``from_qname`` and ``to_qname``; ``depth`` unset walks until the node budget binds.
+        ``status``: ``path`` (RESOLVED hops), ``unproven`` (needs HEURISTIC/DYNAMIC hops),
+        ``unknown`` (missing endpoint), ``incomplete`` (budget hit), ``no_path`` (a modelled zero).
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

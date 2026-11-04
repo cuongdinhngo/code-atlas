@@ -47,23 +47,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Which symbols and files look unused — nothing calls them and no entry point reaches them?
 
-        Each orphan carries ``why``: ``no_inbound`` or ``unreachable_from_roots``. Reachability
-        starts from ``CA_ENTRY_POINTS``; HEURISTIC-only neighbors are ``unproven``, never orphans.
-        Default walk is closure (see ``reachable_from``); unset entry points yield
-        ``status=no_roots_configured``.
-
-        ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages orphans in store order (057).
-        ``total_count`` is the full orphan population, not the page length, and ``truncated``
-        describes this page alone — page until it is false. ``unproven_total`` is the full unproven
-        count — at ``minimal`` the rows themselves are omitted so large repos stay transport-safe,
-        at ``standard`` they are capped to one page.
-
-        **Three refusals, and none return rows** (182 / 279). Roots that match no file give
-        ``status=roots_matched_nothing``; a walk that hit ``CA_ORPHANS_MAX_NODES`` gives
-        ``status=walk_budget_exhausted``; an index stamped with an unmodelled resolution strategy
-        (registered class autoload, …) gives ``status=resolution_unmodelled`` — include-based
-        orphan counts are unmeasured there, not dead code. ``status=ok`` with no rows still means
-        nothing is orphaned, which is a real answer (102).
+        Needs ``CA_ENTRY_POINTS`` (unset: ``status=no_roots_configured``). HEURISTIC-only neighbors
+        are ``unproven``, never orphans. ``total_count`` is the full population; page with
+        ``limit``. ``status`` ``roots_matched_nothing``, ``walk_budget_exhausted`` or
+        ``resolution_unmodelled`` returns no rows and is not proof of dead code;
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

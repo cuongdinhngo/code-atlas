@@ -49,13 +49,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What variables does this handler make available to its template?
 
-        Each hit carries the ``key`` a caller can read in the view, the call-site ``line``, and
-        ``rule: true``. Needs ``CA_INDIRECTION_RULES`` with a ``view_data`` setter rule: with no
-        rules configured the answer is ``reason=capability_not_configured`` (the tool is inert on
-        this index), which is distinct from a configured repo where this handler simply publishes
-        nothing (``no_matches``). ``file`` is the subject's declaration path when known.
-        A leading-anchor difference from the stored qname is re-pointed; ``resolved_qname``
-        names the stored form (075/122). An exact stored qname is unchanged.
+        Each hit has the ``key``, call-site ``line`` and ``rule: true``. Needs
+        ``CA_INDIRECTION_RULES`` with a ``view_data`` rule: without one,
+        ``reason=capability_not_configured`` means the tool is inert, not that the handler publishes
+        nothing (``no_matches``).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
