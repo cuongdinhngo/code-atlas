@@ -27,8 +27,12 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 ## Open work — Trust (security)
 
-Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
-landed; what is left is the maintainer's switches each task file names.
+Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). 419–431 have landed; what
+is left of them is the maintainer's switches each task file names.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 433 | [Claim `code-atlas` on PyPI through Trusted Publishing](tasks/433_claim-pypi-name.md) | Supply chain | todo | 427, 431 |
 
 ## Open work — Pillar 2 · Onboarding
 
