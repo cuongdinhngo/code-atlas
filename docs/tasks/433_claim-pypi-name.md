@@ -178,7 +178,12 @@ Reviewed at 2e548bb5
 **The final gate.** `scripts/gate.sh` on the host at `2e548bb5`: 24 passed · 1 failed · 1 skipped — pytest 5729 passed,
 2 failed, 4 skipped. Both failures (`test_the_plugin_hook_names_a_skew_against_the_installed_package`,
 `test_a_checkout_behind_the_core_is_named_with_its_fix`) fail identically on `main` at `8c7f7a12`: the host's PATH
-`code-atlas` is 0.9.1. Docker on the final tree: see below.
+`code-atlas` is 0.9.1. Docker on the final tree (`0b87f7e9`, delta-green, the exclusion's route):
+
+```
+$ scripts/docker-test.sh
+5727 passed, 8 skipped in 701.19s (0:11:41)
+```
 
 ### Outward actions
 
