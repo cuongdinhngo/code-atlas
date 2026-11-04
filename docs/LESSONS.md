@@ -76,6 +76,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   index, a busy build, `sign=True`. Each shape a tool can answer in needs its own call, plus a reverse guard.
 - destination: first sighting.
 
+### 436-C1 — a write is not delivered until it is flushed, so its failure lands where the flush is
+
+- type: 2 (code) · handle: `a-write-is-not-delivered-until-flushed`
+- status: proposed · seen: 436
+- evidence: 436 caught `BrokenPipeError` around the CLI's modes, but `--snapshot-symbols -` wrote a small answer into the
+  stdio buffer and returned; the closed pipe surfaced at interpreter shutdown, outside every handler. The ticket-blind
+  challenger reasoned it out; flushing inside the guard fixed it, and a small-snapshot case is red without the flush.
+- destination: first sighting.
+
 ### 433-C1 — a workflow shape guard proves the wiring, not that a word appears
 
 - type: 2 (code) · handle: `a-shape-guard-pins-the-wiring`
