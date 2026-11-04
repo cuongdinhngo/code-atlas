@@ -32,6 +32,8 @@ FAILED = 1
 USAGE = 2
 # A verified claim that did not hold, so a lint step fails on it (383).
 NOT_HELD = 3
+# The reader closed stdout (`| head`): 128 + SIGPIPE, what a shell reports for git or cat (436).
+PIPE_CLOSED = 141
 
 HOLDS = "holds"
 CHANGED = "changed"
@@ -323,7 +325,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         from code_atlas.config import load_config
-        from code_atlas.main import allowed_tools, build_server
+        from code_atlas.main import allowed_tools
 
         config = load_config(_project_root())
         served = allowed_tools(config.tools)
@@ -375,17 +377,46 @@ def main(argv: list[str] | None = None) -> int:
         _say(f"no index at {config.db_path} — build one with code-atlas-build")
         return FAILED
     try:
-        if args.snapshot_symbols is not None:
-            return _snapshot_symbols(config, args.snapshot_symbols)
-        if base is not None:
-            return _changed_since(config, base, args.qname, args.path)
-        server = build_server(config, count=False)
-        if claims is not None:
-            return asyncio.run(_verify(server, config.root, claims, served))
-        return asyncio.run(_ask(server, config.root, requests))
+        code = _run(config, args, base, claims, served, requests)
+        sys.stdout.flush()  # a closed pipe raises here, not in the shutdown flush
+        return code
+    except BrokenPipeError:
+        return _pipe_closed()
     except Exception as error:  # noqa: BLE001 — e.g. a file that is not a database
         _say(f"unreadable index at {config.db_path}: {type(error).__name__}: {error}")
         return FAILED
+
+
+def _run(
+    config: Config,
+    args: argparse.Namespace,
+    base: tuple[dict[str, object], list[symbol_changes.Symbol]] | None,
+    claims: list[tuple[str | None, claim.FoundClaim]] | None,
+    served: tuple[str, ...],
+    requests: list[Request],
+) -> int:
+    """The mode the arguments named, on an index that exists."""
+    from code_atlas.main import build_server
+
+    if args.snapshot_symbols is not None:
+        return _snapshot_symbols(config, args.snapshot_symbols)
+    if base is not None:
+        return _changed_since(config, base, args.qname, args.path)
+    server = build_server(config, count=False)
+    if claims is not None:
+        return asyncio.run(_verify(server, config.root, claims, served))
+    return asyncio.run(_ask(server, config.root, requests))
+
+
+def _pipe_closed() -> int:
+    """Point stdout at devnull so the shutdown flush cannot fail again (Python's SIGPIPE note)."""
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        os.close(devnull)
+    except (OSError, ValueError):  # stdout is not a real descriptor; nothing left to flush
+        pass
+    return PIPE_CLOSED
 
 
 if __name__ == "__main__":

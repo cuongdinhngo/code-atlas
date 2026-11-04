@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **`code-atlas query` and a closed pipe (436).** A reader that closes stdout early (`| head`) no longer
+  reports "unreadable index"; the command exits `141` quietly. A real database error keeps its message.
+
 ## 0.10.0 — 2026-11-02 · contract 20 · schema 9
 
 The security track 423–431 against [`SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), and the first

@@ -303,3 +303,27 @@ def test_the_installed_entry_point_routes_query(repo: tuple[Path, Config]) -> No
     )
     assert done.returncode == query.OK, done.stderr
     assert json.loads(done.stdout)["results"][0]["qname"] == SUBJECT
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["get_index_status", "--args", "{}"], ["--snapshot-symbols", "-"]],
+    ids=["a tool answer", "a small snapshot written unflushed"],
+)
+def test_a_reader_that_closes_the_pipe_is_not_an_unreadable_index(
+    repo: tuple[Path, Config], argv: list[str]
+) -> None:
+    """436: `| head` closes stdout early — no "unreadable index", no shutdown flush error."""
+    root, _ = repo
+    child = subprocess.Popen(
+        [sys.executable, "-m", "code_atlas.main", "query", *argv],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env={**os.environ, "PYTHONPATH": str(REPO)},
+    )
+    assert child.stdout is not None
+    child.stdout.close()  # closed before the child writes its first byte
+    _, err = child.communicate(timeout=120)
+    assert child.returncode == query.PIPE_CLOSED, err
+    assert b"unreadable index" not in err and b"Exception ignored" not in err, err
