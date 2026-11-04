@@ -446,7 +446,7 @@ def pypi_shape(job: dict[str, Any]) -> list[str]:
     upload = next((s for s in steps if "pypa/gh-action-pypi-publish@" in str(s.get("uses"))), None)
     if upload is None:
         return ["no pypi job publishes with pypa/gh-action-pypi-publish"]
-    if job.get("needs") != "publish":
+    if "publish" not in (job.get("needs") or []):
         found.append("pypi must need publish, so PyPI never runs ahead of the attested Release")
     if job.get("environment") != "pypi":
         found.append("pypi must run in the `pypi` environment")
@@ -459,7 +459,9 @@ def pypi_shape(job: dict[str, Any]) -> list[str]:
         found.append("pypi uploads with a token, not Trusted Publishing")
     if str(given.get("attestations", "true")).lower() == "false":
         found.append("pypi turns attestations off")
-    if not any("PRERELEASE" in str(s.get("run", "")) for s in steps) or "if" not in upload:
+    if given.get("packages-dir") != "dist/":
+        found.append("pypi uploads more than the dist/ holding only the wheel and the sdist")
+    if job.get("if") != "needs.build.outputs.prerelease != 'yes'":
         found.append("a pre-release is never kept off PyPI")
     return found
 
@@ -525,8 +527,9 @@ def _release_variants() -> dict[str, str]:
             "    permissions:\n      id-token: write\n    steps:",
             "    permissions:\n      id-token: write\n      contents: write\n    steps:",
         ),
-        "pypi ahead of the Release": swap("    needs: publish\n", "    needs: build\n"),
-        "pypi takes a pre-release": swap("        if: steps.dist.outputs.upload == 'yes'\n", ""),
+        "pypi ahead of the Release": swap("      - build\n      - publish\n", "      - build\n"),
+        "pypi uploads the release dir": swap("packages-dir: dist/", "packages-dir: release/"),
+        "pypi takes a pre-release": swap("    if: needs.build.outputs.prerelease != 'yes'\n", ""),
     }
 
 

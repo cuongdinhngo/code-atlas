@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    outputs:
+      prerelease: ${{ steps.dist.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,12 +60,14 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Build the sdist and the wheel from the tag
+        id: dist
         run: |
           mkdir release
           SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" uv build --out-dir release
           python3 scripts/release_notes.py notes "${GITHUB_REF_NAME#v}" > release/notes.md
           if python3 scripts/release_notes.py prerelease "${GITHUB_REF_NAME#v}"; then
             touch release/PRERELEASE
+            echo "prerelease=yes" >> "$GITHUB_OUTPUT"
           fi
 
       # What a user installs: the hashed lock without dev tools, and code-atlas itself built
@@ -130,10 +134,13 @@ jobs:
             --notes-file release/notes.md $flag
 
   # PyPI mirrors the attested Release through Trusted Publishing only (433, SEC-SC-13): no token,
-  # no checkout, the `pypi` environment's reviewer approves. A pre-release never reaches PyPI.
+  # no checkout, the `pypi` environment's reviewer approves. A pre-release never starts this job.
   pypi:
     name: Publish to PyPI
-    needs: publish
+    needs:
+      - build
+      - publish
+    if: needs.build.outputs.prerelease != 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: pypi
@@ -145,19 +152,12 @@ jobs:
           name: release
           path: release
 
-      - name: Keep only the wheel and the sdist, and skip a pre-release
-        id: dist
+      - name: Keep only the wheel and the sdist
         run: |
-          if [ -f release/PRERELEASE ]; then
-            echo "upload=no" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           mkdir dist
           cp release/*.whl release/*.tar.gz dist/
-          echo "upload=yes" >> "$GITHUB_OUTPUT"
 
       - name: Publish with Trusted Publishing
-        if: steps.dist.outputs.upload == 'yes'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist/
