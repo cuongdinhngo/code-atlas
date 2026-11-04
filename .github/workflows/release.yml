@@ -128,3 +128,36 @@ jobs:
           gh release create "$GITHUB_REF_NAME" release/*.whl release/*.tar.gz release/sbom.cdx.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" \
             --notes-file release/notes.md $flag
+
+  # PyPI mirrors the attested Release through Trusted Publishing only (433, SEC-SC-13): no token,
+  # no checkout, the `pypi` environment's reviewer approves. A pre-release never reaches PyPI.
+  pypi:
+    name: Publish to PyPI
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: release
+
+      - name: Keep only the wheel and the sdist, and skip a pre-release
+        id: dist
+        run: |
+          if [ -f release/PRERELEASE ]; then
+            echo "upload=no" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir dist
+          cp release/*.whl release/*.tar.gz dist/
+          echo "upload=yes" >> "$GITHUB_OUTPUT"
+
+      - name: Publish with Trusted Publishing
+        if: steps.dist.outputs.upload == 'yes'
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/
