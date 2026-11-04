@@ -15,6 +15,9 @@ workflow verifies, builds, attests and publishes. Nothing here needs a token of 
    until it is on; GitHub does not document that the rule checks a tag object, so the workflow's own
    `verify-tag` is the guarantee, and the rule is the second lock.
 4. Tell git how to sign: `git config gpg.format ssh` and `git config user.signingkey ~/.ssh/<key>`.
+5. **PyPI (433).** On pypi.org, *Publishing*, add a pending publisher: owner `cuongdinhngo`, repo
+   `code-atlas`, workflow `release.yml`, environment `pypi`. On GitHub, Settings, Environments, create
+   `pypi` with you as required reviewer. No API token exists anywhere (SEC-SC-13).
 
 ## Each release
 
@@ -28,6 +31,10 @@ workflow verifies, builds, attests and publishes. Nothing here needs a token of 
 5. Watch the `Release` run. It checks the tag, `pyproject.toml` and the CHANGELOG name one version,
    builds the sdist and wheel, writes the CycloneDX SBOM, attests provenance and the SBOM, and
    creates the GitHub Release with the CHANGELOG entry and those files.
+6. Approve the `pypi` deployment. The `Publish to PyPI` job uploads the same wheel and sdist by
+   Trusted Publishing, with PyPI attestations. A pre-release never reaches PyPI: a PyPI version is
+   immutable. **After the first upload,** the README's "not published on PyPI" sentence and SEC-GV-07
+   change by pull request to name the pinned `code-atlas==X.Y.Z` line.
 
 A PEP 440 pre-release (`X.Y.ZrcN`, `aN`, `bN`, `.devN`) is created as a GitHub pre-release, so a
 dry run in a fork never reads as the latest release. Try one there before the first real tag.
@@ -68,3 +75,4 @@ verifies signatures from 0.10.0 on (`SIGNED_FROM`).
 | Verify the tag signature | no `.github/allowed_signers` on `main`, a tagged commit `main` does not hold, an unsigned or lightweight tag, or a key not in `main`'s file | land the file or key on `main`, then cut the next version with a signed tag on a `main` commit; a tag is never moved |
 | Check the tag, pyproject.toml and the CHANGELOG | the three name different versions | fix and release the next version; a tag is never moved (the ruleset forbids it) |
 | Release | the tag has a Release already | none needed; a Release is never replaced |
+| Publish to PyPI | no pending publisher, or the `pypi` environment is missing | finish setup step 5, then re-run the job; a PyPI version is never replaced |

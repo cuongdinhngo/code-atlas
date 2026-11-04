@@ -5,7 +5,8 @@ a symbol graph, then answers *resolved relationship* questions — who calls thi
 that, what breaks if I change this file — as rows, not as files to read.
 
 **PHP · TypeScript/JavaScript · Python · T-SQL. 24 tools.** Deterministic, offline, no LLM in the
-core. Every edge says how it was resolved, and the adapters differ in how deep they resolve —
+core, no graph-database server (SQLite only); not the `code-atlas-mcp` package. Every edge says how
+it was resolved, and the adapters differ in how deep they resolve —
 [measured per language](#languages).
 
 > ### **~69× fewer tokens** than grep-and-read to reach a resolved answer

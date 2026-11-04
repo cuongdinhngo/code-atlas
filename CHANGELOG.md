@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **PyPI (433).** The `Release` workflow also publishes the wheel and sdist to PyPI as `code-atlas`,
+  by Trusted Publishing only, after the attested GitHub Release; pre-releases stay off PyPI. The
+  install lint now allows a pinned `code-atlas==X.Y.Z` line.
+
 ## 0.10.0 — 2026-11-02 · contract 20 · schema 9
 
 The security track 423–431 against [`SECURITY_STANDARD.md`](docs/SECURITY_STANDARD.md), and the first
