@@ -32,6 +32,8 @@ FAILED = 1
 USAGE = 2
 # A verified claim that did not hold, so a lint step fails on it (383).
 NOT_HELD = 3
+# The reader closed stdout (`| head`): 128 + SIGPIPE, what a shell reports for git or cat (436).
+PIPE_CLOSED = 141
 
 HOLDS = "holds"
 CHANGED = "changed"
@@ -79,7 +81,7 @@ def parse_batch(lines: Iterable[str], served: tuple[str, ...]) -> list[Request]:
         except json.JSONDecodeError as error:
             raise UsageError(f"line {number}: not JSON ({error.msg})") from None
         if not isinstance(entry, dict):
-            raise UsageError(f"line {number}: expected {{\"tool\": ..., \"args\": {{...}}}}")
+            raise UsageError(f'line {number}: expected {{"tool": ..., "args": {{...}}}}')
         requests.append(
             _request(entry.get("tool"), entry.get("args", {}), served, f"line {number}")
         )
@@ -232,8 +234,10 @@ def _snapshot_symbols(config: Config, out: str) -> int:
 
 
 def _changed_since(
-    config: Config, base: tuple[dict[str, object], list[symbol_changes.Symbol]],
-    qnames: list[str], paths: list[str],
+    config: Config,
+    base: tuple[dict[str, object], list[symbol_changes.Symbol]],
+    qnames: list[str],
+    paths: list[str],
 ) -> int:
     """One verdict line per symbol a subject names; ``NOT_HELD`` when any is not unchanged."""
     from code_atlas.store import LAST_COMMIT_KEY, GraphStore
@@ -308,8 +312,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--path", action="append", default=[], help="a file whose symbols to judge")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     modes = (
-        args.tool, args.batch, args.verify_claim, args.verify_claims,
-        args.snapshot_symbols, args.changed_since,
+        args.tool,
+        args.batch,
+        args.verify_claim,
+        args.verify_claims,
+        args.snapshot_symbols,
+        args.changed_since,
     )
     if sum(mode is not None for mode in modes) != 1:
         parser.error(
@@ -383,9 +391,19 @@ def main(argv: list[str] | None = None) -> int:
         if claims is not None:
             return asyncio.run(_verify(server, config.root, claims, served))
         return asyncio.run(_ask(server, config.root, requests))
+    except BrokenPipeError:
+        return _pipe_closed()
     except Exception as error:  # noqa: BLE001 — e.g. a file that is not a database
         _say(f"unreadable index at {config.db_path}: {type(error).__name__}: {error}")
         return FAILED
+
+
+def _pipe_closed() -> int:
+    """Point stdout at devnull so the shutdown flush cannot fail again (Python's SIGPIPE note)."""
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, sys.stdout.fileno())
+    os.close(devnull)
+    return PIPE_CLOSED
 
 
 if __name__ == "__main__":

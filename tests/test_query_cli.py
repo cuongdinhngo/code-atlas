@@ -267,8 +267,10 @@ def test_a_file_that_is_not_a_database_exits_one(
 def test_a_batch_reads_stdin_with_a_dash(
     repo: tuple[Path, Config], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    lines = '{"tool": "search_symbol", "args": {"query": "save"}}\n\n{"tool": "file_outline", ' \
+    lines = (
+        '{"tool": "search_symbol", "args": {"query": "save"}}\n\n{"tool": "file_outline", '
         f'"args": {{"path": "{SOURCE}"}}}}\n'
+    )
     monkeypatch.setattr(sys, "stdin", io.StringIO(lines))
     code, answers, _ = shell(capsys, "--batch", "-")
     assert code == query.OK
@@ -293,8 +295,15 @@ def test_the_installed_entry_point_routes_query(repo: tuple[Path, Config]) -> No
     """``code-atlas query`` is the server's own script; no subcommand still means serve."""
     root, _ = repo
     done = subprocess.run(
-        [sys.executable, "-m", "code_atlas.main", "query", "search_symbol", "--args",
-         '{"query": "save"}'],
+        [
+            sys.executable,
+            "-m",
+            "code_atlas.main",
+            "query",
+            "search_symbol",
+            "--args",
+            '{"query": "save"}',
+        ],
         cwd=root,
         capture_output=True,
         text=True,
@@ -303,3 +312,22 @@ def test_the_installed_entry_point_routes_query(repo: tuple[Path, Config]) -> No
     )
     assert done.returncode == query.OK, done.stderr
     assert json.loads(done.stdout)["results"][0]["qname"] == SUBJECT
+
+
+def test_a_reader_that_closes_the_pipe_is_not_an_unreadable_index(
+    repo: tuple[Path, Config],
+) -> None:
+    """436: `| head` closes stdout early — no "unreadable index", no shutdown flush error."""
+    root, _ = repo
+    child = subprocess.Popen(
+        [sys.executable, "-m", "code_atlas.main", "query", "get_index_status", "--args", "{}"],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env={**os.environ, "PYTHONPATH": str(REPO)},
+    )
+    assert child.stdout is not None
+    child.stdout.close()  # closed before the child writes its first byte
+    _, err = child.communicate(timeout=120)
+    assert child.returncode == query.PIPE_CLOSED, err
+    assert b"unreadable index" not in err and b"Exception ignored" not in err, err
