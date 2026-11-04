@@ -130,3 +130,16 @@ planted variants; `tests/test_distribution_pinning.py` install-lint arms.
 `EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
 - **AC4 — expiry: the first stable signed tag after this merge.** `curl -s -o /dev/null -w '%{http_code}' https://pypi.org/pypi/code-atlas/json` returns 200 and the maintainer is the owner.
+
+## Phase 3 — execute
+
+Main loop, no `implementer` dispatch (SCOPE S). Landed Approach 1–4 in `1156dbb0`, `d96253cc`; ticket and backlog in
+`1bace62f`. **Verification sweep.** File axis: `git diff --stat 8c7f7a12..HEAD` names 10 files, every one on the change
+list; no deviation. Behaviour axis: Approach 1–4 as approved; the README sentence is "no graph-database server (SQLite
+only); not the `code-atlas-mcp` package" and keeps "not published on PyPI" (H2); `ci: Publish with Trusted Publishing`
+joins SEC-SC-13's guard.
+
+**Seen failing (R6.5).** `pypi_shape` stubbed out of `release_shape` → the 7 new variants red (7 failed, 13 passed);
+restored, all pass. The `==` pin allowance removed from `install_violations` → the 2 new allowed lines red (2 failed,
+15 passed); restored. Targeted suite 490 passed, 1 deselected (the baseline exclusion); `ruff check` and `ruff format`
+clean on the changed tests; `mypy` reports the 3 errors `main` already has, none in changed lines.
