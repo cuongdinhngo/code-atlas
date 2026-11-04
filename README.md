@@ -187,8 +187,9 @@ export CA_PYTHON_CMD="python3 /abs/path/to/code-atlas/adapters/python/index.py -
 ```
 
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`)
-and call **`get_index_status`** first — it is the cheap (~100-token) entry point that says whether
-there is an index, how stale it is, and what to call next. Then `build_or_update_index`, then query.
+and call **`get_index_status`** first with `detail_level: "minimal"` — the cheap (~130-token on a
+fresh index) entry point that says whether there is an index, how stale it is, and what to call next;
+the default `standard` level is about four times that. Then `build_or_update_index`, then query.
 
 <details>
 <summary>Wiring it by hand, or running the server from a container</summary>

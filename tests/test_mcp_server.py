@@ -12,6 +12,7 @@ connection opened anywhere but inside the call raises ``sqlite3.ProgrammingError
 import asyncio
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -30,6 +31,7 @@ from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.indexer import full_build
 from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
+from code_atlas.tokens import estimate_tokens
 from code_atlas.tools.architecture_overview import NAME as OVERVIEW
 from code_atlas.tools.build_or_update_index import NAME as BUILD
 from code_atlas.tools.check_architecture_rules import NAME as ARCH_RULES
@@ -59,8 +61,8 @@ REPO = Path(__file__).resolve().parent.parent
 FAKE = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
 MAIN = REPO / "code_atlas" / "main.py"
 
-# The ~100-token budget of §12's "call first" tool, pinned to characters at ~4 chars per token.
-# §12 ~100-token entry point; 316's leading ``summary`` adds ~50–60 chars on a small fixture.
+# The budget of §12's "call first" tool, pinned to characters at ~4 chars per token (~136 tokens).
+# 316's ``summary`` adds ~50–60 chars on a small fixture; the README quotes the result (435).
 # 429: +45 for ``untrusted_fields`` naming the two git refs (a branch name is the repo's to write).
 MINIMAL_BUDGET = 545
 
@@ -503,13 +505,29 @@ def test_the_detail_level_choices_are_published_in_the_input_schema(repo: Path) 
 
 
 def test_the_minimal_status_payload_stays_inside_its_budget(repo: Path) -> None:
-    """§12 calls this the ~100-token tool; a payload past its budget breaks that promise."""
+    """§12 calls this the cheap tool; a payload past its budget breaks that promise."""
     config = served_config(repo)
     call(build_server(config), BUILD, {})
 
     payload = json.dumps(call(build_server(config), STATUS, {"detail_level": "minimal"}))
 
     assert len(payload) <= MINIMAL_BUDGET, f"{len(payload)} chars: {payload}"
+
+
+
+README_TOKENS = re.compile(r'`detail_level: "minimal"` — the cheap \(~(\d+)-token on a\s+fresh')
+
+
+def test_the_readme_quotes_what_the_minimal_payload_measures(repo: Path) -> None:
+    """435: the README's number is the fixture's ``estimate_tokens`` count, within ±20%."""
+    config = served_config(repo)
+    call(build_server(config), BUILD, {})
+    payload = json.dumps(call(build_server(config), STATUS, {"detail_level": "minimal"}))
+    quoted = README_TOKENS.search((REPO / "README.md").read_text(encoding="utf-8"))
+    assert quoted, "the README no longer quotes the minimal entry point's size"
+    measured = estimate_tokens(payload)
+    assert abs(int(quoted[1]) - measured) <= 0.2 * measured, (quoted[0], measured)
+    assert abs(100 - measured) > 0.2 * measured  # R6.5: the old claim fails this check
 
 
 def test_every_part_section_12_names_is_in_the_minimal_payload(repo: Path) -> None:
