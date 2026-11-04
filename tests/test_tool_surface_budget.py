@@ -9,11 +9,9 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
-import pytest
 from fastmcp import Client
 
 from code_atlas.main import TOOL_NAMES, build_server
@@ -30,6 +28,8 @@ SURFACE_CAP = 23_635
 _REFERENCE = re.compile(
     r"\(\d{2,4}(?:\s*[/,;]\s*\d{2,4})*\)|\btask\s+\d{2,3}\b|\bR\d\.\d+\b|§\s*\d+"
 )
+
+REPO = Path(__file__).resolve().parent.parent
 
 
 def _tools(tmp_path: Path) -> list[Any]:
@@ -93,16 +93,12 @@ def test_the_whole_surface_with_schemas_stays_under_its_cap(tmp_path: Path) -> N
 
 
 def test_the_checks_fail_on_the_surface_before_434() -> None:
-    """R6.5: seen red on the real pre-434 descriptions (main at e08d4b75), not only planted text."""
-    shown = subprocess.run(
-        ["git", "show", "e08d4b75:tests/fixtures/tool_manifest.json"],
-        capture_output=True,
-        text=True,
-        cwd=Path(__file__).resolve().parent.parent,
-    )
-    if shown.returncode != 0:
-        pytest.skip("history before 434 is not available (shallow clone)")
-    before = {t["name"]: t["description"] for t in json.loads(shown.stdout)["tools"]}
+    """R6.5: seen red on the real pre-434 descriptions, kept verbatim in TOOLS.md (Behaviour)."""
+    tools_md = (REPO / "docs" / "TOOLS.md").read_text(encoding="utf-8")
+    section = tools_md.split("## Behaviour by tool", 1)[1].split("\n## ", 1)[0]
+    blocks = re.findall(r"### `(\w+)`\n.*?```text\n(.*?)\n```", section, re.DOTALL)
+    before = dict(blocks)
+    assert len(before) == 24, sorted(before)
     assert "<total>" in over_budget(before)
     assert len(over_budget(before)) > 10
     assert any(references(d) for d in before.values())
