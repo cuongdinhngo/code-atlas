@@ -180,6 +180,16 @@ Reviewed at 61ae7bd7
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+**The final gate.** Docker on the final tree (the host gate is red on two tests that fail identically on `main` —
+the host's PATH `code-atlas` is 0.9.1):
+
+Ran at 281f76f8
+
+```
+$ scripts/docker-test.sh
+5726 passed, 8 skipped in 692.14s (0:11:32)
+```
+
 ### Outward actions
 
 Under the handover: push `feat/434-shrink-tool-descriptions`; open its PR against `main`. Deferred to the maintainer:
