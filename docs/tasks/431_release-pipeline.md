@@ -12,7 +12,7 @@ depends_on: [424, 425]
 
 0.9.1 was tagged and released by hand: the tag is unsigned, the release carries no artifact, and a
 user installing `@v0.9.1` cannot check that what they got is what CI built. code-atlas is not on
-PyPI (a look-alike name is taken), so the GitHub Release is the distribution point and must carry
+PyPI (PyPI refuses `code-atlas` as too similar to `codeatlas`, 433), so the GitHub Release is the distribution point and must carry
 the proof itself.
 
 ## Acceptance

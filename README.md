@@ -5,7 +5,8 @@ a symbol graph, then answers *resolved relationship* questions — who calls thi
 that, what breaks if I change this file — as rows, not as files to read.
 
 **PHP · TypeScript/JavaScript · Python · T-SQL. 24 tools.** Deterministic, offline, no LLM in the
-core. Every edge says how it was resolved, and the adapters differ in how deep they resolve —
+core, no graph-database server (SQLite only); not the `code-atlas-mcp` package. Every edge says how
+it was resolved, and the adapters differ in how deep they resolve —
 [measured per language](#languages).
 
 > ### **~69× fewer tokens** than grep-and-read to reach a resolved answer
@@ -162,9 +163,9 @@ uv tool install ./code_atlas-X.Y.Z-py3-none-any.whl
 
 Releases from 0.10.0 on carry this proof; 0.9.1 and earlier were cut by hand and carry none.
 
-**Install from this repository only.** code-atlas is not published on PyPI: the packages
-`code-atlas-mcp` and `codeatlas` there are other projects, so never install code-atlas by a
-package name.
+**Install from this repository only.** code-atlas is not published on PyPI, which refuses the name
+as too similar to `codeatlas`: the packages `code-atlas-mcp` and `codeatlas` there are other
+projects, so never install code-atlas by a package name.
 
 Its hooks stay silent in a repo with no `.code-atlas/graph.db` (an index moved by `CA_DB_PATH` gets no hooks), or one git tracks; without the console scripts on `PATH`,
 the `SessionStart` hook prints the install line once and every hook exits 0 (376). Adapter `CA_<LANG>_CMD` variables stay per

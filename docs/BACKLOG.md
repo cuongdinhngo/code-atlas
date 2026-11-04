@@ -28,7 +28,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 ## Open work — Trust (security)
 
 Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
-landed; what is left is the maintainer's switches each task file names.
+landed, and 433 closed PyPI as refused; what is left is the maintainer's switches each task file names.
 
 ## Open work — Pillar 2 · Onboarding
 

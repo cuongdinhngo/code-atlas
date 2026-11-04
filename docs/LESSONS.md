@@ -76,6 +76,24 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   index, a busy build, `sign=True`. Each shape a tool can answer in needs its own call, plus a reverse guard.
 - destination: first sighting.
 
+### 433-C1 — a workflow shape guard proves the wiring, not that a word appears
+
+- type: 2 (code) · handle: `a-shape-guard-pins-the-wiring`
+- status: proposed · seen: 433
+- evidence: 433's first `pypi_shape` passed when "PRERELEASE" appeared in some step and the upload had any `if:`,
+  and never read `packages-dir`, so a `release/` upload (SBOM, notes) or an `if:` keyed on nothing stayed green. The
+  ticket-blind challenger saw both; the guard compared the job-level `if` and `packages-dir` exactly, each red (the job was later dropped, 433-C2).
+- destination: first sighting.
+
+### 433-C2 — a 404 from PyPI's JSON API does not mean the name can be registered
+
+- type: 1 (tool-constraint) · handle: `symbol:pypi-json-api`
+- status: proposed · seen: 433
+- evidence: `https://pypi.org/pypi/code-atlas/json` returned 404, so 433 planned to claim the name; the pending
+  publisher form refused it as "too similar to an existing project" — PyPI folds separators and confusables, so
+  `code-atlas` collides with `codeatlas`. Check registrability on the publisher form before designing around a name.
+- destination: first sighting.
+
 ### 431-C1 — a trust root read from the input it judges proves nothing
 
 - type: 2 (code) · handle: `a-trust-root-never-rides-in-the-input`
