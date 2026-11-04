@@ -85,6 +85,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   challenger reasoned it out; flushing inside the guard fixed it, and a small-snapshot case is red without the flush.
 - destination: first sighting.
 
+### 434-C1 — a shrink judged on size drops what stops a wrong read
+
+- type: 2 (code) · handle: `a-shrink-keeps-what-prevents-a-wrong-read`
+- status: proposed · seen: 434
+- evidence: 434 cut the tool descriptions 78% under a size budget and a routing probe, both green — and the short text no
+  longer said `proximity_candidates` are not callers, that `ambiguity` means other definitions exist, or how `index_stale`
+  recovers. Routing was intact; reading was not. The ticket-blind challenger diffed each docstring for losses that change a
+  conclusion; restoring them cost 211 chars. A size cut needs that diff, not only a budget and a probe.
+- destination: first sighting.
+
 ### 433-C1 — a workflow shape guard proves the wiring, not that a word appears
 
 - type: 2 (code) · handle: `a-shape-guard-pins-the-wiring`

@@ -4,7 +4,7 @@ slug: shrink-tool-descriptions
 title: "Shrink the model-facing tool surface — descriptions answer when to call, docs keep the edge cases"
 phase: 2
 milestone: Surface
-status: todo
+status: in-progress
 depends_on: [428]
 ---
 
@@ -52,7 +52,7 @@ shrink first, and keep the `CA_TOOLS` preset opt-in.
 
 ## Session status
 
-- **KEY:** 434 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute.
+- **KEY:** 434 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's merge.
 - `TRACK: backend` · Run mode: `autorun 434 - 435 - 436 --no-reviewer`, third — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` ·
   `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/434-shrink-tool-descriptions` from `main` at `e08d4b75`. Contract `.mango/run-contract-434.txt`. RECONCILE t0:
@@ -126,3 +126,74 @@ bookkeeping (`docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, `docs/LESSONS.md`, this 
 **Proving test:** `tests/test_tool_surface_budget.py`; regression: the blind probe re-run, tokens-to-answer.
 
 `EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+## Phase 3 — execute
+
+`implementer` round 1 landed Approach 1–6 in `38c4c9d7`…`18832d2a` (4 commits). **Verification sweep.** File axis:
+`git diff --stat main` names the 24 tool modules, `docs/TOOLS.md`, the new test, the manifest, `CHANGELOG.md`,
+`docs/runbooks/tokens-to-answer.md` and `tests/test_recognition_probe_protocol.py` (its pinned 097 occasion string follows
+the new `file_outline` wording) — every one on the change list. Behaviour axis: as approved; the three tools with an
+existing TOOLS.md section get a "see also" line instead of a second copy.
+
+**Measured** (`fastmcp.Client.list_tools()`, `json.dumps` default separators, the 59,088 baseline's measure):
+descriptions 45,574 → 9,855 after round 1. Full suite once: 5 failed — the host-skew pair and three wording tests, fixed.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`. The rule-book reviewer was waived by the run's argument; no reviewer
+step ran (no `reviewer`, no `reviewer-max`, no native `/code-review`).
+
+- **`challenger` round 1** (ticket-blind, 78,979 tokens, at `18832d2a`): 6 met · 1 met-vacuous (AC3) · 1 can't tell (AC6,
+  run outside the diff). It verified every pre-434 docstring is a substring of `docs/TOOLS.md`.
+  - **Importants 1–5, taken** (`implementer` round 2, `5c758737`): call-time honesty the short text had dropped —
+    `find_callers` proximity candidates, unlinked counts and the `index_stale` recovery; `read_symbol` `ambiguity` and
+    `path_outside_root`; `search_symbol` `source_stale`, `subjects_dropped`, `did_you_mean`, `exclude_tests`; `impact`
+    `exclude_tests` and `route_collision`; `find_references` `writes_emitters_only`, `unlinked_*_count`, `index_stale`.
+    Paid for by tightening filler, so no cap was raised.
+  - **Minors taken:** `build_or_update_index` in-band rebuild/refusal, `check_architecture_rules` paging and `required`,
+    `find_orphans` real zero, `get_index_status` parse-failure floor; the reference lint catches `(1234)`; a seen-red arm on
+    the real pre-434 descriptions. The main loop moved that arm off `git show` (it skipped on a shallow clone) onto the
+    verbatim blocks in TOOLS.md, `61ae7bd7`. **Not taken:** "precedence" left `read_symbol`'s ambiguity list for its
+    600 cap (still in TOOLS.md); `caller_root` stays name-only, as before.
+- After round 2, measured in the main loop: descriptions **10,066** (max `find_callers` 871, `find_references` 705, `impact`
+  650, the rest ≤ 600); `list_tools()` **59,088 → 23,580 chars, −60.1%** (AC5); `tests/test_tool_surface_budget.py` 5 passed;
+  the implementer's full suite 5728 passed, 2 failed (the host-skew pair), 4 skipped.
+- **Probe (AC6)**, blind `sonnet` agents shown only the manifest, `K = 24 / 24`: `main` 24 / 24 · 6 / 6; round 1 24 / 24 ·
+  6 / 6 (O4 `search_symbol`, acceptable); final at `61ae7bd7` 24 / 24 · 6 / 6 (same picks). **Tokens-to-answer**, fixture tier at `18832d2a`: 35 / 35 correct,
+  recall 1.0, precision 1.0, ratio 0.779 (floor 0.63); the sample tier was not run — it measures answer payloads, which no
+  file here changes.
+
+Verdict: clean (challenger only — REVIEWER: OFF), all five Importants landed.
+`Ph3/4 proven by`: AC1, AC4 → `tests/test_tool_surface_budget.py`; AC2 → the substring check above and the seen-red arm;
+AC3 → vacuous (W1); AC5 → the measurement above and the combined cap; AC6 → the probe rounds and the fixture benchmark;
+AC7 → `docs/runbooks/tokens-to-answer.md` *Fixed surface cost*; G1 → AC5 + AC6.
+
+Reviewed at 61ae7bd7
+
+## Phase 5 — finalise
+
+**Durable lesson.** 434-C1 `a-shrink-keeps-what-prevents-a-wrong-read` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/434-shrink-tool-descriptions`; open its PR against `main`. Deferred to the maintainer:
+ratify W1; merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 1 analysis | blind probe, `main` | 1 | 75,365 |
+| 3 execute | `implementer` | 1 | 124,585 |
+| 4 review | ticket-blind `challenger` | 1 | 78,979 |
+| 4 review | blind probe, round-1 surface | 1 | 60,605 |
+| 4 review | `implementer` | 2 | 20,876 |
+| 4 review | blind probe, final surface | 1 | 60,731 |
+
+`LEDGER TOTAL: 421,141 · top cost driver: 3 execute / implementer` — main loop unmeasured.
