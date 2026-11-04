@@ -125,6 +125,16 @@ Reviewed at 3a4a1f0e
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+**The final gate.** Docker on the final tree (the host gate is red on two tests that fail identically on \`main\` —
+the host's PATH \`code-atlas\` is 0.9.1):
+
+Ran at 54270034
+
+```
+$ scripts/docker-test.sh
+5723 passed, 8 skipped in 713.65s (0:11:53)
+```
+
 ### Outward actions
 
 Under the handover: push `fix/436-query-broken-pipe`; open its PR against `main`. Deferred to the maintainer: merge.
