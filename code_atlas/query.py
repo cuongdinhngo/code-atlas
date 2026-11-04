@@ -81,7 +81,7 @@ def parse_batch(lines: Iterable[str], served: tuple[str, ...]) -> list[Request]:
         except json.JSONDecodeError as error:
             raise UsageError(f"line {number}: not JSON ({error.msg})") from None
         if not isinstance(entry, dict):
-            raise UsageError(f'line {number}: expected {{"tool": ..., "args": {{...}}}}')
+            raise UsageError(f"line {number}: expected {{\"tool\": ..., \"args\": {{...}}}}")
         requests.append(
             _request(entry.get("tool"), entry.get("args", {}), served, f"line {number}")
         )
@@ -234,10 +234,8 @@ def _snapshot_symbols(config: Config, out: str) -> int:
 
 
 def _changed_since(
-    config: Config,
-    base: tuple[dict[str, object], list[symbol_changes.Symbol]],
-    qnames: list[str],
-    paths: list[str],
+    config: Config, base: tuple[dict[str, object], list[symbol_changes.Symbol]],
+    qnames: list[str], paths: list[str],
 ) -> int:
     """One verdict line per symbol a subject names; ``NOT_HELD`` when any is not unchanged."""
     from code_atlas.store import LAST_COMMIT_KEY, GraphStore
@@ -312,12 +310,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--path", action="append", default=[], help="a file whose symbols to judge")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     modes = (
-        args.tool,
-        args.batch,
-        args.verify_claim,
-        args.verify_claims,
-        args.snapshot_symbols,
-        args.changed_since,
+        args.tool, args.batch, args.verify_claim, args.verify_claims,
+        args.snapshot_symbols, args.changed_since,
     )
     if sum(mode is not None for mode in modes) != 1:
         parser.error(
@@ -331,7 +325,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         from code_atlas.config import load_config
-        from code_atlas.main import allowed_tools, build_server
+        from code_atlas.main import allowed_tools
 
         config = load_config(_project_root())
         served = allowed_tools(config.tools)
@@ -383,14 +377,9 @@ def main(argv: list[str] | None = None) -> int:
         _say(f"no index at {config.db_path} — build one with code-atlas-build")
         return FAILED
     try:
-        if args.snapshot_symbols is not None:
-            return _snapshot_symbols(config, args.snapshot_symbols)
-        if base is not None:
-            return _changed_since(config, base, args.qname, args.path)
-        server = build_server(config, count=False)
-        if claims is not None:
-            return asyncio.run(_verify(server, config.root, claims, served))
-        return asyncio.run(_ask(server, config.root, requests))
+        code = _run(config, args, base, claims, served, requests)
+        sys.stdout.flush()  # a closed pipe raises here, not in the shutdown flush
+        return code
     except BrokenPipeError:
         return _pipe_closed()
     except Exception as error:  # noqa: BLE001 — e.g. a file that is not a database
@@ -398,11 +387,35 @@ def main(argv: list[str] | None = None) -> int:
         return FAILED
 
 
+def _run(
+    config: Config,
+    args: argparse.Namespace,
+    base: tuple[dict[str, object], list[symbol_changes.Symbol]] | None,
+    claims: list[tuple[str | None, claim.FoundClaim]] | None,
+    served: tuple[str, ...],
+    requests: list[Request],
+) -> int:
+    """The mode the arguments named, on an index that exists."""
+    from code_atlas.main import build_server
+
+    if args.snapshot_symbols is not None:
+        return _snapshot_symbols(config, args.snapshot_symbols)
+    if base is not None:
+        return _changed_since(config, base, args.qname, args.path)
+    server = build_server(config, count=False)
+    if claims is not None:
+        return asyncio.run(_verify(server, config.root, claims, served))
+    return asyncio.run(_ask(server, config.root, requests))
+
+
 def _pipe_closed() -> int:
     """Point stdout at devnull so the shutdown flush cannot fail again (Python's SIGPIPE note)."""
-    devnull = os.open(os.devnull, os.O_WRONLY)
-    os.dup2(devnull, sys.stdout.fileno())
-    os.close(devnull)
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        os.close(devnull)
+    except (OSError, ValueError):  # stdout is not a real descriptor; nothing left to flush
+        pass
     return PIPE_CLOSED
 
 
