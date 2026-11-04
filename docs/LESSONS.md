@@ -83,6 +83,12 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: 436 caught `BrokenPipeError` around the CLI's modes, but `--snapshot-symbols -` wrote a small answer into the
   stdio buffer and returned; the closed pipe surfaced at interpreter shutdown, outside every handler. The ticket-blind
   challenger reasoned it out; flushing inside the guard fixed it, and a small-snapshot case is red without the flush.
+### 435-C1 — a number the docs quote lives in every copy, and one test guards one copy
+- type: 2 (code) · handle: `a-claim-lives-in-every-copy`
+- status: proposed · seen: 435
+- evidence: 435 fixed the README's "~100-token" entry point and pinned it with a test; PLAN §12 and CONVENTION carried the
+  same "~100 tok" and the ticket named only the README. The ticket-blind challenger grepped the repo and found both.
+  Grep the whole repo for the figure before fixing one sentence.
 - destination: first sighting.
 
 ### 433-C1 — a workflow shape guard proves the wiring, not that a word appears
