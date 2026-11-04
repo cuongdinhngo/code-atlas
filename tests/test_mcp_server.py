@@ -515,7 +515,7 @@ def test_the_minimal_status_payload_stays_inside_its_budget(repo: Path) -> None:
 
 
 
-README_TOKENS = re.compile(r'`detail_level: "minimal"` — the cheap \(~(\d+)-token on a\s+fresh')
+README_TOKENS = re.compile(r'`detail_level: "minimal"`[^~]{0,40}~(\d+)\s+tokens on a current index')
 
 
 def test_the_readme_quotes_what_the_minimal_payload_measures(repo: Path) -> None:
