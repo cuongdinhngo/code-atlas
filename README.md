@@ -163,9 +163,9 @@ uv tool install ./code_atlas-X.Y.Z-py3-none-any.whl
 
 Releases from 0.10.0 on carry this proof; 0.9.1 and earlier were cut by hand and carry none.
 
-**Install from this repository only.** code-atlas is not published on PyPI: the packages
-`code-atlas-mcp` and `codeatlas` there are other projects, so never install code-atlas by a
-package name.
+**Install from this repository only.** code-atlas is not published on PyPI, which refuses the name
+as too similar to `codeatlas`: the packages `code-atlas-mcp` and `codeatlas` there are other
+projects, so never install code-atlas by a package name.
 
 Its hooks stay silent in a repo with no `.code-atlas/graph.db` (an index moved by `CA_DB_PATH` gets no hooks), or one git tracks; without the console scripts on `PATH`,
 the `SessionStart` hook prints the install line once and every hook exits 0 (376). Adapter `CA_<LANG>_CMD` variables stay per

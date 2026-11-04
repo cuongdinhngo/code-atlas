@@ -11,9 +11,9 @@ depends_on: [424, 425]
 ## Why this exists
 
 0.9.1 was tagged and released by hand: the tag is unsigned, the release carries no artifact, and a
-user installing `@v0.9.1` cannot check that what they got is what CI built. code-atlas was not on
-PyPI (only look-alike names are taken; 433 claims `code-atlas`), so the GitHub Release is the
-distribution point and must carry the proof itself.
+user installing `@v0.9.1` cannot check that what they got is what CI built. code-atlas is not on
+PyPI (PyPI refuses `code-atlas` as too similar to `codeatlas`, 433), so the GitHub Release is the distribution point and must carry
+the proof itself.
 
 ## Acceptance
 
@@ -36,7 +36,7 @@ distribution point and must carry the proof itself.
 
 New `.github/workflows/release.yml`, `docs/runbooks/releasing.md`;
 `tests/test_release_discipline.py`, `README.md`, `SECURITY.md`; standard rows SEC-SC-11..13
-(13 then N/A: no PyPI; 433 guards it), SEC-GV-02.
+(13 recorded N/A: no PyPI), SEC-GV-02.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
@@ -100,7 +100,7 @@ W1–W3 count as self-resolved because the handover handed them back; each stood
 | AC4 | Acc 4 | "a pre-release tag in a fork produces attested artifacts; recorded in the resolution" | met 2026-11-02 in a throwaway public copy: [run](https://github.com/cuongdinhngo/code-atlas-release-dryrun/actions/runs/41379616572) | ✅ |
 | AC5 | Acc 5 | "fails when a release that fixed an advisory … has no `Security` section" | H6 | ⚠ |
 | AC6 | Acc 6 | "The release steps are written once, as `docs/runbooks/releasing.md`" | the runbook | ⚠ |
-| C1 | Call sites | "standard rows SEC-SC-11..13 (13 then N/A: no PyPI; 433 guards it), SEC-GV-02" | H10 | ⚠ |
+| C1 | Call sites | "standard rows SEC-SC-11..13 (13 recorded N/A: no PyPI), SEC-GV-02" | H10 | ⚠ |
 
 `BASELINE: green — the suite on main at bd242e59: 5674 passed, 4 skipped (host Linux, this worktree; the working-doc lines above were already appended, no source change)`
 

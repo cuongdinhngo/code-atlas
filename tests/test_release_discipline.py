@@ -18,7 +18,6 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -435,34 +434,6 @@ def release_shape(text: str) -> list[str]:
         found.append("provenance must cover the wheel and the sdist the Release carries")
     if not any("--verify-tag" in str(s.get("run", "")) for s in psteps):
         found.append("the Release is not created with --verify-tag")
-    return found + pypi_shape(jobs.get("pypi") or {})
-
-
-def pypi_shape(job: dict[str, Any]) -> list[str]:
-    """SEC-SC-13 (433): PyPI gets the attested files by Trusted Publishing only, never a token."""
-    found = []
-    steps = [s for s in job.get("steps") or [] if isinstance(s, dict)]
-    uses = [str(s.get("uses", "")) for s in steps]
-    upload = next((s for s in steps if "pypa/gh-action-pypi-publish@" in str(s.get("uses"))), None)
-    if upload is None:
-        return ["no pypi job publishes with pypa/gh-action-pypi-publish"]
-    if "publish" not in (job.get("needs") or []):
-        found.append("pypi must need publish, so PyPI never runs ahead of the attested Release")
-    if job.get("environment") != "pypi":
-        found.append("pypi must run in the `pypi` environment")
-    if (job.get("permissions") or {}) != {"id-token": "write"}:
-        found.append("pypi must hold id-token: write and nothing else")
-    if any(u.startswith("actions/checkout@") for u in uses):
-        found.append("pypi checks out the repo, so it would run repo code")
-    given = upload.get("with") or {}
-    if {"password", "user"} & set(given) or "secrets." in json.dumps(job):
-        found.append("pypi uploads with a token, not Trusted Publishing")
-    if str(given.get("attestations", "true")).lower() == "false":
-        found.append("pypi turns attestations off")
-    if given.get("packages-dir") != "dist/":
-        found.append("pypi uploads more than the dist/ holding only the wheel and the sdist")
-    if job.get("if") != "needs.build.outputs.prerelease != 'yes'":
-        found.append("a pre-release is never kept off PyPI")
     return found
 
 
@@ -513,23 +484,6 @@ def _release_variants() -> dict[str, str]:
             "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2",
             "actions/upload-artifact@v7",
         ),
-        "no pypi upload": swap("pypa/gh-action-pypi-publish@", "pypa/other-action@"),
-        "pypi with a token": swap(
-            "          packages-dir: dist/",
-            "          packages-dir: dist/\n          password: ${{ secrets.PYPI_TOKEN }}",
-        ),
-        "pypi attestations off": swap(
-            "          packages-dir: dist/",
-            "          packages-dir: dist/\n          attestations: false",
-        ),
-        "pypi outside its environment": swap("    environment: pypi\n", ""),
-        "pypi with a write scope": swap(
-            "    permissions:\n      id-token: write\n    steps:",
-            "    permissions:\n      id-token: write\n      contents: write\n    steps:",
-        ),
-        "pypi ahead of the Release": swap("      - build\n      - publish\n", "      - build\n"),
-        "pypi uploads the release dir": swap("packages-dir: dist/", "packages-dir: release/"),
-        "pypi takes a pre-release": swap("    if: needs.build.outputs.prerelease != 'yes'\n", ""),
     }
 
 

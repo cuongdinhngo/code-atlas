@@ -4,7 +4,7 @@ slug: claim-pypi-name
 title: "Claim `code-atlas` on PyPI — publish the signed release there through Trusted Publishing"
 phase: 2
 milestone: Release
-status: in-progress
+status: done
 depends_on: [427, 431]
 ---
 
@@ -47,11 +47,22 @@ builds the sdist and wheel from a verified signed tag and attests them. Only the
   a PLAN §19 entry.
 - MCP registry listings (brief B2) — after the name is owned.
 
+## Resolution
+
+**Refused by PyPI, closed without publishing (2026-11-04).** Adding the pending publisher on pypi.org
+failed: *"This project name is too similar to an existing project."* PyPI compares a new name with
+separators removed and confusable letters folded, so `code-atlas` collides with `codeatlas`; the JSON
+API's 404 only said no project exists under that spelling. Nobody else can register `code-atlas`
+either, and `pip install code-atlas` cannot resolve to `codeatlas` (PEP 503 keeps them distinct), so the
+typosquat hazard is closed by PyPI itself. Maintainer decision: drop PyPI; the attested GitHub Release
+stays the only channel. The `pypi` job, its guard and the pinned-line lint were reverted; SEC-SC-13 stays
+`n/a` with this reason, and 431 and the README say it.
+
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 ## Session status
 
-- **KEY:** 433 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's switches, then the merge.
+- **KEY:** 433 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's merge (re-scoped, see Resolution).
 - `TRACK: backend` · Run mode: `autorun 433 --no-reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` ·
   `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `chore/433-claim-pypi-name` from `main` at `8c7f7a12`. Contract `.mango/run-contract-433.txt` (mango
@@ -129,7 +140,7 @@ planted variants; `tests/test_distribution_pinning.py` install-lint arms.
 
 `EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
-- **AC4 — expiry: the first stable signed tag after this merge.** `curl -s -o /dev/null -w '%{http_code}' https://pypi.org/pypi/code-atlas/json` returns 200 and the maintainer is the owner.
+- **AC4 — expired 2026-11-04, falsified:** PyPI refused the pending publisher (Resolution). Was: expiry the first stable signed tag after this merge. `curl -s -o /dev/null -w '%{http_code}' https://pypi.org/pypi/code-atlas/json` returns 200 and the maintainer is the owner.
 
 ## Phase 3 — execute
 
@@ -167,9 +178,9 @@ Reviewed at 2e548bb5
 
 ## Phase 5 — finalise
 
-**Durable lesson.** 433-C1 `a-shape-guard-pins-the-wiring` (new, type 2).
+**Durable lesson.** 433-C1 `a-shape-guard-pins-the-wiring` (new, type 2); 433-C2 `symbol:pypi-json-api` (new, type 1).
 
-`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`CLAIMS: 2 claim(s) from 1 lesson entr(ies) | T1=1 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
 `RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
 `FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
@@ -185,12 +196,18 @@ $ scripts/docker-test.sh
 5727 passed, 8 skipped in 701.19s (0:11:41)
 ```
 
+### Re-scope after the PR opened (maintainer, 2026-11-04)
+
+PyPI refused `code-atlas` (Resolution). On the maintainer's pick — drop PyPI — the branch reverts
+`release.yml`, `tests/test_release_discipline.py`, `tests/test_distribution_pinning.py`, `docs/runbooks/releasing.md` and
+`CHANGELOG.md` to `main`, and keeps only the true record: SEC-SC-13's `n/a` reason, 431's "Why", the README's install
+sentence and differentiator, this ticket, the lesson and the ledger. W1–W3 are moot. The challenger's review covered
+the reverted job; the remaining diff is docs only.
+
 ### Outward actions
 
-Under the handover: push `chore/433-claim-pypi-name`; open its PR against `main`.
-Deferred to the maintainer: ratify W1–W3; add the PyPI pending publisher and the `pypi` environment (runbook step 5);
-cut the next stable signed tag and approve the `pypi` deployment (AC4); then flip the README sentence and SEC-GV-07;
-merge.
+Under the handover: push `chore/433-claim-pypi-name`; open its PR against `main` (#157), then update it after the
+re-scope. Deferred to the maintainer: merge. Nothing on PyPI or in GitHub settings is needed.
 
 ## Cost ledger
 

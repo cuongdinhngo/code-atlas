@@ -54,17 +54,16 @@ SKILL_TEXT = (
 _REF = r"[^\s`'\")]*"
 GIT_URL = re.compile(rf"git\+https://github\.com/cuongdinhngo/code-atlas(?:\.git)?(@{_REF})?")
 MARKETPLACE_ADD = re.compile(rf"marketplace add cuongdinhngo/code-atlas(#{_REF})?")
-# An install by package name: a flag-only run of arguments, then `code-atlas` and any `==` pin.
+# An install by package name: a flag-only run of arguments, then `code-atlas` itself.
 BY_NAME = re.compile(
-    r"(?:\b(?:pip3?|uv tool|uv pip|pipx)\s+install\s+(?:--?[\w-]+\s+)*|\buvx\s+|\bpipx run\s+)"
-    r"code-atlas\b(?!-)(?P<pin>==[\w.]+)?"
+    r"\b(?:pip3?|uv tool|uv pip|pipx)\s+install\s+(?:--?[\w-]+\s+)*code-atlas\b(?!-)"
+    r"|\buvx\s+code-atlas\b|\bpipx run\s+code-atlas\b"
 )
 
 
 def install_violations(text: str) -> list[str]:
-    """Every install line that names no release, or another one — checkout installs pass (433)."""
-    pins = {f"=={VERSION}", "==X.Y.Z"}
-    found = [m.group(0) for m in BY_NAME.finditer(text) if m["pin"] not in pins]
+    """Every install line that names no release, or another one — checkout installs pass."""
+    found = [m.group(0) for m in BY_NAME.finditer(text)]
     for pattern, sep in ((GIT_URL, "@"), (MARKETPLACE_ADD, "#")):
         for m in pattern.finditer(text):
             if m.group(1) not in {f"{sep}{TAG}", f"{sep}{PLACEHOLDER}"}:
@@ -80,8 +79,6 @@ PLANTED_INSTALLS = [
     "uv tool install code-atlas",
     "uv tool install --force code-atlas",
     "pipx install code-atlas",
-    "pip install code-atlas==0.0.1",
-    "uvx code-atlas",
     "claude plugin marketplace add cuongdinhngo/code-atlas",
     "claude plugin marketplace add cuongdinhngo/code-atlas#main",
 ]
@@ -90,8 +87,6 @@ ALLOWED_INSTALLS = [
     f"claude plugin marketplace add cuongdinhngo/code-atlas#{TAG}",
     "pip install -e .",
     "uv tool install --reinstall --from <checkout> code-atlas",
-    f"pip install code-atlas=={VERSION}",
-    "uv tool install code-atlas==X.Y.Z",
 ]
 
 
