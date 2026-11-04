@@ -26,9 +26,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """How does one symbol reach another — the shortest path between them?
 
-        Pass ``from_qname`` and ``to_qname``; ``depth`` unset walks until the node budget binds.
-        ``status``: ``path`` (RESOLVED hops), ``unproven`` (needs HEURISTIC/DYNAMIC hops),
-        ``unknown`` (missing endpoint), ``incomplete`` (budget hit), ``no_path`` (a modelled zero).
+        Pass ``from_qname`` and ``to_qname``. ``status``: ``path`` (RESOLVED hops), ``unproven``
+        (needs HEURISTIC/DYNAMIC hops), ``unknown`` (missing endpoint), ``incomplete`` (budget hit),
+        ``no_path`` (modelled zero).
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

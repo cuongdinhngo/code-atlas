@@ -207,12 +207,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
-        Use before an edit or delete; for direct callers only use find_callers. Pass ``paths``
-        and/or ``qnames`` (or ``routes``); ``depth`` bounds the walk. Only RESOLVED relations
-        expand; HEURISTIC/DYNAMIC rows carry their tier. The answer names its revision
-        (``last_commit``). ``seeds_dropped`` counts subjects that produced no seed: ``results: []``
+        Use before an edit or delete. Pass ``paths`` and/or ``qnames`` (or ``routes``); ``depth``
+        and ``exclude_tests`` bound the walk. Only RESOLVED relations expand; HEURISTIC/DYNAMIC rows
+        carry their tier. ``seeds_dropped`` counts subjects that produced no seed: ``results: []``
         with 0 dropped is a modelled zero, otherwise read ``reason``. ``subject_ambiguous`` /
-        ``ambiguous_definitions`` mean a qname with several definitions was not walked.
+        ``ambiguous_definitions`` mean a qname with several definitions was not walked. ``ambiguity:
+        route_collision`` means a route matched several handlers, not one target.
         ``unlinked_same_name_sites`` means not authoritative.
         """
         call = claim.call_args(impact, locals())

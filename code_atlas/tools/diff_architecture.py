@@ -42,8 +42,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Diff two dataset (or onboarding manifest) JSON files for architectural drift.
 
         Pass ``before`` and ``after`` paths inside the indexed tree; both must share ``index_root``
-        and ``version`` or the call is refused with a reason. No drift returns an explicit *no
-        architectural change* statement.
+        and ``version`` or the call is refused. No drift says so explicitly.
         """
         before_path = _resolve(config, before)
         after_path = _resolve(config, after)

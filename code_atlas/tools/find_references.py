@@ -300,12 +300,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
-        Use for every linked use of a symbol, table, column or file; for calls only use
-        find_callers. Hits carry confidence tiers; ``path_prefix``, ``exclude_tests``,
-        ``limit``/``offset`` narrow. For a Table or Column, ``kinds`` picks ``WRITES``/``DELETES``
-        or ``READS``. ``authoritative: false`` means every hit is DYNAMIC: a candidate, not proof.
-        ``relationship_not_modelled`` (only unlinked uses; follow ``try_instead``), ``via_members``
-        and ``index_behind`` mean a zero is not proof of absence.
+        For calls only use find_callers. Hits carry confidence tiers; Narrow with ``path_prefix``,
+        ``exclude_tests``. For a Table or Column, ``kinds`` picks ``WRITES``/``DELETES`` or
+        ``READS``; ``unlinked_writes_count`` / ``unlinked_reads_count`` count uses not linked, and
+        ``writes_emitters_only`` says a covered language emits no WRITES, so zero writers is not
+        proof. ``authoritative: false`` means every hit is DYNAMIC: a candidate, not proof.
+        ``relationship_not_modelled`` (follow ``try_instead``), ``via_members`` and ``index_behind``
+        mean a zero is not proof of absence. ``index_stale`` is a refusal: follow
+        ``try_instead_hint`` or pass ``serve_behind=true``.
         """
         call = claim.call_args(find_references, locals())
         named_root = require_caller_root(config, caller_root)

@@ -34,9 +34,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What should I read first in this codebase, in dependency order?
 
-        For the layer picture use architecture_overview. Each stop is a file; ``standard`` adds a
-        ``rationale``, ``minimal`` lists files only. Page with ``offset``; ``truncated`` means the
-        node budget left a file out or stops remain after this page.
+        For the layer picture use architecture_overview. ``standard`` adds a ``rationale`` per file.
+        Page with ``offset``; ``truncated`` means the node budget left a file out or stops remain
+        after this page.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

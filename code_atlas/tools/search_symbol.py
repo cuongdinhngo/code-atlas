@@ -133,10 +133,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Find a symbol from part of its name or text — ranked, with where each one lives.
 
         Then read_symbol for the body. Pass ``query``, or ``queries`` for a sweep (not both; each
-        subject has its own ``reason``). Narrow with ``kind``, ``path_prefix``; page with
-        ``limit``/``offset``. Rows are ``{qname, kind, file, line}``, best first.
-        ``reason=substring_match`` is near-misses, not a hit; ``index_behind`` is not proof of
-        absence.
+        subject has its own ``reason``; extras beyond ``max_subjects`` are in ``subjects_dropped``).
+        Narrow with ``kind``, ``path_prefix``, ``exclude_tests``; page with ``limit``/``offset``.
+        ``substring_match`` is near-misses, not a hit; ``index_behind`` is not proof of absence; a
+        miss may carry ``did_you_mean``. Never refuses on staleness: ``source_stale: true`` marks a
+        hit from a changed file.
         """
         subjects = _require_subjects(query, queries)
         batched = queries is not None

@@ -257,8 +257,11 @@ built server (`~tokens = chars / 4`, schemas as compact JSON), before and after 
 
 | Client loads | Before: description + schema | After: description + schema |
 |---|---|---|
-| All 24 tools up front | 45,574 + 12,254 = 57,828 chars (~14,457 tokens) | 9,855 + 12,254 = 22,109 chars (~5,527 tokens) |
-| The six on demand (`get_index_status`, `search_symbol`, `read_symbol`, `find_callers`, `find_references`, `impact`) | 26,907 + 6,000 = 32,907 chars (~8,226 tokens) | 3,361 + 6,000 = 9,361 chars (~2,340 tokens) |
+| All 24 tools up front | 45,574 + 12,254 = 57,828 chars (~14,457 tokens) | 10,066 + 12,254 = 22,320 chars (~5,580 tokens) |
+| The six on demand (`get_index_status`, `search_symbol`, `read_symbol`, `find_callers`, `find_references`, `impact`) | 26,907 + 6,000 = 32,907 chars (~8,226 tokens) | 3,789 + 6,000 = 9,789 chars (~2,447 tokens) |
+
+Measured with `json.dumps` default separators (the ticket's 59,088 baseline) the full surface
+is 59,088 -> 23,580 chars, a 60.1% cut.
 
 A client that defers schemas (Claude Code) pays the second row; one that loads every tool pays the
 first. The edge cases the short descriptions dropped are in

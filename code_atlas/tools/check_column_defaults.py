@@ -246,8 +246,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Needs a SQL-layer index. Pass exactly one of ``table`` and ``default_expr``; ``column``
         narrows a table. Each row gives ``omitted_count`` of ``writers_total``; a writer naming no
-        columns is ``unmeasured``. ``table_has_no_writers`` carries no ``omitted_by`` (the graph
-        cannot see a zero); ``writers_partial`` means unlinked writes remain.
+        columns is ``unmeasured``. ``table_has_no_writers`` carries no ``omitted_by``;
+        ``writers_partial`` means unlinked writes remain.
         """
         if (table is None) == (default_expr is None):
             raise ValueError("pass exactly one of table and default_expr")

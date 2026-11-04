@@ -200,10 +200,10 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     ) -> dict[str, object]:
         """Is the index built, fresh, and healthy — and what should I call next? Call this first.
 
-        Use before trusting any answer; to build or refresh call build_or_update_index. ``standard``
-        adds capabilities and coverage (``unconfigured_adapters``); ``verbose`` adds parse-failure
-        paths (page with ``offset``). Returns stats, health, ``last_commit``, staleness;
-        ``refresh_refused`` means the last hook refresh did not run.
+        To build or refresh call build_or_update_index. ``standard`` adds capabilities and coverage
+        (``unconfigured_adapters``); ``verbose`` adds parse-failure paths (page with ``offset``).
+        Returns stats, health, ``last_commit``, staleness; ``parse_failures`` is a floor on
+        brokenness; ``refresh_refused`` means the last hook refresh did not run.
         """
         call = claim.call_args(get_index_status, locals())
         check_index(config.root, config.db_path)  # a server outlives the commit that tracks it

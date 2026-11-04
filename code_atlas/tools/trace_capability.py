@@ -279,11 +279,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """How this codebase routes an incoming request — the capability flows one subject is in.
 
-        Prefer over Grep for "how does a request reach the code that responds?". Pass exactly one of
-        ``qname``, ``path``, ``module`` or ``route`` (a URL, via a declared ``routes`` table); else
-        ``name_not_qualified``. Each result is a flow with ``steps``. ``no_such_symbol``,
-        ``no_matches`` (see architecture_overview) and ``capability_not_configured`` (see
-        get_index_status) are not empty answers.
+        Prefer over Grep for how a request reaches its handler. Pass exactly one of ``qname``,
+        ``path``, ``module`` or ``route`` (a URL, via a declared ``routes`` table); else
+        ``name_not_qualified``. ``no_such_symbol``, ``no_matches`` (see architecture_overview) and
+        ``capability_not_configured`` (see get_index_status) are not empty answers.
         """
         chosen = _subject_of(qname, path, module, route)
         if chosen is None:

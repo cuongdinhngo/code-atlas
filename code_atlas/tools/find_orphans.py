@@ -48,9 +48,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Which symbols and files look unused — nothing calls them and no entry point reaches them?
 
         Needs ``CA_ENTRY_POINTS`` (unset: ``status=no_roots_configured``). HEURISTIC-only neighbors
-        are ``unproven``, never orphans. ``total_count`` is the full population; page with
-        ``limit``. ``status`` ``roots_matched_nothing``, ``walk_budget_exhausted`` or
-        ``resolution_unmodelled`` returns no rows and is not proof of dead code;
+        are ``unproven``, never orphans. ``total_count`` is the full population.
+        ``roots_matched_nothing``, ``walk_budget_exhausted`` or ``resolution_unmodelled`` returns no
+        rows and is not proof of dead code; ``status: ok`` with no rows is a real zero.
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

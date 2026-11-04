@@ -68,11 +68,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What does this file pull in, and what pulls it in?
 
-        Use for file-level links; for symbols use find_references. ``path`` is required;
-        ``direction`` is ``imports``, ``imported_by`` or ``both``; ``depth`` defaults to 1. An empty
-        inbound answer is a real zero only with ``authoritative: true``;
-        ``relationship_not_modelled`` / ``relation_unmodelled_for_language`` mean the relation is
-        not linked here (see ``unlinked_includes``, ``try_instead_hint``).
+        For symbols use find_references. ``path`` is required; ``direction`` is ``imports``,
+        ``imported_by`` or ``both``; ``depth`` defaults to 1. An empty inbound answer is a real zero
+        only with ``authoritative: true``; ``relationship_not_modelled`` /
+        ``relation_unmodelled_for_language`` mean the relation is not linked here (see
+        ``unlinked_includes``, ``try_instead_hint``).
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")

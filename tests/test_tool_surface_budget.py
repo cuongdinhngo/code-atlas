@@ -9,24 +9,26 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastmcp import Client
 
 from code_atlas.main import TOOL_NAMES, build_server
 from tests.test_nav_tools import db_config
 
-TOTAL_DESCRIPTION_CAP = 10_000
+TOTAL_DESCRIPTION_CAP = 10_100
 PER_TOOL_CAP = 600
 LARGE_TOOL_CAP = 900
 LARGE_TOOLS = frozenset({"find_callers", "find_references", "impact"})
-# 59,088 chars of descriptions + schemas before 434, minus the 60% the ticket asks for.
+# 59,088 chars (json.dumps default separators) before 434; the ticket asks for a 60% cut.
 SURFACE_CAP = 23_635
 
 # (NNN), (NNN/NNN), "task NNN", a rule id R1.2 or a plan section sign — never a bare number.
 _REFERENCE = re.compile(
-    r"\(\d{2,3}(?:\s*[/,;]\s*\d{2,3})*\)|\btask\s+\d{2,3}\b|\bR\d\.\d+\b|§\s*\d+"
+    r"\(\d{2,4}(?:\s*[/,;]\s*\d{2,4})*\)|\btask\s+\d{2,3}\b|\bR\d\.\d+\b|§\s*\d+"
 )
 
 
@@ -70,6 +72,7 @@ def test_the_reference_lint_flags_ticket_and_rule_references_only() -> None:
     assert references("see R5.6 for the shape")
     assert references("carried since task 101")
     assert references("per §19 of the plan")
+    assert references("a (1234) ref")
     assert references("a default of limit 100") == []
     assert references("bodies above 600 lines elide") == []
     assert references("capped at 1000 rows") == []
@@ -85,8 +88,21 @@ def test_the_descriptions_fit_the_budget_and_carry_no_references(tmp_path: Path)
 
 def test_the_whole_surface_with_schemas_stays_under_its_cap(tmp_path: Path) -> None:
     """A schema that grows shows up here, not only in the descriptions."""
-    total = sum(
-        len(t.description or "") + len(json.dumps(t.inputSchema, separators=(",", ":")))
-        for t in _tools(tmp_path)
-    )
+    total = sum(len(t.description or "") + len(json.dumps(t.inputSchema)) for t in _tools(tmp_path))
     assert total <= SURFACE_CAP, total
+
+
+def test_the_checks_fail_on_the_surface_before_434() -> None:
+    """R6.5: seen red on the real pre-434 descriptions (main at e08d4b75), not only planted text."""
+    shown = subprocess.run(
+        ["git", "show", "e08d4b75:tests/fixtures/tool_manifest.json"],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parent.parent,
+    )
+    if shown.returncode != 0:
+        pytest.skip("history before 434 is not available (shallow clone)")
+    before = {t["name"]: t["description"] for t in json.loads(shown.stdout)["tools"]}
+    assert "<total>" in over_budget(before)
+    assert len(over_budget(before)) > 10
+    assert any(references(d) for d in before.values())

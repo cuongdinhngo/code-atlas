@@ -99,10 +99,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Build or refresh this repo's index so the other tools have current data.
 
-        Use when get_index_status says the index is missing or behind. ``full=true`` forces a
-        rebuild; ``allow_full_rebuild=true`` runs one in-band after ``mode: refused``
-        (``contract_rebuild_required``).  ``mode: busy`` means another writer holds the lock and the
-        request is queued: do not retry in a loop.
+        ``full=true`` forces a rebuild; ``allow_full_rebuild=true`` runs one in-band after ``mode:
+        refused`` (``contract_rebuild_required``). An older ``schema_version`` index is deleted and
+        rebuilt in-band; a newer one is refused untouched. ``mode: busy`` means another writer holds
+        the lock and the request is queued: do not retry in a loop.
         """
         started = time.monotonic()
         first: dict[str, object] | None = None

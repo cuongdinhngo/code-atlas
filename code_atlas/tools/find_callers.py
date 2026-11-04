@@ -143,14 +143,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
-        Use for direct and transitive callers; for non-call uses find_references, for blast radius
-        impact. ``depth`` defaults to 1; deeper walks expand only RESOLVED hits, counting the rest
-        in ``frontier_skipped_non_resolved``. Filter with ``confidence_tier``, ``exclude_tests``, or
+        Non-call uses: find_references; blast radius: impact. ``depth`` defaults to 1; deeper walks
+        expand only RESOLVED hits. Filter with ``confidence_tier``, ``exclude_tests``, or
         ``arg_position`` + ``arg_is`` (depth 1; ``args_unrecorded`` = sites it could not judge).
-        ``total_count`` is a lower bound beyond depth 1. ``authoritative: false`` means unlinked
-        evidence remains. A non-``ok`` ``reason`` (``bare_name_truncated``,
+        ``total_count`` is a lower bound beyond depth 1. ``proximity_candidates`` rows
+        (``candidate_of``) are unlinked candidates, not callers. ``unresolved_*`` /
+        ``unlinked_same_name_sites`` count callers the graph could not link; ``authoritative:
+        false`` says some remain. A non-``ok`` ``reason`` (``bare_name_truncated``,
         ``relation_unmodelled_for_language``, ``index_behind``) means the index could not look, not
-        that nobody calls it. ``sign`` adds a ``claim`` line.
+        that nobody calls it. ``index_stale`` is a refusal: follow ``try_instead_hint`` or pass
+        ``serve_behind=true``.
         """
         call = claim.call_args(find_callers, locals())
         named_root = require_caller_root(config, caller_root)

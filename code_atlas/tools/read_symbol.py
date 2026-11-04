@@ -122,12 +122,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
-        Use after search_symbol gives a qname. ``qname`` is required; ``minimal`` returns the
-        declaration alone. Bodies over 600 lines return the signature with ``body_elided: true``:
-        pass ``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and a
-        type's ``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.
-        ``subject_ambiguous`` lists ``ambiguous_definitions`` and returns no body: narrow with
-        ``path_prefix``. ``stale: true`` means the file drifted and could not be repaired.
+        Bodies over 600 lines elide to the signature (``body_elided: true``): pass
+        ``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and
+        ``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.
+        ``subject_ambiguous`` returns no body (narrow with ``path_prefix``); an ``ambiguity`` field
+        means other definitions exist (test copies, migrations): read the list before trusting the
+        body. ``stale: true``: file drifted. ``path_outside_root`` returns no source.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

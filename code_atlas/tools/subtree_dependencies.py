@@ -32,10 +32,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Can this subtree be deleted — what still crosses into or out of it?
 
-        Use before removing a directory: ``subtree`` is the prefix, ``counterpart`` narrows the
-        other side. Crossings are split by ``confidence_tier`` and attributable vs unattributable:
-        read the unattributable total beside every blocker count. ``dynamic_bridges`` are links with
-        no static edge, not proof of no dependency.
+        ``subtree`` is the prefix, ``counterpart`` narrows the other side. Crossings split by
+        ``confidence_tier`` and attributable vs unattributable: read the unattributable total beside
+        every blocker count. ``dynamic_bridges`` are links with no static edge, not proof of no
+        dependency.
         """
         if not subtree.strip():
             raise ValueError("subtree must be non-empty")

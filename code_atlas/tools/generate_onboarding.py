@@ -248,10 +248,10 @@ def create(
         """Write committable onboarding docs for this repo — overview, guided tour and flows.
 
         Writes up to five files under ``docs/onboarding/`` (overview, tour, flows, manifest,
-        index.html), no per-module page tree; a tree it did not write is refused, not
-        overwritten. ``detail_level`` shapes only the response. ``audience`` (``full`` /
-        ``newcomer`` / ``maintainer``) picks the sections; ``working_roots`` picks the population
-        the tour and flows draw from (``[]`` = whole index).
+        index.html), no per-module page tree; a tree it did not write is refused, not overwritten.
+        ``detail_level`` shapes only the response. ``audience`` (``full`` / ``newcomer`` /
+        ``maintainer``) picks the sections; ``working_roots`` picks the population the tour and
+        flows draw from (``[]`` = whole index).
         """
         if not config.db_path.is_file():
             return _unbuilt(config)

@@ -19,7 +19,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 
 - **`code-atlas query` and a closed pipe (436).** A reader that closes stdout early (`| head`) no longer
   reports "unreadable index"; the command exits `141` quietly. A real database error keeps its message.
-- **Tool surface: the 24 descriptions are shortened to 10,000 characters in all** (434), from 45,574.
+- **Tool surface: the 24 descriptions are shortened to 10,066 characters in all** (434), from 45,574.
   Each now answers the question, when to use the tool, the parameters an agent sets and the key
   response fields; the edge cases moved, unchanged, to `docs/TOOLS.md` under *Behaviour by tool*.
   No tool, parameter or schema changed.

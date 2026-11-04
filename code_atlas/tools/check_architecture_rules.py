@@ -47,8 +47,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Reads ``CA_ARCHITECTURE_RULES``; ``rule_id`` checks one rule. Confirmed violations are
         RESOLVED walks into a forbidden set; HEURISTIC-only evidence sits under ``candidates``,
-        never confirmed. ``total_count`` is the confirmed population; an empty answer names its
-        cause.
+        never confirmed. A ``required`` rule flags each source symbol that reaches none of its
+        targets. ``total_count`` is the confirmed population: page with ``limit``/``offset`` until
+        ``truncated`` is false. An empty answer names its cause.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

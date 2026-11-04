@@ -107,10 +107,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Which modules does changing this reach, and how much of each?
 
-        The ``impact`` walk summarised per module (same inputs); for symbol rows use impact. Each
-        row splits its symbol count by confidence tier: a module reached only via HEURISTIC is not
-        shown reached. ``unassigned`` counts files no module covers; ``walk_truncated`` means every
-        count is an under-estimate.
+        The ``impact`` walk per module (same inputs); for symbols use impact. Each row splits its
+        symbol count by confidence tier: a module reached only via HEURISTIC is not shown reached.
+        ``unassigned`` counts files no module covers; ``walk_truncated`` means every count is an
+        under-estimate.
         """
         call = claim.call_args(impact_modules, locals())
         hops = config.impact_depth if depth is None else depth

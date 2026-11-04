@@ -5,7 +5,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "What are this codebase's top-level layers, and how do they depend on each other?\n\nUse first on an unfamiliar repo; for a reading order use guided_tour. ``results`` is the\nlayer list (``truncated`` with ``total_count``). ``standard`` adds degrees, a ``summary`` of\nzero-inbound populations and ``cross_layer_edges``; ``verbose`` adds per-module rows (page\nwith ``offset``).",
+      "description": "What are this codebase's top-level layers, and how do they depend on each other?\n\nFor a reading order use guided_tour. ``results`` is the layer list (``truncated`` with\n``total_count``). ``standard`` adds degrees, a ``summary`` of zero-inbound populations and\n``cross_layer_edges``; ``verbose`` adds per-module rows (page with ``offset``).",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -34,7 +34,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Build or refresh this repo's index so the other tools have current data.\n\nUse when get_index_status says the index is missing or behind. ``full=true`` forces a\nrebuild; ``allow_full_rebuild=true`` runs one in-band after ``mode: refused``\n(``contract_rebuild_required``).  ``mode: busy`` means another writer holds the lock and the\nrequest is queued: do not retry in a loop.",
+      "description": "Build or refresh this repo's index so the other tools have current data.\n\n``full=true`` forces a rebuild; ``allow_full_rebuild=true`` runs one in-band after ``mode:\nrefused`` (``contract_rebuild_required``). An older ``schema_version`` index is deleted and\nrebuilt in-band; a newer one is refused untouched. ``mode: busy`` means another writer holds\nthe lock and the request is queued: do not retry in a loop.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -72,7 +72,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Do the architecture dependency rules still hold on this index?\n\nReads ``CA_ARCHITECTURE_RULES``; ``rule_id`` checks one rule. Confirmed violations are\nRESOLVED walks into a forbidden set; HEURISTIC-only evidence sits under ``candidates``,\nnever confirmed. ``total_count`` is the confirmed population; an empty answer names its\ncause.",
+      "description": "Do the architecture dependency rules still hold on this index?\n\nReads ``CA_ARCHITECTURE_RULES``; ``rule_id`` checks one rule. Confirmed violations are\nRESOLVED walks into a forbidden set; HEURISTIC-only evidence sits under ``candidates``,\nnever confirmed. A ``required`` rule flags each source symbol that reaches none of its\ntargets. ``total_count`` is the confirmed population: page with ``limit``/``offset`` until\n``truncated`` is false. An empty answer names its cause.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -121,7 +121,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Which writers of this table omit a column that has a DEFAULT, and what is that DEFAULT?\n\nNeeds a SQL-layer index. Pass exactly one of ``table`` and ``default_expr``; ``column``\nnarrows a table. Each row gives ``omitted_count`` of ``writers_total``; a writer naming no\ncolumns is ``unmeasured``. ``table_has_no_writers`` carries no ``omitted_by`` (the graph\ncannot see a zero); ``writers_partial`` means unlinked writes remain.",
+      "description": "Which writers of this table omit a column that has a DEFAULT, and what is that DEFAULT?\n\nNeeds a SQL-layer index. Pass exactly one of ``table`` and ``default_expr``; ``column``\nnarrows a table. Each row gives ``omitted_count`` of ``writers_total``; a writer naming no\ncolumns is ``unmeasured``. ``table_has_no_writers`` carries no ``omitted_by``;\n``writers_partial`` means unlinked writes remain.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -251,7 +251,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Diff two dataset (or onboarding manifest) JSON files for architectural drift.\n\nPass ``before`` and ``after`` paths inside the indexed tree; both must share ``index_root``\nand ``version`` or the call is refused with a reason. No drift returns an explicit *no\narchitectural change* statement.",
+      "description": "Diff two dataset (or onboarding manifest) JSON files for architectural drift.\n\nPass ``before`` and ``after`` paths inside the indexed tree; both must share ``index_root``\nand ``version`` or the call is refused. No drift says so explicitly.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -285,7 +285,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "How does one symbol reach another — the shortest path between them?\n\nPass ``from_qname`` and ``to_qname``; ``depth`` unset walks until the node budget binds.\n``status``: ``path`` (RESOLVED hops), ``unproven`` (needs HEURISTIC/DYNAMIC hops),\n``unknown`` (missing endpoint), ``incomplete`` (budget hit), ``no_path`` (a modelled zero).",
+      "description": "How does one symbol reach another — the shortest path between them?\n\nPass ``from_qname`` and ``to_qname``. ``status``: ``path`` (RESOLVED hops), ``unproven``\n(needs HEURISTIC/DYNAMIC hops), ``unknown`` (missing endpoint), ``incomplete`` (budget hit),\n``no_path`` (modelled zero).",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -330,7 +330,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "What does this file define, and on what lines — without printing the source?\n\nCall before reading or porting a large file; for one symbol's body use read_symbol. ``path``\nis repo-relative; ``found`` is false when not indexed. Page with ``limit``/``offset``.\nReturns symbol lines, never bodies. ``total_count`` is the full symbol count; ``truncated``\nmeans the page omitted some.",
+      "description": "What does this file define, and on what lines — without printing the source?\n\nCall before reading a large file; for a body use read_symbol. ``path`` is repo-relative;\n``found`` is false when not indexed. Page with ``limit``/``offset``. Returns symbol lines,\nnever bodies. ``total_count`` is the full symbol count; ``truncated`` means the page omitted\nsome.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -386,7 +386,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Who calls this function or method? Every call site, with confidence and optional depth.\n\nUse for direct and transitive callers; for non-call uses find_references, for blast radius\nimpact. ``depth`` defaults to 1; deeper walks expand only RESOLVED hits, counting the rest\nin ``frontier_skipped_non_resolved``. Filter with ``confidence_tier``, ``exclude_tests``, or\n``arg_position`` + ``arg_is`` (depth 1; ``args_unrecorded`` = sites it could not judge).\n``total_count`` is a lower bound beyond depth 1. ``authoritative: false`` means unlinked\nevidence remains. A non-``ok`` ``reason`` (``bare_name_truncated``,\n``relation_unmodelled_for_language``, ``index_behind``) means the index could not look, not\nthat nobody calls it. ``sign`` adds a ``claim`` line.",
+      "description": "Who calls this function or method? Every call site, with confidence and optional depth.\n\nNon-call uses: find_references; blast radius: impact. ``depth`` defaults to 1; deeper walks\nexpand only RESOLVED hits. Filter with ``confidence_tier``, ``exclude_tests``, or\n``arg_position`` + ``arg_is`` (depth 1; ``args_unrecorded`` = sites it could not judge).\n``total_count`` is a lower bound beyond depth 1. ``proximity_candidates`` rows\n(``candidate_of``) are unlinked candidates, not callers. ``unresolved_*`` /\n``unlinked_same_name_sites`` count callers the graph could not link; ``authoritative:\nfalse`` says some remain. A non-``ok`` ``reason`` (``bare_name_truncated``,\n``relation_unmodelled_for_language``, ``index_behind``) means the index could not look, not\nthat nobody calls it. ``index_stale`` is a refusal: follow ``try_instead_hint`` or pass\n``serve_behind=true``.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -522,7 +522,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Which types extend or implement this one? Direct subtypes only (not transitive).\n\nFor transitive subtypes use impact. ``qname`` is required; page with ``limit``/``offset``.\nAn empty page checks for unlinked evidence first: read ``reason`` before treating zero as\nnone.",
+      "description": "Which types extend or implement this one? Direct subtypes only (not transitive).\n\nFor transitive subtypes use impact. ``qname`` is required; page with ``limit``/``offset``.\nRead ``reason`` before treating an empty page as none.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -566,7 +566,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Which symbols and files look unused — nothing calls them and no entry point reaches them?\n\nNeeds ``CA_ENTRY_POINTS`` (unset: ``status=no_roots_configured``). HEURISTIC-only neighbors\nare ``unproven``, never orphans. ``total_count`` is the full population; page with\n``limit``. ``status`` ``roots_matched_nothing``, ``walk_budget_exhausted`` or\n``resolution_unmodelled`` returns no rows and is not proof of dead code;",
+      "description": "Which symbols and files look unused — nothing calls them and no entry point reaches them?\n\nNeeds ``CA_ENTRY_POINTS`` (unset: ``status=no_roots_configured``). HEURISTIC-only neighbors\nare ``unproven``, never orphans. ``total_count`` is the full population.\n``roots_matched_nothing``, ``walk_budget_exhausted`` or ``resolution_unmodelled`` returns no\nrows and is not proof of dead code; ``status: ok`` with no rows is a real zero.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -614,7 +614,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Where is this symbol used across the codebase?\n\nUse for every linked use of a symbol, table, column or file; for calls only use\nfind_callers. Hits carry confidence tiers; ``path_prefix``, ``exclude_tests``,\n``limit``/``offset`` narrow. For a Table or Column, ``kinds`` picks ``WRITES``/``DELETES``\nor ``READS``. ``authoritative: false`` means every hit is DYNAMIC: a candidate, not proof.\n``relationship_not_modelled`` (only unlinked uses; follow ``try_instead``), ``via_members``\nand ``index_behind`` mean a zero is not proof of absence.",
+      "description": "Where is this symbol used across the codebase?\n\nFor calls only use find_callers. Hits carry confidence tiers; Narrow with ``path_prefix``,\n``exclude_tests``. For a Table or Column, ``kinds`` picks ``WRITES``/``DELETES`` or\n``READS``; ``unlinked_writes_count`` / ``unlinked_reads_count`` count uses not linked, and\n``writes_emitters_only`` says a covered language emits no WRITES, so zero writers is not\nproof. ``authoritative: false`` means every hit is DYNAMIC: a candidate, not proof.\n``relationship_not_modelled`` (follow ``try_instead``), ``via_members`` and ``index_behind``\nmean a zero is not proof of absence. ``index_stale`` is a refusal: follow\n``try_instead_hint`` or pass ``serve_behind=true``.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -808,7 +808,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Write committable onboarding docs for this repo — overview, guided tour and flows.\n\nWrites up to five files under ``docs/onboarding/`` (overview, tour, flows, manifest,\nindex.html), no per-module page tree; a tree it did not write is refused, not\noverwritten. ``detail_level`` shapes only the response. ``audience`` (``full`` /\n``newcomer`` / ``maintainer``) picks the sections; ``working_roots`` picks the population\nthe tour and flows draw from (``[]`` = whole index).",
+      "description": "Write committable onboarding docs for this repo — overview, guided tour and flows.\n\nWrites up to five files under ``docs/onboarding/`` (overview, tour, flows, manifest,\nindex.html), no per-module page tree; a tree it did not write is refused, not overwritten.\n``detail_level`` shapes only the response. ``audience`` (``full`` / ``newcomer`` /\n``maintainer``) picks the sections; ``working_roots`` picks the population the tour and\nflows draw from (``[]`` = whole index).",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -858,7 +858,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Is the index built, fresh, and healthy — and what should I call next? Call this first.\n\nUse before trusting any answer; to build or refresh call build_or_update_index. ``standard``\nadds capabilities and coverage (``unconfigured_adapters``); ``verbose`` adds parse-failure\npaths (page with ``offset``). Returns stats, health, ``last_commit``, staleness;\n``refresh_refused`` means the last hook refresh did not run.",
+      "description": "Is the index built, fresh, and healthy — and what should I call next? Call this first.\n\nTo build or refresh call build_or_update_index. ``standard`` adds capabilities and coverage\n(``unconfigured_adapters``); ``verbose`` adds parse-failure paths (page with ``offset``).\nReturns stats, health, ``last_commit``, staleness; ``parse_failures`` is a floor on\nbrokenness; ``refresh_refused`` means the last hook refresh did not run.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -893,7 +893,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "What should I read first in this codebase, in dependency order?\n\nFor the layer picture use architecture_overview. Each stop is a file; ``standard`` adds a\n``rationale``, ``minimal`` lists files only. Page with ``offset``; ``truncated`` means the\nnode budget left a file out or stops remain after this page.",
+      "description": "What should I read first in this codebase, in dependency order?\n\nFor the layer picture use architecture_overview. ``standard`` adds a ``rationale`` per file.\nPage with ``offset``; ``truncated`` means the node budget left a file out or stops remain\nafter this page.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -919,7 +919,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "What could break if I change this file or symbol — the blast radius?\n\nUse before an edit or delete; for direct callers only use find_callers. Pass ``paths``\nand/or ``qnames`` (or ``routes``); ``depth`` bounds the walk. Only RESOLVED relations\nexpand; HEURISTIC/DYNAMIC rows carry their tier. The answer names its revision\n(``last_commit``). ``seeds_dropped`` counts subjects that produced no seed: ``results: []``\nwith 0 dropped is a modelled zero, otherwise read ``reason``. ``subject_ambiguous`` /\n``ambiguous_definitions`` mean a qname with several definitions was not walked.\n``unlinked_same_name_sites`` means not authoritative.",
+      "description": "What could break if I change this file or symbol — the blast radius?\n\nUse before an edit or delete. Pass ``paths`` and/or ``qnames`` (or ``routes``); ``depth``\nand ``exclude_tests`` bound the walk. Only RESOLVED relations expand; HEURISTIC/DYNAMIC rows\ncarry their tier. ``seeds_dropped`` counts subjects that produced no seed: ``results: []``\nwith 0 dropped is a modelled zero, otherwise read ``reason``. ``subject_ambiguous`` /\n``ambiguous_definitions`` mean a qname with several definitions was not walked. ``ambiguity:\nroute_collision`` means a route matched several handlers, not one target.\n``unlinked_same_name_sites`` means not authoritative.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1075,7 +1075,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Which modules does changing this reach, and how much of each?\n\nThe ``impact`` walk summarised per module (same inputs); for symbol rows use impact. Each\nrow splits its symbol count by confidence tier: a module reached only via HEURISTIC is not\nshown reached. ``unassigned`` counts files no module covers; ``walk_truncated`` means every\ncount is an under-estimate.",
+      "description": "Which modules does changing this reach, and how much of each?\n\nThe ``impact`` walk per module (same inputs); for symbols use impact. Each row splits its\nsymbol count by confidence tier: a module reached only via HEURISTIC is not shown reached.\n``unassigned`` counts files no module covers; ``walk_truncated`` means every count is an\nunder-estimate.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1144,7 +1144,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "What does this file pull in, and what pulls it in?\n\nUse for file-level links; for symbols use find_references. ``path`` is required;\n``direction`` is ``imports``, ``imported_by`` or ``both``; ``depth`` defaults to 1. An empty\ninbound answer is a real zero only with ``authoritative: true``;\n``relationship_not_modelled`` / ``relation_unmodelled_for_language`` mean the relation is\nnot linked here (see ``unlinked_includes``, ``try_instead_hint``).",
+      "description": "What does this file pull in, and what pulls it in?\n\nFor symbols use find_references. ``path`` is required; ``direction`` is ``imports``,\n``imported_by`` or ``both``; ``depth`` defaults to 1. An empty inbound answer is a real zero\nonly with ``authoritative: true``; ``relationship_not_modelled`` /\n``relation_unmodelled_for_language`` mean the relation is not linked here (see\n``unlinked_includes``, ``try_instead_hint``).",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1219,7 +1219,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read just one symbol's source and its doc comment, without opening the whole file.\n\nUse after search_symbol gives a qname. ``qname`` is required; ``minimal`` returns the\ndeclaration alone. Bodies over 600 lines return the signature with ``body_elided: true``:\npass ``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and a\ntype's ``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.\n``subject_ambiguous`` lists ``ambiguous_definitions`` and returns no body: narrow with\n``path_prefix``. ``stale: true`` means the file drifted and could not be repaired.",
+      "description": "Read just one symbol's source and its doc comment, without opening the whole file.\n\nBodies over 600 lines elide to the signature (``body_elided: true``): pass\n``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and\n``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.\n``subject_ambiguous`` returns no body (narrow with ``path_prefix``); an ``ambiguity`` field\nmeans other definitions exist (test copies, migrations): read the list before trusting the\nbody. ``stale: true``: file drifted. ``path_outside_root`` returns no source.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1376,7 +1376,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Find a symbol from part of its name or text — ranked, with where each one lives.\n\nThen read_symbol for the body. Pass ``query``, or ``queries`` for a sweep (not both; each\nsubject has its own ``reason``). Narrow with ``kind``, ``path_prefix``; page with\n``limit``/``offset``. Rows are ``{qname, kind, file, line}``, best first.\n``reason=substring_match`` is near-misses, not a hit; ``index_behind`` is not proof of\nabsence.",
+      "description": "Find a symbol from part of its name or text — ranked, with where each one lives.\n\nThen read_symbol for the body. Pass ``query``, or ``queries`` for a sweep (not both; each\nsubject has its own ``reason``; extras beyond ``max_subjects`` are in ``subjects_dropped``).\nNarrow with ``kind``, ``path_prefix``, ``exclude_tests``; page with ``limit``/``offset``.\n``substring_match`` is near-misses, not a hit; ``index_behind`` is not proof of absence; a\nmiss may carry ``did_you_mean``. Never refuses on staleness: ``source_stale: true`` marks a\nhit from a changed file.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1509,7 +1509,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Can this subtree be deleted — what still crosses into or out of it?\n\nUse before removing a directory: ``subtree`` is the prefix, ``counterpart`` narrows the\nother side. Crossings are split by ``confidence_tier`` and attributable vs unattributable:\nread the unattributable total beside every blocker count. ``dynamic_bridges`` are links with\nno static edge, not proof of no dependency.",
+      "description": "Can this subtree be deleted — what still crosses into or out of it?\n\n``subtree`` is the prefix, ``counterpart`` narrows the other side. Crossings split by\n``confidence_tier`` and attributable vs unattributable: read the unattributable total beside\nevery blocker count. ``dynamic_bridges`` are links with no static edge, not proof of no\ndependency.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1561,7 +1561,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "How this codebase routes an incoming request — the capability flows one subject is in.\n\nPrefer over Grep for \"how does a request reach the code that responds?\". Pass exactly one of\n``qname``, ``path``, ``module`` or ``route`` (a URL, via a declared ``routes`` table); else\n``name_not_qualified``. Each result is a flow with ``steps``. ``no_such_symbol``,\n``no_matches`` (see architecture_overview) and ``capability_not_configured`` (see\nget_index_status) are not empty answers.",
+      "description": "How this codebase routes an incoming request — the capability flows one subject is in.\n\nPrefer over Grep for how a request reaches its handler. Pass exactly one of ``qname``,\n``path``, ``module`` or ``route`` (a URL, via a declared ``routes`` table); else\n``name_not_qualified``. ``no_such_symbol``, ``no_matches`` (see architecture_overview) and\n``capability_not_configured`` (see get_index_status) are not empty answers.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {

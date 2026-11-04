@@ -69,10 +69,9 @@ def create(
     ) -> dict[str, object]:
         """What are this codebase's top-level layers, and how do they depend on each other?
 
-        Use first on an unfamiliar repo; for a reading order use guided_tour. ``results`` is the
-        layer list (``truncated`` with ``total_count``). ``standard`` adds degrees, a ``summary`` of
-        zero-inbound populations and ``cross_layer_edges``; ``verbose`` adds per-module rows (page
-        with ``offset``).
+        For a reading order use guided_tour. ``results`` is the layer list (``truncated`` with
+        ``total_count``). ``standard`` adds degrees, a ``summary`` of zero-inbound populations and
+        ``cross_layer_edges``; ``verbose`` adds per-module rows (page with ``offset``).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

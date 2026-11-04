@@ -38,10 +38,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What does this file define, and on what lines — without printing the source?
 
-        Call before reading or porting a large file; for one symbol's body use read_symbol. ``path``
-        is repo-relative; ``found`` is false when not indexed. Page with ``limit``/``offset``.
-        Returns symbol lines, never bodies. ``total_count`` is the full symbol count; ``truncated``
-        means the page omitted some.
+        Call before reading a large file; for a body use read_symbol. ``path`` is repo-relative;
+        ``found`` is false when not indexed. Page with ``limit``/``offset``. Returns symbol lines,
+        never bodies. ``total_count`` is the full symbol count; ``truncated`` means the page omitted
+        some.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

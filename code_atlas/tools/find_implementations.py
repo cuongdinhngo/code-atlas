@@ -46,8 +46,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Which types extend or implement this one? Direct subtypes only (not transitive).
 
         For transitive subtypes use impact. ``qname`` is required; page with ``limit``/``offset``.
-        An empty page checks for unlinked evidence first: read ``reason`` before treating zero as
-        none.
+        Read ``reason`` before treating an empty page as none.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
