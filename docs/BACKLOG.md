@@ -25,7 +25,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 | 434 | [Shrink the model-facing tool surface (~59k chars)](tasks/434_shrink-tool-descriptions.md) | Surface | todo | 428 |
-| 435 | [Make the README's "~100-token get_index_status" true](tasks/435_index-status-token-claim.md) | Surface | todo | — |
+| 435 | [Make the README's "~100-token get_index_status" true](tasks/435_index-status-token-claim.md) | Surface | in-progress | — |
 | 436 | [`code-atlas query`: a closed pipe is not an unreadable index](tasks/436_query-broken-pipe.md) | Surface | in-progress | — |
 
 ## Open work — Trust (security)
