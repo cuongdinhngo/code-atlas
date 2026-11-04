@@ -4,7 +4,7 @@ slug: claim-pypi-name
 title: "Claim `code-atlas` on PyPI — publish the signed release there through Trusted Publishing"
 phase: 2
 milestone: Release
-status: todo
+status: in-progress
 depends_on: [427, 431]
 ---
 
@@ -51,7 +51,7 @@ builds the sdist and wheel from a verified signed tag and attests them. Only the
 
 ## Session status
 
-- **KEY:** 433 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute the change list.
+- **KEY:** 433 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's switches, then the merge.
 - `TRACK: backend` · Run mode: `autorun 433 --no-reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` ·
   `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `chore/433-claim-pypi-name` from `main` at `8c7f7a12`. Contract `.mango/run-contract-433.txt` (mango
@@ -143,3 +143,55 @@ joins SEC-SC-13's guard.
 restored, all pass. The `==` pin allowance removed from `install_violations` → the 2 new allowed lines red (2 failed,
 15 passed); restored. Targeted suite 490 passed, 1 deselected (the baseline exclusion); `ruff check` and `ruff format`
 clean on the changed tests; `mypy` reports the 3 errors `main` already has, none in changed lines.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`. The rule-book reviewer was waived by the run's argument; no
+reviewer step ran (no `reviewer`, no `reviewer-max`, no native `/code-review`).
+
+- **`challenger` round 1** (ticket-blind, 54,946 tokens, at `8312687a`): 4 met · 1 partly met (3b: README names the
+  look-alikes but keeps "not published on PyPI" — H2, by design) · 1 not met (2b) · 1 can't tell (AC4, the exclusion).
+  - **Important, taken** in `2e548bb5`: 431's call-site line and C1 row still said "no PyPI".
+  - **Minors taken** in `2e548bb5`: the `pypi` job now has a job-level `if: needs.build.outputs.prerelease != 'yes'`
+    (from a `build` output), so a pre-release never waits on the environment reviewer; `pypi_shape` compares that `if`
+    and `packages-dir: dist/` exactly, with two new planted variants. **Not taken:** the pin — `v1.14.3` is an
+    annotated tag, dereferenced to commit `7245906f…` before pinning; `publish`'s scopes — unchanged by this diff.
+  - Seen failing after the fix: `pypi_shape` stubbed → 8 failed, 13 passed; restored, 267 passed.
+
+Verdict: clean (challenger only — REVIEWER: OFF), the Important landed.
+`Ph3/4 proven by`: AC1 → `release_shape`/`pypi_shape` and its 8 planted variants, `tests/test_ci_hardening.py` over
+`release.yml`; AC2 → `tests/test_security_standard.py` (SEC-SC-13 guard names resolve); AC3 → the install-lint arms in
+`tests/test_distribution_pinning.py`, README read; AC4 → exclusion; G1 → AC4; C1 → `docs/runbooks/releasing.md` step 5.
+
+Reviewed at 2e548bb5
+
+## Phase 5 — finalise
+
+**Durable lesson.** 433-C1 `a-shape-guard-pins-the-wiring` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+**The final gate.** `scripts/gate.sh` on the host at `2e548bb5`: 24 passed · 1 failed · 1 skipped — pytest 5729 passed,
+2 failed, 4 skipped. Both failures (`test_the_plugin_hook_names_a_skew_against_the_installed_package`,
+`test_a_checkout_behind_the_core_is_named_with_its_fix`) fail identically on `main` at `8c7f7a12`: the host's PATH
+`code-atlas` is 0.9.1. Docker on the final tree: see below.
+
+### Outward actions
+
+Under the handover: push `chore/433-claim-pypi-name`; open its PR against `main`.
+Deferred to the maintainer: ratify W1–W3; add the PyPI pending publisher and the `pypi` environment (runbook step 5);
+cut the next stable signed tag and approve the `pypi` deployment (AC4); then flip the README sentence and SEC-GV-07;
+merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker `challenger` | 1 | 44,629 |
+| 4 review | ticket-blind `challenger` | 1 | 54,946 |
+
+`LEDGER TOTAL: 99,575 · top cost driver: 4 review / challenger` — main loop unmeasured.

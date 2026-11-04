@@ -32,7 +32,7 @@ is left of them is the maintainer's switches each task file names.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 433 | [Claim `code-atlas` on PyPI through Trusted Publishing](tasks/433_claim-pypi-name.md) | Supply chain | todo | 427, 431 |
+| 433 | [Claim `code-atlas` on PyPI through Trusted Publishing](tasks/433_claim-pypi-name.md) | Supply chain | in-progress | 427, 431 |
 
 ## Open work — Pillar 2 · Onboarding
 

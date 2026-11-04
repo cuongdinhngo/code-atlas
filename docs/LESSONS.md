@@ -76,6 +76,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   index, a busy build, `sign=True`. Each shape a tool can answer in needs its own call, plus a reverse guard.
 - destination: first sighting.
 
+### 433-C1 — a workflow shape guard proves the wiring, not that a word appears
+
+- type: 2 (code) · handle: `a-shape-guard-pins-the-wiring`
+- status: proposed · seen: 433
+- evidence: 433's first `pypi_shape` passed when "PRERELEASE" appeared in some step and the upload had any `if:`,
+  and never read `packages-dir`, so a `release/` upload (SBOM, notes) or an `if:` keyed on nothing stayed green. The
+  ticket-blind challenger saw both; the guard now compares the job-level `if` and `packages-dir` exactly, each red.
+- destination: first sighting.
+
 ### 431-C1 — a trust root read from the input it judges proves nothing
 
 - type: 2 (code) · handle: `a-trust-root-never-rides-in-the-input`
