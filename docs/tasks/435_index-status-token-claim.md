@@ -135,6 +135,16 @@ Reviewed at 022ac39c
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+**The final gate.** Docker on the final tree (the host gate is red on two tests that fail identically on `main` —
+the host's PATH `code-atlas` is 0.9.1):
+
+Ran at 58fa1bc4
+
+```
+$ scripts/docker-test.sh
+5722 passed, 8 skipped in 725.94s (0:12:05)
+```
+
 ### Outward actions
 
 Under the handover: push `docs/435-index-status-token-claim`; open its PR against `main`. Deferred to the maintainer: merge.
