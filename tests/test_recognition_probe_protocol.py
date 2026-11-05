@@ -82,7 +82,7 @@ def test_retro_template_asks_for_resident_count_and_four_buckets() -> None:
 def test_file_outline_description_names_the_occasion_after_the_opener() -> None:
     src = (REPO / "code_atlas" / "tools" / "file_outline.py").read_text(encoding="utf-8")
     opener = '"""What does this file define, and on what lines — without printing the source?'
-    occasion = "Call this before you read or port a large file"
+    occasion = "Call before reading a large file"
     assert opener in src
     assert occasion in src
     # 069 keeps the question first; the 097 occasion follows it, never replaces it.

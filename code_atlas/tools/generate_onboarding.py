@@ -247,34 +247,11 @@ def create(
     ) -> dict[str, object]:
         """Write committable onboarding docs for this repo — overview, guided tour and flows.
 
-        Reads the index and writes **up to five files** under ``docs/onboarding/``: ``overview.md``,
-        ``tour.md``, ``flows.md``, ``manifest.json``, and ``index.html`` — one self-contained page
-        that embeds the same facts, so it opens offline with no server and no fetch. There is **no
-        per-module page tree**: 500 sub-kilobyte pages, one per node-budget slot, were emitted on
-        every repo and carried nothing a reader could not read off the path (205).
-        Regenerating rewrites this tool's own files, and removes the module pages a **pre-205**
-        ``manifest.json`` recorded — a hand-authored file in that tree is left alone, and a tree
-        holding these names without that manifest is refused rather than overwritten. A versioned
-        dump of the same structure lands under ``.code-atlas/onboarding/artifact.json``
-        (gitignored, ``ARTIFACT_VERSION``). Deterministic given the summarizer: no timestamps.
-        The walk that sizes the tour is the same node-budgeted subgraph ``guided_tour`` uses
-        (``CA_IMPACT_MAX_NODES``) — roots ranked by out-degree, capped at a quarter of the budget
-        so the tour describes files the walk actually reached (106); ``truncated`` is true when
-        that budget left an indexed file out.
-
-        Three independent axes (210 / 216):
-
-        - ``detail_level`` — how much of the *response* to return (same meaning on 24 tools); the
-          response is discarded, so it does not reshape the committed tree.
-        - ``audience`` — which *sections* the written tree holds (``full`` / ``newcomer`` /
-          ``maintainer``); unset takes ``CA_AUDIENCE``.
-        - ``working_roots`` — which *population* those sections draw from: restricts the tour,
-          flow seeds and busiest-file pick to those trees (206). Omitted inherits
-          ``CA_WORKING_ROOTS`` / config; a list wins over the environment; ``[]`` forces the
-          whole index even when the environment scopes it.
-
-        ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
-        ``minimal`` omits the path to the ``artifact.json`` dump.
+        Writes up to five files under ``docs/onboarding/`` (overview, tour, flows, manifest,
+        index.html), no per-module page tree; a tree it did not write is refused, not overwritten.
+        ``detail_level`` shapes only the response. ``audience`` (``full`` / ``newcomer`` /
+        ``maintainer``) picks the sections; ``working_roots`` picks the population the tour and
+        flows draw from (``[]`` = whole index).
         """
         if not config.db_path.is_file():
             return _unbuilt(config)

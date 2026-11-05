@@ -69,17 +69,9 @@ def create(
     ) -> dict[str, object]:
         """What are this codebase's top-level layers, and how do they depend on each other?
 
-        Groups every indexed file into a layer, orders the layers by net dependency direction, and
-        names the entry points — the map an onboarding reader would otherwise build by hand.
-        ``results`` is the layer list, capped at ``CA_MAX_RESULTS`` with ``truncated``, and
-        ``total_count`` is the layer count before the cap. ``standard`` adds each layer's degrees, a
-        repo-level ``summary`` — whose ``reachability`` splits the zero-inbound modules into the
-        populations they are (web surface, vendored, tests, dynamic, no-edge-either-way), keeping
-        the raw total beside it — and ``cross_layer_edges`` (layer → layer crossings, heaviest
-        first, capped with its own flag). ``verbose`` adds one row per module in layer order with
-        its degrees and role — ``modules_truncated`` says the cap bit, and ``offset`` pages further,
-        so no layer's modules are unreachable. ``method`` names how the grouping was derived, so a
-        caller can tell a path-derived split from the dependency-direction fallback.
+        For a reading order use guided_tour. ``results`` is the layer list (``truncated`` with
+        ``total_count``). ``standard`` adds degrees, a ``summary`` of zero-inbound populations and
+        ``cross_layer_edges``; ``verbose`` adds per-module rows (page with ``offset``).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

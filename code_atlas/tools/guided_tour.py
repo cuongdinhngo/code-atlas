@@ -34,19 +34,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What should I read first in this codebase, in dependency order?
 
-        A topological walk of the include/call graph, seeded from entry-point files (zero
-        inbound) that **lead somewhere**, ranked by out-degree and reading-seed layer (HTTP /
-        Entry before Config — 131), at most a quarter of the budget so the walk always has room
-        to expand — a repo with more entry points than budget would otherwise spend it all on
-        roots and traverse no edge at all (106). A component no entry point reaches is
-        re-seeded rather than dropped. Cycles
-        become one strongly-connected component so the walk cannot loop. Each stop is a file
-        with a one-line rationale. The walk is bounded by ``CA_IMPACT_MAX_NODES``; ``results``
-        is one page of ``CA_MAX_RESULTS`` stops from ``offset``, and ``results_offset`` says
-        which page. ``truncated`` is true when the node budget left an indexed file out of the
-        tour or when stops remain after this page, so the rest of the order stays reachable.
-        ``minimal`` returns files only; ``standard`` adds ``rationale`` and, for a cycle, the
-        ``scc`` members.
+        For the layer picture use architecture_overview. ``standard`` adds a ``rationale`` per file.
+        Page with ``offset``; ``truncated`` means the node budget left a file out or stops remain
+        after this page.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

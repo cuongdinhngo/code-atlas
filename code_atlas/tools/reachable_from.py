@@ -29,14 +29,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What is actually reachable from the app's entry points (and what is dead)?
 
-        Walks forward from ``CA_ENTRY_POINTS`` over RESOLVED impact relations.
-        Default ``depth`` is unset — walk until the frontier empties or
-        ``CA_IMPACT_MAX_NODES`` binds (transitive closure). Pass ``depth`` to cap hops;
-        ``depth_exhausted`` / ``truncated`` signal an incomplete answer. Unset entry
-        points yield ``status=no_roots_configured``.
-
-        Reachability uses the same linked IMPACT kinds as ``impact`` — empty/unproven is not
-        ``relationship_not_modelled`` (task 065).
+        Needs ``CA_ENTRY_POINTS``; unset gives ``status=no_roots_configured``. ``depth`` unset walks
+        to closure; ``depth_exhausted`` / ``truncated`` mean incomplete. RESOLVED relations only.
+        For the unused list use find_orphans.
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

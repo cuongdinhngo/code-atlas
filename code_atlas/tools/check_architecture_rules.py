@@ -45,14 +45,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Do the architecture dependency rules still hold on this index?
 
-        Reads ``CA_ARCHITECTURE_RULES`` (JSON files of path-set constraints). Each confirmed
-        violation is a RESOLVED walk from a source path set into a forbidden path set;
-        HEURISTIC-only evidence is listed under ``candidates`` and never counts as confirmed.
-        A ``required`` rule flags each source symbol that reaches none of its target qnames;
-        it is confirmed only when every edge its walk met was RESOLVED.
-        ``total_count`` is the confirmed population; page with ``limit``/``offset`` until
-        ``truncated`` is false. Empty answers name the cause: not indexed, rules unset,
-        no source file matched a rule, or no violation.
+        Reads ``CA_ARCHITECTURE_RULES``; ``rule_id`` checks one rule. Confirmed violations are
+        RESOLVED walks into a forbidden set; HEURISTIC-only evidence sits under ``candidates``,
+        never confirmed. A ``required`` rule flags each source symbol that reaches none of its
+        targets. ``total_count`` is the confirmed population: page with ``limit``/``offset`` until
+        ``truncated`` is false. An empty answer names its cause.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

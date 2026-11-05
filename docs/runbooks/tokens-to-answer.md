@@ -250,6 +250,24 @@ one still moves the number, while moving the repo does not. Post-fix the fixture
 (1426 atlas tokens), identical across all three workdirs, and the floor was then **0.27** (0.63 today — `FIXTURE_TIER_RATIO_FLOOR`). Figures before
 this paragraph were counted with verbatim paths and are not strictly comparable to it.
 
+## Fixed surface cost
+
+What a client pays before the first question, measured through `fastmcp.Client.list_tools()` on a
+built server (`~tokens = chars / 4`, schemas as compact JSON), before and after task 434:
+
+| Client loads | Before: description + schema | After: description + schema |
+|---|---|---|
+| All 24 tools up front | 45,574 + 12,254 = 57,828 chars (~14,457 tokens) | 10,066 + 12,254 = 22,320 chars (~5,580 tokens) |
+| The six on demand (`get_index_status`, `search_symbol`, `read_symbol`, `find_callers`, `find_references`, `impact`) | 26,907 + 6,000 = 32,907 chars (~8,226 tokens) | 3,789 + 6,000 = 9,789 chars (~2,447 tokens) |
+
+Measured with `json.dumps` default separators (the ticket's 59,088 baseline) the full surface
+is 59,088 -> 23,580 chars, a 60.1% cut.
+
+A client that defers schemas (Claude Code) pays the second row; one that loads every tool pays the
+first. The edge cases the short descriptions dropped are in
+[`TOOLS.md`](../TOOLS.md) under *Behaviour by tool*. This cost is not in the headline ratio above.
+`tests/test_tool_surface_budget.py` holds the description total and the combined cap.
+
 ## Adding a question
 
 Each entry is one agent question with a **known** correct answer plus the recipe for both paths:

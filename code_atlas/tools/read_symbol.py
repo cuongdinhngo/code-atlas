@@ -122,58 +122,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
-        ``standard`` returns ``line_start…line_end`` for ``qname`` plus the contiguous comment
-        block above it; ``minimal`` returns the declaration range alone (no docblock), so ``source``
-        matches the returned ``line_start``/``line_end`` (163). At ``standard`` a found
-        **callable** hit also carries ``params`` (name + declared type, adapter spelling) when the
-        language's adapter stamps that capability; otherwise ``params_not_captured_by_adapter`` —
-        never an empty list that reads as "takes no arguments" (242 / R5.6). ``minimal``, and every
-        non-callable kind, omit both (061). A found **Table** at ``standard`` carries a paged
-        ``columns`` list (name + declared type + ``DEFAULT`` when present) from ``CONTAINS``, in
-        DDL order — never the CREATE header as the product; a table with no indexed columns says
-        so rather than returning an empty list (248 / 061). A found **Class** / **Interface** at
-        ``standard`` carries ``supertypes`` (``EXTENDS`` / ``IMPLEMENTS`` in declaration order —
-        resolved qname when linked, raw name + ``unresolved`` when not); an adapter that does not
-        stamp ``inheritance`` discloses ``supertypes_not_captured_by_adapter`` (285 / R5.6); a type
-        that declares none omits the field (061). ``limit`` / ``offset`` page that list
-        only; other kinds ignore them. ``stored_fields=True`` adds which ``NODE_FIELDS`` are
-        populated and which ``extra`` keys the node carries — key names only, never extra
-        values (250). A ``Column`` also always lists ``references`` / ``references_unresolved``
-        (empty = no FK). Default off: existing payloads stay byte-identical (061). On
-        hash drift, reparses that one file inline (035); returns ``stale: true`` and
-        ``reason=index_stale`` when the file is missing, no adapter owns it, or repair fails.
-        Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
-        returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
-        empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
-        ignoring the list (070 warn; 078 refuse) — unless one is production and every other a
-        test copy: that one answers, with ``ambiguity: "test_copies"`` and the copies listed (394);
-        or every one a versioned migration's redefinition (``V7__x.sql``): the highest version
-        answers, ``ambiguity: "migration_redefinitions"``, the earlier ones listed (403); or a
-        rules file's ``definitions.precedence`` glob names one: ``"definition_precedence"`` (414).
-        A found hit names where else its code lives (394): ``implemented_by`` — for an abstract
-        method or one whose body reaches nothing, the overriding methods of linked subtypes,
-        capped — and ``aliases`` — the names an ``ALIASES`` edge ties
-        to it, with file, ``relation`` and ``test_double`` when a test file declares the alias.
-        ``try_instead`` points at ``read_symbol`` with
-        ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator),
-        and one that drops every definition answers ``path_excluded`` with their files (339).
-        An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
-        Asked from another worktree of this repo (MCP roots, or ``CA_CALLER_ROOT``), a subject in
-        a file that worktree changed is read from its bytes — span and body — and every answer
-        so read carries ``overlay: worktree`` and ``overlay_root`` (389). ``caller_root`` names
-        that worktree for this call alone — an absolute path inside a checkout of this repository,
-        ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
-        An indexed file that now resolves outside the repo (swapped for a symlink since the build)
-        answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
-
-        Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
-        default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
-        and a route to ``file_outline`` or a line range — never a silent mid-body cut (288). Pass
-        ``full_body=true`` (or a ``max_lines`` at/above the span) for the whole declaration;
-        ``line_start``/``line_end`` return exactly that clamped range inside the symbol.
-        With a ``records`` rule the subject's declared records ride in ``records``, each with
-        its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
-        attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).
+        Bodies over 600 lines elide to the signature (``body_elided: true``): pass
+        ``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and
+        ``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.
+        ``subject_ambiguous`` returns no body (narrow with ``path_prefix``); an ``ambiguity`` field
+        means other definitions exist (test copies, migrations): read the list before trusting the
+        body. ``stale: true``: file drifted. ``path_outside_root`` returns no source.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

@@ -143,95 +143,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
-        ``depth`` defaults to 1 (direct). Deeper values BFS over CALLS/NEW, but only
-        ``RESOLVED`` edges expand the frontier — HEURISTIC/DYNAMIC hits are returned and counted
-        in ``frontier_skipped_non_resolved`` when a deeper hop was requested.
-
-        ``total_count`` is the size of the BFS hit set within ``depth`` (exact at depth 1;
-        a lower bound when a deeper walk hits the count budget — and at depth > 1 that floor
-        is valid for the requested page only, because the budget grows with ``offset``).
-
-        ``include_source`` (default off, so the common case stays token-frugal) adds each call
-        site's own source line as ``source``, capped in length — answering "show me" without a
-        second call. A site whose file drifted since indexing is never quoted: those hits carry
-        ``source_stale`` instead. At depth 1 a caller that calls the subject from two or more
-        lines carries them all as ``call_lines`` (``line`` stays the first), quoted as
-        ``call_sources`` under ``include_source``; it is still one caller in ``total_count``.
-
-        ``arg_position`` (1-based) with ``arg_is`` keeps only call sites whose argument there has
-        that shape: a literal category (``null``, ``true``, ``false``, ``number``, ``string``,
-        ``array``), ``absent`` (the call passes fewer arguments), or ``dynamic`` (present, but not
-        a literal). ``total_count`` then counts matches, and ``args_unrecorded`` says how many
-        call sites the filter could not judge — sites whose arguments were never recorded, which
-        are never counted as matches. Depth 1 only. ``arg_name`` in place of ``arg_position``
-        judges a keyword argument the same way (``absent``: not passed *by that keyword*, so a
-        positional value counts as absent) — only an adapter that
-        records keywords can match, Python today (372); the rest count as ``args_unrecorded``.
-
-        ``confidence_tier`` (default off) keeps only callers at that tier — the predicate runs in
-        the store query next to ``kinds`` / ``args_at``, so a RESOLVED-only page is not a
-        post-filter over an alphabetically truncated page (task 251). ``total_count`` then counts
-        matches of that request, and ``tier_filter`` names the filter (R5.6). Without the filter,
-        ``tier_census`` reports the full hit set's tier breakdown when more than one tier is
-        present (omit-when-empty, 061). Depth 1 only.
-
-        A Method subject whose linked answer is empty may expand to the unresolved same-named
-        CALL sites near it, ranked by shared subtree (258). Those rows are candidates the
-        resolver declined to link, so the answer is ``proximity_candidates``, never ``ok``, and
-        each row names ``candidate_of``.
-
-        ``limit`` / ``offset`` page results (057). At depth 1 the store owns OFFSET; deeper walks
-        apply offset to the BFS hit stream. Complete enumeration is guaranteed at depth 1.
-
-        When bare-name resolution capped Method candidates alphabetically (task 054), a subject
-        outside that cap can have zero inbound edges while CALLS sites named its bare method still
-        exist. Those sites are counted in ``unresolved_bare_calls``, and an empty answer then uses
-        ``reason=bare_name_truncated`` instead of ``no_matches``.
-
-        When a Function subject still has unlinked CALLS targeting its short name
-        (schema-unqualified ``EXEC`` that could not resolve uniquely — task 214), an empty
-        answer uses ``reason=relation_unmodelled_for_language`` instead of ``no_matches``.
-        The same unmeasured route fires when ``production_count`` is 0 on a depth-1 indexed
-        subject with surviving test callers: ``reason`` is not ``ok``, and
-        ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272). A Function
-        answer with hits carries the same count, ``authoritative: false`` and the
-        ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
-        answer at depth 1 counts ``unresolved_receivers``: calls in its language by its bare name on
-        a receiver no type reached (an untyped parameter, say) and left unlinked; ``exclude_tests``
-        drops test callers from it too (393).
-
-        When another language is indexed but no linked ``*->L`` pair reaches the subject's
-        language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language`` only
-        if another language names the subject — as an unlinked call's callee, or as a literal
-        argument of any call that is the name or ends in it (``querySP('dbo.name')``). Otherwise it
-        stays ``no_matches`` and lists those languages in ``cross_language_unmeasured`` (409).
-        Hits carry ``authoritative: false`` only when the stamped census has cross-language
-        edges (276); an empty census is status-only. ``caveat_limits`` states the cost (251).
-
-        ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
-        reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
-        An untracked indexable file matching the subject is ``reason=not_indexed`` plus
-        ``try_instead=build_or_update_index`` — never ``no_such_symbol`` (092).
-
-        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
-        ``key=value`` line naming subject, question, answer and the revision the index describes.
-        The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
-        ``HEURISTIC`` hit. An answer with no index carries no line (task 100).
-
-        ``exclude_tests`` (default off) drops test-role callers in SQL; at depth > 1
-        they are pruned from the walk so they never expand (313 shape; 332).
-        On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
-        subject as ``index_behind``, one the working tree no longer declares as
-        ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
-        refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
-        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
-        another worktree of this repo, rows from files it changed give way to its own edges onto
-        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389). ``caller_root`` names
-        that worktree for this call alone — an absolute path inside a checkout of this repository,
-        ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
-
-        A leading-anchor difference from the stored qname is re-pointed and answered;
-        ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
+        Non-call uses: find_references; blast radius: impact. ``depth`` defaults to 1; deeper walks
+        expand only RESOLVED hits. Filter with ``confidence_tier``, ``exclude_tests``, or
+        ``arg_position`` + ``arg_is`` (depth 1; ``args_unrecorded`` = sites it could not judge).
+        ``total_count`` is a lower bound beyond depth 1. ``proximity_candidates`` rows
+        (``candidate_of``) are unlinked candidates, not callers. ``unresolved_*`` /
+        ``unlinked_same_name_sites`` count callers the graph could not link; ``authoritative:
+        false`` says some remain. A non-``ok`` ``reason`` (``bare_name_truncated``,
+        ``relation_unmodelled_for_language``, ``index_behind``) means the index could not look, not
+        that nobody calls it. ``index_stale`` is a refusal: follow ``try_instead_hint`` or pass
+        ``serve_behind=true``.
         """
         call = claim.call_args(find_callers, locals())
         named_root = require_caller_root(config, caller_root)

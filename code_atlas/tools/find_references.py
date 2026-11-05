@@ -300,74 +300,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
-        Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
-        A **Table** or **Column** subject returns linked ``WRITES`` and ``DELETES``
-        (278/328). A Table unions writers of the table and of its CONTAINS columns
-        (named-column sites never target the Table qname); each writing statement is
-        one row with the named columns folded in (329). A Column is the narrower
-        per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
-        only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
-        lists the routines a ``select`` reads the table from (RESOLVED) and host strings that
-        begin one (HEURISTIC) — 390 — and on a Column the statements naming that column, by
-        ``alias.col`` or, beside one source, a bare name (410); a Table's row then lists them
-        in ``columns``. ``column_reads_unknown`` counts its table's readers that named no column
-        of it (a ``select *``); a bare name beside several sources is never bound.
-        ``kinds_ignored`` lists asked kinds a non-Table/Column subject ignores.
-        Unlinked edges of an asked kind that still name the table are counted as
-        ``unlinked_writes_count`` / ``unlinked_reads_count``. On a multi-language
-        index the answer carries ``writes_emitters_only`` when a covered language
-        emits no ``WRITES``. A host-language string that begins a write is read at
-        ``HEURISTIC`` where its adapter reads one; SQL built at runtime is not
-        (§19 / 281 / 335). ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at
-        ``DYNAMIC`` — a candidate list, not a proven use. When every returned hit
-        is ``DYNAMIC``, the payload sets ``authoritative: false``. When another
-        language is indexed but no linked ``*->L`` pair reaches the subject's
-        language (238/276), a hits-bearing answer is
-        ``authoritative: false`` only when the stamped census has cross-language edges;
-        an empty census is status-only. ``reason`` stays ``ok``.
-        An ``IMPORTS`` naming an indexed file is linked since 188, so a
-        **File** subject lists its importers; one naming a symbol or an unresolvable specifier stays
-        bare. When unlinked ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked
-        hits are zero, the
-        payload uses ``reason=relationship_not_modelled``, ``try_instead=search_symbol`` (it
-        enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093)
-        — unless the subject is a ``Class`` with ``CONTAINS`` children, in which case the same
-        call returns their inbound ``CALLS``/``NEW`` as ``reason=via_members`` (252; never ``ok``).
-        When ``production_count`` is 0 but test hits remain, the same unmeasured route runs
-        and ``unlinked_same_name_sites`` counts the unlinked inbound that name the subject (272).
-
-        ``include_source`` (default off, so the common case stays token-frugal) adds each site's
-        own source line as ``source``, capped in length. A site whose file drifted since indexing
-        is never quoted: those hits carry ``source_stale`` instead.
-
-        ``limit`` / ``offset`` page in store edge order (057); default limit is
-        ``CA_MAX_RESULTS``. Optional ``path_prefix`` narrows to edges whose stored file
-        path is under that index-root-relative POSIX prefix (315).
-
-        ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
-        reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
-
-        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
-        ``key=value`` line naming subject, question, answer and the revision the index describes,
-        carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
-        no line (task 100).
-
-        On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
-        subject as ``index_behind``, one the working tree no longer declares as
-        ``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
-        refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
-        ``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
-        another worktree of this repo, rows from files it changed give way to its own edges onto
-        the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389). ``caller_root`` names
-        that worktree for this call alone — an absolute path inside a checkout of this repository,
-        ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
-
-        A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
-        ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
-        stored form (075/122). An exact stored qname is unchanged.
-        With a ``records`` rule the subject's declared records ride in ``records``, each with
-        its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
-        attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).
+        For calls only use find_callers. Hits carry confidence tiers; Narrow with ``path_prefix``,
+        ``exclude_tests``. For a Table or Column, ``kinds`` picks ``WRITES``/``DELETES`` or
+        ``READS``; ``unlinked_writes_count`` / ``unlinked_reads_count`` count uses not linked, and
+        ``writes_emitters_only`` says a covered language emits no WRITES, so zero writers is not
+        proof. ``authoritative: false`` means every hit is DYNAMIC: a candidate, not proof.
+        ``relationship_not_modelled`` (follow ``try_instead``), ``via_members`` and ``index_behind``
+        mean a zero is not proof of absence. ``index_stale`` is a refusal: follow
+        ``try_instead_hint`` or pass ``serve_behind=true``.
         """
         call = claim.call_args(find_references, locals())
         named_root = require_caller_root(config, caller_root)

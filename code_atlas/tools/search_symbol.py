@@ -132,56 +132,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Find a symbol from part of its name or text — ranked, with where each one lives.
 
-        Pass ``query`` for one subject, or ``queries`` for a sweep of them — *"are any of these ten
-        names already taken?"* is one call, not ten (101). Never both. A sweep returns ``subjects``:
-        one entry per subject, **in the order you asked**, each with its own ``results``, ``reason``
-        and ``total_count``, so one miss never colours the rest. At most ``max_subjects`` are
-        accepted; the rest are named in ``subjects_dropped`` beside ``subjects_capped_to``.
-        A sweep shares **one** read-through repair budget across every subject, so a subject whose
-        file drifted may answer ``source_stale`` rows where a single call would have repaired it;
-        it carries ``retry_as: query``. When a sweep mixes vouched ``ok`` answers with such
-        subjects, the envelope names them in ``index_stale_subjects`` and states that the shared
-        budget decided (275) — a fully-vouched sweep stays unchanged (061).
-
-        Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
-        queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
-        in search order (057). **Exact and prefix matches come first**, near-misses after, relevance
-        as the tie-break inside each band — over the whole result set, not the page (180).
-        At ``standard``, a ``Column`` whose schema declares a foreign key also carries its target(s)
-        from existing ``REFERENCES`` edges (239): resolved column targets under ``references``, and
-        a column-list-omitted FK — which names only its table — under ``references_unresolved``, so
-        the two are never signed alike (R5.6). Both are omitted when empty, and never appear on
-        ``minimal`` or non-``Column`` rows. A ``Table`` / ``Function`` row names the files whose DDL
-        changes it (321): a literal ``ALTER`` under ``altered_by``, a name read out of an executed
-        string under ``altered_by_dynamic`` — a claim, never signed as resolved. When the first
-        page holds only substring/trigram near-misses — no
-        result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
-        near-miss, not a hit, and carries the language-coverage note (167 / 160). A
-        ``substring_match`` answer, or a page short of ``total_count``, also carries
-        ``try_instead=file_outline`` plus the narrow-by-qname hint, so the reader has a query to
-        make next instead of inventing one (245 / 093). It never refuses on
-        staleness (388): a hit whose file drifted beyond the per-call reparse cap carries
-        ``source_stale: true``; a zero-hit first page may repair a named subject file or the sole
-        dirty indexed file; a miss nothing could vouch for (an unnameable subject amid several
-        dirty files) answers ``reason=index_behind``, empty, with ``other_indexed_files_drifted``
-        — never an empty proof of absence (073/246). Stub-
-        indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
-        hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
-        A zero-overlap miss answers ``reason=token_candidates`` with ``candidates`` (names sharing a
-        word, 253) and, when a declared name is a typo away, ``did_you_mean`` — ``{qname, name,
-        kind, edit_distance}``, nearest first, never in ``results`` (378).
-        ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
-        ``total_count`` then counts the filtered set. Off is byte-identical (061).
-        A qname held by one production row and test copies lists the production row first and
-        marks each of its rows ``ambiguity: "test_copies"``; a type row at ``standard`` names
-        its ``aliases`` (394).
-        Asked from another worktree of this repo, rows from files it changed are swapped for that
-        worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
-        ``caller_root`` names that worktree for this call alone — an absolute path inside a
-        checkout of this repository, ahead of the roots and ``CA_CALLER_ROOT``; any other value
-        is refused as an error (408).
-        A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
-        file, tier, rule}`` — beside ``results``; pass one to ``trace_capability(route=…)``.
+        Then read_symbol for the body. Pass ``query``, or ``queries`` for a sweep (not both; each
+        subject has its own ``reason``; extras beyond ``max_subjects`` are in ``subjects_dropped``).
+        Narrow with ``kind``, ``path_prefix``, ``exclude_tests``; page with ``limit``/``offset``.
+        ``substring_match`` is near-misses, not a hit; ``index_behind`` is not proof of absence; a
+        miss may carry ``did_you_mean``. Never refuses on staleness: ``source_stale: true`` marks a
+        hit from a changed file.
         """
         subjects = _require_subjects(query, queries)
         batched = queries is not None

@@ -32,18 +32,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Can this subtree be deleted — what still crosses into or out of it?
 
-        Reports crossing edges at directory-prefix grain, split by ``confidence_tier`` and by
-        whether the target symbol is declared only under ``subtree`` (attributable) or also
-        elsewhere (unattributable). The unattributable total always sits beside the attributable
-        one — a blocker count without its unknown companion is structurally unavailable.
-
-        ``counterpart`` optionally narrows the other side (e.g. ``src/`` when ``subtree`` is
-        ``legacy/``). Ranked ``dependent_files`` (outside) and ``depended_on_paths`` (inside,
-        mirror-collapsed when siblings mirror) carry edge counts for prioritisation.
-        ``dynamic_bridges`` surfaces alias files whose only link is ``DYNAMIC`` — no static edge
-        is never rendered as no dependency. Node-budgeted like ``impact``; truncation is disclosed.
-        ``depended_on_path_total`` counts declaration paths before the mirror collapse, so it can
-        exceed the collapsed list even when nothing was truncated.
+        ``subtree`` is the prefix, ``counterpart`` narrows the other side. Crossings split by
+        ``confidence_tier`` and attributable vs unattributable: read the unattributable total beside
+        every blocker count. ``dynamic_bridges`` are links with no static edge, not proof of no
+        dependency.
         """
         if not subtree.strip():
             raise ValueError("subtree must be non-empty")

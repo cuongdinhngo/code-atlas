@@ -107,16 +107,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Which modules does changing this reach, and how much of each?
 
-        The same bounded walk as ``impact``, summarised by the business-module table the system map
-        prints — so the two never disagree. Each row carries the symbol count split by confidence
-        tier, because a module reached only through HEURISTIC edges has not been *shown* to be
-        reached (136), and at ``standard`` one exemplar ``file:line`` to read first.
-
-        Files no module covers are counted under ``unassigned`` rather than given a home. A walk
-        that hits ``CA_IMPACT_MAX_NODES`` sets ``walk_truncated`` and labels every count an
-        under-estimate (124) — a bounded walk reporting a total without saying so is a false total.
-
-        ``sign`` adds the quotable ``claim`` line, as on ``impact``.
+        The ``impact`` walk per module (same inputs); for symbols use impact. Each row splits its
+        symbol count by confidence tier: a module reached only via HEURISTIC is not shown reached.
+        ``unassigned`` counts files no module covers; ``walk_truncated`` means every count is an
+        under-estimate.
         """
         call = claim.call_args(impact_modules, locals())
         hops = config.impact_depth if depth is None else depth

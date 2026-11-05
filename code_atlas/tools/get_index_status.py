@@ -200,41 +200,10 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     ) -> dict[str, object]:
         """Is the index built, fresh, and healthy — and what should I call next? Call this first.
 
-        Reports stats, health, last commit, staleness, and next-tool suggestions. ``parse_failures``
-        (``standard``/``verbose``) counts files the adapter could not parse — a floor on
-        brokenness, not a fatal surface; see ``parse_failures_note`` (language runtime
-        compiler/linter). ``verbose`` adds capped ``parse_failure_paths`` plus
-        ``parse_failures_truncated``; pass ``offset`` to page further. ``minimal`` / ``standard``
-        omit the list (cheap path). ``standard``/``verbose`` also carry ``page_limit``
-        (query-time row ceiling) and ``max_candidates`` (build-time resolver fan-out), each with
-        its own ``governs`` list so the two caps are not conflated (066/259). ``verbose`` also
-        carries ``collection`` — the
-        denominator to reconcile ``files`` against your own ``git ls-files``:
-        ``collected - skipped.suffix - skipped.ignore == kept``, ``kept + stubs == files`` (082).
-        ``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
-        suffix, that are not ignored (092). ``verbose`` also names ``skipped.ignore_sources`` —
-        per-source counts that sum to ``skipped.ignore`` (095); omitted when empty or pre-095.
-        ``standard``/``verbose`` carry ``unconfigured_adapters`` — adapters that ship in-repo but
-        have no launch command, each with the ``CA_<LANG>_CMD`` that enables it; omitted when all
-        are wired (159). On a multi-language index they also carry ``cross_language`` — the
-        build-stamped crossing census without ``pairs`` (243); omitted under two language buckets
-        and on a pre-204 stamp (R5.6 / 061). ``standard``/``verbose`` also carry
-        ``capabilities_by_language`` — the build-stamped R1.6 flags, for the languages this
-        index holds files of (231/244/173); omitted when the stamp is absent or empty
-        (R5.6 / 061). ``standard``/``verbose`` also carry ``edge_health_by_language`` on a
-        multi-language index (261): ``standard`` is the verdict only (``unlinked`` /
-        ``by_tier`` per language); ``verbose`` nests the full census including ``pairs``.
-        ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
-        ``reset_fit_counts=true`` to clear them first — skipped while a build holds the live
-        index, saying ``fit_reset_skipped: true`` (400) — (documented reset; local counts are not
-        telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
-        ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
-        Every level carries ``refresh_refused`` when the last hook refresh did not run: its
-        ``reason``, ``at`` (UTC) and a ``hint`` or ``route``, until a build succeeds (401).
-
-        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
-        ``key=value`` line stating how many files this index covers and at which revision. An
-        unbuilt or unreadable index carries no line — it cannot name a revision (task 100).
+        To build or refresh call build_or_update_index. ``standard`` adds capabilities and coverage
+        (``unconfigured_adapters``); ``verbose`` adds parse-failure paths (page with ``offset``).
+        Returns stats, health, ``last_commit``, staleness; ``parse_failures`` is a floor on
+        brokenness; ``refresh_refused`` means the last hook refresh did not run.
         """
         call = claim.call_args(get_index_status, locals())
         check_index(config.root, config.db_path)  # a server outlives the commit that tracks it

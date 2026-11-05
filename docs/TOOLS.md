@@ -97,6 +97,817 @@
 - Regenerable, versioned `artifact.json` under `.code-atlas/onboarding/` (`ARTIFACT_VERSION`;
   gitignored). The tour walk is bounded by `CA_IMPACT_MAX_NODES`; nothing else borrows that budget.
 
+## Behaviour by tool
+
+The model-facing description of each tool is short: the question, when to use it, the parameters an agent sets and the key fields. Everything it dropped is kept here, unchanged, so nothing is lost — reach for this when a `reason`, `truncated` or tier needs its exact meaning.
+
+### `get_index_status`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Is the index built, fresh, and healthy — and what should I call next? Call this first.
+
+Reports stats, health, last commit, staleness, and next-tool suggestions. ``parse_failures``
+(``standard``/``verbose``) counts files the adapter could not parse — a floor on
+brokenness, not a fatal surface; see ``parse_failures_note`` (language runtime
+compiler/linter). ``verbose`` adds capped ``parse_failure_paths`` plus
+``parse_failures_truncated``; pass ``offset`` to page further. ``minimal`` / ``standard``
+omit the list (cheap path). ``standard``/``verbose`` also carry ``page_limit``
+(query-time row ceiling) and ``max_candidates`` (build-time resolver fan-out), each with
+its own ``governs`` list so the two caps are not conflated (066/259). ``verbose`` also
+carries ``collection`` — the
+denominator to reconcile ``files`` against your own ``git ls-files``:
+``collected - skipped.suffix - skipped.ignore == kept``, ``kept + stubs == files`` (082).
+``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
+suffix, that are not ignored (092). ``verbose`` also names ``skipped.ignore_sources`` —
+per-source counts that sum to ``skipped.ignore`` (095); omitted when empty or pre-095.
+``standard``/``verbose`` carry ``unconfigured_adapters`` — adapters that ship in-repo but
+have no launch command, each with the ``CA_<LANG>_CMD`` that enables it; omitted when all
+are wired (159). On a multi-language index they also carry ``cross_language`` — the
+build-stamped crossing census without ``pairs`` (243); omitted under two language buckets
+and on a pre-204 stamp (R5.6 / 061). ``standard``/``verbose`` also carry
+``capabilities_by_language`` — the build-stamped R1.6 flags, for the languages this
+index holds files of (231/244/173); omitted when the stamp is absent or empty
+(R5.6 / 061). ``standard``/``verbose`` also carry ``edge_health_by_language`` on a
+multi-language index (261): ``standard`` is the verdict only (``unlinked`` /
+``by_tier`` per language); ``verbose`` nests the full census including ``pairs``.
+``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
+``reset_fit_counts=true`` to clear them first — skipped while a build holds the live
+index, saying ``fit_reset_skipped: true`` (400) — (documented reset; local counts are not
+telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
+``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
+Every level carries ``refresh_refused`` when the last hook refresh did not run: its
+``reason``, ``at`` (UTC) and a ``hint`` or ``route``, until a build succeeds (401).
+
+``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+``key=value`` line stating how many files this index covers and at which revision. An
+unbuilt or unreadable index carries no line — it cannot name a revision (task 100).
+```
+
+### `build_or_update_index`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Build or refresh this repo's index so the other tools have current data.
+
+Returns ``wrote`` counts (and ``graph`` on standard) plus elapsed time. An index written
+under an *older* ``schema_version`` is deleted and rebuilt in-band so an MCP client can
+recover without a shell; a *newer* one is refused untouched — that index is current and this
+server is the stale one (050). Concurrent writers share ``write.lock`` (053); a held lock
+returns ``mode: busy`` carrying the staleness of the index the loser is about to query,
+read-only (072); the request is queued, and the running build serves it with one more
+incremental before it exits (357), so do not retry in a loop. To *see* a busy refusal on
+purpose, follow the ``code-atlas-refresh`` race recipe in
+``docs/runbooks/parallel-agents.md`` (082).
+
+An index written under an older *vocabulary* era cannot be extended
+incrementally either (030 AC1). Rather than silently starting an hour-long
+rebuild inside a call that cannot outlive its client, ``full=false`` returns
+``mode: refused`` with ``reason: contract_rebuild_required`` and the route that
+can serve it. ``allow_full_rebuild=true`` runs that rebuild in-band anyway,
+accepting the wait (201). The same refusal shape answers an explicit
+``full=true`` on an index that already exists — MCP cannot outlive its client,
+and a timed-out "failed" does not stop the server-side build (291).
+```
+
+### `search_symbol`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Find a symbol from part of its name or text — ranked, with where each one lives.
+
+Pass ``query`` for one subject, or ``queries`` for a sweep of them — *"are any of these ten
+names already taken?"* is one call, not ten (101). Never both. A sweep returns ``subjects``:
+one entry per subject, **in the order you asked**, each with its own ``results``, ``reason``
+and ``total_count``, so one miss never colours the rest. At most ``max_subjects`` are
+accepted; the rest are named in ``subjects_dropped`` beside ``subjects_capped_to``.
+A sweep shares **one** read-through repair budget across every subject, so a subject whose
+file drifted may answer ``source_stale`` rows where a single call would have repaired it;
+it carries ``retry_as: query``. When a sweep mixes vouched ``ok`` answers with such
+subjects, the envelope names them in ``index_stale_subjects`` and states that the shared
+budget decided (275) — a fully-vouched sweep stays unchanged (061).
+
+Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
+queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
+in search order (057). **Exact and prefix matches come first**, near-misses after, relevance
+as the tie-break inside each band — over the whole result set, not the page (180).
+At ``standard``, a ``Column`` whose schema declares a foreign key also carries its target(s)
+from existing ``REFERENCES`` edges (239): resolved column targets under ``references``, and
+a column-list-omitted FK — which names only its table — under ``references_unresolved``, so
+the two are never signed alike (R5.6). Both are omitted when empty, and never appear on
+``minimal`` or non-``Column`` rows. A ``Table`` / ``Function`` row names the files whose DDL
+changes it (321): a literal ``ALTER`` under ``altered_by``, a name read out of an executed
+string under ``altered_by_dynamic`` — a claim, never signed as resolved. When the first
+page holds only substring/trigram near-misses — no
+result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
+near-miss, not a hit, and carries the language-coverage note (167 / 160). A
+``substring_match`` answer, or a page short of ``total_count``, also carries
+``try_instead=file_outline`` plus the narrow-by-qname hint, so the reader has a query to
+make next instead of inventing one (245 / 093). It never refuses on
+staleness (388): a hit whose file drifted beyond the per-call reparse cap carries
+``source_stale: true``; a zero-hit first page may repair a named subject file or the sole
+dirty indexed file; a miss nothing could vouch for (an unnameable subject amid several
+dirty files) answers ``reason=index_behind``, empty, with ``other_indexed_files_drifted``
+— never an empty proof of absence (073/246). Stub-
+indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
+hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
+A zero-overlap miss answers ``reason=token_candidates`` with ``candidates`` (names sharing a
+word, 253) and, when a declared name is a typo away, ``did_you_mean`` — ``{qname, name,
+kind, edit_distance}``, nearest first, never in ``results`` (378).
+``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
+``total_count`` then counts the filtered set. Off is byte-identical (061).
+A qname held by one production row and test copies lists the production row first and
+marks each of its rows ``ambiguity: "test_copies"``; a type row at ``standard`` names
+its ``aliases`` (394).
+Asked from another worktree of this repo, rows from files it changed are swapped for that
+worktree's own symbols — new files included — and ``overlay: worktree`` is set (389).
+``caller_root`` names that worktree for this call alone — an absolute path inside a
+checkout of this repository, ahead of the roots and ``CA_CALLER_ROOT``; any other value
+is refused as an error (408).
+A single ``query`` held by a declared route key (385) adds ``routes`` — ``{route, target,
+file, tier, rule}`` — beside ``results``; pass one to ``trace_capability(route=…)``.
+```
+
+### `file_outline`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What does this file define, and on what lines — without printing the source?
+
+Call this before you read or port a large file — it is the symbol map, not a body.
+Returns each symbol with its ``line_start``/``line_end``, never bodies. ``path`` may be
+absolute (under the repo root) or ``./``-prefixed; it is normalised to the repo-relative
+form stored in the index. ``found`` is false when that path is not indexed.
+
+``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store symbol order (057).
+``total_count`` is the file's full symbol count, not the page length — when the map is
+capped, ``truncated`` is true and ``result_kinds`` names how many symbols of each kind
+the file holds — omitted for a single-kind file, where it would restate ``total_count``
+— so a one-page reader can see what the page omitted (067/123). Asked from another
+worktree of this repo, a file that worktree changed or added is outlined from its bytes,
+and the answer carries ``overlay: worktree`` (389). ``caller_root`` names that worktree
+for this call alone — an absolute path inside a checkout of this repository, ahead of the
+roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
+```
+
+### `read_symbol`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Read just one symbol's source and its doc comment, without opening the whole file.
+
+``standard`` returns ``line_start…line_end`` for ``qname`` plus the contiguous comment
+block above it; ``minimal`` returns the declaration range alone (no docblock), so ``source``
+matches the returned ``line_start``/``line_end`` (163). At ``standard`` a found
+**callable** hit also carries ``params`` (name + declared type, adapter spelling) when the
+language's adapter stamps that capability; otherwise ``params_not_captured_by_adapter`` —
+never an empty list that reads as "takes no arguments" (242 / R5.6). ``minimal``, and every
+non-callable kind, omit both (061). A found **Table** at ``standard`` carries a paged
+``columns`` list (name + declared type + ``DEFAULT`` when present) from ``CONTAINS``, in
+DDL order — never the CREATE header as the product; a table with no indexed columns says
+so rather than returning an empty list (248 / 061). A found **Class** / **Interface** at
+``standard`` carries ``supertypes`` (``EXTENDS`` / ``IMPLEMENTS`` in declaration order —
+resolved qname when linked, raw name + ``unresolved`` when not); an adapter that does not
+stamp ``inheritance`` discloses ``supertypes_not_captured_by_adapter`` (285 / R5.6); a type
+that declares none omits the field (061). ``limit`` / ``offset`` page that list
+only; other kinds ignore them. ``stored_fields=True`` adds which ``NODE_FIELDS`` are
+populated and which ``extra`` keys the node carries — key names only, never extra
+values (250). A ``Column`` also always lists ``references`` / ``references_unresolved``
+(empty = no FK). Default off: existing payloads stay byte-identical (061). On
+hash drift, reparses that one file inline (035); returns ``stale: true`` and
+``reason=index_stale`` when the file is missing, no adapter owns it, or repair fails.
+Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
+returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
+empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
+ignoring the list (070 warn; 078 refuse) — unless one is production and every other a
+test copy: that one answers, with ``ambiguity: "test_copies"`` and the copies listed (394);
+or every one a versioned migration's redefinition (``V7__x.sql``): the highest version
+answers, ``ambiguity: "migration_redefinitions"``, the earlier ones listed (403); or a
+rules file's ``definitions.precedence`` glob names one: ``"definition_precedence"`` (414).
+A found hit names where else its code lives (394): ``implemented_by`` — for an abstract
+method or one whose body reaches nothing, the overriding methods of linked subtypes,
+capped — and ``aliases`` — the names an ``ALIASES`` edge ties
+to it, with file, ``relation`` and ``test_double`` when a test file declares the alias.
+``try_instead`` points at ``read_symbol`` with
+``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator),
+and one that drops every definition answers ``path_excluded`` with their files (339).
+An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
+Asked from another worktree of this repo (MCP roots, or ``CA_CALLER_ROOT``), a subject in
+a file that worktree changed is read from its bytes — span and body — and every answer
+so read carries ``overlay: worktree`` and ``overlay_root`` (389). ``caller_root`` names
+that worktree for this call alone — an absolute path inside a checkout of this repository,
+ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
+An indexed file that now resolves outside the repo (swapped for a symlink since the build)
+answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
+
+Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
+default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
+and a route to ``file_outline`` or a line range — never a silent mid-body cut (288). Pass
+``full_body=true`` (or a ``max_lines`` at/above the span) for the whole declaration;
+``line_start``/``line_end`` return exactly that clamped range inside the symbol.
+With a ``records`` rule the subject's declared records ride in ``records``, each with
+its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
+attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).
+```
+
+### `find_callers`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Who calls this function or method? Every call site, with confidence and optional depth.
+
+``depth`` defaults to 1 (direct). Deeper values BFS over CALLS/NEW, but only
+``RESOLVED`` edges expand the frontier — HEURISTIC/DYNAMIC hits are returned and counted
+in ``frontier_skipped_non_resolved`` when a deeper hop was requested.
+
+``total_count`` is the size of the BFS hit set within ``depth`` (exact at depth 1;
+a lower bound when a deeper walk hits the count budget — and at depth > 1 that floor
+is valid for the requested page only, because the budget grows with ``offset``).
+
+``include_source`` (default off, so the common case stays token-frugal) adds each call
+site's own source line as ``source``, capped in length — answering "show me" without a
+second call. A site whose file drifted since indexing is never quoted: those hits carry
+``source_stale`` instead. At depth 1 a caller that calls the subject from two or more
+lines carries them all as ``call_lines`` (``line`` stays the first), quoted as
+``call_sources`` under ``include_source``; it is still one caller in ``total_count``.
+
+``arg_position`` (1-based) with ``arg_is`` keeps only call sites whose argument there has
+that shape: a literal category (``null``, ``true``, ``false``, ``number``, ``string``,
+``array``), ``absent`` (the call passes fewer arguments), or ``dynamic`` (present, but not
+a literal). ``total_count`` then counts matches, and ``args_unrecorded`` says how many
+call sites the filter could not judge — sites whose arguments were never recorded, which
+are never counted as matches. Depth 1 only. ``arg_name`` in place of ``arg_position``
+judges a keyword argument the same way (``absent``: not passed *by that keyword*, so a
+positional value counts as absent) — only an adapter that
+records keywords can match, Python today (372); the rest count as ``args_unrecorded``.
+
+``confidence_tier`` (default off) keeps only callers at that tier — the predicate runs in
+the store query next to ``kinds`` / ``args_at``, so a RESOLVED-only page is not a
+post-filter over an alphabetically truncated page (task 251). ``total_count`` then counts
+matches of that request, and ``tier_filter`` names the filter (R5.6). Without the filter,
+``tier_census`` reports the full hit set's tier breakdown when more than one tier is
+present (omit-when-empty, 061). Depth 1 only.
+
+A Method subject whose linked answer is empty may expand to the unresolved same-named
+CALL sites near it, ranked by shared subtree (258). Those rows are candidates the
+resolver declined to link, so the answer is ``proximity_candidates``, never ``ok``, and
+each row names ``candidate_of``.
+
+``limit`` / ``offset`` page results (057). At depth 1 the store owns OFFSET; deeper walks
+apply offset to the BFS hit stream. Complete enumeration is guaranteed at depth 1.
+
+When bare-name resolution capped Method candidates alphabetically (task 054), a subject
+outside that cap can have zero inbound edges while CALLS sites named its bare method still
+exist. Those sites are counted in ``unresolved_bare_calls``, and an empty answer then uses
+``reason=bare_name_truncated`` instead of ``no_matches``.
+
+When a Function subject still has unlinked CALLS targeting its short name
+(schema-unqualified ``EXEC`` that could not resolve uniquely — task 214), an empty
+answer uses ``reason=relation_unmodelled_for_language`` instead of ``no_matches``.
+The same unmeasured route fires when ``production_count`` is 0 on a depth-1 indexed
+subject with surviving test callers: ``reason`` is not ``ok``, and
+``unlinked_same_name_sites`` counts the unlinked inbound that name it (272). A Function
+answer with hits carries the same count, ``authoritative: false`` and the
+``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334). A Method
+answer at depth 1 counts ``unresolved_receivers``: calls in its language by its bare name on
+a receiver no type reached (an untyped parameter, say) and left unlinked; ``exclude_tests``
+drops test callers from it too (393).
+
+When another language is indexed but no linked ``*->L`` pair reaches the subject's
+language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language`` only
+if another language names the subject — as an unlinked call's callee, or as a literal
+argument of any call that is the name or ends in it (``querySP('dbo.name')``). Otherwise it
+stays ``no_matches`` and lists those languages in ``cross_language_unmeasured`` (409).
+Hits carry ``authoritative: false`` only when the stamped census has cross-language
+edges (276); an empty census is status-only. ``caveat_limits`` states the cost (251).
+
+``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
+reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
+An untracked indexable file matching the subject is ``reason=not_indexed`` plus
+``try_instead=build_or_update_index`` — never ``no_such_symbol`` (092).
+
+``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+``key=value`` line naming subject, question, answer and the revision the index describes.
+The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
+``HEURISTIC`` hit. An answer with no index carries no line (task 100).
+
+``exclude_tests`` (default off) drops test-role callers in SQL; at depth > 1
+they are pruned from the walk so they never expand (313 shape; 332).
+On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
+subject as ``index_behind``, one the working tree no longer declares as
+``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
+refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
+``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
+another worktree of this repo, rows from files it changed give way to its own edges onto
+the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389). ``caller_root`` names
+that worktree for this call alone — an absolute path inside a checkout of this repository,
+ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
+
+A leading-anchor difference from the stored qname is re-pointed and answered;
+``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
+```
+
+### `find_references`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Where is this symbol used across the codebase?
+
+Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
+A **Table** or **Column** subject returns linked ``WRITES`` and ``DELETES``
+(278/328). A Table unions writers of the table and of its CONTAINS columns
+(named-column sites never target the Table qname); each writing statement is
+one row with the named columns folded in (329). A Column is the narrower
+per-edge set. ``DELETES`` target the Table only. ``kinds`` (Table / Column subjects
+only, default ``["WRITES", "DELETES"]``) picks the relations instead: ``["READS"]``
+lists the routines a ``select`` reads the table from (RESOLVED) and host strings that
+begin one (HEURISTIC) — 390 — and on a Column the statements naming that column, by
+``alias.col`` or, beside one source, a bare name (410); a Table's row then lists them
+in ``columns``. ``column_reads_unknown`` counts its table's readers that named no column
+of it (a ``select *``); a bare name beside several sources is never bound.
+``kinds_ignored`` lists asked kinds a non-Table/Column subject ignores.
+Unlinked edges of an asked kind that still name the table are counted as
+``unlinked_writes_count`` / ``unlinked_reads_count``. On a multi-language
+index the answer carries ``writes_emitters_only`` when a covered language
+emits no ``WRITES``. A host-language string that begins a write is read at
+``HEURISTIC`` where its adapter reads one; SQL built at runtime is not
+(§19 / 281 / 335). ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at
+``DYNAMIC`` — a candidate list, not a proven use. When every returned hit
+is ``DYNAMIC``, the payload sets ``authoritative: false``. When another
+language is indexed but no linked ``*->L`` pair reaches the subject's
+language (238/276), a hits-bearing answer is
+``authoritative: false`` only when the stamped census has cross-language edges;
+an empty census is status-only. ``reason`` stays ``ok``.
+An ``IMPORTS`` naming an indexed file is linked since 188, so a
+**File** subject lists its importers; one naming a symbol or an unresolvable specifier stays
+bare. When unlinked ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked
+hits are zero, the
+payload uses ``reason=relationship_not_modelled``, ``try_instead=search_symbol`` (it
+enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093)
+— unless the subject is a ``Class`` with ``CONTAINS`` children, in which case the same
+call returns their inbound ``CALLS``/``NEW`` as ``reason=via_members`` (252; never ``ok``).
+When ``production_count`` is 0 but test hits remain, the same unmeasured route runs
+and ``unlinked_same_name_sites`` counts the unlinked inbound that name the subject (272).
+
+``include_source`` (default off, so the common case stays token-frugal) adds each site's
+own source line as ``source``, capped in length. A site whose file drifted since indexing
+is never quoted: those hits carry ``source_stale`` instead.
+
+``limit`` / ``offset`` page in store edge order (057); default limit is
+``CA_MAX_RESULTS``. Optional ``path_prefix`` narrows to edges whose stored file
+path is under that index-root-relative POSIX prefix (315).
+
+``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
+reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
+
+``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+``key=value`` line naming subject, question, answer and the revision the index describes,
+carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
+no line (task 100).
+
+On a ``behind`` index the built graph answers, labelled with ``last_commit``: an unchanged
+subject as ``index_behind``, one the working tree no longer declares as
+``index_behind_subject_removed`` (388). A subject whose changed file cannot be re-read
+refuses as ``index_stale``; its ``try_instead_hint`` names the exact call, where
+``serve_behind=true`` answers it as ``index_behind_subject_changed`` (267). Asked from
+another worktree of this repo, rows from files it changed give way to its own edges onto
+the subject, at ``HEURISTIC``, as ``reason=worktree_overlay`` (389). ``caller_root`` names
+that worktree for this call alone — an absolute path inside a checkout of this repository,
+ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an error (408).
+
+A leading-anchor difference from the stored qname (``Ns\Sub\Enum`` vs
+``\Ns\Sub\Enum``) is re-pointed and answered; ``resolved_qname`` names the
+stored form (075/122). An exact stored qname is unchanged.
+With a ``records`` rule the subject's declared records ride in ``records``, each with
+its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
+attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).
+```
+
+### `find_implementations`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Which types extend or implement this one? Direct subtypes only (not transitive).
+
+``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store edge order (057).
+``EXTENDS``/``IMPLEMENTS`` are resolver-linked when present; an empty linked page still
+routes through the shared empty-inbound predicate (264) so unlinked evidence of any mapped
+kind cannot read as bare ``no_matches``. ``subject_refreshed_only`` is ``true`` only when
+read-through freshness reparsed the subject's file this call — neighbors were not
+re-verified (035 / 061). For transitive subtypes, see ``impact``. A leading-anchor
+difference from the stored qname is re-pointed; ``resolved_qname`` names the stored
+form (075/122). An exact stored qname is unchanged.
+```
+
+### `find_view_data`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What variables does this handler make available to its template?
+
+Each hit carries the ``key`` a caller can read in the view, the call-site ``line``, and
+``rule: true``. Needs ``CA_INDIRECTION_RULES`` with a ``view_data`` setter rule: with no
+rules configured the answer is ``reason=capability_not_configured`` (the tool is inert on
+this index), which is distinct from a configured repo where this handler simply publishes
+nothing (``no_matches``). ``file`` is the subject's declaration path when known.
+A leading-anchor difference from the stored qname is re-pointed; ``resolved_qname``
+names the stored form (075/122). An exact stored qname is unchanged.
+```
+
+### `include_graph`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What does this file pull in, and what pulls it in?
+
+``direction`` is ``imports`` (what this file includes), ``imported_by`` (who includes it),
+or ``both``. ``depth`` defaults to 1 (direct); deeper values BFS over linked ``INCLUDES``
+only, capped by ``CA_MAX_RESULTS``. ``unresolved_includes`` counts bare/dynamic includes on
+the seed's ``imports`` side and is omitted for ``imported_by`` (inbound unresolved is not a
+confident zero — 065). An empty inbound answer with unlinked includes whose path tail
+could be this file returns ``reason=relationship_not_modelled``, lists them in
+``unlinked_includes``, and adds a ``try_instead_hint`` but deliberately NO ``try_instead`` —
+no registered tool reads unlinked include text (093); more fitting includes than the page
+limit says ``unlinked_includes_truncated``; path matching ignores case. When none could,
+an indexed file's zero is attested:
+``no_matches`` naming any included same-named file in ``same_basename_included``, and
+``authoritative: true`` unless ``dynamic_includes_unchecked`` counts includes naming no
+file at all (363).
+An empty inbound answer on a file whose **language** emits no ``INCLUDES`` at all returns
+``reason=relation_unmodelled_for_language`` instead of a confident zero: the relation is
+carried under another edge kind here (186). Where that kind is ``IMPORTS``, which 188 links,
+``try_instead`` names ``find_references``; where the language emits neither, it stays a hint
+with no route.
+```
+
+### `impact`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What could break if I change this file or symbol — the blast radius?
+
+Bounded best-score over changed paths and/or qnames. Seeds are the union of every indexed
+node on ``paths`` and the explicit ``qnames``.
+``depth`` defaults to ``CA_IMPACT_DEPTH``; the node budget is ``CA_IMPACT_MAX_NODES``.
+HEURISTIC/DYNAMIC neighbors are returned with their tier but do not expand the
+frontier. Missing seeds and a missing database yield an empty successful result.
+
+Walks resolver-linked IMPACT kinds only — an empty answer is a modelled zero for those
+kinds, not ``relationship_not_modelled`` (task 065; see ``find_references``). When a
+Method seed still has unlinked same-name CALLS, ``unlinked_same_name_sites`` names them
+and the answer is not authoritative (330).
+
+``seeds_dropped`` counts every requested subject that produced no seed — a qname that is
+absent or resolves to many, a path with no indexed node — plus any seed the node budget
+pruned. ``results: []`` with ``seeds_dropped: 0`` therefore means a modelled zero and
+nothing else (task 102). When every named subject was lost the answer also carries
+``reason`` (``no_such_symbol`` / ``name_not_qualified`` / ``not_indexed``, with
+``candidate_count`` / ``try_instead`` where the classifier has them).
+
+A seed whose qname has more than one definition is **not** walked (the graph links callers
+by qname, so it cannot be attributed to one twin): its sites are listed under
+``ambiguous_definitions``; when no seed was walkable, ``reason=subject_ambiguous`` (161).
+A rules file's ``definitions.precedence`` naming one definition walks the qname with its
+seed placed there — the walk still spans every definition's edges — the rest under
+``other_definitions`` (414).
+The default payload names the revision it describes — ``staleness`` plus ``last_commit`` —
+so a blast radius acted on destructively is never silently undated (8-E).
+
+At ``standard`` a row whose symbol is stored as test carries ``test_role_source``
+(``adapter`` / ``path_convention``, how it was decided); a row without it is production.
+A row on a stamped mirror pair carries ``mirror_counterpart`` (its indexed twin) or
+``mirror_no_counterpart: true``. These are row properties — no count splits the radius.
+``exclude_tests`` drops test sources inside the walk, before the node budget and the page,
+so page one holds production rows rather than those a page of tests left over.
+
+``routes`` names URLs a declared ``routes`` table maps to a handler (385): each seeds its
+target, and one that matches no route counts in ``seeds_dropped``; one whose key several
+declared rows give different targets seeds them all and, unless each row carries its own
+``when`` (a conditional route, 415), the answer carries ``ambiguity: "route_collision"``
+with ``route_candidates`` (411). Whenever a table is
+declared, ``routes`` in the answer lists each route whose target is a seed or in the radius
+(``HEURISTIC``, ``rule: true``) — omitted when none reaches it.
+
+With a ``records`` rule, ``records`` lists the declared records on the subject and its
+radius, each with ``via`` (its carrier), ``distance`` and ``direct`` (on a seed, a member a
+seed contains, or a seed's file): direct rows first, then by distance, at most
+``records_limit`` (at most the page, ``limit_capped_to`` when reduced); ``records_total``
+counts them all.
+``records="direct"`` keeps the direct rows alone; a ``stop_at`` hub file carries none into
+the radius and ``records_stopped`` counts what it kept out (407, 412). ``records_filter``
+(``{"tier": ["A", "B"]}``) keeps records whose declared attribute equals a value; a name
+no block declares raises ``ValueError`` (413).
+
+``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+``key=value`` line naming subject, question, answer and the revision the index describes,
+with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
+the seeds depends on them) and ``seeds_dropped`` / ``frontier_skipped_non_resolved``.
+No line is emitted when there is no index, or when no seed resolved — a question nothing
+answered would be signed ``answer=0``, and a claim that cannot be re-run is decoration.
+```
+
+### `impact_modules`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Which modules does changing this reach, and how much of each?
+
+The same bounded walk as ``impact``, summarised by the business-module table the system map
+prints — so the two never disagree. Each row carries the symbol count split by confidence
+tier, because a module reached only through HEURISTIC edges has not been *shown* to be
+reached (136), and at ``standard`` one exemplar ``file:line`` to read first.
+
+Files no module covers are counted under ``unassigned`` rather than given a home. A walk
+that hits ``CA_IMPACT_MAX_NODES`` sets ``walk_truncated`` and labels every count an
+under-estimate (124) — a bounded walk reporting a total without saying so is a false total.
+
+``sign`` adds the quotable ``claim`` line, as on ``impact``.
+```
+
+### `subtree_dependencies`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Can this subtree be deleted — what still crosses into or out of it?
+
+Reports crossing edges at directory-prefix grain, split by ``confidence_tier`` and by
+whether the target symbol is declared only under ``subtree`` (attributable) or also
+elsewhere (unattributable). The unattributable total always sits beside the attributable
+one — a blocker count without its unknown companion is structurally unavailable.
+
+``counterpart`` optionally narrows the other side (e.g. ``src/`` when ``subtree`` is
+``legacy/``). Ranked ``dependent_files`` (outside) and ``depended_on_paths`` (inside,
+mirror-collapsed when siblings mirror) carry edge counts for prioritisation.
+``dynamic_bridges`` surfaces alias files whose only link is ``DYNAMIC`` — no static edge
+is never rendered as no dependency. Node-budgeted like ``impact``; truncation is disclosed.
+``depended_on_path_total`` counts declaration paths before the mirror collapse, so it can
+exceed the collapsed list even when nothing was truncated.
+```
+
+### `reachable_from`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What is actually reachable from the app's entry points (and what is dead)?
+
+Walks forward from ``CA_ENTRY_POINTS`` over RESOLVED impact relations.
+Default ``depth`` is unset — walk until the frontier empties or
+``CA_IMPACT_MAX_NODES`` binds (transitive closure). Pass ``depth`` to cap hops;
+``depth_exhausted`` / ``truncated`` signal an incomplete answer. Unset entry
+points yield ``status=no_roots_configured``.
+
+Reachability uses the same linked IMPACT kinds as ``impact`` — empty/unproven is not
+``relationship_not_modelled`` (task 065).
+```
+
+### `find_orphans`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Which symbols and files look unused — nothing calls them and no entry point reaches them?
+
+Each orphan carries ``why``: ``no_inbound`` or ``unreachable_from_roots``. Reachability
+starts from ``CA_ENTRY_POINTS``; HEURISTIC-only neighbors are ``unproven``, never orphans.
+Default walk is closure (see ``reachable_from``); unset entry points yield
+``status=no_roots_configured``.
+
+``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages orphans in store order (057).
+``total_count`` is the full orphan population, not the page length, and ``truncated``
+describes this page alone — page until it is false. ``unproven_total`` is the full unproven
+count — at ``minimal`` the rows themselves are omitted so large repos stay transport-safe,
+at ``standard`` they are capped to one page.
+
+**Three refusals, and none return rows** (182 / 279). Roots that match no file give
+``status=roots_matched_nothing``; a walk that hit ``CA_ORPHANS_MAX_NODES`` gives
+``status=walk_budget_exhausted``; an index stamped with an unmodelled resolution strategy
+(registered class autoload, …) gives ``status=resolution_unmodelled`` — include-based
+orphan counts are unmeasured there, not dead code. ``status=ok`` with no rows still means
+nothing is orphaned, which is a real answer (102).
+```
+
+### `explain_path`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+How does one symbol reach another — the shortest path between them?
+
+Walks outgoing CALLS/NEW/INCLUDES/EXTENDS/IMPLEMENTS from ``from_qname`` to ``to_qname``
+(same kinds as
+``impact`` / ``reachable_from``). Default ``depth`` is unset — walk until
+the frontier empties or ``CA_IMPACT_MAX_NODES`` binds. A RESOLVED-only path
+is ``status=path``; a path that needs HEURISTIC/DYNAMIC hops is
+``unproven``. Missing endpoints → ``unknown``; bound hit before ``to`` →
+``incomplete``; both present with no route → ``no_path``.
+
+Path search is over linked IMPACT kinds — ``no_path`` is modelled, not
+``relationship_not_modelled`` (task 065).
+```
+
+### `architecture_overview`
+
+See also the `architecture_overview` section above.
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What are this codebase's top-level layers, and how do they depend on each other?
+
+Groups every indexed file into a layer, orders the layers by net dependency direction, and
+names the entry points — the map an onboarding reader would otherwise build by hand.
+``results`` is the layer list, capped at ``CA_MAX_RESULTS`` with ``truncated``, and
+``total_count`` is the layer count before the cap. ``standard`` adds each layer's degrees, a
+repo-level ``summary`` — whose ``reachability`` splits the zero-inbound modules into the
+populations they are (web surface, vendored, tests, dynamic, no-edge-either-way), keeping
+the raw total beside it — and ``cross_layer_edges`` (layer → layer crossings, heaviest
+first, capped with its own flag). ``verbose`` adds one row per module in layer order with
+its degrees and role — ``modules_truncated`` says the cap bit, and ``offset`` pages further,
+so no layer's modules are unreachable. ``method`` names how the grouping was derived, so a
+caller can tell a path-derived split from the dependency-direction fallback.
+```
+
+### `guided_tour`
+
+See also the `guided_tour` section above.
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+What should I read first in this codebase, in dependency order?
+
+A topological walk of the include/call graph, seeded from entry-point files (zero
+inbound) that **lead somewhere**, ranked by out-degree and reading-seed layer (HTTP /
+Entry before Config — 131), at most a quarter of the budget so the walk always has room
+to expand — a repo with more entry points than budget would otherwise spend it all on
+roots and traverse no edge at all (106). A component no entry point reaches is
+re-seeded rather than dropped. Cycles
+become one strongly-connected component so the walk cannot loop. Each stop is a file
+with a one-line rationale. The walk is bounded by ``CA_IMPACT_MAX_NODES``; ``results``
+is one page of ``CA_MAX_RESULTS`` stops from ``offset``, and ``results_offset`` says
+which page. ``truncated`` is true when the node budget left an indexed file out of the
+tour or when stops remain after this page, so the rest of the order stays reachable.
+``minimal`` returns files only; ``standard`` adds ``rationale`` and, for a cycle, the
+``scc`` members.
+```
+
+### `trace_capability`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+How this codebase routes an incoming request — the capability flows one subject is in.
+
+Prefer this over Grep/Glob when the question is *"how does a request reach the code that
+produces the response?"* or *"what happens when a user does X?"*. Answers for **one**
+subject: an entry symbol (``qname``), a file (``path``), a business module (``module``), or
+a URL a front controller dispatches at run time (``route``, read through a declared
+``routes`` table: its flows start at the route's target, whose hop is ``HEURISTIC`` with
+``rule: true``; a URL whose key several declared rows give different targets traces every
+one — under each row's own ``when`` label a conditional route, each flow's ``route``
+carrying ``when``/``source`` (never evaluated), else ``ambiguity: "route_collision"`` with
+``route_candidates``; an unmatched URL
+answers ``no_such_symbol`` with ``nearest_routes``; no table answers
+``capability_not_configured``). Supply exactly one; naming none or several
+answers ``reason: name_not_qualified``. Each
+result is one flow — its seed, its ordered ``steps`` (``qname`` · ``file`` · ``layer`` ·
+``kind`` · ``tier``), how it ``ended`` and its ``sink``. A subject the index does not hold
+answers ``no_such_symbol``; one it holds that joins no traced flow answers ``no_matches``
+and routes to ``architecture_overview`` — never an empty ``results`` presented as an answer.
+An index where no flow could be seeded (no declared entry point, no entry-named path)
+answers ``capability_not_configured`` for every subject and routes to ``get_index_status``,
+which nominates entry-point globs.
+Carries no layer table, matrix, hub list or capability table: for the whole picture call
+``architecture_overview`` instead.
+```
+
+### `generate_onboarding`
+
+See also the `generate_onboarding` section above.
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Write committable onboarding docs for this repo — overview, guided tour and flows.
+
+Reads the index and writes **up to five files** under ``docs/onboarding/``: ``overview.md``,
+``tour.md``, ``flows.md``, ``manifest.json``, and ``index.html`` — one self-contained page
+that embeds the same facts, so it opens offline with no server and no fetch. There is **no
+per-module page tree**: 500 sub-kilobyte pages, one per node-budget slot, were emitted on
+every repo and carried nothing a reader could not read off the path (205).
+Regenerating rewrites this tool's own files, and removes the module pages a **pre-205**
+``manifest.json`` recorded — a hand-authored file in that tree is left alone, and a tree
+holding these names without that manifest is refused rather than overwritten. A versioned
+dump of the same structure lands under ``.code-atlas/onboarding/artifact.json``
+(gitignored, ``ARTIFACT_VERSION``). Deterministic given the summarizer: no timestamps.
+The walk that sizes the tour is the same node-budgeted subgraph ``guided_tour`` uses
+(``CA_IMPACT_MAX_NODES``) — roots ranked by out-degree, capped at a quarter of the budget
+so the tour describes files the walk actually reached (106); ``truncated`` is true when
+that budget left an indexed file out.
+
+Three independent axes (210 / 216):
+
+- ``detail_level`` — how much of the *response* to return (same meaning on 24 tools); the
+  response is discarded, so it does not reshape the committed tree.
+- ``audience`` — which *sections* the written tree holds (``full`` / ``newcomer`` /
+  ``maintainer``); unset takes ``CA_AUDIENCE``.
+- ``working_roots`` — which *population* those sections draw from: restricts the tour,
+  flow seeds and busiest-file pick to those trees (206). Omitted inherits
+  ``CA_WORKING_ROOTS`` / config; a list wins over the environment; ``[]`` forces the
+  whole index even when the environment scopes it.
+
+``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
+``minimal`` omits the path to the ``artifact.json`` dump.
+```
+
+### `check_architecture_rules`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Do the architecture dependency rules still hold on this index?
+
+Reads ``CA_ARCHITECTURE_RULES`` (JSON files of path-set constraints). Each confirmed
+violation is a RESOLVED walk from a source path set into a forbidden path set;
+HEURISTIC-only evidence is listed under ``candidates`` and never counts as confirmed.
+A ``required`` rule flags each source symbol that reaches none of its target qnames;
+it is confirmed only when every edge its walk met was RESOLVED.
+``total_count`` is the confirmed population; page with ``limit``/``offset`` until
+``truncated`` is false. Empty answers name the cause: not indexed, rules unset,
+no source file matched a rule, or no violation.
+```
+
+### `check_column_defaults`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Which writers of this table omit a column that has a DEFAULT, and what is that DEFAULT?
+
+Answers the defect class *"a column whose value comes from a DEFAULT because every writer
+omits it"*. With no ``column``, scans every column of ``table`` that declares a DEFAULT;
+with one, reports just that column. Each row carries ``omitted_count`` against
+``writers_total`` — a ratio, not a bare list — plus ``omitted_by`` and ``named_by`` at
+``standard``. A writer that named no columns at all is ``unmeasured``, never counted as
+omitting; a table with no recorded writers answers ``status: table_has_no_writers`` and
+carries **no** ``omitted_by``, because an empty list there would claim a zero the graph
+cannot see. When linked writers exist but unlinked ``WRITES`` still name the table, the
+envelope carries ``writers_partial`` and a hint naming the remaining forms (215). Duplicate
+``CONTAINS`` declarations collapse to one row with ``declarations`` when N>1. Needs a
+SQL-layer index (task 022); ``column`` takes the full member qname
+(``dbo.Trans::ChangeUser``) or the bare column name.
+
+``table`` may be bare (``Trans``): one indexed Table of that name is measured and named in
+``resolved_qname``; several (one per schema) answer ``reason: subject_ambiguous`` with no
+rows and each qualified candidate in ``ambiguous_definitions``; none answers
+``no_such_symbol`` with ``try_instead: search_symbol`` (320).
+
+``default_expr`` replaces ``table`` as the subject (391): every column whose stored
+``DEFAULT`` is that expression — compared without case, brackets, whitespace or outer
+parentheses — each row naming its ``table`` and measured against that table's writers,
+with ``writers_partial`` per row. Pass exactly one of ``table`` and ``default_expr``;
+``column`` narrows a ``table`` only.
+```
+
+### `diff_architecture`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Diff two 112 dataset (or onboarding manifest) JSON files for architectural drift.
+
+Both sides must name the same ``index_root`` and the same dataset ``version``; a mismatch
+is refused with a direction-aware reason rather than rendered. Identical architecture
+yields an explicit *no architectural change* statement — never an empty artifact.
+Paths are relative to the indexed tree; an absolute one must still resolve inside it.
+```
+
+### `class_diagram`
+
+The full description before the tool surface was shortened, verbatim:
+
+```text
+Mermaid class diagram for one class plus its ancestry, or every type in one file.
+
+Inheritance arrows are ``EXTENDS`` / ``IMPLEMENTS`` / ``USES_TRAIT`` only. Associations
+come from declared property and parameter types — never from CALLS/NEW. ``limit`` caps
+members per type and is disclosed when it bites. Pass ``qname`` or ``path``, not both.
+```
+
 ## The tool surface is pinned (428)
 
 - **Annotations.** Every tool declares MCP annotations from one table in `code_atlas/main.py`: the

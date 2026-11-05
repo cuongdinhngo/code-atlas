@@ -279,27 +279,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """How this codebase routes an incoming request — the capability flows one subject is in.
 
-        Prefer this over Grep/Glob when the question is *"how does a request reach the code that
-        produces the response?"* or *"what happens when a user does X?"*. Answers for **one**
-        subject: an entry symbol (``qname``), a file (``path``), a business module (``module``), or
-        a URL a front controller dispatches at run time (``route``, read through a declared
-        ``routes`` table: its flows start at the route's target, whose hop is ``HEURISTIC`` with
-        ``rule: true``; a URL whose key several declared rows give different targets traces every
-        one — under each row's own ``when`` label a conditional route, each flow's ``route``
-        carrying ``when``/``source`` (never evaluated), else ``ambiguity: "route_collision"`` with
-        ``route_candidates``; an unmatched URL
-        answers ``no_such_symbol`` with ``nearest_routes``; no table answers
-        ``capability_not_configured``). Supply exactly one; naming none or several
-        answers ``reason: name_not_qualified``. Each
-        result is one flow — its seed, its ordered ``steps`` (``qname`` · ``file`` · ``layer`` ·
-        ``kind`` · ``tier``), how it ``ended`` and its ``sink``. A subject the index does not hold
-        answers ``no_such_symbol``; one it holds that joins no traced flow answers ``no_matches``
-        and routes to ``architecture_overview`` — never an empty ``results`` presented as an answer.
-        An index where no flow could be seeded (no declared entry point, no entry-named path)
-        answers ``capability_not_configured`` for every subject and routes to ``get_index_status``,
-        which nominates entry-point globs.
-        Carries no layer table, matrix, hub list or capability table: for the whole picture call
-        ``architecture_overview`` instead.
+        Prefer over Grep for how a request reaches its handler. Pass exactly one of ``qname``,
+        ``path``, ``module`` or ``route`` (a URL, via a declared ``routes`` table); else
+        ``name_not_qualified``. ``no_such_symbol``, ``no_matches`` (see architecture_overview) and
+        ``capability_not_configured`` (see get_index_status) are not empty answers.
         """
         chosen = _subject_of(qname, path, module, route)
         if chosen is None:

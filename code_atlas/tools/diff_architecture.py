@@ -39,12 +39,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         after: str,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Diff two 112 dataset (or onboarding manifest) JSON files for architectural drift.
+        """Diff two dataset (or onboarding manifest) JSON files for architectural drift.
 
-        Both sides must name the same ``index_root`` and the same dataset ``version``; a mismatch
-        is refused with a direction-aware reason rather than rendered. Identical architecture
-        yields an explicit *no architectural change* statement — never an empty artifact.
-        Paths are relative to the indexed tree; an absolute one must still resolve inside it.
+        Pass ``before`` and ``after`` paths inside the indexed tree; both must share ``index_root``
+        and ``version`` or the call is refused. No drift says so explicitly.
         """
         before_path = _resolve(config, before)
         after_path = _resolve(config, after)

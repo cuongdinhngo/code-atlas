@@ -99,24 +99,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Build or refresh this repo's index so the other tools have current data.
 
-        Returns ``wrote`` counts (and ``graph`` on standard) plus elapsed time. An index written
-        under an *older* ``schema_version`` is deleted and rebuilt in-band so an MCP client can
-        recover without a shell; a *newer* one is refused untouched — that index is current and this
-        server is the stale one (050). Concurrent writers share ``write.lock`` (053); a held lock
-        returns ``mode: busy`` carrying the staleness of the index the loser is about to query,
-        read-only (072); the request is queued, and the running build serves it with one more
-        incremental before it exits (357), so do not retry in a loop. To *see* a busy refusal on
-        purpose, follow the ``code-atlas-refresh`` race recipe in
-        ``docs/runbooks/parallel-agents.md`` (082).
-
-        An index written under an older *vocabulary* era cannot be extended
-        incrementally either (030 AC1). Rather than silently starting an hour-long
-        rebuild inside a call that cannot outlive its client, ``full=false`` returns
-        ``mode: refused`` with ``reason: contract_rebuild_required`` and the route that
-        can serve it. ``allow_full_rebuild=true`` runs that rebuild in-band anyway,
-        accepting the wait (201). The same refusal shape answers an explicit
-        ``full=true`` on an index that already exists — MCP cannot outlive its client,
-        and a timed-out "failed" does not stop the server-side build (291).
+        ``full=true`` forces a rebuild; ``allow_full_rebuild=true`` runs one in-band after ``mode:
+        refused`` (``contract_rebuild_required``). An older ``schema_version`` index is deleted and
+        rebuilt in-band; a newer one is refused untouched. ``mode: busy`` means another writer holds
+        the lock and the request is queued: do not retry in a loop.
         """
         started = time.monotonic()
         first: dict[str, object] | None = None

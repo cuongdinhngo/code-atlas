@@ -207,64 +207,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
-        Bounded best-score over changed paths and/or qnames. Seeds are the union of every indexed
-        node on ``paths`` and the explicit ``qnames``.
-        ``depth`` defaults to ``CA_IMPACT_DEPTH``; the node budget is ``CA_IMPACT_MAX_NODES``.
-        HEURISTIC/DYNAMIC neighbors are returned with their tier but do not expand the
-        frontier. Missing seeds and a missing database yield an empty successful result.
-
-        Walks resolver-linked IMPACT kinds only — an empty answer is a modelled zero for those
-        kinds, not ``relationship_not_modelled`` (task 065; see ``find_references``). When a
-        Method seed still has unlinked same-name CALLS, ``unlinked_same_name_sites`` names them
-        and the answer is not authoritative (330).
-
-        ``seeds_dropped`` counts every requested subject that produced no seed — a qname that is
-        absent or resolves to many, a path with no indexed node — plus any seed the node budget
-        pruned. ``results: []`` with ``seeds_dropped: 0`` therefore means a modelled zero and
-        nothing else (task 102). When every named subject was lost the answer also carries
-        ``reason`` (``no_such_symbol`` / ``name_not_qualified`` / ``not_indexed``, with
-        ``candidate_count`` / ``try_instead`` where the classifier has them).
-
-        A seed whose qname has more than one definition is **not** walked (the graph links callers
-        by qname, so it cannot be attributed to one twin): its sites are listed under
-        ``ambiguous_definitions``; when no seed was walkable, ``reason=subject_ambiguous`` (161).
-        A rules file's ``definitions.precedence`` naming one definition walks the qname with its
-        seed placed there — the walk still spans every definition's edges — the rest under
-        ``other_definitions`` (414).
-        The default payload names the revision it describes — ``staleness`` plus ``last_commit`` —
-        so a blast radius acted on destructively is never silently undated (8-E).
-
-        At ``standard`` a row whose symbol is stored as test carries ``test_role_source``
-        (``adapter`` / ``path_convention``, how it was decided); a row without it is production.
-        A row on a stamped mirror pair carries ``mirror_counterpart`` (its indexed twin) or
-        ``mirror_no_counterpart: true``. These are row properties — no count splits the radius.
-        ``exclude_tests`` drops test sources inside the walk, before the node budget and the page,
-        so page one holds production rows rather than those a page of tests left over.
-
-        ``routes`` names URLs a declared ``routes`` table maps to a handler (385): each seeds its
-        target, and one that matches no route counts in ``seeds_dropped``; one whose key several
-        declared rows give different targets seeds them all and, unless each row carries its own
-        ``when`` (a conditional route, 415), the answer carries ``ambiguity: "route_collision"``
-        with ``route_candidates`` (411). Whenever a table is
-        declared, ``routes`` in the answer lists each route whose target is a seed or in the radius
-        (``HEURISTIC``, ``rule: true``) — omitted when none reaches it.
-
-        With a ``records`` rule, ``records`` lists the declared records on the subject and its
-        radius, each with ``via`` (its carrier), ``distance`` and ``direct`` (on a seed, a member a
-        seed contains, or a seed's file): direct rows first, then by distance, at most
-        ``records_limit`` (at most the page, ``limit_capped_to`` when reduced); ``records_total``
-        counts them all.
-        ``records="direct"`` keeps the direct rows alone; a ``stop_at`` hub file carries none into
-        the radius and ``records_stopped`` counts what it kept out (407, 412). ``records_filter``
-        (``{"tier": ["A", "B"]}``) keeps records whose declared attribute equals a value; a name
-        no block declares raises ``ValueError`` (413).
-
-        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
-        ``key=value`` line naming subject, question, answer and the revision the index describes,
-        with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
-        the seeds depends on them) and ``seeds_dropped`` / ``frontier_skipped_non_resolved``.
-        No line is emitted when there is no index, or when no seed resolved — a question nothing
-        answered would be signed ``answer=0``, and a claim that cannot be re-run is decoration.
+        Use before an edit or delete. Pass ``paths`` and/or ``qnames`` (or ``routes``); ``depth``
+        and ``exclude_tests`` bound the walk. Only RESOLVED relations expand; HEURISTIC/DYNAMIC rows
+        carry their tier. ``seeds_dropped`` counts subjects that produced no seed: ``results: []``
+        with 0 dropped is a modelled zero, otherwise read ``reason``. ``subject_ambiguous`` /
+        ``ambiguous_definitions`` mean a qname with several definitions was not walked. ``ambiguity:
+        route_collision`` means a route matched several handlers, not one target.
+        ``unlinked_same_name_sites`` means not authoritative.
         """
         call = claim.call_args(impact, locals())
         hops = config.impact_depth if depth is None else depth
