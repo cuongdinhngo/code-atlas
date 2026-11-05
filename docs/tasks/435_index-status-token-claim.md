@@ -4,7 +4,7 @@ slug: index-status-token-claim
 title: "README's \"~100-token get_index_status\" — make the number true and hold it with a test"
 phase: 2
 milestone: Docs
-status: in-progress
+status: done
 depends_on: []
 ---
 
@@ -42,7 +42,7 @@ first.
 
 ## Session status
 
-- **KEY:** 435 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's merge.
+- **KEY:** 435 · **work_doc_mode:** embed · **Current phase:** done · merged in #160 as `07e63404`.
 - `TRACK: backend` · Run mode: `autorun 434 - 435 - 436 --no-reviewer`, second — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` ·
   `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `docs/435-index-status-token-claim` from `main` at `e08d4b75`. Contract `.mango/run-contract-435.txt`. RECONCILE t0:
