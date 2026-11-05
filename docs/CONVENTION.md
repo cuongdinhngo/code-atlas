@@ -219,7 +219,7 @@ what the payload already says (061). An answer must state what it is *not* telli
   through the closure, not global state. Logic two tools share lives in its own helper module beside
   them (`nav_result`, `staleness`, `reach_shared`, `collection`); a tool module never imports another
   except a refinement (`impact_modules` → `impact`, `read_symbol` → `search_symbol`).
-- **Surface and runtime.** `get_index_status` is the cheap entry point (~100 tok) and suggests next
+- **Surface and runtime.** `get_index_status` at `minimal` is the cheap entry point (~130 tok) and suggests next
   tools — **only tools the server actually registered**. `CA_TOOLS` gates availability; an unserved
   name is a loud `ConfigError`, checked in `main.py` (the only place that knows the tool names). A
   tool opens its own `GraphStore` **inside the call**: FastMCP runs tools on a worker thread and a

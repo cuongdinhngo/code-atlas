@@ -85,6 +85,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   challenger reasoned it out; flushing inside the guard fixed it, and a small-snapshot case is red without the flush.
 - destination: first sighting.
 
+### 435-C1 — a number the docs quote lives in every copy, and one test guards one copy
+
+- type: 2 (code) · handle: `a-claim-lives-in-every-copy`
+- status: proposed · seen: 435
+- evidence: 435 fixed the README's "~100-token" entry point and pinned it with a test; PLAN §12 and CONVENTION carried the
+  same "~100 tok" and the ticket named only the README. The ticket-blind challenger grepped the repo and found both.
+  Grep the whole repo for the figure before fixing one sentence.
+- destination: first sighting.
+
 ### 434-C1 — a shrink judged on size drops what stops a wrong read
 
 - type: 2 (code) · handle: `a-shrink-keeps-what-prevents-a-wrong-read`
