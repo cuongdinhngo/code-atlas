@@ -4,7 +4,7 @@ slug: shrink-tool-descriptions
 title: "Shrink the model-facing tool surface — descriptions answer when to call, docs keep the edge cases"
 phase: 2
 milestone: Surface
-status: in-progress
+status: done
 depends_on: [428]
 ---
 
@@ -52,7 +52,7 @@ shrink first, and keep the `CA_TOOLS` preset opt-in.
 
 ## Session status
 
-- **KEY:** 434 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's merge.
+- **KEY:** 434 · **work_doc_mode:** embed · **Current phase:** done · merged in #161 as `ea4c7868`.
 - `TRACK: backend` · Run mode: `autorun 434 - 435 - 436 --no-reviewer`, third — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` ·
   `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/434-shrink-tool-descriptions` from `main` at `e08d4b75`. Contract `.mango/run-contract-434.txt`. RECONCILE t0:

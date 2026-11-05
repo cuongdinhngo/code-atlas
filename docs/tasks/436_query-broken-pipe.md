@@ -4,7 +4,7 @@ slug: query-broken-pipe
 title: "`code-atlas query` reports a closed stdout pipe as an \"unreadable index\""
 phase: 2
 milestone: CLI
-status: in-progress
+status: done
 depends_on: []
 ---
 
@@ -36,7 +36,7 @@ healthy index. The second line is the interpreter failing to flush stdout again 
 
 ## Session status
 
-- **KEY:** 436 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer's merge.
+- **KEY:** 436 · **work_doc_mode:** embed · **Current phase:** done · merged in #159 as `b77d81f7`.
 - `TRACK: backend` · Run mode: `autorun 434 - 435 - 436 --no-reviewer`, this ticket first — `REVIEWER: OFF (--no-reviewer)` ·
   `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `fix/436-query-broken-pipe` from `main` at `e08d4b75`. Contract `.mango/run-contract-436.txt` (mango 1.19.0 scripts).
