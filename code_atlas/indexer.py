@@ -45,6 +45,7 @@ from code_atlas.enrichment import (
     count_unresolved_keyed_calls,
     count_unresolved_keyed_sites,
     load_indirection_rules,
+    publish_definition_order,
     publish_definitions,
     publish_records,
     publish_routes,
@@ -1614,6 +1615,7 @@ def _record_meta(
     """
     store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
     store.set_meta(BUILT_AT_KEY, store.now())
+    publish_definition_order(store, config)
     # Both build paths reach here only after the late writes, so this is the graph's completion
     # stamp as well as its revision stamp (task 178).
     store.set_meta(BUILD_COMPLETE_KEY, BUILD_COMPLETE)

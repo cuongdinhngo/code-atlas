@@ -1167,6 +1167,7 @@ a silent fallback.
 | `CA_AUDIENCE` | `audience` | `full` | who the WRITTEN onboarding tree is for: `full` (every section), `newcomer` (orientation, a four-line summary, the layer vocabulary, the tour and the flows) or `maintainer` (every aggregate, no tour, no orientation). An unrecognised value falls back to `full` and the artifact states which audience it actually used |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges ([format](#indirection-rule-files)). **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
+| `CA_DEFINITION_ORDER` | `definition_order` | unset | path globs, most authoritative first, naming the **live** definition of a qname defined more than once (437): one `<n>` in a glob reads a version from the path, highest wins (`["db/migrations/V<n>__*.sql", "db/snapshot/*.sql"]`). Read before a rules file's `definitions.precedence`, [same rules](#indirection-rule-files). In the toml anything but a list of globs fails loud |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 24. |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
 | `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |
@@ -1340,7 +1341,10 @@ scanner masks literals) the call's first line is read, as before (398).
   with `ambiguity: "definition_precedence"`, the rest under `ambiguous_definitions`; `impact` and
   `impact_modules` walk a named qname with its seed placed at it, the rest under
   `other_definitions` — the walk is the qname's, so it spans every definition's edges (a seed a path
-  expanded into keeps its file); two matches stay `subject_ambiguous`. Test copies (394) are settled
+  expanded into keeps its file); two matches stay `subject_ambiguous`. A glob may carry one `<n>`, a
+  `1`, `1.5` or `2_0_1` version read from the path: among that glob's matches the highest version
+  answers, and a tie (`V2` and `V2.0`) answers nothing (437). The toml's `definition_order` takes the
+  same globs and is read first. Test copies (394) are settled
   first, migration versions (403) after; a cut search page applies neither. Several rules files
   join their globs in file-name order. References target the
   qname, so they already span every definition — and `impact` walks call and type edges, not

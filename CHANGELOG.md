@@ -17,6 +17,14 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **Which definition is live (437).** `definition_order` in `.code-atlas.toml` lists path globs, most
+  authoritative first; one `<n>` reads a version from the path (`db/migrations/V<n>__*.sql`), so of a
+  routine redefined in migrations and a snapshot the highest version is the one `read_symbol`
+  answers. A rules file's `definitions.precedence` takes `<n>` too. No rule, or a tie, names none.
+- **The SQL `body_hash` ignores formatting (437).** Keyword case, a needless `[bracket]` or `"quote"`,
+  `CREATE OR ALTER` against `CREATE` and a reflowed statement keep one fingerprint. **Full rebuild
+  required** once this lands: every stored SQL `body_hash` moves, so a `--changed-since` snapshot
+  taken before it reports SQL symbols as changed. The contract bump is owed at the 0.11 release.
 - **`code-atlas query` and a closed pipe (436).** A reader that closes stdout early (`| head`) no longer
   reports "unreadable index"; the command exits `141` quietly. A real database error keeps its message.
 - **Tool surface: the 24 descriptions are shortened to 10,066 characters in all** (434), from 45,574.
