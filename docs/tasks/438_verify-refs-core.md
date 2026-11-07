@@ -4,7 +4,7 @@ slug: verify-refs-core
 title: "`verify_refs`: find which references in agent docs no longer resolve — extraction, classes, states, CLI"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: todo
+status: in-progress
 depends_on: [384, 429, 430]
 ---
 
@@ -52,3 +52,92 @@ ticket is the finder; 439 adds the fix (patches) and the surfaces an agent sees.
 5. `total_count` / `truncated` are truthful; an empty corpus explains itself (no file matched the
    globs ≠ every reference resolved).
 6. Anchor: a full run over the 177 files in ≤ 30 s warm, reported privacy-safe (rules in 442).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **KEY:** 438 · **work_doc_mode:** embed · **Current phase:** 3 execute.
+- `TRACK: backend` · Run mode: `autorun 437 - 438 - 440`, second — `REVIEWER: ON` · `CHALLENGER: ON` · `cost_tier: standard`.
+  The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
+- Branch `feat/438-verify-refs-core`, stacked on 437 (#164, uses its `definition_states`). Contract
+  `.mango/run-contract-438.txt` (mango 1.21.0). RECONCILE t0: `4 declared | 2 re-run | 0 holding | 2 BROKEN | 2 UNBOUND |
+  0 could-not-run | 0 pending-merge`. Budget: unknown.
+
+## Phase 0 — refine
+
+`PREMISE: 6 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 0 by handle | 2 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 5 unresolved surfaced | 2 want-decision asked | 3 how-decision resolved+cited | 2 ASSUMED | skip: no`
+
+`gitutil.py`, `config.py`, `contract.py` (`symbol_shapes`, 345), 384's `body_hash`, 429's `untrusted_fields` and 430's
+toml rules resolve. Recalled by area: 345 (the handshake already carries per-adapter grep shapes, stored in meta) and
+437-C1 (a fingerprint is taken over the span the scanner names).
+
+| # | Decision | Class | Resolution |
+|---|---|---|---|
+| H1 | where symbol shapes come from | how | a `qualified` kind in the existing `symbol_shapes` (345), stored at build; the grep nudge reads `GREP_SHAPE_KINDS` only, so it is unchanged |
+| H2 | a symbol `moved` by `body_hash` | how | the doc's own last commit fixes when the reference was true: the old file is found by `git grep -w` at that commit, parsed by its adapter in a temp dir, and its hash compared with the one same-name definition now (384) |
+| H3 | git cost on a large repo | how | one history pass (renames, deletions, every branch's added paths) per run; `-S` and `grep` share a 12 s budget, and a row past it is `unknown`, counted (R5.6) |
+| W1 | the contract addition (scope 2: "R3 applies") | want | **ASSUMED:** no bump here — the same one 0.11 bump 437 deferred (BACKLOG *Follow-ups* already names it for 437 + 438) |
+| W2 | where a doc names paths from | want | **ASSUMED:** root, then the doc's folder, then a unique tracked path ending so (a monorepo doc writes from its subproject); several endings are `ambiguous` |
+
+## Phase 1 — analysis
+
+`SECTIONS: 3 found (Why this exists · Scope · Acceptance) | 3 decomposed | ROWS: C=3 R=6 G=1 AC=6`
+`CLARIFICATION: 5 raised | 5 self-resolved (cited) | 0 for human decision`
+`TRACK: backend — 0/14 touched files under UI paths`
+`SCOPE: L`
+`TIER: full`
+`STRUCTURE: native`
+
+| ID | Source | Verbatim | Interpretation | Status |
+|---|---|---|---|---|
+| G1 | Why | "This ticket is the finder" | every reference, one state, a reason | ⚠ |
+| C1 | Scope 2 | "language-free core (R1.1)" | shapes from adapters | ⚠ |
+| C2 | Scope 4 | "never surrounding prose (429)" | strings + `context` only | ⚠ |
+| C3 | Scope 6 | "code-atlas never writes to the repo" | temp dir outside it | ⚠ |
+| R1 | Scope 1 | "default globs overridable by non-command toml keys" | `refs_*` knobs | ⚠ |
+| R2 | Scope 2 | "file paths, qualified symbols, bare names in code spans, SQL object names …, commands" | `extract` + `kind_of` | ⚠ |
+| R3 | Scope 3 | "Exactly one state per reference, each with a `reason`" | `Resolver` | ⚠ |
+| R4 | Scope 4 | "file, line, class, surrounding *kind*" | row fields | ⚠ |
+| R5 | Scope 5 | "`--verify-refs [globs…] [--class …] [--format json|md] [--fail-on moved,gone]`" | `query.py` | ⚠ |
+| R6 | Scope 6 | "git is read through `gitutil.py`" | new read-only helpers | ⚠ |
+| AC1–AC6 | Acc 1–6 | as written | AC1–AC5 fixture, AC6 anchor | ⚠ |
+
+`BASELINE: green — tests/test_config.py, tests/contract/test_symbol_shapes.py, test_security_standard.py on the 437 branch at 3e138aec: green before the change`
+
+`RULE SECTIONS: 5 applicable — 5 by change-type | 0 by recalled handle — §1 (change-type) ✅ R1.1 shapes from adapters, R1.4 SQL only in store.py · §2 (change-type) ✅ each shape is its language's own syntax · §3 (change-type) ✅ R3.1 owed at the 0.11 bump (W1) · §6 (change-type) ✅ R6.5 seen red · §7 (change-type) ✅ R7.2, R7.5, R7.6`
+
+## Phase 2 — design
+
+`HANDLES: 1 recalled | 1 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+
+437-C1 traced: the Python adapter's span for a function after a class began with that class's DEDENT tokens, so a
+function moved unchanged to another file hashed apart (`lib.a.compute_total` `ba8f…` vs `lib.b` `d6a5…`); the fix drops
+a span's leading DEDENTs (`adapters/python/src/body_hash.py`), after which both hash `d6a5987fcfe7ea80`.
+
+**Approach.** `code_atlas/doc_refs.py` (corpus → extract → kind → resolve → summarise); `gitutil` history helpers;
+`store.qname_prefix_exists` (a range seek, so `os.path` is no reference when nothing indexed starts `os.`); four `refs_*`
+knobs; `qualified` shapes for php, python, sql; `--verify-refs` in `query.py`; docs (README, TOOLS, SECURITY's git list,
+ADAPTER_PLAYBOOK, CHANGELOG).
+**Rejected:** a separate handshake field for doc shapes — `symbol_shapes` is the one place a language says what its
+symbols look like; resolving each reference with its own git pass — 86k references on the anchor.
+**Proving test:** `tests/test_verify_refs.py`.
+
+`EXCLUSIONS: 2 recorded | 2 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 1 proven on a real corpus`
+
+- E1 — AC6 on the anchor; **expiry:** `~/code-atlas-review/438-anchor.md` is written before the PR opens.
+- E2 — W1, the contract bump deferred to the 0.11 release; approved under the handover; **expiry:** ratified on the PR.
+
+## Phase 3 — execute
+
+Main loop, no `implementer`. **Verification sweep:** the diff names the files of the Approach plus `SECURITY.md` (its git
+command list is test-held), `tests/test_config.py` (knob pins), `tests/contract/test_symbol_shapes.py` (vocabulary pin),
+`code_atlas/hooks/nudge.py` (reads `GREP_SHAPE_KINDS`) and `tests/test_untrusted_output.py` is untouched.
+**R6.5:** on 437's tree the test cannot import `doc_refs`; with `doc_refs` but without the Python DEDENT fix,
+`lib.a.compute_total` answered `gone / removed_since_the_doc` instead of `moved / body_hash`.
+
+**AC6 (E1 discharged)** — `~/code-atlas-review/438-anchor.md`: 1,884 files, 86,814 references, **24.1 s warm**; three
+anchor fixes came from it — a directory index built once (the first run passed 15 min), no case-folded full-scan fallback,
+and subproject-relative paths.

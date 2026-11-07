@@ -349,6 +349,9 @@ the answers before it. The two index writers are refused, and shell calls are no
 `fit_counts` or `est_tokens_vs_grep_read`. `--snapshot-symbols <out>` plus a later `--changed-since
 <out> --qname …` asks whether a method's body changed since that revision — comments and layout
 ignored ([design](docs/design/impact-and-claims.md#has-this-symbol-changed-since-revision-x-384)).
+`--verify-refs [globs…]` checks the paths and symbols your `CLAUDE.md`, skills and docs name against
+the code: each reference is `ok`, `moved` (with its successor), `gone`, `never_existed`, `ambiguous`
+or `unknown`, with `--format md` for a table and `--fail-on moved,gone` for a pre-commit lint (438).
 
 ### Three properties worth knowing before you install
 

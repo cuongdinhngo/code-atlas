@@ -17,6 +17,12 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **`code-atlas query --verify-refs` (438).** Which references in agent-facing docs still resolve: each path,
+  symbol and backticked name in `CLAUDE.md`, `AGENTS.md`, rules, skills and `docs/**` gets one state with a reason —
+  `ok`, `moved` (a git rename, or one same-name definition hashing as the body the doc's commit held), `gone`,
+  `never_existed`, `ambiguous`, `unknown`. Classes come from `refs_*` toml globs; reference strings only, never prose.
+  Adapters announce a `qualified` symbol shape (a contract addition, owed in the 0.11 bump); the Python
+  `body_hash` no longer counts the dedent closing the block before a symbol, so stored Python hashes move once too.
 - **Which definition is live (437).** `definition_order` in `.code-atlas.toml` lists path globs, most
   authoritative first; one `<n>` reads a version from the path (`db/migrations/V<n>__*.sql`), so of a
   routine redefined in migrations and a snapshot the highest version is the one `read_symbol`
