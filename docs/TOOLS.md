@@ -822,7 +822,7 @@ that budget left an indexed file out.
 
 Three independent axes (210 / 216):
 
-- ``detail_level`` — how much of the *response* to return (same meaning on 24 tools); the
+- ``detail_level`` — how much of the *response* to return (same meaning on every tool that takes it); the
   response is discarded, so it does not reshape the committed tree.
 - ``audience`` — which *sections* the written tree holds (``full`` / ``newcomer`` /
   ``maintainer``); unset takes ``CA_AUDIENCE``.
@@ -1430,7 +1430,7 @@ of `code-atlas`. All three are memoised in content-hash caches so runs replay an
 These are `onboarding_llm` knobs, not core config — the full table is in that package's README.
 
 **`audience` and `detail_level` are different knobs, and this is the decision (210).**
-`detail_level` means the same thing on 24 tools — how much of the **response** to return — and the
+`detail_level` means the same thing on every tool that takes it — how much of the **response** to return — and the
 response is read once and dropped. Growing it to reshape the committed tree would make files a repo
 checks into git depend on a per-call argument, so it **stays a payload knob and is unchanged**.
 `audience` is the artifact knob: it selects which sections `overview.md` holds and which documents

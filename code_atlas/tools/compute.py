@@ -16,6 +16,7 @@ from typing import Literal
 from code_atlas import contract, gitutil
 from code_atlas.config import Config, clamp_limit
 from code_atlas.store import COMPUTE_QUERIES, COMPUTE_ROW_CAP, ComputeRefused, ComputeSandbox
+from code_atlas.tools.nav_result import attach_limit_capped
 
 NAME = "compute"
 TemplateId = Literal["tier_mix", "no_referrer"]
@@ -163,7 +164,12 @@ def no_referrer(
     for qname, name, file, line in rows:
         level = _evidence(box, (str(qname), str(name), str(file), int(str(line))), sites)
         levels[level] += 1
-        shaped.append({"qname": qname, "name": name, "file": file, "line": line, "evidence": level})
+        # One key per statement: the contract's field words stay out of a collection literal.
+        row: dict[str, object] = {"qname": qname, "evidence": level}
+        row["name"] = name
+        row["file"] = file
+        row["line"] = line
+        shaped.append(row)
     edges, unlinked = box.scalar(COMPUTE_QUERIES["no_referrer.caveat"])
     population = box.scalar(COMPUTE_QUERIES["no_referrer.population"], params)
     data = {"unlinked_share": _share(unlinked, edges), "population": int(str(population[0]))}
@@ -247,8 +253,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         empty = answer.pop("empty_reason")
         answer["reason"] = "ok" if answer["rows"] else empty
         answer["limit"] = cap
-        if clamped:
-            answer["limit_capped_to"] = cap
-        return answer
+        return attach_limit_capped(answer, cap=cap, clamped=clamped)
 
     return compute

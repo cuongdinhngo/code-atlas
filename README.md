@@ -504,7 +504,7 @@ vulnerabilities go through [`SECURITY.md`](SECURITY.md).
 ## Roadmap
 
 - **Shipped.** Phase 1 (closed 2026-09-27): the core, the onboarding system map and four adapters —
-  PHP, TypeScript/JavaScript, T-SQL and Python — with **24 tools**. Phase 2 so far: releases
+  PHP, TypeScript/JavaScript, T-SQL and Python — with **25 tools** today (`compute` joined in 440). Phase 2 so far: releases
   0.2.0–0.10.0 and the Claude Code plugin; what each release changed is in [`CHANGELOG.md`](CHANGELOG.md).
 - **Open.** Graph coverage and freshness work; each ticket and its gate is in
   [`docs/BACKLOG.md`](docs/BACKLOG.md). Nothing is open on the onboarding map.
