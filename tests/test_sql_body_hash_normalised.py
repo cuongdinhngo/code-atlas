@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
+
+from tests.adapter_cli import run_adapter_file
 
 NODE = shutil.which("node")
 SQL_ENTRY = Path(__file__).resolve().parent.parent / "adapters" / "sql" / "index.js"
@@ -60,10 +61,9 @@ DIFFERENT = {
 def body_hash(tmp_path: Path, name: str, text: str) -> str:
     path = tmp_path / f"{name}.sql"
     path.write_text(text, encoding="utf-8")
-    out = subprocess.run(
-        [str(NODE), str(SQL_ENTRY), "--file", str(path)],
-        check=True, capture_output=True, text=True,
-    ).stdout
+    done = run_adapter_file([str(NODE), str(SQL_ENTRY)], path.name, cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    out = done.stdout
     nodes = [n for n in json.loads(out)["nodes"] if n["qualified_name"] == "dbo.GetOrders"]
     assert len(nodes) == 1, nodes
     return str(nodes[0]["extra"]["body_hash"])
