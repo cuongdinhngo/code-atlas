@@ -49,7 +49,7 @@ RESOLVED**, so "nothing references X" is often "nothing *resolved* references X"
 
 ## Session status
 
-- **KEY:** 440 · **work_doc_mode:** embed · **Current phase:** 3 execute.
+- **KEY:** 440 · **work_doc_mode:** embed · **Current phase:** 5 finalise — the PR is open; merging is the maintainer's.
 - `TRACK: backend` · Run mode: `autorun 437 - 438 - 440`, third — `REVIEWER: ON` · `CHALLENGER: ON` · `cost_tier: standard`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/440-compute-sandbox` from `main` at `63991c1b` (independent of 437/438). Contract
@@ -72,6 +72,7 @@ RESOLVED**, so "nothing references X" is often "nothing *resolved* references X"
 | W1 | 434's caps had ~34 chars left | want | **ASSUMED:** each added tool brings its own share — description total `+600`, surface `+1,100` |
 | W2 | scope 6 ships "one proving template" | want | **ASSUMED:** two — `tier_mix`, and `no_referrer`, because AC4 asserts an absence and `tier_mix` has none |
 | W3 | scope 4 names two evidence levels | want | **ASSUMED:** a third, `mention_unchecked`, when the grep is cut by its deadline or cannot run — R5.6 forbids calling that "no mention" |
+| W4 | scope 2: the authorizer allows "SELECT / READ / FUNCTION only" | want | **ASSUMED:** also `RECURSIVE` (so a runaway recursive CTE is *interrupted* by the deadline, as AC1 asks, not refused at parse) and the FTS index's own bare `PRAGMA data_version` read (FTS5 issues it; refusing it refuses every text lookup) |
 
 ## Phase 1 — analysis
 
@@ -107,7 +108,10 @@ FUNCTION from a short list / RECURSIVE, plus the FTS index's own `PRAGMA data_ve
 it hit the 3 s deadline every time, leaving every absence unchecked.
 **Proving test:** `tests/test_compute.py`.
 
-`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+- E1 — W4, two authorizer allowances beyond scope 2's words; approved under the handover, not at a gate; **expiry:**
+  the maintainer ratifies or rejects W4 on the PR before merge.
+
+`EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
 ## Phase 3 — execute
 
@@ -117,3 +121,54 @@ red twice while building — the file's own `CONTAINS` edge counted as a mention
 **Anchor (counts only, a copy of the index):** `tier_mix` 1.5 s warm (28 rows); `no_referrer` Function 3.1 s (total
 7,011; the 50 returned all mentioned), Method 3.2 s (total 7,372; 41 mentioned, 9 unchecked — the grep's deadline), Class
 0.4 s (total 713; 18 strong candidates, 32 mentioned).
+
+## Phase 4 — review
+
+`REVIEWER: ON` · `CHALLENGER: ON`. Review step: mango `reviewer` (Sonnet), round 1, at `f64d2172`.
+
+- **`reviewer` round 1** (67,483 tokens): CHANGES REQUESTED → conditional LGTM on 1–2. Sandbox sound: `mode=ro` +
+  `query_only` + hardened `_connect`, default-deny authorizer, bound parameters only, the FTS phrase escaped.
+  - **1, taken:** the grep arm and `mention_unchecked` gained tests (parse, a flag-like word, the deadline, the
+    monkeypatched cut).
+  - **2, taken:** occurrences are counted, so `foo(foo)` on the definition line is a mention; a name holding a line
+    break is never grepped and stays unchecked. **Minors taken:** a root prefix is no filter.
+- **`challenger` round 1** (70,647 tokens, ticket-blind): 11 met · 3 not met · 1 can't tell. **Taken:** Important 1 —
+  the grep missed untracked indexed files (`--untracked` now); params are typed and the catalogue lists each type's
+  values; a template names its body by key; non-object params fail loud; a self-call is no referrer; the CLI route and
+  the read-only annotation are tested.
+- **`challenger` round 2** (verify-only, at `813d93f3`): its final table, transcribed:
+
+`CHALLENGER VERDICT: 16 requirement(s) rebuilt | 15 met | 1 not met | 0 can't tell | 1 not-met covered by a recorded exclusion`
+
+The one not met is row 2, the authorizer's wording — W4, E1. `m + g = 16 = n`: the gate closes, E1 awaiting the
+maintainer. **Not taken:** `sqlite_master` stays readable (schema only — callers supply no SQL); `CONTAINS` edges stay in
+`tier_mix`'s caveat (true, if noisy).
+
+Verdict: clean (conditional LGTM landed; challenger 15 met + 1 recorded exclusion). `Ph3/4 proven by`: AC1–AC4 →
+`tests/test_compute.py` (28).
+
+Reviewed at 813d93f3
+
+## Phase 5 — finalise
+
+**Durable lesson.** 440-C1 `a-deadline-on-a-scan-is-an-answer-only-if-the-scan-ever-fits` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/440-compute-sandbox`; open its PR against `main`. Deferred: ratify W1–W4; merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | rule-book `reviewer` | 1 | 67,483 |
+| 4 review | ticket-blind `challenger` | 1 | 70,647 |
+| 4 review | ticket-blind `challenger` | 2 | unmeasured (the host reported no usage for the resumed run) |
+
+`LEDGER TOTAL: 138,130 · top cost driver: 4 review / challenger` — main loop and challenger round 2 unmeasured.
