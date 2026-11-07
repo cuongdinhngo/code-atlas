@@ -25,6 +25,20 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 
+## Open work — 0.11 Verify & Compute
+
+Which of the things an agent was told are still true, and exact answers over the whole graph. 442's
+day-7 result decides what continues.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 437 | [SQL live definition + format-blind hash](tasks/437_sql-live-definition.md) | Graph | todo | 384 |
+| 438 | [`verify_refs`: stale refs in agent docs](tasks/438_verify-refs-core.md) | Verify | todo | 384, 429, 430 |
+| 439 | [`verify_refs`: patches, MCP tool, SessionStart line](tasks/439_verify-refs-patches-and-surfaces.md) | Verify | todo | 438, 434 |
+| 440 | [`compute`: views, sandbox, template contract](tasks/440_compute-sandbox-and-contract.md) | Compute | todo | 428, 434 |
+| 441 | [`compute`: the first eight templates](tasks/441_compute-catalogue.md) | Compute | todo | 440, 437 |
+| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–441 |
+
 ## Open work — Trust (security)
 
 Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
