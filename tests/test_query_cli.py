@@ -48,6 +48,7 @@ ARGS: dict[str, dict[str, object]] = {
     "subtree_dependencies": {"subtree": "src"},
     "reachable_from": {},
     "find_orphans": {},
+    "compute": {"template": "tier_mix"},
     "explain_path": {"from_qname": CALLER, "to_qname": SUBJECT},
     "architecture_overview": {},
     "guided_tour": {},

@@ -37,6 +37,7 @@ from code_atlas.tools.build_or_update_index import NAME as BUILD
 from code_atlas.tools.check_architecture_rules import NAME as ARCH_RULES
 from code_atlas.tools.check_column_defaults import NAME as COL_DEFAULTS
 from code_atlas.tools.class_diagram import NAME as CLASS_DIAG
+from code_atlas.tools.compute import NAME as COMPUTE
 from code_atlas.tools.diff_architecture import NAME as DIFF_ARCH
 from code_atlas.tools.explain_path import NAME as EXPLAIN
 from code_atlas.tools.file_outline import NAME as OUTLINE
@@ -194,6 +195,7 @@ def test_the_proof_has_something_to_run() -> None:
         SUBTREE_DEPS,
         REACHABLE,
         ORPHANS,
+        COMPUTE,
         EXPLAIN,
         OVERVIEW,
         TOUR,
@@ -444,6 +446,7 @@ CALLS: tuple[tuple[str, dict[str, object]], ...] = (
     (IMPACT, {"qnames": ["\\Missing"]}),
     (REACHABLE, {}),
     (ORPHANS, {}),
+    (COMPUTE, {"template": "tier_mix"}),
     (EXPLAIN, {"from_qname": "\\A", "to_qname": "\\B"}),
     (OVERVIEW, {}),
     (TOUR, {}),

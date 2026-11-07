@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **`compute`, a 25th tool (440).** Counting, grouping and absences over the whole graph come from a named template,
+  never SQL a caller writes, run in a read-only sandbox (`query_only`, an authorizer, a 3 s deadline, 200 rows).
+  Two templates ship: `tier_mix` and `no_referrer`, whose rows say whether a name with no edge is still mentioned
+  somewhere (`no_edge_but_mentioned` is unknown, never dead). `code-atlas query compute --args '{…}'` asks it from a shell.
 - **`code-atlas query` and a closed pipe (436).** A reader that closes stdout early (`| head`) no longer
   reports "unreadable index"; the command exits `141` quietly. A real database error keeps its message.
 - **Tool surface: the 24 descriptions are shortened to 10,066 characters in all** (434), from 45,574.

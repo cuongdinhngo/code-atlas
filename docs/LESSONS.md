@@ -251,6 +251,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   upgrade" after a new commit. This machine's own code-atlas receipt carries `?rev=864ae8a`.
 - destination: first sighting.
 
+### 440-C1 — a deadline on a scan is an answer only if the scan ever fits inside it
+
+- type: 2 (heuristic) · handle: `area:compute`
+- status: proposed · seen: 440
+- evidence: the literal-mention pass scanned every edge's string arguments in SQL; on the anchor it hit its 3 s
+  deadline on every call, so every absence read `mention_unchecked` — honest and useless. One time-capped `git grep`
+  for a page's names answers in ~1 s. Measure a capped check on the real corpus before shipping it.
+- destination: first sighting.
+
 ### 386-C1 — a hook that compacts `git diff` output makes a saved patch unusable
 
 - type: 1 (tool) · handle: `symbol:rtk git diff`
