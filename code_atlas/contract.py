@@ -274,7 +274,11 @@ META_FIELDS: tuple[str, ...] = (
 
 # What a grep for one of an adapter's symbols looks like (345). `scoped` shapes fire only when the
 # grep is limited to that adapter's own suffixes — a bare name alone could be any text.
-SHAPE_KINDS: tuple[str, ...] = ("declaration", "reference", "call", "name")
+# `qualified` (438) is how a doc writes one symbol whole (`App\\Foo::bar`, `pkg.mod.f`, `dbo.P`):
+# matched against a doc's code span, never a grep, so the grep nudge reads GREP_SHAPE_KINDS only.
+GREP_SHAPE_KINDS: tuple[str, ...] = ("declaration", "reference", "call", "name")
+QUALIFIED_SHAPE = "qualified"
+SHAPE_KINDS: tuple[str, ...] = (*GREP_SHAPE_KINDS, QUALIFIED_SHAPE)
 SHAPE_FIELDS: tuple[str, ...] = ("kind", "pattern", "scoped")
 REQUIRED_SHAPE_FIELDS: tuple[str, ...] = ("kind", "pattern")
 

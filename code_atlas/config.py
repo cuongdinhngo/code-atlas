@@ -60,6 +60,10 @@ KNOB_KEYS: tuple[str, ...] = (
     "container_root",
     "caller_root",
     "definition_order",
+    "refs_instruction",
+    "refs_memory",
+    "refs_reference",
+    "refs_archive",
 )
 
 # Query-time only: kept out of the ``CA_*`` slice of ``config_identity`` (259). The project file
@@ -142,6 +146,11 @@ class Config:
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
     # Path globs, most authoritative first: which of a qname's definitions is live (437).
     definition_order: tuple[str, ...] | None = None
+    # The doc corpus `--verify-refs` reads, per priority class; None keeps the default (438).
+    refs_instruction: tuple[str, ...] | None = None
+    refs_memory: tuple[str, ...] | None = None
+    refs_reference: tuple[str, ...] | None = None
+    refs_archive: tuple[str, ...] | None = None
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -303,6 +312,10 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         definition_order=_resolve(
             "definition_order", _as_definition_order, None, environ, file_values
         ),
+        refs_instruction=_resolve("refs_instruction", as_doc_globs, None, environ, file_values),
+        refs_memory=_resolve("refs_memory", as_doc_globs, None, environ, file_values),
+        refs_reference=_resolve("refs_reference", as_doc_globs, None, environ, file_values),
+        refs_archive=_resolve("refs_archive", as_doc_globs, None, environ, file_values),
     )
 
 
@@ -577,6 +590,25 @@ def _as_definition_order(label: str, raw: object) -> tuple[str, ...] | None:
     if not isinstance(names, list):
         raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of path globs")
     return tuple(definition_globs(label, [name for name in names if str(name).strip()])) or None
+
+
+def as_doc_globs(label: str, raw: object) -> tuple[str, ...] | None:
+    """Repo-relative path globs naming docs to read, never run (438, 430). Blank/unset = default."""
+    if label.startswith(PROJECT_FILE) and not isinstance(raw, list):
+        raise ConfigError(f"{label}: {raw!r} is not a list of path globs")
+    names = raw.split(",") if isinstance(raw, str) else raw
+    if not isinstance(names, list):
+        raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of path globs")
+    kept: list[str] = []
+    for name in names:
+        if not isinstance(name, str):
+            raise ConfigError(f"{label}: {name!r} is not a path glob")
+        if not name.strip():
+            continue
+        if not _is_repo_relative(name):
+            raise ConfigError(f"{label}: {name!r} must be a repo-relative glob (no '/', '.', '..')")
+        kept.append(name.strip().replace("\\", "/").strip("/"))
+    return tuple(dict.fromkeys(kept)) or None
 
 
 def definition_globs(label: str, globs: Sequence[object]) -> list[str]:

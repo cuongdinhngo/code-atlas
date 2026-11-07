@@ -29,6 +29,8 @@ const META = {
     },
     { kind: "reference", pattern: String.raw`(?i)\bexec(ute)?\s+[\w.\[\]]+` },
     { kind: "name", pattern: String.raw`^[\w.\[\]]+$`, scoped: true },
+    // An object as a doc writes it whole: `schema.object` (438).
+    { kind: "qualified", pattern: String.raw`^[A-Za-z_#@][\w#@$]*\.[A-Za-z_#@][\w#@$]*$` },
   ],
 };
 

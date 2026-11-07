@@ -65,5 +65,21 @@ def test_a_malformed_shape_fails_the_handshake(shapes: object, fragment: str) ->
 
 
 def test_the_shape_vocabulary_is_the_one_the_contract_names() -> None:
-    assert contract.SHAPE_KINDS == ("declaration", "reference", "call", "name")
+    assert contract.GREP_SHAPE_KINDS == ("declaration", "reference", "call", "name")
+    assert contract.SHAPE_KINDS == (*contract.GREP_SHAPE_KINDS, "qualified")
     assert all(re.fullmatch(r"[a-z]+", kind) for kind in contract.SHAPE_KINDS)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [pytest.param(n, marks=REGISTRY[n].cli.availability, id=n) for n in sorted(REGISTRY)],
+)
+def test_a_qualified_shape_names_a_whole_symbol_never_a_bare_word(name: str) -> None:
+    """438: a `qualified` shape reads a doc's code span whole — anchored, and never a lone word."""
+    shapes = REGISTRY[name].cli.handshake()["symbol_shapes"]
+    assert isinstance(shapes, list)
+    for shape in shapes:
+        if shape["kind"] == "qualified":
+            pattern = str(shape["pattern"])
+            assert pattern.startswith("^") and pattern.endswith("$"), pattern
+            assert not re.match(pattern, "save") and not re.match(pattern, "a b.c"), pattern

@@ -8,6 +8,7 @@ an agent asked (260, 379), and one batch would drown them.
 answer ``holds``, ``changed`` (naming each key that moved) or ``unverifiable`` (task 383).
 ``--snapshot-symbols`` writes the per-symbol fingerprints a consumer keeps; ``--changed-since``
 judges named qnames or paths against one (task 384). Both read the index directly, not a tool.
+``--verify-refs`` states which references in agent-facing docs still resolve (task 438).
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from pathlib import Path
 
 from fastmcp import Client, FastMCP
 
-from code_atlas import symbol_changes
+from code_atlas import doc_refs, symbol_changes
 from code_atlas.config import Config
 from code_atlas.tools import build_or_update_index, claim, generate_onboarding
 from code_atlas.tools.schema_guard import SCHEMA_MISMATCH
@@ -233,6 +234,29 @@ def _snapshot_symbols(config: Config, out: str) -> int:
     return OK
 
 
+def _verify_refs(config: Config, args: argparse.Namespace) -> int:
+    """One answer: every reference's state, JSON or a table; ``--fail-on`` makes it a lint."""
+    from code_atlas.store import GraphStore
+
+    with GraphStore(config.db_path) as store:
+        answer = doc_refs.verify_refs(
+            config, store, globs=args.verify_refs, classes=args.doc_class, limit=args.limit
+        )
+    if args.format == "md":
+        sys.stdout.write(doc_refs.markdown(answer))
+    else:
+        print(json.dumps(answer, ensure_ascii=False), flush=True)
+    failing = {state for state in args.fail_on.split(",") if state}
+    by_class = answer["by_class"]
+    assert isinstance(by_class, dict)
+    hit = any(
+        by_class.get(name, {}).get(state, 0)
+        for name in doc_refs.COUNTED_CLASSES
+        for state in failing
+    )
+    return NOT_HELD if hit else OK
+
+
 def _changed_since(
     config: Config, base: tuple[dict[str, object], list[symbol_changes.Symbol]],
     qnames: list[str], paths: list[str],
@@ -306,18 +330,37 @@ def main(argv: list[str] | None = None) -> int:
         metavar="SNAPSHOT",
         help="judge each --qname / --path against a --snapshot-symbols file",
     )
+    parser.add_argument(
+        "--verify-refs",
+        nargs="*",
+        metavar="GLOB",
+        help="which references in agent docs still resolve; GLOBs narrow the corpus",
+    )
+    parser.add_argument(
+        "--class", dest="doc_class", action="append", default=[], choices=doc_refs.CLASSES,
+        help="--verify-refs: only these priority classes",
+    )
+    parser.add_argument("--format", choices=("json", "md"), default="json", help="--verify-refs")
+    parser.add_argument(
+        "--fail-on", default="", metavar="STATES",
+        help=f"--verify-refs: exit {NOT_HELD} when a counted row is in one (e.g. moved,gone)",
+    )
+    parser.add_argument("--limit", type=int, default=doc_refs.DEFAULT_LIMIT, help="--verify-refs")
     parser.add_argument("--qname", action="append", default=[], help="a symbol to judge")
     parser.add_argument("--path", action="append", default=[], help="a file whose symbols to judge")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     modes = (
         args.tool, args.batch, args.verify_claim, args.verify_claims,
-        args.snapshot_symbols, args.changed_since,
+        args.snapshot_symbols, args.changed_since, args.verify_refs,
     )
     if sum(mode is not None for mode in modes) != 1:
         parser.error(
             "name exactly one of a tool, --batch, --verify-claim, --verify-claims, "
-            "--snapshot-symbols or --changed-since"
+            "--snapshot-symbols, --changed-since or --verify-refs"
         )
+    fail_on = {state for state in args.fail_on.split(",") if state}
+    if fail_on - set(doc_refs.STATES):
+        parser.error(f"--fail-on: states are {', '.join(doc_refs.STATES)}")
     if (args.qname or args.path) and args.changed_since is None:
         parser.error("--qname and --path belong to --changed-since")
     if args.changed_since is not None and not (args.qname or args.path):
@@ -343,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
                     base = symbol_changes.read_snapshot(json.load(handle))
             except (json.JSONDecodeError, ValueError) as error:
                 raise UsageError(f"--changed-since: {error}") from None
-        elif args.snapshot_symbols is not None:
+        elif args.snapshot_symbols is not None or args.verify_refs is not None:
             pass
         elif args.verify_claim is not None:
             claims = _claims_in(args.verify_claim, None)
@@ -400,6 +443,8 @@ def _run(
 
     if args.snapshot_symbols is not None:
         return _snapshot_symbols(config, args.snapshot_symbols)
+    if args.verify_refs is not None:
+        return _verify_refs(config, args)
     if base is not None:
         return _changed_since(config, base, args.qname, args.path)
     server = build_server(config, count=False)
