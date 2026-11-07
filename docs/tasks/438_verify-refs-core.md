@@ -178,6 +178,18 @@ E1's report: `m + g = 16 ≠ 17`, so **Gate 4 does not close by the harness's ar
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+**The final gate.** Run 1 at `d3a1891c` was RED: three long test lines, two module-count pins (doc_refs is the 110th
+core module), the trust sweep (an old blob written with `write_text`, now `safe_write`), and the agent brief not naming
+`--verify-refs` and its flags. Fixed in `38ec5107`; run 2:
+
+Ran at 38ec5107
+
+```
+$ scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
 ### Outward actions
 
 Under the handover: push `feat/438-verify-refs-core`; open its PR (base: 437's branch). Deferred: ratify W1/W2; merge.
