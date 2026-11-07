@@ -72,7 +72,10 @@ def write(root: Path, files: dict[str, str]) -> None:
 def build(root: Path) -> Config:
     config = load_config(
         root,
-        {"CA_WORKERS": "1", "CA_PYTHON_CMD": shlex.join([sys.executable, str(PY_ENTRY), "--server"])},
+        {
+            "CA_WORKERS": "1",
+            "CA_PYTHON_CMD": shlex.join([sys.executable, str(PY_ENTRY), "--server"]),
+        },
     )
     with GraphStore(config.db_path) as store:
         assert full_build(config, store).failed == 0
@@ -182,7 +185,8 @@ def test_archive_rows_are_reported_and_kept_apart(answer: dict[str, Any]) -> Non
 def test_ac5_total_count_and_truncated_are_truthful(repo: Config, answer: dict[str, Any]) -> None:
     with GraphStore(repo.db_path) as store:
         cut = doc_refs.verify_refs(repo, store, limit=2)
-    assert (cut["total_count"], cut["returned"], cut["truncated"]) == (answer["total_count"], 2, True)
+    shown = (cut["total_count"], cut["returned"], cut["truncated"])
+    assert shown == (answer["total_count"], 2, True)
     assert sum(sum(c.values()) for c in cut["by_class"].values()) == answer["total_count"]
 
 
@@ -200,7 +204,8 @@ def test_ac5_a_doc_with_no_reference_is_not_every_reference_resolved(tmp_path: P
     config = build(tmp_path)
     with GraphStore(config.db_path) as store:
         answer = doc_refs.verify_refs(config, store)
-    assert (answer["reason"], answer["files_read"], answer["total_count"]) == ("no_references", 1, 0)
+    shown = (answer["reason"], answer["files_read"], answer["total_count"])
+    assert shown == ("no_references", 1, 0)
 
 
 def test_ac3_a_toml_class_glob_is_matched_never_run(tmp_path: Path) -> None:

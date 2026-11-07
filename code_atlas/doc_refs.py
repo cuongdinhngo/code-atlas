@@ -22,7 +22,7 @@ from typing import Literal
 
 from code_atlas import gitutil
 from code_atlas.config import Config
-from code_atlas.containment import read_text, resolves_inside
+from code_atlas.containment import read_text, resolves_inside, safe_write
 from code_atlas.contract import MEMBER_SEPARATOR, QUALIFIED_SHAPE
 from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
@@ -618,7 +618,7 @@ class Resolver:
                     continue
                 try:
                     (root / rel).parent.mkdir(parents=True, exist_ok=True)
-                    (root / rel).write_text(text, encoding="utf-8")
+                    safe_write(root / rel, text, root=root)
                 except (OSError, UnicodeError):
                     continue  # an old blob that is not text: its body stays unknown
             parsed = parse_files(dataclasses.replace(self.config, root=root), list(files))
