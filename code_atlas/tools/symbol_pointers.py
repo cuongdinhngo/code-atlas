@@ -33,6 +33,7 @@ DEFINITION_LIVE = "live"
 DEFINITION_SUPERSEDED = "superseded"
 DEFINITION_UNRANKED = "unranked"
 DEFINITION_TEST_COPY = "test_copy"
+DEFINITION_STATE_FIELD = "definition_state"
 # Overrides named per read, and subtype levels walked to find them: a pointer, not a hierarchy.
 IMPLEMENTED_BY_CAP = 20
 _DESCENT_LEVELS = 4

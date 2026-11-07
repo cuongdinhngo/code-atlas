@@ -20,7 +20,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - **Which definition is live (437).** `definition_order` in `.code-atlas.toml` lists path globs, most
   authoritative first; one `<n>` reads a version from the path (`db/migrations/V<n>__*.sql`), so of a
   routine redefined in migrations and a snapshot the highest version is the one `read_symbol`
-  answers. A rules file's `definitions.precedence` takes `<n>` too. No rule, or a tie, names none.
+  answers, marked `definition_state: "live"`; each other definition names it in `superseded_by`. A rules file's `definitions.precedence` takes `<n>` too. No rule, or a tie, names none.
 - **The SQL `body_hash` ignores formatting (437).** Keyword case, a needless `[bracket]` or `"quote"`,
   the opening `CREATE`, `ALTER` or `CREATE OR ALTER` and a reflowed statement keep one fingerprint. **Full rebuild
   required** once this lands: every stored SQL `body_hash` moves, so a `--changed-since` snapshot

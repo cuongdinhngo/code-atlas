@@ -94,6 +94,10 @@ def test_ac1_read_symbol_answers_the_live_definition(ordered: Config) -> None:
     assert answer["reason"] == "ok", answer
     assert answer["file"] == LATEST and "10" in str(answer["source"])
     assert answer["ambiguity"] == "definition_precedence"
+    assert answer["definition_state"] == "live"
+    others = answer["ambiguous_definitions"]
+    assert {site["definition_state"] for site in others} == {"superseded"}
+    assert {site["superseded_by"]["file"] for site in others} == {LATEST}
 
 
 def test_ac2_with_no_rule_nothing_is_live(tmp_path: Path) -> None:

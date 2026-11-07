@@ -65,8 +65,11 @@ from code_atlas.tools.search_symbol import _column_reference_targets
 from code_atlas.tools.symbol_pointers import (
     ALIASES_FIELD,
     AMBIGUITY_FIELD,
+    DEFINITION_PRECEDENCE,
+    DEFINITION_STATE_FIELD,
     aliases,
     declared_precedence,
+    definition_states,
     implemented_by,
     one_definition_first,
 )
@@ -436,7 +439,16 @@ def _attach_pointers(
     if candidates and ambiguity:
         payload[AMBIGUITY_FIELD] = ambiguity
         # Labelled, so even one other definition is named: the >1 rule is for an unlabelled list.
-        payload[AMBIGUOUS_DEFINITIONS] = definition_sites([dict(c) for c in candidates[1:]])
+        sites = definition_sites([dict(c) for c in candidates[1:]])
+        if ambiguity == DEFINITION_PRECEDENCE:
+            # The declared order names the live one; each other definition says what supersedes it.
+            states = definition_states([dict(c) for c in candidates], declared_precedence(store))
+            payload[DEFINITION_STATE_FIELD] = states[0]["state"]
+            for site, state in zip(sites, states[1:], strict=True):
+                site[DEFINITION_STATE_FIELD] = state["state"]
+                if "superseded_by" in state:
+                    site["superseded_by"] = state["superseded_by"]
+        payload[AMBIGUOUS_DEFINITIONS] = sites
 
 
 def _int(value: object) -> int:
