@@ -139,7 +139,7 @@ span — the scanner exists not to hold the file.
 (`docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, `docs/LESSONS.md`, this file).
 **Proving test:** `tests/test_definition_order.py` (AC1, AC2, AC4); `tests/test_sql_body_hash_normalised.py` (AC3).
 
-`EXCLUSIONS: 3 recorded | 3 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 1 proven on a real corpus`
+`EXCLUSIONS: 4 recorded | 4 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 1 proven on a real corpus`
 
 - E1 — AC5 runs on the maintainer's anchor; **expiry:** the anchor count is recorded in
   `~/code-atlas-review/437-anchor.md` before the PR opens, or this row says why not.
@@ -147,6 +147,9 @@ span — the scanner exists not to hold the file.
   handover's delegated decisions, not at a gate; **expiry:** the maintainer ratifies or rejects W1 on the PR before merge.
 - E3 — W2: no `contract_version` bump in this PR (scope 4); BACKLOG *Follow-ups* names the 0.11 release as its owner.
   Approved under the handover; **expiry:** ratified on the PR before merge, and the bump lands at the 0.11 release.
+- E4 — W3: the knob is `definition_order` with path globs and one `<n>`, not `sql.definition_order` with
+  `migration:V<n>` labels: core config carries no language name (R1.1), and 414's globs already were the form. Approved
+  under the handover; **expiry:** ratified on the PR before merge.
 
 ## Phase 3 — execute
 
@@ -183,12 +186,19 @@ left is two definitions in one plain directory — a tie, `unranked`, never a gu
   **Taken:** `N 'x'` (a column and its alias) no longer hashes as `N'x'`. **Not taken:** keeping `[select]` apart from
   `select` — a bare reserved word where a delimited one stood is not valid T-SQL, so no real pair of bodies collides.
 
-`CHALLENGER VERDICT: 10 requirement(s) rebuilt | 5 met | 4 not met | 1 can't tell | 0 not-met covered by a recorded exclusion`
+- **`challenger` round 2** (54,100 + 57,063 tokens, ticket-blind, at `190faffc`, after `read_symbol` gained
+  `definition_state` / `superseded_by`): first pass 3 met · 5 not met · 1 can't tell; asked to re-read rows 7–8 (it had
+  grepped only `tests/test_config.py`), it corrected both to met. Its final table, transcribed:
 
-The four "not met" are its two partly-met rows (`live` / `superseded_by` exposed by no tool yet; AC1 proven on the helper)
-and the two recorded want-decisions W1 and W2 — none is an EXCLUSIONS row, so none is counted as covered.
+`CHALLENGER VERDICT: 9 requirement(s) rebuilt | 5 met | 3 not met | 1 can't tell | 3 not-met covered by a recorded exclusion`
 
-Verdict: conditional LGTM, findings 1 and 2 landed. `Ph3/4 proven by`: AC1, AC2, AC4 → `tests/test_definition_order.py`;
+The three not met are W1 (row 1, the core derives the ordinal), W3 (row 3, the key is `definition_order`, globs, not
+`sql.definition_order` / `migration:V<n>` — a language name in core config is R1.1's leak) and W2 (row 5, bump deferred):
+E2–E4, approved under the handover, not at a gate. The can't-tell is AC5, off-diff, held by E1's anchor report.
+
+**Gate 4 does not close by the harness's arithmetic** (`m + g = 8 ≠ 9`: AC5's can't-tell), and E2–E4 await the
+maintainer. No code change can close either without reversing a delegated decision, so the PR opens as a **draft**
+naming this first; the reviewer's conditional LGTM stands, its findings 1 and 2 landed. `Ph3/4 proven by`: AC1, AC2, AC4 → `tests/test_definition_order.py`;
 AC3 → `tests/test_sql_body_hash_normalised.py` (19 variants, the reviewer's and challenger's cases included); AC5 →
 `~/code-atlas-review/437-anchor.md`; G1 → AC1 + AC5.
 
@@ -224,5 +234,6 @@ ratify W1 and W2; merge; the 0.11 release's contract bump.
 |---|---|---|---|
 | 4 review | rule-book `reviewer` | 1 | 67,075 |
 | 4 review | ticket-blind `challenger` | 1 | 64,148 |
+| 4 review | ticket-blind `challenger` | 2 | 111,163 |
 
-`LEDGER TOTAL: 131,223 · top cost driver: 4 review / reviewer` — main loop unmeasured.
+`LEDGER TOTAL: 242,386 · top cost driver: 4 review / challenger` — main loop unmeasured.
