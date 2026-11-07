@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from code_atlas import contract, records, routes
-from code_atlas.config import Config, ConfigError
+from code_atlas.config import Config, ConfigError, definition_globs
 from code_atlas.containment import read_bytes, read_text, resolves_inside
 from code_atlas.limits import checked_pattern
 from code_atlas.store import GraphStore
@@ -83,6 +83,8 @@ class TemplateRef(NamedTuple):
 
 # The declared definition precedence a tool reads when a qname has several definitions (414).
 DEFINITION_PRECEDENCE_META_KEY = "definition_precedence"
+# The toml's ``definition_order`` (437), read before the rules file's precedence.
+DEFINITION_ORDER_META_KEY = "definition_order"
 
 @dataclass(frozen=True, slots=True)
 class RulesPayload:
@@ -170,8 +172,7 @@ def _precedence(raw: object, label: str) -> list[str]:
         raise ConfigError(
             f"indirection_rules: {label!r} definitions.precedence must be a list of path globs"
         )
-    # Paths are repo-relative: a leading `/` is dropped, never left to match nothing.
-    return [glob.strip().lstrip("/") for glob in globs]
+    return definition_globs(f"indirection_rules: {label!r} definitions.precedence", globs)
 
 
 def publish_definitions(store: GraphStore, payload: RulesPayload | None) -> None:
@@ -180,6 +181,15 @@ def publish_definitions(store: GraphStore, payload: RulesPayload | None) -> None
         store.delete_meta(DEFINITION_PRECEDENCE_META_KEY)
     else:
         store.set_meta(DEFINITION_PRECEDENCE_META_KEY, json.dumps(list(payload.precedence)))
+
+
+def publish_definition_order(store: GraphStore, config: Config) -> None:
+    """Store the toml's ``definition_order``, or drop it — on every build, since a toml edit moves
+    no rules digest and parses no file (437)."""
+    if config.definition_order:
+        store.set_meta(DEFINITION_ORDER_META_KEY, json.dumps(list(config.definition_order)))
+    else:
+        store.delete_meta(DEFINITION_ORDER_META_KEY)
 
 
 def rules_digest(payload: RulesPayload | None) -> str:

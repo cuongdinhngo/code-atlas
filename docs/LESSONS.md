@@ -251,6 +251,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   upgrade" after a new commit. This machine's own code-atlas receipt carries `?rev=864ae8a`.
 - destination: first sighting.
 
+### 437-C1 — a fingerprint is taken over the span the scanner names, not the statement
+
+- type: 2 (heuristic) · handle: `area:body_hash`
+- status: proposed · seen: 437
+- evidence: `CREATE OR` + newline + `ALTER PROCEDURE` normalised correctly as text, yet still hashed apart:
+  the scanner starts the routine's span at the `ALTER` line, so the span never held `CREATE`. Test a
+  normalisation through the adapter's own spans (the reviewer's split-header case), never on a string.
+- destination: first sighting.
+
 ### 386-C1 — a hook that compacts `git diff` output makes a saved patch unusable
 
 - type: 1 (tool) · handle: `symbol:rtk git diff`

@@ -8,11 +8,14 @@ copies. Each pointer is read from rows and edges the index already holds; none i
 from __future__ import annotations
 
 import fnmatch
+import functools
 import json
+import re
 from collections.abc import Mapping, Sequence
 
 from code_atlas import contract
-from code_atlas.enrichment import DEFINITION_PRECEDENCE_META_KEY
+from code_atlas.config import VERSION_TOKEN
+from code_atlas.enrichment import DEFINITION_ORDER_META_KEY, DEFINITION_PRECEDENCE_META_KEY
 from code_atlas.store import GraphStore, Row
 from code_atlas.symbol_role import path_indicates_test
 
@@ -25,6 +28,12 @@ TEST_COPIES = "test_copies"
 MIGRATION_REDEFINITIONS = "migration_redefinitions"
 # The project's declared precedence picks the definition that answers (414).
 DEFINITION_PRECEDENCE = "definition_precedence"
+# A definition's place under the declared precedence (437); only `live` is the one that runs.
+DEFINITION_LIVE = "live"
+DEFINITION_SUPERSEDED = "superseded"
+DEFINITION_UNRANKED = "unranked"
+DEFINITION_TEST_COPY = "test_copy"
+DEFINITION_STATE_FIELD = "definition_state"
 # Overrides named per read, and subtype levels walked to find them: a pointer, not a hierarchy.
 IMPLEMENTED_BY_CAP = 20
 _DESCENT_LEVELS = 4
@@ -177,29 +186,107 @@ def latest_migration_first(
 
 
 def declared_precedence(store: GraphStore) -> tuple[str, ...]:
-    """The path globs a rules file declared, most authoritative first; empty when none (414)."""
-    raw = store.get_meta(DEFINITION_PRECEDENCE_META_KEY)
-    return tuple(json.loads(raw)) if raw else ()
+    """The declared path globs, most authoritative first: the toml's ``definition_order`` (437),
+    then the rules file's ``definitions.precedence`` (414); empty when neither is declared."""
+    globs: list[str] = []
+    for key in (DEFINITION_ORDER_META_KEY, DEFINITION_PRECEDENCE_META_KEY):
+        raw = store.get_meta(key)
+        globs.extend(json.loads(raw) if raw else ())
+    return tuple(dict.fromkeys(globs))
+
+
+# What `fnmatch.translate` returns: `(?s:<body>)\Z`.
+_TRANSLATED = re.compile(r"\(\?s:(.*)\)\\Z", re.DOTALL)
+
+
+@functools.lru_cache(maxsize=256)
+def _glob_pattern(glob: str) -> re.Pattern[str]:
+    """``fnmatch`` semantics, plus one ``<n>`` capturing a ``1``, ``1.5`` or ``2_0_1`` version."""
+    parts = []
+    for part in glob.split(VERSION_TOKEN):
+        body = _TRANSLATED.fullmatch(fnmatch.translate(part))
+        if body is None:  # a Python whose fnmatch wraps its pattern differently: fail loud
+            raise RuntimeError(f"fnmatch.translate({part!r}) has an unknown shape")
+        parts.append(body.group(1))
+    return re.compile(r"(\d+(?:[._]\d+)*)".join(parts), re.DOTALL)
+
+
+def _rank(path: str, precedence: Sequence[str]) -> tuple[int, tuple[int, ...]] | None:
+    """How authoritative a definition at ``path`` is: the first glob it matches, then its version.
+
+    Higher is more authoritative; ``None`` when no glob matches. ``1.0`` and ``1`` tie (403).
+    """
+    for position, glob in enumerate(precedence):
+        hit = _glob_pattern(glob).fullmatch(path)
+        if hit is None:
+            continue
+        digits = re.split(r"[._]", hit.group(1)) if hit.groups() else []
+        version = [int(part) for part in digits]
+        while len(version) > 1 and version[-1] == 0:
+            version.pop()
+        return len(precedence) - position, tuple(version)
+    return None
+
+
+def _answering(
+    rows: Sequence[Row], precedence: Sequence[str], *, complete: bool
+) -> tuple[Row | None, dict[int, tuple[int, tuple[int, ...]]]]:
+    """The one production row the precedence ranks highest, and every production row's rank.
+
+    A tie at the top, no glob matching, or a cut fetch (an unseen row may rank higher): ``None``.
+    """
+    ranks: dict[int, tuple[int, tuple[int, ...]]] = {}
+    for index, row in enumerate(rows):
+        rank = None if row.get("is_test") else _rank(str(row["file_path"]), precedence)
+        if rank is not None:
+            ranks[index] = rank
+    if not complete or not ranks:
+        return None, ranks
+    best = max(ranks.values())
+    top = [index for index, rank in ranks.items() if rank == best]
+    return (rows[top[0]] if len(top) == 1 else None), ranks
 
 
 def precedence_first(
     rows: Sequence[Row], precedence: Sequence[str], *, complete: bool = True
 ) -> tuple[list[Row], bool]:
-    """The one production definition the first matching glob names, then the rest (414).
+    """The one production definition the precedence ranks highest, then the rest (414, 437).
 
-    The first glob any production row matches decides: one row answers; two leave the rows as
-    they are, never a guess. No glob matches, a cut fetch, or no precedence: not held.
+    The first glob any production row matches decides, and within a ``<n>`` glob the highest
+    version: one row answers; a tie leaves the rows as they are, never a guess.
     """
-    production = [row for row in rows if not row.get("is_test")]
-    if not complete or len(rows) < 2 or not precedence:
+    if len(rows) < 2 or not precedence:
         return list(rows), False
-    for glob in precedence:
-        hits = [row for row in production if fnmatch.fnmatchcase(str(row["file_path"]), glob)]
-        if hits:
-            if len(hits) > 1:
-                return list(rows), False
-            return [hits[0], *(row for row in rows if row is not hits[0])], True
-    return list(rows), False
+    answer, _ = _answering(rows, precedence, complete=complete)
+    if answer is None:
+        return list(rows), False
+    return [answer, *(row for row in rows if row is not answer)], True
+
+
+def definition_states(
+    rows: Sequence[Row], precedence: Sequence[str], *, complete: bool = True
+) -> list[dict[str, object]]:
+    """Which of a qname's definitions is ``live`` and which are ``superseded`` by it (437).
+
+    ``definition_ordinal`` counts up to the live one (ties share one); a row no glob ranks has
+    none. No precedence, a tie or a cut fetch: every production row is ``unranked`` (R5.6).
+    """
+    answer, ranks = _answering(rows, precedence, complete=complete) if precedence else (None, {})
+    ordinal = {rank: n for n, rank in enumerate(sorted(set(ranks.values())), start=1)}
+    states: list[dict[str, object]] = []
+    for index, row in enumerate(rows):
+        state = {**_site(row), "definition_ordinal": ordinal.get(ranks.get(index, (0, ())))}
+        if row.get("is_test"):
+            state["state"] = DEFINITION_TEST_COPY
+        elif answer is None:
+            state["state"] = DEFINITION_UNRANKED
+        elif row is answer:
+            state["state"] = DEFINITION_LIVE
+        else:
+            state["state"] = DEFINITION_SUPERSEDED
+            state["superseded_by"] = _site(answer)
+        states.append(state)
+    return states
 
 
 def one_definition_first(
