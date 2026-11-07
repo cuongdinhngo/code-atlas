@@ -53,7 +53,7 @@ M10–M12 have all landed; their decisions live in
 
 *Nothing open.*
 
-**What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
+**What still governs open work:** the surface has **25 tools** (`main.TOOL_NAMES`), count-pinned by
 tests.
 - **Every `deferred` ticket holds its own gate** — 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled

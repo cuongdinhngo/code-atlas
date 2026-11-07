@@ -4,7 +4,7 @@
 a symbol graph, then answers *resolved relationship* questions — who calls this, what implements
 that, what breaks if I change this file — as rows, not as files to read.
 
-**PHP · TypeScript/JavaScript · Python · T-SQL. 24 tools.** Deterministic, offline, no LLM in the
+**PHP · TypeScript/JavaScript · Python · T-SQL. 25 tools.** Deterministic, offline, no LLM in the
 core, no graph-database server (SQLite only); not the `code-atlas-mcp` package. Every edge says how
 it was resolved, and the adapters differ in how deep they resolve —
 [measured per language](#languages).
@@ -338,7 +338,7 @@ one line to add and never edits `CLAUDE.md`.
 | Which writers of this table omit a defaulted column? | `check_column_defaults` (T-SQL) |
 | Is something *missing* here — an unchecked call site, an untested symbol? | **none of them** — use `grep`, and see [what it cannot answer](docs/TOOLS.md#what-it-cannot-answer--reach-for-grep-instead) |
 
-**All 24 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
+**All 25 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
 
 **From a script, with no agent:** `code-atlas query <tool> --args '<json>'` prints the payload the
 MCP tool returns, as one JSON line; `code-atlas query --batch <file.jsonl>` (`-` for stdin) takes one
@@ -484,7 +484,7 @@ kept — and what a legitimate skip looks like are in [`AGENTS.md`](AGENTS.md).
 
 | Doc | Answers |
 |---|---|
-| [`docs/TOOLS.md`](docs/TOOLS.md) | all 24 tools, the operator prompts, the opt-in hooks, and which tools take a list of subjects |
+| [`docs/TOOLS.md`](docs/TOOLS.md) | all 25 tools, the operator prompts, the opt-in hooks, and which tools take a list of subjects |
 | [`docs/design/`](docs/design/) | why an answer is shaped the way it is — [payload](docs/design/payload.md) · [indexing & search](docs/design/indexing.md) · [impact & claims](docs/design/impact-and-claims.md) |
 | [`docs/PLAN.md`](docs/PLAN.md) | the authoritative design, and **§19** — the decision log: what was measured, what was refuted |
 | [`docs/CONVENTION.md`](docs/CONVENTION.md) | naming, repo layout, and **§6** — the payload contract every tool answer obeys |

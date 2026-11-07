@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 # Metadata ops (rev-parse/ls-files/diff --name-only) are sub-second even on huge repos; 30s covers a
@@ -181,6 +182,32 @@ def config_value(root: Path, key: str) -> str | None:
     return None if found is None else found.strip()
 
 
+def word_sites(
+    root: Path, words: Sequence[str], *, timeout: float
+) -> dict[str, set[tuple[str, int]]] | None:
+    """Where each word stands whole in the tracked tree: ``{word: {(path, line)}}`` (440).
+
+    One time-capped ``git grep -F -w`` for every word, each fenced by ``-e``; None when git cannot
+    answer in ``timeout`` — the caller then knows nothing, never that nothing matched.
+    """
+    if not words:
+        return {}
+    patterns = [part for word in words for part in ("-e", word)]
+    found = _run(
+        root, "grep", "-n", "-o", "-w", "-F", "-I", "-z", *patterns, "--",
+        timeout=timeout, empty_exit=1,
+    )
+    if found is None:
+        return None
+    sites: dict[str, set[tuple[str, int]]] = {word: set() for word in words}
+    for record in found.split("\n"):
+        path, _, rest = record.partition("\0")
+        line, _, word = rest.partition("\0")
+        if word in sites and line.isdigit():
+            sites[word].add((path, int(line)))
+    return sites
+
+
 @functools.cache
 def git_version() -> tuple[int, int] | None:
     """``(major, minor)`` of the git on PATH, or None when it cannot be read. Asked once."""
@@ -226,7 +253,12 @@ def git_env(*, system_config: bool = False) -> dict[str, str]:
 
 
 def _run(
-    root: Path, *arguments: str, revision: str | None = None, system_config: bool = False
+    root: Path,
+    *arguments: str,
+    revision: str | None = None,
+    system_config: bool = False,
+    timeout: float = GIT_TIMEOUT,
+    empty_exit: int | None = None,
 ) -> str | None:
     """One read-only, hardened git command. Anything git cannot answer is None, never partial.
 
@@ -258,7 +290,7 @@ def _run(
     except OSError:
         return None
     try:
-        stdout, _ = proc.communicate(timeout=GIT_TIMEOUT)
+        stdout, _ = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         # A wedged git (or a grandchild holding the pipe) never yielded EOF. Kill the tree, then
         # drain briefly so communicate() returns rather than blocking on the now-dead pipe.
@@ -271,6 +303,8 @@ def _run(
     except (OSError, ValueError):
         _kill_tree(proc)
         return None
+    if empty_exit is not None and proc.returncode == empty_exit:
+        return ""  # a "found nothing" status (`git grep` exits 1), not a failure
     if proc.returncode != 0:
         if revision is not None:
             _too_old()

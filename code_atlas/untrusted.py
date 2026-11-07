@@ -84,6 +84,7 @@ FIELDS: dict[str, tuple[str, ...]] = {
         *_MISS,
         *_REF,
     ),
+    "compute": ("rows[].qname", "rows[].name", "rows[].file", "detail"),
     "find_callers": (*_ROWS, *_CALLS, *_RESOLVED, *_MISS, *_REF, *_CLAIM),
     "find_references": (*_ROWS, "results[].source", *_RECORDS, *_RESOLVED, *_MISS, *_REF, *_CLAIM),
     "find_implementations": (*_ROWS, *_RESOLVED, *_MISS, *_REF),

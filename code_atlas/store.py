@@ -19,6 +19,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -5024,3 +5025,144 @@ def _path_prefix_predicate(path_prefix: str | None) -> _Predicate:
         f"(SELECT 1 FROM nodes src WHERE src.qualified_name = edges.source_qname AND {src_clause}))"
     )
     return f"({clause} OR {placed})", (*extras, *src_extras)
+
+
+# --------------------------------------------------------------------------- compute (440)
+# Private views the compute templates read — not a public API, free to change with the schema.
+_COMPUTE_VIEWS = (
+    "CREATE TEMP VIEW v_file AS SELECT path AS file, language, parsed_ok FROM main.files",
+    "CREATE TEMP VIEW v_symbol AS SELECT id, kind, name, qualified_name AS qname, "
+    "file_path AS file, line_start AS line, line_end, language, COALESCE(is_test, 0) AS is_test "
+    "FROM main.nodes",
+    "CREATE TEMP VIEW v_edge AS SELECT kind, source_qname AS source, target_qname AS target, "
+    "target_raw, file_path AS file, line, COALESCE(confidence_tier, 'RESOLVED') AS tier, "
+    "arg_strings, language FROM main.edges",
+)
+COMPUTE_DEADLINE_S = 3.0
+COMPUTE_ROW_CAP = 200
+# Read and compute only: every other action — a write, ATTACH, PRAGMA — is denied by name.
+_COMPUTE_ACTIONS = {
+    sqlite3.SQLITE_SELECT: "select",
+    sqlite3.SQLITE_READ: "read",
+    sqlite3.SQLITE_FUNCTION: "function",
+    sqlite3.SQLITE_RECURSIVE: "recursive",
+}
+_COMPUTE_FUNCTIONS = frozenset(
+    {"count", "sum", "total", "min", "max", "avg", "coalesce", "ifnull", "nullif", "iif", "round",
+     "abs", "instr", "length", "lower", "upper", "substr", "substring", "printf", "match",
+     "group_concat", "json_extract", "json_array_length"}
+)  # fmt: skip
+_PREFIX = "(:prefix IS NULL OR substr({col}, 1, length(:prefix)) = :prefix)"
+# The template bodies: the only SQL a compute answer runs. Callers name a template, never SQL.
+COMPUTE_QUERIES: Mapping[str, str] = {
+    "tier_mix": (
+        "SELECT kind, tier, COUNT(*) AS edges FROM v_edge "
+        "WHERE (:edge_kind IS NULL OR kind = :edge_kind) AND " + _PREFIX.format(col="file") + " "
+        "GROUP BY kind, tier ORDER BY kind, tier"
+    ),
+    "tier_mix.caveat": (
+        "SELECT COUNT(*), COALESCE(SUM(tier = 'HEURISTIC'), 0), COALESCE(SUM(target IS NULL), 0) "
+        "FROM v_edge WHERE (:edge_kind IS NULL OR kind = :edge_kind) AND "
+        + _PREFIX.format(col="file")
+    ),
+    "no_referrer": (
+        "SELECT s.qname, s.name, s.file, s.line FROM v_symbol s "
+        "WHERE s.kind = :kind AND s.is_test = 0 AND " + _PREFIX.format(col="s.file") + " "
+        "AND NOT EXISTS (SELECT 1 FROM v_edge e WHERE e.target = s.qname AND e.kind != 'CONTAINS') "
+        "ORDER BY s.file, s.line"
+    ),
+    "no_referrer.population": (
+        "SELECT COUNT(*) FROM v_symbol WHERE kind = :kind AND is_test = 0 AND "
+        + _PREFIX.format(col="file")
+    ),
+    "no_referrer.caveat": (
+        "SELECT COUNT(*), COALESCE(SUM(target IS NULL), 0) FROM v_edge WHERE kind != 'CONTAINS'"
+    ),
+    "mention.raw": (
+        "SELECT 1 FROM v_edge WHERE target_raw IN (:name, :qname) AND kind != 'CONTAINS' LIMIT 1"
+    ),
+    "mention.text": (
+        "SELECT 1 FROM main.nodes_fts WHERE nodes_fts MATCH :phrase AND qualified_name != :qname "
+        "LIMIT 1"
+    ),
+}
+
+
+class ComputeRefused(Exception):
+    """A compute query the sandbox stopped — never a partial answer presented as complete."""
+
+    def __init__(self, reason: str, detail: str) -> None:
+        super().__init__(f"{reason}: {detail}")
+        self.reason = reason
+        self.detail = detail
+
+
+class ComputeSandbox:
+    """A read-only connection for compute: ``mode=ro``, ``query_only``, an authorizer that allows
+    SELECT / READ / a short function list, and a deadline per statement (440)."""
+
+    def __init__(self, db_path: Path, *, deadline_s: float = COMPUTE_DEADLINE_S) -> None:
+        self._conn = _connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+        for view in _COMPUTE_VIEWS:  # before query_only: a temp view is the last write it makes
+            self._conn.execute(view)
+        self._conn.execute("PRAGMA query_only = ON")
+        self._deadline_s = deadline_s
+        self._until = 0.0
+        self._denied: str | None = None
+        self._conn.set_authorizer(self._authorize)
+        self._conn.set_progress_handler(self._past_deadline, 1000)
+
+    def __enter__(self) -> "ComputeSandbox":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self._conn.close()
+
+    def _past_deadline(self) -> int:
+        return 1 if time.monotonic() > self._until else 0
+
+    def _authorize(
+        self, action: int, arg1: str | None, arg2: str | None, *_: str | None
+    ) -> int:
+        allowed = action in _COMPUTE_ACTIONS and (
+            action != sqlite3.SQLITE_FUNCTION or (arg2 or "").lower() in _COMPUTE_FUNCTIONS
+        )
+        # The full-text index reads `PRAGMA data_version` itself; a read with no value to set.
+        allowed = allowed or (
+            action == sqlite3.SQLITE_PRAGMA and arg1 == "data_version" and arg2 is None
+        )
+        if allowed:
+            return sqlite3.SQLITE_OK
+        what = arg2 if action == sqlite3.SQLITE_FUNCTION else f"action {action} {arg1 or ''}"
+        self._denied = what
+        return sqlite3.SQLITE_DENY
+
+    def query(
+        self, sql: str, params: Mapping[str, object] | Sequence[object] = (), *, cap: int
+    ) -> tuple[list[tuple[object, ...]], bool]:
+        """Up to ``cap`` rows and whether more existed; a refusal or a deadline raises."""
+        self._denied = None
+        self._until = time.monotonic() + self._deadline_s
+        try:
+            cursor = self._conn.execute(sql, params)
+            rows = cursor.fetchmany(cap + 1)
+        except sqlite3.DatabaseError as error:
+            if self._denied is not None or "not authorized" in str(error):
+                raise ComputeRefused("refused_by_sandbox", self._denied or str(error)) from None
+            if "interrupted" in str(error):
+                raise ComputeRefused("deadline_exceeded", f"over {self._deadline_s:g} s") from None
+            if "readonly" in str(error) or "read-only" in str(error):
+                raise ComputeRefused("refused_by_sandbox", "a write") from None
+            raise ComputeRefused("query_failed", str(error)) from None
+        return [tuple(row) for row in rows[:cap]], len(rows) > cap
+
+    def scalar(
+        self, sql: str, params: Mapping[str, object] | Sequence[object] = ()
+    ) -> tuple[object, ...]:
+        rows, _ = self.query(sql, params, cap=1)
+        return rows[0] if rows else ()
+
+    def count(self, sql: str, params: Mapping[str, object] | Sequence[object] = ()) -> int:
+        """Every row the body would return, counted — the truthful ``total_count``."""
+        found = self.scalar(f"SELECT COUNT(*) FROM ({sql})", params)
+        return int(str(found[0])) if found else 0

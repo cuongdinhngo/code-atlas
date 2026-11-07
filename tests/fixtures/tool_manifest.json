@@ -251,6 +251,94 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
+      "description": "Count, group or prove an absence over the whole graph — exact, not sampled.\n\nUse for \"how many\", \"which have none\", \"what share\" questions; leave a template out\nto list the catalogue (id, question, params). `no_referrer` overlaps `find_orphans`\nbut needs no entry points and labels each absence `no_edge_no_mention` (a strong\ncandidate) or `no_edge_but_mentioned` (unknown, never dead). Set `template`,\n`params`, `limit`. Read `caveat`, `total_count`, `truncated`, `reason` when empty.",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "maxLength": 4096,
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "maxLength": 4096,
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      },
+                      "maxItems": 100,
+                      "minItems": 1,
+                      "type": "array"
+                    }
+                  ]
+                },
+                "maxProperties": 64,
+                "propertyNames": {
+                  "maxLength": 256
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "template": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tier_mix",
+                  "no_referrer"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "name": "compute"
+    },
+    {
+      "annotations": {
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
       "description": "Diff two dataset (or onboarding manifest) JSON files for architectural drift.\n\nPass ``before`` and ``after`` paths inside the indexed tree; both must share ``index_root``\nand ``version`` or the call is refused. No drift says so explicitly.",
       "input_schema": {
         "additionalProperties": false,
