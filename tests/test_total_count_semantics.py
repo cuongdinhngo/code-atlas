@@ -202,6 +202,7 @@ NOT_PAGED_EMITTERS = {
     "check_architecture_rules",  # paging proven in test_architecture_rules; not this fixture
     "diff_architecture",  # pair of snapshots; no limit/offset page (139)
     "class_diagram",  # limit caps members per type, not a result page (144)
+    "compute",  # pages `rows`, proven truthful in test_compute; this fixture seeds no template
 }
 
 

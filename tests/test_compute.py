@@ -83,7 +83,7 @@ def test_ac1_the_sandbox_refuses_or_interrupts_with_a_reason(
 ) -> None:
     """AC1 (proving test): a write, ATTACH, load_extension and a runaway CTE never answer."""
     with ComputeSandbox(repo.db_path, deadline_s=0.3) as box, pytest.raises(ComputeRefused) as hit:
-        box.query(sql, cap=5)
+        box._execute(sql, cap=5)
     assert hit.value.reason == reason
 
 
@@ -91,7 +91,7 @@ def test_ac1_the_index_is_untouched_after_a_refused_write(repo: Config) -> None:
     with GraphStore(repo.db_path) as store:
         before = store.count_nodes_by_file("lib/a.py")
     with ComputeSandbox(repo.db_path) as box, pytest.raises(ComputeRefused):
-        box.query("DELETE FROM nodes", cap=1)
+        box._execute("DELETE FROM nodes", cap=1)
     with GraphStore(repo.db_path) as store:
         assert store.count_nodes_by_file("lib/a.py") == before
 

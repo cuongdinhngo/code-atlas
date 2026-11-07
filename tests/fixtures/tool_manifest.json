@@ -255,6 +255,14 @@
       "input_schema": {
         "additionalProperties": false,
         "properties": {
+          "detail_level": {
+            "default": "standard",
+            "enum": [
+              "minimal",
+              "standard"
+            ],
+            "type": "string"
+          },
           "limit": {
             "anyOf": [
               {

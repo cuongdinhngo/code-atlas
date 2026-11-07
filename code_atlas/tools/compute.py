@@ -15,11 +15,14 @@ from typing import Literal
 
 from code_atlas import contract, gitutil
 from code_atlas.config import Config, clamp_limit
-from code_atlas.store import COMPUTE_QUERIES, COMPUTE_ROW_CAP, ComputeRefused, ComputeSandbox
+from code_atlas.store import COMPUTE_ROW_CAP, ComputeRefused, ComputeSandbox
 from code_atlas.tools.nav_result import attach_limit_capped
 
 NAME = "compute"
 TemplateId = Literal["tier_mix", "no_referrer"]
+DetailLevel = Literal["minimal", "standard"]
+# What `minimal` leaves out: the question echoed back and the numbers behind the caveat.
+_STANDARD_ONLY = ("question", "caveat_data", "evidence_levels", "mention_checks")
 # Evidence for an absence (440): never "dead" — an unmentioned name is a strong candidate only.
 NO_EDGE_NO_MENTION = "no_edge_no_mention"
 NO_EDGE_BUT_MENTIONED = "no_edge_but_mentioned"
@@ -132,9 +135,9 @@ def _share(part: object, whole: object) -> float:
 def tier_mix(
     box: ComputeSandbox, params: dict[str, str | None], cap: int, root: Path
 ) -> dict[str, object]:
-    body = COMPUTE_QUERIES["tier_mix"]
+    body = "tier_mix"
     rows, truncated = box.query(body, params, cap=cap)
-    edges, heuristic, unlinked = box.scalar(COMPUTE_QUERIES["tier_mix.caveat"], params)
+    edges, heuristic, unlinked = box.scalar("tier_mix.caveat", params)
     data = {
         "edges": int(str(edges)),
         "heuristic_share": _share(heuristic, edges),
@@ -156,7 +159,7 @@ def tier_mix(
 def no_referrer(
     box: ComputeSandbox, params: dict[str, str | None], cap: int, root: Path
 ) -> dict[str, object]:
-    body = COMPUTE_QUERIES["no_referrer"]
+    body = "no_referrer"
     rows, truncated = box.query(body, params, cap=cap)
     sites = gitutil.word_sites(root, sorted({str(r[1]) for r in rows}), timeout=GREP_DEADLINE_S)
     shaped: list[dict[str, object]] = []
@@ -170,8 +173,8 @@ def no_referrer(
         row["file"] = file
         row["line"] = line
         shaped.append(row)
-    edges, unlinked = box.scalar(COMPUTE_QUERIES["no_referrer.caveat"])
-    population = box.scalar(COMPUTE_QUERIES["no_referrer.population"], params)
+    edges, unlinked = box.scalar("no_referrer.caveat")
+    population = box.scalar("no_referrer.population", params)
     data = {"unlinked_share": _share(unlinked, edges), "population": int(str(population[0]))}
     return {
         "rows": shaped,
@@ -198,11 +201,11 @@ def _evidence(
     """Whether a name no edge reaches is still named: an unlinked reference, another symbol's
     text, or anywhere in the tracked tree but its own definition line (a time-capped grep)."""
     qname, name, file, line = symbol
-    if box.scalar(COMPUTE_QUERIES["mention.raw"], {"name": name, "qname": qname}):
+    if box.scalar("mention.raw", {"name": name, "qname": qname}):
         return NO_EDGE_BUT_MENTIONED
     if len(name) >= _MIN_TEXT_MATCH:
         phrase = '{name params} : "' + name.replace('"', '""') + '"'
-        if box.scalar(COMPUTE_QUERIES["mention.text"], {"phrase": phrase, "qname": qname}):
+        if box.scalar("mention.text", {"phrase": phrase, "qname": qname}):
             return NO_EDGE_BUT_MENTIONED
     if sites is None or name not in sites:
         return MENTION_UNCHECKED  # cut by the deadline, or a name grep cannot search
@@ -223,6 +226,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         template: TemplateId | None = None,
         params: dict[str, str] | None = None,
         limit: int | None = None,
+        detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
         """Count, group or prove an absence over the whole graph — exact, not sampled.
 
@@ -233,7 +237,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         `params`, `limit`. Read `caveat`, `total_count`, `truncated`, `reason` when empty.
         """
         if template is None:
-            return catalogue()
+            return {**catalogue(), "index_root": config.index_root}
         chosen = _BY_ID.get(template)
         if chosen is None:
             raise ValueError(f"unknown template {template!r}; one of {', '.join(_BY_ID)}")
@@ -243,7 +247,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         cap, clamped = clamp_limit(limit, min(config.page_limit, COMPUTE_ROW_CAP))
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
-        answer: dict[str, object] = {"template": chosen.id, "question": chosen.question}
+        answer: dict[str, object] = {
+            "template": chosen.id,
+            "question": chosen.question,
+            "index_root": config.index_root,
+        }
         try:
             with ComputeSandbox(config.db_path) as box:
                 answer.update(_RUNNERS[chosen.id](box, bound, cap, config.root))
@@ -253,6 +261,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         empty = answer.pop("empty_reason")
         answer["reason"] = "ok" if answer["rows"] else empty
         answer["limit"] = cap
+        if detail_level == "minimal":
+            for key in _STANDARD_ONLY:
+                answer.pop(key, None)
         return attach_limit_capped(answer, cap=cap, clamped=clamped)
 
     return compute

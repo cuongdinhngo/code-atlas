@@ -5103,9 +5103,18 @@ class ComputeSandbox:
     SELECT / READ / a short function list, and a deadline per statement (440)."""
 
     def __init__(self, db_path: Path, *, deadline_s: float = COMPUTE_DEADLINE_S) -> None:
-        self._conn = _connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
-        for view in _COMPUTE_VIEWS:  # before query_only: a temp view is the last write it makes
-            self._conn.execute(view)
+        try:
+            self._conn = _connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+            found = self._conn.execute(
+                "SELECT value FROM meta WHERE key = ?", (SCHEMA_VERSION_KEY,)
+            ).fetchone()
+            if found is not None and str(found[0]) != SCHEMA_VERSION:
+                self._conn.close()  # another schema's rows: refuse, as GraphStore does (R5.3)
+                raise SchemaVersionError(str(found[0]), SCHEMA_VERSION, db_path)
+            for view in _COMPUTE_VIEWS:  # before query_only: a temp view is its last write
+                self._conn.execute(view)
+        except sqlite3.Error as error:
+            raise ComputeRefused("index_unreadable", str(error)) from None
         self._conn.execute("PRAGMA query_only = ON")
         self._deadline_s = deadline_s
         self._until = 0.0
@@ -5138,10 +5147,11 @@ class ComputeSandbox:
         self._denied = what
         return sqlite3.SQLITE_DENY
 
-    def query(
+    def _execute(
         self, sql: str, params: Mapping[str, object] | Sequence[object] = (), *, cap: int
     ) -> tuple[list[tuple[object, ...]], bool]:
-        """Up to ``cap`` rows and whether more existed; a refusal or a deadline raises."""
+        """Up to ``cap`` rows and whether more existed; a refusal or a deadline raises. ``sql`` is
+        a ``COMPUTE_QUERIES`` body — or, in the safety tests, a probe the authorizer must refuse."""
         self._denied = None
         self._until = time.monotonic() + self._deadline_s
         try:
@@ -5157,13 +5167,21 @@ class ComputeSandbox:
             raise ComputeRefused("query_failed", str(error)) from None
         return [tuple(row) for row in rows[:cap]], len(rows) > cap
 
+    def query(
+        self, body: str, params: Mapping[str, object] | Sequence[object] = (), *, cap: int
+    ) -> tuple[list[tuple[object, ...]], bool]:
+        """A template body by its ``COMPUTE_QUERIES`` key — never SQL a caller wrote."""
+        return self._execute(COMPUTE_QUERIES[body], params, cap=cap)
+
     def scalar(
-        self, sql: str, params: Mapping[str, object] | Sequence[object] = ()
+        self, body: str, params: Mapping[str, object] | Sequence[object] = ()
     ) -> tuple[object, ...]:
-        rows, _ = self.query(sql, params, cap=1)
+        rows, _ = self._execute(COMPUTE_QUERIES[body], params, cap=1)
         return rows[0] if rows else ()
 
-    def count(self, sql: str, params: Mapping[str, object] | Sequence[object] = ()) -> int:
+    def count(self, body: str, params: Mapping[str, object] | Sequence[object] = ()) -> int:
         """Every row the body would return, counted — the truthful ``total_count``."""
-        found = self.scalar(f"SELECT COUNT(*) FROM ({sql})", params)
-        return int(str(found[0])) if found else 0
+        rows, _ = self._execute(
+            "SELECT COUNT(*) FROM (" + COMPUTE_QUERIES[body] + ")", params, cap=1
+        )
+        return int(str(rows[0][0])) if rows else 0
