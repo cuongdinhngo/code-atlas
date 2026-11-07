@@ -129,6 +129,7 @@ def test_a_cut_fetch_names_no_live_definition(ordered: Config) -> None:
         "definition_order = [1, 2]\n",
         'definition_order = ["db/V<n>_<n>.sql"]\n',
         'definition_order = [""]\n',
+        'definition_order = ["db/V[<n>]__*.sql"]\n',
     ],
 )
 def test_ac4_a_toml_value_that_is_not_a_list_of_globs_fails_loud(tmp_path: Path, toml: str) -> None:
@@ -146,3 +147,12 @@ def test_a_rules_file_precedence_takes_the_same_version_check(tmp_path: Path) ->
 
     with pytest.raises(ConfigError, match="more than once"):
         load_indirection_rules(config)
+
+
+def test_the_glob_reader_still_understands_fnmatch() -> None:
+    """A Python whose ``fnmatch.translate`` changed shape would fail here, not mis-rank silently."""
+    from code_atlas.tools.symbol_pointers import _rank
+
+    assert _rank("db/V2_1__x.sql", ("db/V<n>__*.sql",)) == (1, (2, 1))
+    assert _rank("db/sub/V2__x.sql", ("db/V<n>__*.sql",)) is None
+    assert _rank("db/a.sql", ("db/V<n>__*.sql", "db/*")) == (1, ())

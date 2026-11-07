@@ -588,6 +588,8 @@ def definition_globs(label: str, globs: Sequence[object]) -> list[str]:
             raise ConfigError(f"{label}: {glob!r} is not a path glob")
         if glob.count(VERSION_TOKEN) > 1:
             raise ConfigError(f"{label}: {glob!r} names {VERSION_TOKEN} more than once")
+        if re.search(r"\[[^\]]*" + re.escape(VERSION_TOKEN), glob):
+            raise ConfigError(f"{label}: {glob!r} puts {VERSION_TOKEN} inside a [...] class")
         # Paths are repo-relative: a leading `/` is dropped, never left to match nothing.
         kept.append(glob.strip().lstrip("/"))
     return list(dict.fromkeys(kept))

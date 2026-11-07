@@ -4,7 +4,7 @@ slug: sql-live-definition
 title: "SQL: which definition of a multiply-defined routine is live, and a hash that ignores formatting"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: todo
+status: in-progress
 depends_on: [384]
 ---
 
@@ -158,3 +158,51 @@ Behaviour axis: as approved. **Design conformance:** H1 (core-side, no language 
 **AC5 (E1 discharged)** — `~/code-atlas-review/437-anchor.md`, counts only: 621 SQL routines, 161 defined more than
 once (the survey's figure); a 7-glob rule shaped on the anchor's layout gives **160 / 161** exactly one `live`; the one
 left is two definitions in one plain directory — a tie, `unranked`, never a guess.
+
+## Phase 4 — review
+
+`REVIEWER: ON` · `CHALLENGER: ON`. Review step: mango `reviewer` (Sonnet), round 1, at `791eb36b`.
+
+- **`reviewer` round 1** (67,075 tokens): CHANGES REQUESTED → conditional LGTM on findings 1–2. It verified the
+  exact-arithmetic claim (every product < 2^52), 414's semantics unchanged for globs without `<n>`, and that a toml
+  edit reaches meta on an incremental build (`_record_meta`).
+  - **1, taken:** `CREATE OR` / `ALTER` split across lines kept two hashes. Two causes: the clause was matched per
+    line, and the scanner starts the span at the `ALTER` line. The word sequence now carries across lines, and a span's
+    opening verb (`create` / `alter`) is not hashed — so `ALTER PROCEDURE` ≡ `CREATE PROCEDURE` too. Lesson 437-C1.
+  - **2, taken as an owner, not a bump:** W2 stays `ASSUMED`; BACKLOG *Follow-ups* now names the one bump the 0.11
+    release owes for 437 + 438. CHANGELOG keeps the rebuild flag.
+  - **Minors taken:** `FROM[dbo]` is `FROM dbo`; the glob reader fails loud if `fnmatch.translate` changes shape, and a
+    `<n>` inside `[...]` is refused. **Not taken:** wiring `definition_states` into a tool here — 438 (`verify_refs`'
+    SQL rows) and 441 (`multi_defined`) are its consumers; `read_symbol` already answers the live definition.
+- **`challenger` round 1** (64,148 tokens, ticket-blind): 5 met · 2 partly · 2 not met · 1 can't tell (AC5, off-diff).
+  The two "not met" are W1 (the core derives the ordinal) and W2 (bump deferred) — recorded decisions, not defects.
+  **Taken:** `N 'x'` (a column and its alias) no longer hashes as `N'x'`. **Not taken:** keeping `[select]` apart from
+  `select` — a bare reserved word where a delimited one stood is not valid T-SQL, so no real pair of bodies collides.
+
+Verdict: conditional LGTM, findings 1 and 2 landed. `Ph3/4 proven by`: AC1, AC2, AC4 → `tests/test_definition_order.py`;
+AC3 → `tests/test_sql_body_hash_normalised.py` (19 variants, the reviewer's and challenger's cases included); AC5 →
+`~/code-atlas-review/437-anchor.md`; G1 → AC1 + AC5.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 437-C1 `a-fingerprint-is-taken-over-the-span-the-scanner-names` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/437-sql-live-definition`; open its PR against `main`. Deferred to the maintainer:
+ratify W1 and W2; merge; the 0.11 release's contract bump.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | rule-book `reviewer` | 1 | 67,075 |
+| 4 review | ticket-blind `challenger` | 1 | 64,148 |
+
+`LEDGER TOTAL: 131,223 · top cost driver: 4 review / reviewer` — main loop unmeasured.

@@ -38,6 +38,12 @@ SAME = {
         "   WHERE Id=@Id\n     AND Note = 'Mixed  Case'\nEND\nGO\n"
     ),
     "comments": BASE.replace("BEGIN\n", "BEGIN -- start\n  /* the read */\n"),
+    "or_alter_split_after_or": BASE.replace("CREATE PROCEDURE", "CREATE OR\nALTER PROCEDURE"),
+    "or_alter_split_after_create": BASE.replace(
+        "CREATE PROCEDURE", "CREATE -- the routine\n  OR ALTER PROCEDURE"
+    ),
+    "alter_header": BASE.replace("CREATE PROCEDURE", "ALTER PROCEDURE"),
+    "glued_bracket": BASE.replace("FROM dbo.Orders", "FROM[dbo].[Orders]"),
 }
 
 DIFFERENT = {
@@ -46,6 +52,8 @@ DIFFERENT = {
     "literal_case": BASE.replace("'Mixed  Case'", "'mixed  case'"),
     "literal_spacing": BASE.replace("'Mixed  Case'", "'Mixed Case'"),
     "quoted_name_with_space": BASE.replace("[Order Date]", "[OrderDate]"),
+    "a_column_named_created": BASE.replace("Note FROM", "Note, created FROM"),
+    "alias_not_unicode_literal": BASE.replace("= 'Mixed  Case'", "= N 'Mixed  Case'"),
 }
 
 

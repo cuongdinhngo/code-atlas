@@ -37,7 +37,7 @@ and building a whole-file tree over it is the failure mode the PHP adapter alrea
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `VIEW` | `View` node; its `FROM` / `JOIN` sources are `READS` from it, and `ALTER` / `CREATE OR ALTER` an `ALTERS` edge from the file (402) | 2 |
 | a routine or view in a Flyway versioned migration, `V<version>__<description>.sql` | `extra.migration_version`, the version dotted (`V1_5__x.sql` → `1.5`), so the highest one answers `read_symbol` (403) | 2 |
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `TRIGGER` | `Function` node, `extra.object_type = "trigger"` | 2 |
-| every object's span | `extra.body_hash`, a fingerprint that ignores comments, keyword case, a needless `[ ]` / `" "`, `CREATE OR ALTER` against `CREATE` and line breaks — a literal keeps its text (384, 437) | 2 |
+| every object's span | `extra.body_hash`, a fingerprint that ignores comments, keyword case, a needless `[ ]` / `" "`, the opening `CREATE` / `ALTER` / `CREATE OR ALTER` and line breaks — a literal keeps its text (384, 437) | 2 |
 | literal `ALTER TABLE` | `ALTERS` edge from the file onto the `Table` at `RESOLVED` (321) | 2 |
 | `ALTER TABLE` or `(CREATE OR) ALTER PROC`/`FUNCTION`/`TRIGGER` inside a string an `EXEC` / `sp_executesql` runs | `ALTERS` edge at **`DYNAMIC`** — a name read from a string, a claim, never a fact (321) | 2 |
 | standalone `ALTER TABLE … ADD … FOREIGN KEY` | `ForeignKey` node, `CONTAINS`-owned by its table (`extra`: `parent_table`, `referenced_table`, `columns`) | 2 |

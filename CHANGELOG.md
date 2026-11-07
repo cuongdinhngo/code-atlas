@@ -22,7 +22,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   routine redefined in migrations and a snapshot the highest version is the one `read_symbol`
   answers. A rules file's `definitions.precedence` takes `<n>` too. No rule, or a tie, names none.
 - **The SQL `body_hash` ignores formatting (437).** Keyword case, a needless `[bracket]` or `"quote"`,
-  `CREATE OR ALTER` against `CREATE` and a reflowed statement keep one fingerprint. **Full rebuild
+  the opening `CREATE`, `ALTER` or `CREATE OR ALTER` and a reflowed statement keep one fingerprint. **Full rebuild
   required** once this lands: every stored SQL `body_hash` moves, so a `--changed-since` snapshot
   taken before it reports SQL symbols as changed. The contract bump is owed at the 0.11 release.
 - **`code-atlas query` and a closed pipe (436).** A reader that closes stdout early (`| head`) no longer

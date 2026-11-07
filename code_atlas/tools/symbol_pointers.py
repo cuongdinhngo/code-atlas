@@ -194,11 +194,20 @@ def declared_precedence(store: GraphStore) -> tuple[str, ...]:
     return tuple(dict.fromkeys(globs))
 
 
+# What `fnmatch.translate` returns: `(?s:<body>)\Z`.
+_TRANSLATED = re.compile(r"\(\?s:(.*)\)\\Z", re.DOTALL)
+
+
 @functools.lru_cache(maxsize=256)
 def _glob_pattern(glob: str) -> re.Pattern[str]:
     """``fnmatch`` semantics, plus one ``<n>`` capturing a ``1``, ``1.5`` or ``2_0_1`` version."""
-    parts = [fnmatch.translate(part)[4:-3] for part in glob.split(VERSION_TOKEN)]
-    return re.compile("(?s:" + r"(\d+(?:[._]\d+)*)".join(parts) + r")\Z")
+    parts = []
+    for part in glob.split(VERSION_TOKEN):
+        body = _TRANSLATED.fullmatch(fnmatch.translate(part))
+        if body is None:  # a Python whose fnmatch wraps its pattern differently: fail loud
+            raise RuntimeError(f"fnmatch.translate({part!r}) has an unknown shape")
+        parts.append(body.group(1))
+    return re.compile(r"(\d+(?:[._]\d+)*)".join(parts), re.DOTALL)
 
 
 def _rank(path: str, precedence: Sequence[str]) -> tuple[int, tuple[int, ...]] | None:
@@ -207,7 +216,7 @@ def _rank(path: str, precedence: Sequence[str]) -> tuple[int, tuple[int, ...]] |
     Higher is more authoritative; ``None`` when no glob matches. ``1.0`` and ``1`` tie (403).
     """
     for position, glob in enumerate(precedence):
-        hit = _glob_pattern(glob).match(path)
+        hit = _glob_pattern(glob).fullmatch(path)
         if hit is None:
             continue
         digits = re.split(r"[._]", hit.group(1)) if hit.groups() else []
