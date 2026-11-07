@@ -184,27 +184,29 @@ def config_value(root: Path, key: str) -> str | None:
 
 def word_sites(
     root: Path, words: Sequence[str], *, timeout: float
-) -> dict[str, set[tuple[str, int]]] | None:
-    """Where each word stands whole in the tracked tree: ``{word: {(path, line)}}`` (440).
+) -> dict[str, list[tuple[str, int]]] | None:
+    """Every whole-word occurrence of each word, tracked or untracked but not ignored:
+    ``{word: [(path, line), …]}``, one entry per occurrence (440).
 
-    One time-capped ``git grep -F -w`` for every word, each fenced by ``-e``; None when git cannot
-    answer in ``timeout`` — the caller then knows nothing, never that nothing matched.
+    One time-capped ``git grep -F -w`` fencing each word with ``-e``; None when git cannot answer
+    in ``timeout``. A word holding a line break is never searched (grep would split it).
     """
-    if not words:
+    searchable = [w for w in words if w and "\n" not in w and "\0" not in w]
+    if not searchable:
         return {}
-    patterns = [part for word in words for part in ("-e", word)]
+    patterns = [part for word in searchable for part in ("-e", word)]
     found = _run(
-        root, "grep", "-n", "-o", "-w", "-F", "-I", "-z", *patterns, "--",
+        root, "grep", "--untracked", "-n", "-o", "-w", "-F", "-I", "-z", *patterns, "--",
         timeout=timeout, empty_exit=1,
     )
     if found is None:
         return None
-    sites: dict[str, set[tuple[str, int]]] = {word: set() for word in words}
+    sites: dict[str, list[tuple[str, int]]] = {word: [] for word in searchable}
     for record in found.split("\n"):
         path, _, rest = record.partition("\0")
         line, _, word = rest.partition("\0")
         if word in sites and line.isdigit():
-            sites[word].add((path, int(line)))
+            sites[word].append((path, int(line)))
     return sites
 
 

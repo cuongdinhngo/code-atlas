@@ -5068,7 +5068,8 @@ COMPUTE_QUERIES: Mapping[str, str] = {
     "no_referrer": (
         "SELECT s.qname, s.name, s.file, s.line FROM v_symbol s "
         "WHERE s.kind = :kind AND s.is_test = 0 AND " + _PREFIX.format(col="s.file") + " "
-        "AND NOT EXISTS (SELECT 1 FROM v_edge e WHERE e.target = s.qname AND e.kind != 'CONTAINS') "
+        "AND NOT EXISTS (SELECT 1 FROM v_edge e WHERE e.target = s.qname "
+        "AND e.kind != 'CONTAINS' AND e.source != s.qname) "
         "ORDER BY s.file, s.line"
     ),
     "no_referrer.population": (

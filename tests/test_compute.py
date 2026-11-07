@@ -19,6 +19,7 @@ import pytest
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
+from code_atlas import gitutil
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.main import build_server
@@ -173,3 +174,88 @@ def test_total_count_is_the_whole_answer_and_truncated_is_said(repo: Config) -> 
     cut = ask(repo, template="no_referrer", params={"kind": "Function"}, limit=1)
     assert len(cut["rows"]) == 1 and cut["truncated"] is True
     assert cut["total_count"] == whole["total_count"] >= 2
+
+
+def _git_repo(root: Path, files: dict[str, str]) -> Path:
+    for rel, body in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(body, encoding="utf-8")
+    for git in (["git", "init", "-q"], ["git", "add", "a.txt"]):
+        subprocess.run(git, cwd=root, check=True, capture_output=True)
+    return root
+
+
+def test_word_sites_counts_each_occurrence_tracked_or_not(tmp_path: Path) -> None:
+    """The grep arm: every occurrence, untracked files too, a flag-like word stays a word."""
+    root = _git_repo(tmp_path, {"a.txt": "foo(foo)\nbar -x\n", "b.txt": "foo\n"})
+    sites = gitutil.word_sites(root, ["foo", "-x", "zzz", "two\nlines"], timeout=5)
+    assert sites == {
+        "foo": [("a.txt", 1), ("a.txt", 1), ("b.txt", 1)],
+        "-x": [("a.txt", 2)],
+        "zzz": [],
+    }
+
+
+def test_word_sites_cut_by_its_deadline_knows_nothing(tmp_path: Path) -> None:
+    root = _git_repo(tmp_path, {"a.txt": "foo\n"})
+    assert gitutil.word_sites(root, ["foo"], timeout=0.0) is None
+
+
+def test_an_absence_the_grep_could_not_check_is_never_strong(
+    repo: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R5.6: a grep cut by its deadline leaves `mention_unchecked`, never `no_edge_no_mention`."""
+    monkeypatch.setattr(gitutil, "word_sites", lambda *a, **k: None)
+    answer = ask(repo, template="no_referrer", params={"kind": "Function"})
+    levels = {row["qname"]: row["evidence"] for row in answer["rows"]}
+    assert levels["lib.a.lonely_ghost"] == "mention_unchecked"
+
+
+def test_a_name_used_on_its_own_definition_line_is_mentioned(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    (root / "lib").mkdir(parents=True)
+    (root / "lib/r.py").write_text("def again(n): return again(n - 1)\n", encoding="utf-8")
+    (root / "lib/u.py").write_text("def gone_quiet():\n    return 1\n", encoding="utf-8")
+    (root / "notes.txt").write_text("gone_quiet is handled elsewhere\n", encoding="utf-8")
+    for git in (["git", "init", "-q"], ["git", "add", "lib"]):
+        subprocess.run(git, cwd=root, check=True, capture_output=True)
+    config = load_config(
+        root,
+        {
+            "CA_WORKERS": "1",
+            "CA_PYTHON_CMD": shlex.join([sys.executable, str(PY_ENTRY), "--server"]),
+        },
+    )
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    levels = {
+        row["qname"]: row["evidence"]
+        for row in ask(config, template="no_referrer", params={"kind": "Function"})["rows"]
+    }
+    assert levels["lib.r.again"] == "no_edge_but_mentioned"  # its only caller is itself
+    assert levels["lib.u.gone_quiet"] == "no_edge_but_mentioned"  # named in an untracked file
+
+
+def test_a_root_prefix_is_no_filter(repo: Config) -> None:
+    whole = ask(repo, template="tier_mix")
+    for prefix in (".", "./", "/"):
+        assert ask(repo, template="tier_mix", params={"path_prefix": prefix}) == whole
+
+
+def test_the_catalogue_types_every_param(repo: Config) -> None:
+    params = {t["id"]: t["params"] for t in ask(repo)["templates"]}
+    assert params["no_referrer"]["kind"]["type"] == "node_kind"
+    assert "Function" in params["no_referrer"]["kind"]["one_of"]
+
+
+def test_the_tool_is_read_only_and_answers_from_a_shell(
+    repo: Config, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from code_atlas import query
+    from code_atlas.main import tool_annotations
+
+    assert tool_annotations(compute.NAME).readOnlyHint is True
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(repo.root))
+    monkeypatch.setenv("CA_PYTHON_CMD", shlex.join([sys.executable, str(PY_ENTRY), "--server"]))
+    assert query.main(["compute", "--args", '{"template": "tier_mix"}']) == query.OK
+    assert '"template": "tier_mix"' in capsys.readouterr().out

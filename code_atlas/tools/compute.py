@@ -34,6 +34,15 @@ class Param:
     name: str
     required: bool
     meaning: str
+    type: str  # node_kind · edge_kind · path_prefix: each a closed check in `_checked`
+
+
+# Each parameter type and the values it admits; a path prefix is any repo-relative string.
+PARAM_TYPES: Mapping[str, tuple[str, ...]] = {
+    "node_kind": contract.NODE_KINDS,
+    "edge_kind": contract.EDGE_KINDS,
+    "path_prefix": (),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,20 +50,23 @@ class Template:
     id: str
     question: str
     params: tuple[Param, ...]
+    body: str  # its key in store.COMPUTE_QUERIES, the only SQL it runs (store owns SQL)
     absence: bool = False
 
 
-_PREFIX = Param("path_prefix", False, "only files under this repo-relative prefix")
+_PREFIX = Param("path_prefix", False, "only files under this repo-relative prefix", "path_prefix")
 TEMPLATES: tuple[Template, ...] = (
     Template(
         "tier_mix",
         "How are the edges of each kind split across confidence tiers?",
-        (Param("edge_kind", False, "one edge kind, e.g. CALLS"), _PREFIX),
+        (Param("edge_kind", False, "one edge kind, e.g. CALLS", "edge_kind"), _PREFIX),
+        "tier_mix",
     ),
     Template(
         "no_referrer",
         "Which symbols of one kind does no edge reach — and is each name mentioned anywhere?",
-        (Param("kind", True, "a node kind, e.g. Function"), _PREFIX),
+        (Param("kind", True, "a node kind, e.g. Function", "node_kind"), _PREFIX),
+        "no_referrer",
         absence=True,
     ),
 )
@@ -70,7 +82,13 @@ def catalogue() -> dict[str, object]:
                 "id": t.id,
                 "question": t.question,
                 "params": {
-                    p.name: {"required": p.required, "meaning": p.meaning} for p in t.params
+                    p.name: {
+                        "type": p.type,
+                        "required": p.required,
+                        "meaning": p.meaning,
+                        **({"one_of": list(PARAM_TYPES[p.type])} if PARAM_TYPES[p.type] else {}),
+                    }
+                    for p in t.params
                 },
             }
             for t in TEMPLATES
@@ -96,11 +114,12 @@ def _checked(template: Template, given: Mapping[str, object]) -> dict[str, str |
         raise ValueError(f"kind must be one of {', '.join(contract.NODE_KINDS)}")
     if edge_kind is not None and edge_kind not in contract.EDGE_KINDS:
         raise ValueError(f"edge_kind must be one of {', '.join(contract.EDGE_KINDS)}")
-    prefix = given.get("path_prefix")
+    # `.`, `./` and `/` all name the repo root: no filter, never a prefix that matches nothing.
+    prefix = str(given.get("path_prefix") or "").strip().lstrip("./").rstrip("/")
     return {
         "kind": str(kind) if kind else None,
         "edge_kind": str(edge_kind) if edge_kind else None,
-        "prefix": str(prefix).strip().lstrip("./").rstrip("/") + "/" if prefix else None,
+        "prefix": prefix + "/" if prefix else None,
     }
 
 
@@ -168,7 +187,7 @@ def no_referrer(
 def _evidence(
     box: ComputeSandbox,
     symbol: tuple[str, str, str, int],
-    sites: Mapping[str, set[tuple[str, int]]] | None,
+    sites: Mapping[str, list[tuple[str, int]]] | None,
 ) -> str:
     """Whether a name no edge reaches is still named: an unlinked reference, another symbol's
     text, or anywhere in the tracked tree but its own definition line (a time-capped grep)."""
@@ -179,11 +198,11 @@ def _evidence(
         phrase = '{name params} : "' + name.replace('"', '""') + '"'
         if box.scalar(COMPUTE_QUERIES["mention.text"], {"phrase": phrase, "qname": qname}):
             return NO_EDGE_BUT_MENTIONED
-    if sites is None:
-        return MENTION_UNCHECKED
-    if sites.get(name, set()) - {(file, line)}:
-        return NO_EDGE_BUT_MENTIONED
-    return NO_EDGE_NO_MENTION
+    if sites is None or name not in sites:
+        return MENTION_UNCHECKED  # cut by the deadline, or a name grep cannot search
+    # One occurrence is the definition itself; `foo(foo)` on that line is still a mention.
+    elsewhere = len(sites[name]) - (1 if (file, line) in sites[name] else 0)
+    return NO_EDGE_BUT_MENTIONED if elsewhere > 0 else NO_EDGE_NO_MENTION
 
 
 _Runner = Callable[[ComputeSandbox, dict[str, str | None], int, Path], dict[str, object]]
@@ -212,6 +231,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         chosen = _BY_ID.get(template)
         if chosen is None:
             raise ValueError(f"unknown template {template!r}; one of {', '.join(_BY_ID)}")
+        if params is not None and not isinstance(params, dict):
+            raise ValueError("params must be an object of name -> string")
         bound = _checked(chosen, dict(params or {}))
         cap, clamped = clamp_limit(limit, min(config.page_limit, COMPUTE_ROW_CAP))
         if cap < 1:
