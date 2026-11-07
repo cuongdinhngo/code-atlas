@@ -213,9 +213,10 @@ AC3 → `tests/test_sql_body_hash_normalised.py` (19 variants, the reviewer's an
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
 **The final gate.** Run 1 at `b3243948` was RED on one check: `test_guardrail_gates.py` allows one `--file` adapter
-spawn (`tests/adapter_cli.py`), and the hash test spawned its own — moved onto the helper (`3e138aec`). Run 2:
+spawn (`tests/adapter_cli.py`), and the hash test spawned its own — moved onto the helper (`3e138aec`). Run 2 at
+`3e138aec` was green; round 2 then added `read_symbol`'s fields, so run 3 covers the final tree:
 
-Ran at 3e138aec
+Ran at 379528d0
 
 ```
 $ scripts/gate.sh
