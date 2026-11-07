@@ -159,6 +159,21 @@ Reviewed at 813d93f3
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+**After review — gate-driven changes, not re-reviewed.** Gate runs 1–3 at `87b7f9ae`, `030db36f`, `a97f58d3` were RED
+on suite-wide pins the targeted runs missed: the per-language parity walk, the unsigned-answers list, the one-key-per-
+statement vocabulary rule, the clamp signal helper, the documented tool counts, a `detail_level` every tool takes,
+the schema-version guard, `store.py` running only SQL it wrote (the sandbox now takes a `COMPUTE_QUERIES` key; one
+allow-listed private executor), the `total_count` scan, and SECURITY.md's git list. These landed after
+`Reviewed at 813d93f3` and were not shown to either seat again. Run 4:
+
+Ran at 1dfc62f0
+
+```
+$ scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
 ### Outward actions
 
 Under the handover: push `feat/440-compute-sandbox`; open its PR against `main`. Deferred: ratify W1–W4; merge.
