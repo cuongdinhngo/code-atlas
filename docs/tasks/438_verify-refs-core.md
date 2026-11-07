@@ -57,7 +57,7 @@ ticket is the finder; 439 adds the fix (patches) and the surfaces an agent sees.
 
 ## Session status
 
-- **KEY:** 438 · **work_doc_mode:** embed · **Current phase:** 3 execute.
+- **KEY:** 438 · **work_doc_mode:** embed · **Current phase:** 5 finalise — the PR is open; merging is the maintainer's.
 - `TRACK: backend` · Run mode: `autorun 437 - 438 - 440`, second — `REVIEWER: ON` · `CHALLENGER: ON` · `cost_tier: standard`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/438-verify-refs-core`, stacked on 437 (#164, uses its `definition_states`). Contract
@@ -141,3 +141,53 @@ command list is test-held), `tests/test_config.py` (knob pins), `tests/contract/
 **AC6 (E1 discharged)** — `~/code-atlas-review/438-anchor.md`: 1,884 files, 86,814 references, **24.1 s warm**; three
 anchor fixes came from it — a directory index built once (the first run passed 15 min), no case-folded full-scan fallback,
 and subproject-relative paths.
+
+## Phase 4 — review
+
+`REVIEWER: ON` · `CHALLENGER: ON`. Review step: mango `reviewer` (Sonnet), round 1, at `887f7022`.
+
+- **`reviewer` round 1** (77,276 tokens): CHANGES REQUESTED → conditional LGTM on 1–4. Security clean: needles are word
+  runs behind `-e` / an attached `-S`, revisions checked, the temp dir only parses.
+  - **1 (bump), taken as an owner:** W1 stays `ASSUMED`; the 0.11 bump line in BACKLOG names 437 + 438, and the
+    CHANGELOG says stored Python hashes move once too.
+  - **2, taken:** the history passes and each doc's own commit read through the git budget, clocked.
+  - **3, taken:** an external-looking dotted name is counted (`skipped_as_external`), never silently dropped.
+  - **4, taken:** one same-name definition with another body is `ambiguous` (`same_name_elsewhere_body_changed`),
+    never `gone`. **Minors taken:** merges diffed against their first parent; a non-text old blob skipped.
+- **`challenger` round 1** (77,669 tokens, ticket-blind): 14 met · 2 not met (inline commands uncounted; `gone` rows
+  without a date) · 1 can't tell. **Taken:** I1 an unbuilt index answers `symbols_unchecked_no_index`; I2 a path only
+  another branch holds is `unknown`, a rename-then-removed path carries the rename's day; M1–M5 (inline command spans,
+  a class filter that empties the corpus, a 512-char cap, `|` escaped, `limit` fails loud).
+- **`challenger` round 2** (87,007 tokens, verify-only at `adc01b7c`): rows 4 and 7 met; its final table, transcribed:
+
+`CHALLENGER VERDICT: 17 requirement(s) rebuilt | 16 met | 0 not met | 1 can't tell | 0 not-met covered by a recorded exclusion`
+
+**Not taken:** a `missing_on_live_container` row stays `gone` with a null date when git cannot answer — the container is
+live and the member is not, so `gone` is proven; only its date is unknown. The can't-tell is AC6 (off-diff), held by
+E1's report: `m + g = 16 ≠ 17`, so **Gate 4 does not close by the harness's arithmetic** — the same structural gap as
+437; the PR opens as a draft. `Ph3/4 proven by`: AC1–AC5 → `tests/test_verify_refs.py` (26); AC6 →
+`~/code-atlas-review/438-anchor.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 438-C1 `a-lookup-per-reference-over-history-needs-an-index-built-once` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/438-verify-refs-core`; open its PR (base: 437's branch). Deferred: ratify W1/W2; merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | rule-book `reviewer` | 1 | 77,276 |
+| 4 review | ticket-blind `challenger` | 1 | 77,669 |
+| 4 review | ticket-blind `challenger` | 2 | 87,007 |
+
+`LEDGER TOTAL: 241,952 · top cost driver: 4 review / challenger` — main loop unmeasured.

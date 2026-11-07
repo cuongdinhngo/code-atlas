@@ -251,6 +251,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
   upgrade" after a new commit. This machine's own code-atlas receipt carries `?rev=864ae8a`.
 - destination: first sighting.
 
+### 438-C1 — a lookup per reference over git history needs an index built once
+
+- type: 2 (heuristic) · handle: `area:verify_refs`
+- status: proposed · seen: 438
+- evidence: the first anchor run passed 15 min: each unresolved path scanned 181k history paths for a prefix. A
+  directory index built once per run brought 1,884 files to 24 s. Fixtures of ten paths never show it — time the corpus.
+- destination: first sighting.
+
 ### 437-C1 — a fingerprint is taken over the span the scanner names, not the statement
 
 - type: 2 (heuristic) · handle: `area:body_hash`
