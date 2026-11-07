@@ -65,6 +65,10 @@ def stamp(text: str, nodes: list[dict[str, Any]], tree: ast.Module) -> None:
         if node.get("kind") in _UNHASHED_KINDS or not isinstance(start, int):
             continue
         start, end = spans[node["qualified_name"]]
-        span = pieces[bisect.bisect_left(rows, start) : bisect.bisect_right(rows, end)]
+        low = bisect.bisect_left(rows, start)
+        # A dedent on the first line closes the block before this one, not this body (438).
+        while low < len(kept) and kept[low].type == tokenize.DEDENT and rows[low] == start:
+            low += 1
+        span = pieces[low : bisect.bisect_right(rows, end)]
         digest = hashlib.sha256("\x00".join(span).encode("utf-8")).hexdigest()[:HASH_CHARS]
         node["extra"] = {**(node.get("extra") or {}), BODY_HASH: digest}
