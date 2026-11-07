@@ -169,6 +169,6 @@ Under the handover: push `feat/440-compute-sandbox`; open its PR against `main`.
 |---|---|---|---|
 | 4 review | rule-book `reviewer` | 1 | 67,483 |
 | 4 review | ticket-blind `challenger` | 1 | 70,647 |
-| 4 review | ticket-blind `challenger` | 2 | unmeasured (the host reported no usage for the resumed run) |
+| 4 review | ticket-blind `challenger` | 2 | 7,416 (resumed: 78,063 cumulative − 70,647) |
 
-`LEDGER TOTAL: 138,130 · top cost driver: 4 review / challenger` — main loop and challenger round 2 unmeasured.
+`LEDGER TOTAL: 145,546 · top cost driver: 4 review / challenger` — main loop unmeasured.
