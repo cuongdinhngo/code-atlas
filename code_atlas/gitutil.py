@@ -191,18 +191,21 @@ class PathHistory:
     """What HEAD's history says about paths that are gone: renames and deletions (438)."""
 
     renamed: Mapping[str, str]  # old path -> new path, the newest rename of that path
+    renamed_at: Mapping[str, tuple[str, str]]  # old path -> (renaming commit, its day)
     deleted: Mapping[str, tuple[str, str]]  # path -> (deleting commit, its day), newest first
 
 
-def path_history(root: Path) -> PathHistory | None:
-    """One pass over HEAD's history with rename detection (``-M``); None when git cannot answer."""
+def path_history(root: Path, *, timeout: float = GIT_TIMEOUT) -> PathHistory | None:
+    """One pass over HEAD's first-parent history, merges diffed against their first parent so a
+    file a merge removed is seen, with rename detection (``-M``); None when git cannot answer."""
     found = _run(
-        root, "log", "-M", "--diff-filter=RD", "--name-status", "-z", "--format=@%H %cs",
-        revision=_HEAD,
+        root, "log", "-M", "-m", "--first-parent", "--diff-filter=RD", "--name-status", "-z",
+        "--format=@%H %cs", revision=_HEAD, timeout=timeout,
     )
     if found is None:
         return None
     renamed: dict[str, str] = {}
+    renamed_at: dict[str, tuple[str, str]] = {}
     deleted: dict[str, tuple[str, str]] = {}
     commit = ("", "")
     tokens = iter(token.strip("\n") for token in found.split("\0"))
@@ -213,30 +216,35 @@ def path_history(root: Path) -> PathHistory | None:
         elif token.startswith("R"):
             old, new = next(tokens, ""), next(tokens, "")
             renamed.setdefault(old, new)
+            renamed_at.setdefault(old, commit)
         elif token == "D":
             deleted.setdefault(next(tokens, ""), commit)
-    return PathHistory(renamed=renamed, deleted=deleted)
+    return PathHistory(renamed=renamed, renamed_at=renamed_at, deleted=deleted)
 
 
-def paths_ever_added(root: Path) -> frozenset[str] | None:
+def paths_ever_added(root: Path, *, timeout: float = GIT_TIMEOUT) -> frozenset[str] | None:
     """Every path any branch or tag ever added — the "it existed somewhere" set (438)."""
     found = _run(
-        root, "log", "--all", "--no-renames", "--diff-filter=A", "--name-only", "-z", "--format="
+        root, "log", "--all", "--no-renames", "--diff-filter=A", "--name-only", "-z", "--format=",
+        timeout=timeout,
     )
     if found is None:
         return None
     return frozenset(token.strip("\n") for token in found.split("\0") if token.strip("\n"))
 
 
-def last_commit_of(root: Path, path: str) -> str | None:
-    """The newest commit that touched ``path`` (a file the index read), or None."""
-    found = _run(root, "log", "-1", "--format=%H", "--", f":(literal){path}")
-    return found.strip() or None if found is not None else None
+def last_commit_of(
+    root: Path, path: str, *, timeout: float = GIT_TIMEOUT
+) -> tuple[str, str] | None:
+    """The newest commit that touched ``path`` and its day, or None."""
+    found = _run(root, "log", "-1", "--format=%H %cs", "--", f":(literal){path}", timeout=timeout)
+    sha, _, day = (found or "").strip().partition(" ")
+    return (sha, day) if sha else None
 
 
 def files_naming(root: Path, word: str, revision: str, *, timeout: float) -> tuple[str, ...] | None:
     """The files at ``revision`` that hold ``word`` as a whole word, or None (timeout, no git)."""
-    # `git grep` takes no `--end-of-options`; the revision is checked here, and `-e` fences the word.
+    # `git grep` takes no `--end-of-options`: the revision is checked here; `-e` fences the word.
     if revision != _HEAD and not is_object_id(revision):
         return None
     found = _run(

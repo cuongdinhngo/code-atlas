@@ -358,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
             "name exactly one of a tool, --batch, --verify-claim, --verify-claims, "
             "--snapshot-symbols, --changed-since or --verify-refs"
         )
+    if not 1 <= args.limit <= doc_refs.MAX_LIMIT:
+        parser.error(f"--limit: 1..{doc_refs.MAX_LIMIT}")
     fail_on = {state for state in args.fail_on.split(",") if state}
     if fail_on - set(doc_refs.STATES):
         parser.error(f"--fail-on: states are {', '.join(doc_refs.STATES)}")

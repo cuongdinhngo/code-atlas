@@ -58,6 +58,7 @@ PATH, SYMBOL, NAME = "path", "symbol", "name"
 CODE_SPAN, FENCE, LINK, PROSE = "code_span", "fence", "link", "prose"
 
 DEFAULT_LIMIT = 200
+MAX_REF_CHARS = 512
 MAX_LIMIT = 1000
 CANDIDATE_CAP = 5
 # Wall-clock git may spend on history questions per run; past it a row is `unknown`, counted.
@@ -205,8 +206,8 @@ def extract(path: str, doc_class: str, text: str) -> tuple[list[Mention], int]:
         rest = line
         for span in _SPAN.finditer(line):
             body = span.group(2).strip()
-            if body.startswith("$ "):
-                commands += 1
+            if body.startswith("$ ") or " " in body:
+                commands += 1  # a span with a space is a command or a code fragment, never one ref
                 continue
             mentions.append(Mention(path, number, doc_class, context, CODE_SPAN, body))
         rest = _SPAN.sub(" ", rest)
@@ -254,7 +255,9 @@ def kind_of(raw: str, origin: str, shapes: Shapes) -> tuple[str, str] | None:
     if origin == LINK:
         ref = ref.split("#", 1)[0]
     ref = _LINE_SUFFIX.sub("", ref).removeprefix("./")
-    if not ref or _UNSAFE.search(ref) or ref.startswith(("/", "-", "$", "#", "@", "mailto:")):
+    if not ref or len(ref) > MAX_REF_CHARS or _UNSAFE.search(ref):
+        return None
+    if ref.startswith(("/", "-", "$", "#", "@", "mailto:")):
         return None
     last = ref.rstrip("/").rsplit("/", 1)[-1]
     suffix = last.rsplit(".", 1)[-1].lower() if "." in last.strip(".") else ""
@@ -329,7 +332,8 @@ class Resolver:
         self.precedence = declared_precedence(store)
         self._history: gitutil.PathHistory | None | bool = False
         self._added: frozenset[str] | None | bool = False
-        self._doc_revs: dict[str, str | None] = {}
+        self._doc_revs: dict[str, tuple[str, str] | None] = {}
+        self.skipped_external = 0
         self._dirs: _DirIndex | None = None
         self._tracked: Mapping[str, list[str]] | None = None
         self._added_by_name: Mapping[str, list[str]] | None = None
@@ -353,21 +357,31 @@ class Resolver:
 
     def history(self) -> gitutil.PathHistory | None:
         if self._history is False:
+            budget = self._git_budget()
             started = time.monotonic()
-            self._history = gitutil.path_history(self.config.root)
+            found = gitutil.path_history(self.config.root, timeout=budget) if budget else None
             self._clock(started)
+            self._history = found
         return self._history if isinstance(self._history, gitutil.PathHistory) else None
 
     def added(self) -> frozenset[str] | None:
         if self._added is False:
+            budget = self._git_budget()
             started = time.monotonic()
-            self._added = gitutil.paths_ever_added(self.config.root)
+            found = gitutil.paths_ever_added(self.config.root, timeout=budget) if budget else None
             self._clock(started)
+            self._added = found
         return self._added if isinstance(self._added, frozenset) else None
 
-    def doc_rev(self, doc: str) -> str | None:
+    def doc_rev(self, doc: str) -> tuple[str, str] | None:
         if doc not in self._doc_revs:
-            self._doc_revs[doc] = gitutil.last_commit_of(self.config.root, doc)
+            budget = self._git_budget()
+            started = time.monotonic()
+            found = (
+                gitutil.last_commit_of(self.config.root, doc, timeout=budget) if budget else None
+            )
+            self._clock(started)
+            self._doc_revs[doc] = found
         return self._doc_revs[doc]
 
     # ----------------------------------------------------------------- paths
@@ -435,9 +449,11 @@ class Resolver:
         if gone is not None:
             return Verdict(GONE, "deleted", {"last_seen_rev": gone[0][:12], "last_seen": gone[1]})
         if hops:
-            return Verdict(GONE, "renamed_then_removed")
+            sha, day = history.renamed_at.get(rel, ("", ""))
+            return Verdict(GONE, "renamed_then_removed", {"last_seen_rev": sha[:12] or None,
+                                                          "last_seen": day or None})
         if rel in added or rel in dirs.added:
-            return Verdict(GONE, "not_on_this_branch")
+            return Verdict(UNKNOWN, "only_on_another_branch")
         return None
 
     def _dir_index(self, history: gitutil.PathHistory, added: frozenset[str]) -> _DirIndex:
@@ -487,6 +503,7 @@ class Resolver:
         else:
             rows = self._matches(bare, last)
             if not rows and self._external(bare):
+                self.skipped_external += 1  # `os.path`: counted, so a vanished package is seen
                 return None
         if rows:
             return self._found(rows)
@@ -500,8 +517,8 @@ class Resolver:
             if owners:
                 detail: dict[str, object] = {"container": str(owners[0]["qualified_name"])}
                 seen = self._last_change(last, path=str(owners[0]["file_path"]))
-                if isinstance(seen, tuple):
-                    detail.update(last_seen_rev=seen[0][:12], last_seen=seen[1])
+                found = seen if isinstance(seen, tuple) else (None, None)
+                detail.update(last_seen_rev=found[0][:12] if found[0] else None, last_seen=found[1])
                 return Verdict(GONE, "missing_on_live_container", detail)
         moved = self._moved_by_body(bare, last, kind, doc)
         if moved is not None:
@@ -565,10 +582,11 @@ class Resolver:
         if len({str(row["qualified_name"]) for row in candidates}) != 1:
             return None
         now = _body_hash(candidates[0])
-        rev = self.doc_rev(doc)
+        seen = self.doc_rev(doc)
         budget = self._git_budget()
-        if now is None or rev is None or budget is None:
+        if now is None or seen is None or budget is None:
             return None
+        rev = seen[0]
         started = time.monotonic()
         files = gitutil.files_naming(self.config.root, last, rev, timeout=budget) or ()
         suffixes = self.shapes.qualified_suffixes(ref) if kind == SYMBOL else None
@@ -581,7 +599,10 @@ class Resolver:
         if now in old:
             return Verdict(MOVED, "body_hash", {"successor": _site(candidates[0])})
         if old:
-            return Verdict(GONE, "removed_since_the_doc", {"last_seen_rev": rev[:12]})
+            # Same name elsewhere, another body: moved and edited, or a namesake — never gone.
+            return Verdict(AMBIGUOUS, "same_name_elsewhere_body_changed",
+                           {"candidates": [_site(candidates[0])], "last_seen_rev": rev[:12],
+                            "last_seen": seen[1]})
         return None
 
     def _old_hashes(self, rev: str, files: Sequence[str], ref: str) -> set[str]:
@@ -593,9 +614,13 @@ class Resolver:
             root = Path(scratch)
             for rel in files:
                 text = gitutil.blob_at(self.config.root, rev, rel)
-                if text is not None:
+                if text is None:
+                    continue
+                try:
                     (root / rel).parent.mkdir(parents=True, exist_ok=True)
                     (root / rel).write_text(text, encoding="utf-8")
+                except (OSError, UnicodeError):
+                    continue  # an old blob that is not text: its body stays unknown
             parsed = parse_files(dataclasses.replace(self.config, root=root), list(files))
         found: set[str] = set()
         for result in parsed.values():
@@ -693,8 +718,10 @@ def verify_refs(
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, object]:
     """Every reference the corpus makes, one state each; summaries count every row."""
-    limit = max(1, min(limit, MAX_LIMIT))
+    if not 1 <= limit <= MAX_LIMIT:
+        raise ValueError(f"limit must be 1..{MAX_LIMIT}, got {limit}")
     corpus = collect(config, globs)
+    matched = len(corpus.files)
     if classes:
         corpus.files = {p: c for p, c in corpus.files.items() if c in classes}
     resolver = Resolver(config, store, Shapes.from_store(store))
@@ -709,7 +736,10 @@ def verify_refs(
             counts = bucket.setdefault(key, {state: 0 for state in STATES})
             counts[str(row["state"])] += 1
     if not corpus.files:
-        reason = "no_file_matched"
+        reason = "class_filter_left_no_file" if matched else "no_file_matched"
+    elif not resolver.shapes.qualified:
+        # No build stamped a symbol shape: every symbol a doc names went unread, never resolved.
+        reason = "symbols_unchecked_no_index"
     elif not rows:
         reason = "no_references"
     else:
@@ -728,6 +758,7 @@ def verify_refs(
             for path, counts in sorted(by_file.items())
         ],
         "history_budget_spent": resolver.budget_spent,
+        "skipped_as_external": resolver.skipped_external,
         "rows": rows[:limit],
         "corpus_globs": corpus.globs,
         "untrusted_fields": list(UNTRUSTED),
@@ -770,10 +801,9 @@ def markdown(answer: Mapping[str, object]) -> str:
         hint = row.get("successor") or row.get("reason")
         if isinstance(hint, dict):
             hint = f"{hint.get('qname')} ({hint.get('file')}:{hint.get('line')})"
-        ref = str(row["ref"]).replace("|", "\\|")
-        head.append(
-            f"| {row['file']}:{row['line']} | {row['class']} | {row['state']} | `{ref}` | {hint} |"
-        )
+        cells = [f"{row['file']}:{row['line']}", row["class"], row["state"], f"`{row['ref']}`"]
+        cells.append(hint)
+        head.append("| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |")
     if answer.get("truncated"):
         head += ["", f"_truncated at {answer['limit']} of {answer['total_count']} rows_"]
     return "\n".join(head) + "\n"
