@@ -44,13 +44,25 @@ Pre-flight A1–A5 (roadmap R1, one 0.11 generation).
 4. Session line p95 ≤ 1 s on the anchor; a test proves the session path never scans.
 5. Instruction `moved` / `gone` before and after, reported.
 
-## Result (anchor scratch copy, counts only)
+## Result (anchor scratch copy, contract 21, counts only)
 
-Filled by the pre-flight report, `~/code-atlas-review/preflight-0.11.md`.
+- Export: 88,727 rows == `total_count` (19 min 58 s at the 1,800 s budget); **3,845 actionable** —
+  instruction gone 28, memory gone 13 / moved 1, reference gone 3,639 / moved 164. Over ~1,000 because
+  the reference class is 1,848 docs: 91% of its gone rows sit in 5 of 17 doc folders, and 3,044 of
+  them in docs last edited before the code left — `refs_archive` is the lever (maintainer).
+- Instruction moved / gone: before 0 / 69 (56 of them `missing_on_live_container` with no git check); after 0 / 28
+  (13 deleted paths, 15 members git shows removed); 41 now `unknown` (`not_declared_on_container`).
+  No instruction reference has a deterministic successor on the anchor, so no instruction patch.
+- Default answer 5,632 chars (was 340,168); session line p95 0.165 s (was 10.7 s); stored summary
+  133 s in the background build.
+- Review (one round, rule-book `reviewer`): CHANGES REQUESTED, 6 important + 2 minor — all taken
+  (`unchecked` counted apart; repo paths cannot claim `<agent-memory>/`; generation includes the files'
+  stamp; `limit` keeps the view; a failed summary never fails a build; `--refs-diff` usage errors).
 
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |---|---|---|---|
+| 4 review | rule-book `reviewer` (443–446 diff) | 1 | 90,836 |
 
-Main loop unmeasured.
+`LEDGER TOTAL: 90,836 · top cost driver: 4 review / reviewer` — one review for 443–446; main loop unmeasured.

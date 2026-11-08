@@ -58,7 +58,4 @@ The task files hold 18 want-decisions marked ASSUMED (the state check said 20; t
 
 ## Cost ledger
 
-| Phase | Dispatch | Round | Tokens |
-|---|---|---|---|
-
-Main loop unmeasured.
+Covered by 443's one review (90,836). Main loop unmeasured.

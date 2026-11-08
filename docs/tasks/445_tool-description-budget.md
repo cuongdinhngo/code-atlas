@@ -32,9 +32,11 @@ schemas alone are 1,888 chars (`json.dumps`), against 55 left.
 - `tests/test_tool_surface_budget.py` passes at the tightened caps; `list_tools()` reported against
   0.10.0's 23,580.
 
+## Result
+
+Descriptions 10,394 (cap 10,400); surface 25,796 (cap 25,805) against 0.10.0's 23,580: +9.4%
+(the state check measured +11.0% before the cut). Not at 434's caps: §19 decides (446).
+
 ## Cost ledger
 
-| Phase | Dispatch | Round | Tokens |
-|---|---|---|---|
-
-Main loop unmeasured.
+Covered by 443's one review (90,836). Main loop unmeasured.

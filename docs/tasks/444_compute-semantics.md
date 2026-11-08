@@ -32,9 +32,15 @@ routines, and 48 of 50 `unreferenced_objects(Table, php)` rows read `no_edge_no_
   functions + 5 triggers (the same adapter kind).
 - The mention-audit numbers reported; fixtures updated (`tests/test_compute_catalogue.py`).
 
+## Result (anchor scratch copy, counts only)
+
+- `multi_defined`: 3,253 → 2,582 (no namespaces); `kind=Function, language=sql` 166.
+- Mention audit: 10 seeded strong non-temp rows — 4 no PHP text, 6 PHP substring only → substring
+  counts now. `unreferenced_objects(Function, php)` spent its 3 s grep deadline on a 1-char name
+  (190 MB of matches): names under 3 chars stay out, the grep keeps to the language's suffixes —
+  3.5 s all unchecked → 1.8 s with evidence (16 strong, 33 mentioned, 1 unchecked on the page).
+- 10 answers checked against direct counts on the copy: 10/10 match, caveat on each.
+
 ## Cost ledger
 
-| Phase | Dispatch | Round | Tokens |
-|---|---|---|---|
-
-Main loop unmeasured.
+Covered by 443's one review (90,836). Main loop unmeasured.
