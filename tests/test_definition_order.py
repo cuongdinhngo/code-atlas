@@ -100,6 +100,15 @@ def test_ac1_read_symbol_answers_the_live_definition(ordered: Config) -> None:
     assert {site["superseded_by"]["file"] for site in others} == {LATEST}
 
 
+def test_a_path_prefix_that_hides_definitions_names_no_state(ordered: Config) -> None:
+    """The best of the rows a prefix kept is not proven live: the order still picks, unlabelled."""
+    answer = read_symbol.create(ordered)(qname=PROC, path_prefix="db/migrations")
+
+    assert answer["reason"] == "ok" and answer["file"] == LATEST
+    assert "definition_state" not in answer
+    assert all("definition_state" not in site for site in answer["ambiguous_definitions"])
+
+
 def test_ac2_with_no_rule_nothing_is_live(tmp_path: Path) -> None:
     """AC2: an unknown is never ``ok`` — every definition stays unranked, and the read refuses."""
     config = build(tmp_path / "repo", None)
@@ -160,3 +169,12 @@ def test_the_glob_reader_still_understands_fnmatch() -> None:
     assert _rank("db/V2_1__x.sql", ("db/V<n>__*.sql",)) == (1, (2, 1))
     assert _rank("db/sub/V2__x.sql", ("db/V<n>__*.sql",)) is None
     assert _rank("db/a.sql", ("db/V<n>__*.sql", "db/*")) == (1, ())
+
+
+def test_a_wildcard_before_the_version_reads_the_whole_number() -> None:
+    """`*<n>` is greedy in fnmatch: V10 must read as 10, never 0, or V9 outranks it."""
+    from code_atlas.tools.symbol_pointers import _rank
+
+    assert _rank("db/V10.sql", ("db/*<n>.sql",)) == (1, (10,))
+    assert _rank("db/x/V12_x.sql", ("db/*/*<n>*.sql",)) == (1, (12,))
+    assert _rank("db/V1_10.sql", ("db/*<n>.sql",)) == (1, (1, 10))

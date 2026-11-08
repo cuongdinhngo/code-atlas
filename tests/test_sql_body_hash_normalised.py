@@ -85,3 +85,13 @@ def test_create_or_alter_inside_a_literal_is_kept(tmp_path: Path) -> None:
     said = BASE.replace("'Mixed  Case'", "'create or alter'")
     plain = BASE.replace("'Mixed  Case'", "'create'")
     assert body_hash(tmp_path, "said", said) != body_hash(tmp_path, "plain", plain)
+
+
+def test_an_alias_split_from_its_literal_by_a_line_break_is_no_unicode_literal(
+    tmp_path: Path,
+) -> None:
+    """`N` + newline + `'x'` is a column and its alias, as `N 'x'` is; never `N'x'`."""
+    split = body_hash(tmp_path, "split", BASE.replace("= 'Mixed  Case'", "= N\n'Mixed  Case'"))
+    spaced = body_hash(tmp_path, "spaced", BASE.replace("= 'Mixed  Case'", "= N 'Mixed  Case'"))
+    glued = body_hash(tmp_path, "glued", BASE.replace("= 'Mixed  Case'", "= N'Mixed  Case'"))
+    assert split == spaced != glued
