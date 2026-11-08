@@ -1,6 +1,6 @@
 # Tools — the full surface
 
-> The agent-facing surface of code-atlas: all 24 tools, what each returns, which take a list of
+> The agent-facing surface of code-atlas: all 25 tools, what each returns, which take a list of
 > subjects and which do not, the operator prompts, and the opt-in hooks. The
 > [README](../README.md) names the handful you call first; this is the reference. It is **not**
 > the payload contract (→ [`CONVENTION.md`](CONVENTION.md) §6) and not design reasoning
@@ -23,6 +23,7 @@
 | `subtree_dependencies` | tree-to-tree crossing with duplicate-declaration attribution — attributable vs unattributable always paired; dynamic alias bridges surfaced |
 | `reachable_from` | forward reachability from configured entry points. Default `detail_level` is **`minimal`** (268) — ask for `standard` when you want the full walk |
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates). Default `detail_level` is **`minimal`** (268); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. Roots that match nothing, a walk that exhausts its budget (182), and an index stamped with `unmodelled_resolution_by_language` (279, and 294-296 for the other three adapters) [refuse instead of returning rows](design/indexing.md#find-orphans-refuses-rather-than-dumping-what-it-has-flagged-tasks-182-279) |
+| `compute` | exact answers over the whole graph from a named template, never caller SQL (440): no `template` lists the catalogue (id, question, params). `tier_mix` splits edges per kind across confidence tiers; `no_referrer` lists the symbols of a `kind` no edge reaches, each labelled `no_edge_no_mention` (a strong candidate) or `no_edge_but_mentioned` (unknown, never dead) — or `mention_unchecked` when a name is under three characters or the literal pass hit its deadline. Every answer carries a data-driven `caveat` and `caveat_data`, a truthful `total_count`, `truncated`, and when empty a `reason` (`no_edge_matches`, `no_symbol_of_that_kind`, `every_one_is_referenced`). A template that does not take a param refuses it. Runs in a read-only sandbox — `mode=ro`, `query_only`, an authorizer allowing SELECT/READ and a short function list, 3 s per statement, at most 200 rows; a refusal or a deadline answers no rows with `reason` `refused_by_sandbox` / `deadline_exceeded`. Overlaps `find_orphans` without entry points: that one walks reachability, this one counts edges |
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them — default `detail_level` is **`minimal`** (268) — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
 | `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
@@ -821,7 +822,7 @@ that budget left an indexed file out.
 
 Three independent axes (210 / 216):
 
-- ``detail_level`` — how much of the *response* to return (same meaning on 24 tools); the
+- ``detail_level`` — how much of the *response* to return (same meaning on every tool that takes it); the
   response is discarded, so it does not reshape the committed tree.
 - ``audience`` — which *sections* the written tree holds (``full`` / ``newcomer`` /
   ``maintainer``); unset takes ``CA_AUDIENCE``.
@@ -1030,6 +1031,7 @@ for a reason:
 | `subtree_dependencies` | its subject is a directory prefix — the answer is a repo-wide report, not a per-name lookup |
 | `reachable_from` | its subject is the configured entry-point set, not a caller-supplied name |
 | `find_orphans` | the complement of the whole graph — there is no subject to list |
+| `compute` | its subject is a template over the whole graph; a list of templates is a batch the client can send itself |
 | `explain_path` | its subject is already a pair; a list of pairs is a query language, which 101 deliberately is not |
 | `architecture_overview` | its subject is the whole index — there is one repo to lay out, and a list of subjects has no meaning for a repo-wide shape |
 | `guided_tour` | its subject is the whole index — there is one reading order, and a list of subjects has no meaning for a repo-wide walk |
@@ -1057,7 +1059,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 24 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 25 tools |
 
 ## Hooks (opt-in)
 
@@ -1169,7 +1171,7 @@ a silent fallback.
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
 | `CA_DEFINITION_ORDER` | `definition_order` | unset | path globs, most authoritative first, naming the **live** definition of a qname defined more than once (437): one `<n>` in a glob reads a version from the path, highest wins (`["db/migrations/V<n>__*.sql", "db/snapshot/*.sql"]`). Read before a rules file's `definitions.precedence`, [same rules](#indirection-rule-files). In the toml anything but a list of globs fails loud |
 | `CA_REFS_INSTRUCTION` · `CA_REFS_MEMORY` · `CA_REFS_REFERENCE` · `CA_REFS_ARCHIVE` | `refs_instruction` · `refs_memory` · `refs_reference` · `refs_archive` | `CLAUDE.md`, `AGENTS.md`, `.claude/rules|skills/**`, `.cursor/rules/**`, `.github/copilot-instructions.md` · none · `docs/**`, wiki folders · none | the doc corpus `code-atlas query --verify-refs` reads, per priority class (438): repo-relative globs of markdown files, matched, never run (430). `archive` is reported and never counted; a file two classes name takes the more authoritative |
-| `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 24. |
+| `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 25. |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
 | `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |
 | `CA_CALLER_ROOT` | `caller_root` | unset | the caller's worktree when the client reports no MCP `roots` — reads overlay it (389); ignored when roots arrive, and by a call that passes `caller_root` (408) |
@@ -1433,7 +1435,7 @@ of `code-atlas`. All three are memoised in content-hash caches so runs replay an
 These are `onboarding_llm` knobs, not core config — the full table is in that package's README.
 
 **`audience` and `detail_level` are different knobs, and this is the decision (210).**
-`detail_level` means the same thing on 24 tools — how much of the **response** to return — and the
+`detail_level` means the same thing on every tool that takes it — how much of the **response** to return — and the
 response is read once and dropped. Growing it to reshape the committed tree would make files a repo
 checks into git depend on a per-call argument, so it **stays a payload knob and is unchanged**.
 `audience` is the artifact knob: it selects which sections `overview.md` holds and which documents

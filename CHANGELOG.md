@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **`compute`, a 25th tool (440).** Counting, grouping and absences over the whole graph come from a named template,
+  never SQL a caller writes, run in a read-only sandbox (`query_only`, an authorizer, a 3 s deadline, 200 rows).
+  Two templates ship: `tier_mix` and `no_referrer`, whose rows say whether a name with no edge is still mentioned
+  somewhere (`no_edge_but_mentioned` is unknown, never dead). `code-atlas query compute --args '{…}'` asks it from a shell.
 - **`code-atlas query --verify-refs` (438).** Which references in agent-facing docs still resolve: each path,
   symbol and backticked name in `CLAUDE.md`, `AGENTS.md`, rules, skills and `docs/**` gets one state with a reason —
   `ok`, `moved` (a git rename, or one same-name definition hashing as the body the doc's commit held), `gone`,

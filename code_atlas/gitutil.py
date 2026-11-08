@@ -184,6 +184,37 @@ def config_value(root: Path, key: str) -> str | None:
     return None if found is None else found.strip()
 
 
+def word_sites(
+    root: Path, words: Sequence[str], *, timeout: float
+) -> dict[str, list[tuple[str, int]]] | None:
+    """Every whole-word occurrence of each word, tracked or untracked but not ignored:
+    ``{word: [(path, line), …]}``, one entry per occurrence (440).
+
+    One time-capped ``git grep -F -w`` fencing each word with ``-e``; None when git cannot answer
+    in ``timeout``. A word holding a line break is never searched (grep would split it).
+    """
+    searchable = [w for w in words if w and "\n" not in w and "\0" not in w]
+    if not searchable:
+        return {}
+    patterns = [part for word in searchable for part in ("-e", word)]
+    # The user's color/column config would reshape each record; -i over-reports, never under.
+    found = _run(
+        root, "grep", "--untracked", "--no-color", "--no-column", "-n", "-o", "-w", "-F", "-i",
+        "-I", "-z", *patterns, "--", timeout=timeout, empty_exit=1,
+    )
+    if found is None:
+        return None
+    sites: dict[str, list[tuple[str, int]]] = {word: [] for word in searchable}
+    folded: dict[str, list[str]] = {}
+    for word in searchable:
+        folded.setdefault(word.casefold(), []).append(word)
+    for record in found.split("\n"):
+        path, _, rest = record.partition("\0")
+        line, _, matched = rest.partition("\0")
+        if line.isdigit():
+            for word in folded.get(matched.casefold(), ()):
+                sites[word].append((path, int(line)))
+    return sites
 
 
 @dataclass(frozen=True, slots=True)

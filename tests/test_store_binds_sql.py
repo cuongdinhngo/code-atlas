@@ -42,6 +42,10 @@ ALLOWED = {
     ("_subtree_crossing", "target_inside"): "a fragment `_path_under` built from a column literal",
     ("_subtree_dynamic_bridges", "subtree_clause"): "a fragment `_path_under` built from a literal",
     ("_tour_ranked", "where"): "its callers pass a literal or a literal around a traced fragment",
+    (
+        "_execute",
+        "sql",
+    ): "the compute sandbox's one executor: a COMPUTE_QUERIES body, or a test's refused probe",
 }
 
 

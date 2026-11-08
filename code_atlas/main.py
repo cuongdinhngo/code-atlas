@@ -30,6 +30,7 @@ from code_atlas.tools import (
     check_architecture_rules,
     check_column_defaults,
     class_diagram,
+    compute,
     diff_architecture,
     explain_path,
     file_outline,
@@ -74,6 +75,7 @@ TOOL_NAMES: tuple[str, ...] = (
     subtree_dependencies.NAME,
     reachable_from.NAME,
     find_orphans.NAME,
+    compute.NAME,
     explain_path.NAME,
     architecture_overview.NAME,
     guided_tour.NAME,
@@ -289,6 +291,8 @@ def build_server(
         serve(reachable_from.NAME, guard(reachable_from.create(config), config))
     if find_orphans.NAME in names:
         serve(find_orphans.NAME, guard(find_orphans.create(config), config))
+    if compute.NAME in names:
+        serve(compute.NAME, guard(compute.create(config), config))
     if explain_path.NAME in names:
         serve(explain_path.NAME, guard(explain_path.create(config), config))
     if architecture_overview.NAME in names:

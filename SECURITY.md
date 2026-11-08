@@ -109,6 +109,8 @@ takes none, so its revision is checked first and its search word fenced by `-e`.
 - `git diff --name-only` — what changed since the last build.
 - `git config --get` — one value (`core.autocrlf`); it reads the system file too.
 - `git --version` — refuse a git too old for `--end-of-options`.
+- `git grep --untracked --no-color --no-column -n -o -w -F -i` — `compute` (440): where a page's names
+  appear, time-capped; each name fenced by `-e`, no revision.
 - `git log` — `--verify-refs` (438): renames and deletions on `HEAD`, paths any branch ever added,
   a doc's last commit, and the last commit whose diff named a symbol (`-S`), time-capped.
 - `git grep -l -w -F` — `--verify-refs`: which files at `HEAD`, or at a doc's commit, name a symbol.

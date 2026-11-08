@@ -450,6 +450,11 @@ CALLS: dict[str, list[dict[str, Any]]] = {
     ],
     "reachable_from": [{}],
     "find_orphans": [{}],
+    "compute": [
+        {},
+        {"template": "tier_mix"},
+        {"template": "no_referrer", "params": {"kind": "Function"}},
+    ],
     "explain_path": [
         {"from_qname": "appZq9.main", "to_qname": SAVE},
         {"from_qname": "main", "to_qname": "saveZq9"},
@@ -533,6 +538,7 @@ UNREACHABLE = {
     ("architecture_overview", "summary.mirrors.pairs[].right"): "two subtrees sharing 25 paths",
     ("architecture_overview", "summary.mirrors.pairs[].sample[]"): "two subtrees sharing 25 paths",
     ("get_index_status", "routes_ambiguous[].route"): "a route key tied across short names",
+    ("compute", "detail"): "a template the sandbox refuses or cuts at its deadline",
     ("read_symbol", "ambiguous_definitions[].superseded_by.qname"): "a declared definition_order",
     ("read_symbol", "ambiguous_definitions[].superseded_by.file"): "a declared definition_order",
     ("get_index_status", "routes_ambiguous[].target"): "a route key tied across short names",
