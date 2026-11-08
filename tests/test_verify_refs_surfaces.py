@@ -267,3 +267,26 @@ def test_the_switch_reads_true_and_false_only(tmp_path: Path) -> None:
     assert load_config(tmp_path, {}).refs_session_line is True
     with pytest.raises(ConfigError, match="(?i)refs_session_line"):
         load_config(tmp_path, {"CA_REFS_SESSION_LINE": "maybe"})
+
+
+def test_ac1_a_crlf_doc_with_a_unicode_line_separator_still_applies(tmp_path: Path) -> None:
+    """The patch keeps CRLF and counts lines as git does: U+2028 is not a line break."""
+    doc = "intro still line one\r\n- `lib/old.py`\r\nend\r\n"
+    write(tmp_path, {"lib/old.py": KEPT})
+    (tmp_path / "CLAUDE.md").write_bytes(doc.encode("utf-8"))
+    (tmp_path / ".gitignore").write_text(".code-atlas/\n", encoding="utf-8")
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "-c", "core.autocrlf=false", "add", "-A")
+    git(tmp_path, "commit", "-q", "-m", "first")
+    git(tmp_path, "mv", "lib/old.py", "lib/new.py")
+    git(tmp_path, "commit", "-q", "-m", "second")
+    config = build(tmp_path)
+    with GraphStore(config.db_path) as store:
+        found = doc_refs.scan(config, store)
+    (moved,) = rows_for(found, "lib/old.py")
+    assert moved["line"] == 2 and moved["patch_ready"] is True
+    made, skipped = doc_refs.patches(config, found.rows)
+    assert skipped == 0 and len(made) == 1
+    subprocess.run(["git", "apply", "-"], cwd=tmp_path, input=made[0].diff.encode(), check=True)
+    after = (tmp_path / "CLAUDE.md").read_bytes().decode("utf-8")
+    assert after == doc.replace("lib/old.py", "lib/new.py")

@@ -22,7 +22,7 @@ from typing import Literal
 
 from code_atlas import gitutil
 from code_atlas.config import Config
-from code_atlas.containment import read_text, resolves_inside, safe_write
+from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
 from code_atlas.contract import MEMBER_SEPARATOR, QUALIFIED_SHAPE
 from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
@@ -185,7 +185,8 @@ def extract(path: str, doc_class: str, text: str) -> tuple[list[Mention], int]:
     mentions: list[Mention] = []
     commands = 0
     fence: tuple[str, str] | None = None
-    for number, line in enumerate(text.splitlines(), start=1):
+    # Lines end at "\n" only, as git counts them: U+2028 or a form feed is not a line break.
+    for number, line in enumerate(text.split("\n"), start=1):
         opened = _FENCE.match(line)
         if fence is not None:
             if opened and opened.group(1).startswith(fence[0][0]) and len(opened.group(1)) >= len(
@@ -926,11 +927,13 @@ def patches(config: Config, rows: Sequence[Mapping[str, object]]) -> tuple[list[
     ranked = sorted(by_file.items(), key=lambda kv: (order[str(kv[1][0]["class"])], kv[0]))
     for doc, edits in ranked:
         try:
-            text = read_text(config.root, config.root / doc, errors="strict")
+            # The bytes as they are: CRLF kept, so the diff matches what `git apply` reads.
+            text = read_bytes(config.root, config.root / doc).decode("utf-8")
         except (OSError, ValueError):
             skipped += len(edits)
             continue
-        old = text.splitlines(keepends=True)
+        old = text.split("\n")
+        old = [line + "\n" for line in old[:-1]] + ([old[-1]] if old[-1] else [])
         new = list(old)
         placed = 0
         for edit in edits:

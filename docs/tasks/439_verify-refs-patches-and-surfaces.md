@@ -39,3 +39,77 @@ session start that names the instruction-file count first.
 3. The SessionStart line never exceeds the signal budget, reports `unknown` separately from `ok`, and
    is absent unless opted in.
 4. The tool surface test and 434's description budget stay green with the new tool counted.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **KEY:** 439 · **work_doc_mode:** embed · **Current phase:** 4 review.
+- `TRACK: backend` · Run mode: `autorun 439 - 441`, first — `REVIEWER: OFF` (waived: "with skipped reviewer") ·
+  `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
+- Branch `feat/439-verify-refs-surfaces` from `main` at `e7896fa1`. Contract `.mango/run-contract-439.txt`
+  (mango 1.21.0), written before any code; RECONCILE t0:
+  `4 declared | 2 re-run | 0 holding | 2 BROKEN | 2 UNBOUND | 0 could-not-run | 0 pending-merge`.
+
+## Phase 0 — refine
+
+`PREMISE: 5 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 0 by handle | 2 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 7 unresolved surfaced | 5 want-decision asked | 2 how-decision resolved+cited | 5 ASSUMED | skip: no`
+
+438's `doc_refs.verify_refs`, `main.TOOL_NAMES`, 429's `untrusted.FIELDS`, 434's caps and `hooks/signal.py`'s
+`TOKEN_BUDGET = 150` resolve. Ambiguous: `hooks/signal.py` is the Read/Write hook; the SessionStart hook is
+`hooks/state.py`. Recalled by area: 440-C1 (a deadline is an answer only if the scan fits), 438-C1.
+
+| # | Decision | Class | Resolution |
+|---|---|---|---|
+| H1 | the replacement's spelling | how | the successor written as the doc wrote the reference: root- or doc-relative (`posixpath.relpath`), a trailing `/` kept; a symbol keeps the doc's member separator and leading `\` |
+| H2 | a doc with no newline at end of file | how | a small own diff writer emits `\ No newline at end of file`; `difflib` does not |
+| W1 | scope 3 wants `format` and scope 1 a diff, but 429 forbids doc prose in the payload — a diff carries the doc's lines | want | **ASSUMED:** the tool's `format: patch` answers `edits` (file, line, ref, replacement) and `apply_with`, the CLI route that prints the diff |
+| W2 | scope 1 groups per priority class, archive included? | want | **ASSUMED:** archive rows are never patched — an archive records what was true then |
+| W3 | scope 4: "inside `hooks/signal.py`'s budget", opt-in how? | want | **ASSUMED:** the line rides `code-atlas-state` at `SessionStart` only, capped by `signal.TOKEN_BUDGET`; opt-in is `refs_session_line` (toml/env); its git history is capped at 3 s, past which rows are `unknown`, counted |
+| W4 | AC1's "two-successor row" — 438 never produced one | want | **ASSUMED:** a folder whose files moved to two folders is `moved`, `git_rename_split`, with `successors` and a hint, no patch |
+| W5 | 429's frame refuses a field holding two shapes; 438 gave `successor` a string (path) or an object (symbol) | want | **ASSUMED:** one shape per field — a symbol's `successor` is its qname beside `site`; an ambiguous path lists `candidate_paths` (438 is unreleased) |
+
+## Phase 1 — analysis
+
+`SECTIONS: 3 found (Why this exists · Scope · Acceptance) | 3 decomposed | ROWS: C=3 R=4 G=1 AC=4`
+`CLARIFICATION: 7 raised | 7 self-resolved (cited) | 0 for human decision`
+`TRACK: backend — 0/34 touched files under UI paths`
+`SCOPE: L`
+`TIER: full`
+`STRUCTURE: native`
+
+| ID | Source | Verbatim | Interpretation | Status |
+|---|---|---|---|---|
+| G1 | Why | "Success means the file gets corrected" | every finding carries its cheapest correction | ⚠ |
+| C1 | Scope 1 | "code-atlas never applies one" | patches are printed / listed, never written | ⚠ |
+| C2 | Scope 3 | "reference strings only (429)" | W1 | ⚠ |
+| C3 | Scope 4 | "Nothing runs in the edit loop" | SessionStart only, never Read/Write | ⚠ |
+| R1–R4 | Scope 1–4 | patches · `--format patch` · the tool · the line | as written, W1–W5 | ⚠ |
+| AC1–AC4 | Acc 1–4 | as written | `tests/test_verify_refs_surfaces.py`; AC4 the surface tests | ⚠ |
+
+`BASELINE: green — tests/test_verify_refs.py, test_tool_surface_budget.py, test_tool_manifest.py, test_untrusted_output.py, test_session_state_hook.py, test_config.py on main at e7896fa1: 130 passed, 57 skipped (adapter deps absent in the throwaway worktree)`
+
+`RULE SECTIONS: 4 applicable — 4 by change-type | 0 by recalled handle — §1 (change-type) ✅ R1.1 no language branch: the separator comes from the doc · §5 (change-type) ✅ R5.6 unknown counted apart from ok · §6 (change-type) ✅ R6.5 seen red, R6.7 the new tool joins every walk · §7 (change-type) ✅ R7.2, R7.5, R7.6`
+
+## Phase 2 — design
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+
+**Approach.** `doc_refs.py`: `scan()` (every row, sorted, annotated) and `summarize()` (counts, the state filter, the
+cap) split `verify_refs`; `_annotate` sets `patch_ready` or a `hint`; `patches()` builds one diff per file, instruction
+first, replacing only bounded occurrences of the reference on its line; `session_line()`. `query.py`: `--format patch`,
+`--state`. `tools/verify_refs.py`: the 26th tool. `hooks/state.py`: `refs_line` at `SessionStart`. `config.py`:
+`refs_session_line`. Wiring: `TOOL_NAMES`, routing map, `untrusted.FIELDS`, manifest, pins, docs, the generated skill.
+**Rejected:** the diff in the MCP payload (W1); a separate SessionStart command (one hook already runs there);
+`difflib` (no end-of-file marker).
+**Proving test:** `tests/test_verify_refs_surfaces.py`.
+
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+## Phase 3 — execute
+
+Main loop, no `implementer` (`ac4f9d02`). **R6.5:** on `main` the test cannot import the tool; while building, AC1's
+split row read `ok` (an emptied folder `git mv` leaves behind) and the surface cap was 96 chars over until the
+description was cut. **This repo (counts only):** the session line takes 3.4 s; a full scan 3.4 s, 10,638 rows.
