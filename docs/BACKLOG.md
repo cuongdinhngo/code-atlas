@@ -32,7 +32,7 @@ day-7 result decides what continues.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 437 | [SQL live definition + format-blind hash](tasks/437_sql-live-definition.md) | Graph | todo | 384 |
+| 437 | [SQL live definition + format-blind hash](tasks/437_sql-live-definition.md) | Graph | in-progress | 384 |
 | 438 | [`verify_refs`: stale refs in agent docs](tasks/438_verify-refs-core.md) | Verify | todo | 384, 429, 430 |
 | 439 | [`verify_refs`: patches, MCP tool, SessionStart line](tasks/439_verify-refs-patches-and-surfaces.md) | Verify | todo | 438, 434 |
 | 440 | [`compute`: views, sandbox, template contract](tasks/440_compute-sandbox-and-contract.md) | Compute | todo | 428, 434 |
@@ -103,6 +103,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   questions await a contract-19 rebuild (E1) — 410.
 - **`impact` walks no `READS`/`WRITES`**, so a table's blast radius is its seed alone; its readers and
   writers are `find_references`' answer — 414.
+- **The 0.11 release owes one `contract_version` bump** — 437 moved every SQL `body_hash` and 438's
+  reference shapes join the handshake; no bump forces the rebuild until then — 437.
 - **The PreCompact state line reaches no one** — Claude Code adds no PreCompact stdout to context and
   discards its `systemMessage` (`hooks.md`, read 2026-10-10); the hook still runs there — 381.
 
