@@ -43,6 +43,7 @@ RECOGNITION_MAP: tuple[tuple[str, str, str, bool], ...] = (
     ("What is reachable from entry points / what is dead", "reachable_from", "", False),
     ("Which symbols look unused", "find_orphans", "", False),
     ("How many / which have none / what share, over the whole graph", "compute", "", False),
+    ("Which paths or symbols named in CLAUDE.md / docs are stale", "verify_refs", "", False),
     ("How does one symbol reach another", "explain_path", "", True),
     (
         "What are this codebase's layers, and how do they depend on each other",

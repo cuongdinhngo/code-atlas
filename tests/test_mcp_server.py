@@ -57,6 +57,7 @@ from code_atlas.tools.read_symbol import NAME as READ
 from code_atlas.tools.search_symbol import NAME as SEARCH
 from code_atlas.tools.subtree_dependencies import NAME as SUBTREE_DEPS
 from code_atlas.tools.trace_capability import NAME as TRACE
+from code_atlas.tools.verify_refs import NAME as VERIFY_REFS
 
 REPO = Path(__file__).resolve().parent.parent
 FAKE = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
@@ -196,6 +197,7 @@ def test_the_proof_has_something_to_run() -> None:
         REACHABLE,
         ORPHANS,
         COMPUTE,
+        VERIFY_REFS,
         EXPLAIN,
         OVERVIEW,
         TOUR,
@@ -447,6 +449,7 @@ CALLS: tuple[tuple[str, dict[str, object]], ...] = (
     (REACHABLE, {}),
     (ORPHANS, {}),
     (COMPUTE, {"template": "tier_mix"}),
+    (VERIFY_REFS, {}),
     (EXPLAIN, {"from_qname": "\\A", "to_qname": "\\B"}),
     (OVERVIEW, {}),
     (TOUR, {}),

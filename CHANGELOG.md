@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **`verify_refs`, a 26th tool, and patches (439).** A `moved` reference with one successor carries its
+  `replacement`, written as the doc wrote it; `code-atlas query --verify-refs --format patch | git apply` swaps
+  only those strings, and the tool answers the same corrections as edits, never doc text. `--state` / `state` filter
+  rows. `refs_session_line = true` adds one count-only stale-reference line at `SessionStart`. A moved symbol's
+  `successor` is now its qname beside a `site`, and an ambiguous path lists `candidate_paths` (438's shapes, unreleased).
 - **`compute`, a 25th tool (440).** Counting, grouping and absences over the whole graph come from a named template,
   never SQL a caller writes, run in a read-only sandbox (`query_only`, an authorizer, a 3 s deadline, 200 rows).
   Two templates ship: `tier_mix` and `no_referrer`, whose rows say whether a name with no edge is still mentioned

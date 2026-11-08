@@ -258,6 +258,13 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: the literal-mention pass scanned every edge's string arguments in SQL; on the anchor it hit its 3 s
   deadline on every call, so every absence read `mention_unchecked` — honest and useless. One time-capped `git grep`
   for a page's names answers in ~1 s. Measure a capped check on the real corpus before shipping it.
+### 439-C1 — text read for meaning cannot feed a writer that must match the bytes
+
+- type: 2 (heuristic) · handle: `area:doc-refs`
+- status: proposed · seen: 439
+- evidence: `patches()` built its diff from `read_text`, which turns CRLF into LF, and split on
+  `splitlines`, which breaks at U+2028: `git apply --check` refused both (the challenger's probe). A writer
+  reads the bytes and counts lines as the consumer does (`\n`), and the extractor must count the same way.
 ### 438-C1 — a lookup per reference over git history needs an index built once
 
 - type: 2 (heuristic) · handle: `area:verify_refs`
