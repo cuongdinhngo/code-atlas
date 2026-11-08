@@ -4,7 +4,7 @@ slug: compute-sandbox-and-contract
 title: "`compute`: exact answers over the whole graph — private views, sandbox, template contract, evidence levels"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [428, 434]
 ---
 
@@ -49,7 +49,7 @@ RESOLVED**, so "nothing references X" is often "nothing *resolved* references X"
 
 ## Session status
 
-- **KEY:** 440 · **work_doc_mode:** embed · **Current phase:** 5 finalise — the PR is open; merging is the maintainer's.
+- **KEY:** 440 · **work_doc_mode:** embed · **Current phase:** done · merged in #166 as `e7896fa1`.
 - `TRACK: backend` · Run mode: `autorun 437 - 438 - 440`, third — `REVIEWER: ON` · `CHALLENGER: ON` · `cost_tier: standard`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/440-compute-sandbox` from `main` at `63991c1b` (independent of 437/438). Contract

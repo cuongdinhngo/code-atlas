@@ -4,7 +4,7 @@ slug: compute-catalogue
 title: "`compute`: the first eight templates, each with fixtures for its answer, caveat, empty and truncation"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [440, 437]
 ---
 
@@ -41,7 +41,7 @@ names baked in (R2). No template branches on language (R1.1) — a language is a
 
 ## Session status
 
-- **KEY:** 441 · **work_doc_mode:** embed · **Current phase:** 5 finalise.
+- **KEY:** 441 · **work_doc_mode:** embed · **Current phase:** done · merged in #168 as `100f3b8a`.
 - `TRACK: backend` · Run mode: `autorun 439 - 441`, second — `REVIEWER: OFF` (waived: "with skipped reviewer") ·
   `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/441-compute-catalogue` from `main` at `e7896fa1`, built in a worktree while 439's gate held the main

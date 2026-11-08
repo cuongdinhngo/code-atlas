@@ -4,7 +4,7 @@ slug: verify-refs-patches-and-surfaces
 title: "`verify_refs`: ready-to-apply patches, the MCP tool, and a count-only SessionStart line"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [438, 434]
 ---
 
@@ -44,7 +44,7 @@ session start that names the instruction-file count first.
 
 ## Session status
 
-- **KEY:** 439 · **work_doc_mode:** embed · **Current phase:** 5 finalise.
+- **KEY:** 439 · **work_doc_mode:** embed · **Current phase:** done · merged in #167 as `4e0a37d9`.
 - `TRACK: backend` · Run mode: `autorun 439 - 441`, first — `REVIEWER: OFF` (waived: "with skipped reviewer") ·
   `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/439-verify-refs-surfaces` from `main` at `e7896fa1`. Contract `.mango/run-contract-439.txt`

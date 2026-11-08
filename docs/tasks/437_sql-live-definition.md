@@ -4,7 +4,7 @@ slug: sql-live-definition
 title: "SQL: which definition of a multiply-defined routine is live, and a hash that ignores formatting"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [384]
 ---
 
@@ -55,7 +55,7 @@ version is a per-repo config rule, not a built-in convention (R2).
 
 ## Session status
 
-- **KEY:** 437 · **work_doc_mode:** embed · **Current phase:** 5 finalise — the PR is open; merging is the maintainer's.
+- **KEY:** 437 · **work_doc_mode:** embed · **Current phase:** done · merged in #164 as `5e34cf44`.
 - `TRACK: backend` · Run mode: `autorun 437 - 438 - 440`, first — `REVIEWER: ON` · `CHALLENGER: ON` · `cost_tier: standard`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/437-sql-live-definition` from `main` at `63991c1b`. Contract `.mango/run-contract-437.txt`. RECONCILE t0:
