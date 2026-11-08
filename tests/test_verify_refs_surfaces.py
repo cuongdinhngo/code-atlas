@@ -25,7 +25,7 @@ from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.hooks import state
 from code_atlas.hooks.signal import TOKEN_BUDGET as SIGNAL_BUDGET
 from code_atlas.main import build_server
-from code_atlas.store import LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import GraphStore
 from code_atlas.tokens import estimate_tokens
 from code_atlas.tools import verify_refs
 from tests.test_verify_refs import KEPT, PY_ENTRY, build, git, write
@@ -230,8 +230,7 @@ def _session(
 
 def _stored(config: Config, budget_s: float = doc_refs.HISTORY_BUDGET_S) -> None:
     with GraphStore(config.db_path) as store:
-        generation = store.get_meta(LAST_COMMIT_KEY) or ""
-        doc_refs.store_summary(config, store, generation=generation, budget_s=budget_s)
+        doc_refs.store_summary(config, store, budget_s=budget_s)
 
 
 def test_ac3_the_session_line_is_absent_unless_opted_in(
@@ -261,7 +260,7 @@ def test_ac5_the_session_path_never_scans_docs(
 
     monkeypatch.setattr(doc_refs, "scan", no_scan)
     with GraphStore(repo.db_path) as store:
-        line = doc_refs.session_line(repo, store, generation=store.get_meta(LAST_COMMIT_KEY))
+        line = doc_refs.session_line(repo, store)
     assert line is not None and "since last scan" not in line
     guide = repo.root / "docs" / "guide.md"
     before = guide.read_text(encoding="utf-8")

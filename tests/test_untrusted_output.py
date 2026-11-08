@@ -462,7 +462,7 @@ CALLS: dict[str, list[dict[str, Any]]] = {
         {"template": "multi_defined"},
         {"template": "variant_pairs", "params": {"left": "*Zq9", "right": "*"}},
     ],
-    "verify_refs": [{}, {"limit": 50}, {"format": "md"}, {"format": "patch"}],
+    "verify_refs": [{}, {"strength": ["strong", "weak"]}, {"format": "md"}, {"format": "patch"}],
     "explain_path": [
         {"from_qname": "appZq9.main", "to_qname": SAVE},
         {"from_qname": "main", "to_qname": "saveZq9"},

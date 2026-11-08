@@ -316,11 +316,10 @@ def _build(
 def _refs_summary(config: Config, store: GraphStore) -> str:
     """Store the doc-reference counts the session line reads: a session start never scans (443)."""
     from code_atlas import doc_refs
-    from code_atlas.store import StoreError
 
     try:
-        doc_refs.store_summary(config, store, generation=store.get_meta(LAST_COMMIT_KEY) or "")
-    except (OSError, ValueError, StoreError) as error:
+        doc_refs.store_summary(config, store)
+    except Exception as error:  # noqa: BLE001 — after publish: a failed extra never fails the build
         return f"failed: {type(error).__name__}"
     return "stored"
 

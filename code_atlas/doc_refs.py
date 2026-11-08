@@ -31,7 +31,7 @@ from code_atlas.config import Config
 from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
 from code_atlas.contract import MEMBER_SEPARATOR, QUALIFIED_SHAPE
 from code_atlas.resolver import ancestry
-from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore, Row
+from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
     DEFINITION_LIVE,
     declared_precedence,
@@ -184,6 +184,8 @@ def collect(config: Config, only: Sequence[str] = ()) -> Corpus:
             continue
         if narrow and not any(regex.match(path) for regex in narrow):
             continue
+        if not in_repo(path):
+            continue  # a repo path may never claim the host-memory namespace (SEC-IN-03)
         found = classify(path, globs) or (REFERENCE if narrow else None)
         if found is not None:
             corpus.files[path] = found
@@ -867,6 +869,18 @@ def strength(row: Mapping[str, object]) -> str:
     return STRONG if kind == SYMBOL and origin in (CODE_SPAN, FENCE) else WEAK
 
 
+UNCHECKED_STATES: tuple[str, ...] = (UNKNOWN, AMBIGUOUS, NEVER_EXISTED)
+
+
+def is_unchecked(row: Mapping[str, object]) -> bool:
+    """A strong row the scan could not settle: never `ok`, never actionable, always counted."""
+    return (
+        row.get("state") in UNCHECKED_STATES
+        and row.get("strength") == STRONG
+        and row.get("class") != ARCHIVE
+    )
+
+
 def is_actionable(row: Mapping[str, object]) -> bool:
     """Moved or gone, strong, not archive: what a surface counts and a fix rate divides by."""
     return (
@@ -926,6 +940,7 @@ def summarize(
     acted: dict[str, dict[str, int]] = {}
     files: dict[str, int] = {}
     ready: dict[str, int] = {}
+    unchecked: dict[str, int] = {}
     weak_hidden = 0
     for row in rows:
         name = str(row["class"])
@@ -933,6 +948,8 @@ def summarize(
             weak_hidden += 1
             continue
         by_class.setdefault(name, {state: 0 for state in STATES})[str(row["state"])] += 1
+        if is_unchecked(row):
+            unchecked[name] = unchecked.get(name, 0) + 1
         if row.get("actionable"):
             bucket = acted.setdefault(name, {state: 0 for state in ACTIONABLE_STATES})
             bucket[str(row["state"])] += 1
@@ -951,7 +968,10 @@ def summarize(
     elif not rows:
         reason = "no_references"
     elif not kept:
-        reason = "nothing_actionable" if actionable else "state_filter_left_no_row"
+        if not actionable:
+            reason = "state_filter_left_no_row"
+        else:
+            reason = "nothing_actionable_but_unchecked" if unchecked else "nothing_actionable"
     else:
         reason = "ok"
     ranked = sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))
@@ -967,6 +987,7 @@ def summarize(
         "actionable": {name: acted[name] for name in CLASSES if name in acted},
         "actionable_total": sum(sum(c.values()) for c in acted.values()),
         "by_class": by_class,
+        "unchecked": {name: unchecked[name] for name in CLASSES if name in unchecked},
         "weak_rows_not_counted": weak_hidden,
         "patch_ready": ready,
         "commands": corpus.commands,
@@ -1190,10 +1211,16 @@ def docs_fingerprint(config: Config) -> str:
     return digest.hexdigest()[:16]
 
 
+def index_generation(store: GraphStore) -> str:
+    """HEAD the index was built at, and its files' count and newest write: a refresh moves it."""
+    return f"{store.get_meta(LAST_COMMIT_KEY) or ''}@{store.files_stamp()}"
+
+
 def store_summary(
-    config: Config, store: GraphStore, *, generation: str, budget_s: float = SUMMARY_BUDGET_S
+    config: Config, store: GraphStore, *, budget_s: float = SUMMARY_BUDGET_S
 ) -> dict[str, object]:
     """Scan once and store the actionable counts with the index generation and the docs' stamp."""
+    generation = index_generation(store)
     stamp = docs_fingerprint(config)
     held = stored_summary(store)
     if held is not None and held.get("generation") == generation and held.get("docs") == stamp:
@@ -1226,7 +1253,8 @@ def stored_summary(store: GraphStore) -> dict[str, object] | None:
 
 def session_line(config: Config, store: GraphStore, *, generation: str | None = None) -> str | None:
     """One count-only line from the stored summary, instruction class first; ``None`` when nothing
-    is actionable. It never scans: a stale stamp says so instead (443)."""
+    is actionable. It never reads or resolves a doc — a stat per file stamps them (443)."""
+    generation = index_generation(store) if generation is None else generation
     held = stored_summary(store)
     if held is None:
         return "code-atlas: doc references not scanned for this index yet — the next refresh scans."
@@ -1234,6 +1262,7 @@ def session_line(config: Config, store: GraphStore, *, generation: str | None = 
     ready = held.get("patch_ready")
     if not isinstance(acted, dict) or not isinstance(ready, dict):
         return None
+
     def total(name: str) -> int:
         counts = acted.get(name)
         return sum(int(v) for v in counts.values()) if isinstance(counts, dict) else 0
@@ -1250,7 +1279,7 @@ def session_line(config: Config, store: GraphStore, *, generation: str | None = 
         if unknown:
             line += f"; {unknown} unchecked (unknown, not ok)"
     stale = []
-    if generation is not None and held.get("generation") != generation:
+    if held.get("generation") != generation:
         stale.append("index moved")
     if held.get("docs") != docs_fingerprint(config):
         stale.append("docs changed")

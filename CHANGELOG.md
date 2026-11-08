@@ -28,7 +28,9 @@ the adapters' `qualified` shapes. **Adapter checkout must be updated.** Every ad
   `moved` or `gone` strong row outside the archive is *actionable*, and only those drive the default
   answer, the session line and `--fail-on`. The default MCP answer is the actionable counts per class
   and up to 20 compact rows, instruction files first; `state`, `doc_class`, `strength` or `limit`
-  ask for every state. A reference doc's weak rows leave the summaries unless `strength` names them.
+  ask for every state (`limit` alone only widens the page). Strong rows the scan could not settle are
+  counted apart as `unchecked`, never ok; `--fail-on unknown` fails on them. A reference doc's weak
+  rows leave the summaries unless `strength` names them.
 - **`--format jsonl` and `--refs-diff` (443).** Every row, uncapped and keyed, for a private
   baseline; `--refs-diff OLD NEW` counts fixed / new / unchanged actionable rows per class. An export
   gets 1,800 s of git history (`--history-budget` overrides).

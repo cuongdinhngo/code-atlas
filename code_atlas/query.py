@@ -255,8 +255,7 @@ def _verify_refs(config: Config, args: argparse.Namespace) -> int:
         actionable = sum(1 for row in found.rows if row.get("actionable"))
         _say(f"{written} rows (total_count {len(found.rows)}), {actionable} actionable")
         return _fail_on(found.rows, args.fail_on)
-    explicit = bool(args.verify_refs or args.doc_class or args.state or args.strength
-                    or args.limit is not None)
+    explicit = bool(args.verify_refs or args.doc_class or args.state or args.strength)
     limit = args.limit or (doc_refs.DEFAULT_LIMIT if explicit else doc_refs.DEFAULT_ROWS)
     answer = doc_refs.summarize(found, states=args.state, strengths=args.strength, limit=limit,
                                 actionable=not explicit)
@@ -285,7 +284,13 @@ def _fail_on(rows: list[dict[str, object]], spec: str) -> int:
     if ACTIONABLE in failing:
         failing |= set(doc_refs.ACTIONABLE_STATES)
     hit = any(row.get("actionable") and row["state"] in failing for row in rows)
-    return NOT_HELD if hit else OK
+    unknown = doc_refs.UNKNOWN in failing and any(
+        doc_refs.is_unchecked(row) and row["state"] == doc_refs.UNKNOWN for row in rows
+    )
+    unchecked = sum(1 for row in rows if doc_refs.is_unchecked(row))
+    if unchecked:
+        _say(f"{unchecked} strong rows unchecked (unknown, ambiguous or never_existed — not ok)")
+    return NOT_HELD if hit or unknown else OK
 
 
 def _refs_diff(old: str, new: str) -> int:
@@ -296,8 +301,8 @@ def _refs_diff(old: str, new: str) -> int:
                 (json.loads(line) for line in before if line.strip()),
                 (json.loads(line) for line in after if line.strip()),
             )
-    except (OSError, ValueError) as error:
-        _say(f"--refs-diff: {error}")
+    except (OSError, ValueError, AttributeError, TypeError) as error:
+        _say(f"--refs-diff: {type(error).__name__}: {error}")
         return USAGE
     print(json.dumps(result), flush=True)
     return OK
@@ -432,8 +437,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit is not None and not 1 <= args.limit <= doc_refs.MAX_LIMIT:
         parser.error(f"--limit: 1..{doc_refs.MAX_LIMIT}")
     fail_on = {state for state in args.fail_on.split(",") if state}
-    if fail_on - {*doc_refs.ACTIONABLE_STATES, ACTIONABLE}:
-        parser.error(f"--fail-on: {', '.join(doc_refs.ACTIONABLE_STATES)} or {ACTIONABLE}")
+    if fail_on - {*doc_refs.ACTIONABLE_STATES, ACTIONABLE, doc_refs.UNKNOWN}:
+        parser.error(f"--fail-on: {', '.join(doc_refs.ACTIONABLE_STATES)}, unknown or {ACTIONABLE}")
     if args.refs_diff is not None:
         return _refs_diff(*args.refs_diff)
     if (args.qname or args.path) and args.changed_since is None:

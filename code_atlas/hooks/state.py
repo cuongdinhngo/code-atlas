@@ -387,7 +387,7 @@ def refs_line(root: Path, *, verbose: bool = False) -> str | None:
     from code_atlas.config import load_config
     from code_atlas.doc_refs import session_line
     from code_atlas.hooks.signal import TOKEN_BUDGET as SIGNAL_BUDGET
-    from code_atlas.store import LAST_COMMIT_KEY, GraphStore
+    from code_atlas.store import GraphStore
 
     config = load_config(root)
     if not config.refs_session_line:
@@ -396,7 +396,7 @@ def refs_line(root: Path, *, verbose: bool = False) -> str | None:
     if not config.db_path.is_file() or config.db_path.stat().st_size == 0:
         return None
     with GraphStore(config.db_path) as store:
-        line = session_line(config, store, generation=store.get_meta(LAST_COMMIT_KEY) or "")
+        line = session_line(config, store)
     if line is not None and estimate_tokens(line) > SIGNAL_BUDGET:
         return None  # counts only, so never expected; a line over the cap is silence, not chrome
     return line

@@ -1423,6 +1423,11 @@ class GraphStore:
         row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return None if row is None else str(row[0])
 
+    def files_stamp(self) -> str:
+        """How many files the index holds and when the newest was written: moves on any refresh."""
+        count, newest = self._conn.execute("SELECT COUNT(*), MAX(updated_at) FROM files").fetchone()
+        return f"{count}:{newest or ''}"
+
     def has_meta(self, key: str) -> bool:
         """True when the key exists — distinguishes absent (pre-077) from a stamped null-clear."""
         row = self._conn.execute("SELECT 1 FROM meta WHERE key = ?", (key,)).fetchone()

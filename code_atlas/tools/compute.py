@@ -347,7 +347,9 @@ _SUFFIX = re.compile(r"\.[A-Za-z0-9_+-]{1,16}")
 def _suffixes(files: set[str]) -> tuple[str, ...]:
     """The suffixes a language's indexed files carry: the grep reads only those (444)."""
     found = {PurePosixPath(f).suffix for f in files}
-    return tuple(sorted(s for s in found if _SUFFIX.fullmatch(s)))
+    if not found or not all(_SUFFIX.fullmatch(s) for s in found):
+        return ()  # a file no suffix names (`bin/console`): grep the whole tree, filter after
+    return tuple(sorted(found))
 
 
 def _evidence(

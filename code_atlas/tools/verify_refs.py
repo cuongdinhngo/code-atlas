@@ -55,9 +55,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Which paths and symbols in CLAUDE.md, skills, memory and docs moved or are gone:
         counts and up to 20 rows, instruction files first. `format: patch` lists edits.
         """
-        explicit = bool(globs or doc_class or state or strength or limit is not None)
+        explicit = bool(globs or doc_class or state or strength)
         cap, clamped = clamp_limit(limit, min(config.page_limit, doc_refs.MAX_LIMIT))
-        if not explicit:
+        if not explicit and limit is None:
             cap, clamped = doc_refs.DEFAULT_ROWS, False
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")

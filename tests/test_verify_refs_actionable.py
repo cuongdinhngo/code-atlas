@@ -30,7 +30,7 @@ FIRST = {
     "lib/d.py": "class Cache:\n    def persist(self):\n        return 2\n",
     "lib/old.py": KEPT,
     "lib/gone.py": "def bye():\n    return 1\n",
-    "CLAUDE.md": "- `lib/old.py` · `lib/gone.py` · `lib.a.Repo.vanished`\n"
+    "CLAUDE.md": "- `lib/old.py` · `lib/gone.py` · `lib.a.Repo.vanished` · `lib.a.Repo.invented`\n"
     "- `persist()` · `nope/missing` · `lib/a.py`\n",
     "docs/ref.md": "Uses `lib/gone.py` and `persist()`.\n",
     "docs/old/x.md": "Was `lib/gone.py`.\n",
@@ -85,7 +85,7 @@ def one(found: doc_refs.Scan, ref: str, file: str = "CLAUDE.md") -> dict[str, An
         ("lib/a.py", "CLAUDE.md", "ok", "strong", False),
         ("lib/gone.py", "docs/ref.md", "gone", "strong", True),
         ("lib/gone.py", "docs/old/x.md", "gone", "strong", False),
-        ("lib/gone.py", "<claude-memory>/note.md", "gone", "strong", True),
+        ("lib/gone.py", "<agent-memory>/note.md", "gone", "strong", True),
     ],
 )
 def test_strength_and_actionable(
@@ -108,7 +108,7 @@ def test_the_memory_folder_is_read_by_default_and_patched_by_hand(
     repo: Config, found: doc_refs.Scan
 ) -> None:
     """A2: the host's memory folder is the memory class; its edits carry no diff (outside git)."""
-    moved = one(found, "lib/old.py", "<claude-memory>/note.md")
+    moved = one(found, "lib/old.py", "<agent-memory>/note.md")
     assert moved["class"] == "memory" and moved["patch_ready"]
     made, _ = doc_refs.patches(repo, found.rows)
     assert all(doc_refs.in_repo(p.file) for p in made) and made
@@ -133,6 +133,9 @@ def test_ac4_the_default_answer_is_the_actionable_summary(
         answer["untrusted_fields"]
     )
     assert set(answer["rows"][0]) <= set(verify_refs._COMPACT)
+    assert answer["unchecked"] == {"instruction": 1}  # `Repo.invented`; `nope/missing` is weak
+    assert verify_refs.create(repo)(limit=3)["actionable_total"] == 6  # a limit keeps the view
+    assert len(verify_refs.create(repo)(limit=3)["rows"]) == 3
     monkeypatch.setattr(doc_refs, "DEFAULT_ROWS", 2)
     paged = verify_refs.create(repo)()
     assert (paged["returned"], paged["truncated"], paged["total_count"]) == (2, True, 6)
@@ -177,6 +180,32 @@ def test_fail_on_counts_the_actionable_set(
     assert query.main(["--verify-refs", "docs/old/x.md", "--fail-on", "gone"]) == query.OK
     with pytest.raises(SystemExit):
         query.main(["--verify-refs", "--fail-on", "never_existed"])  # never actionable
+    capsys.readouterr()
+    assert query.main(["--verify-refs", "CLAUDE.md", "--fail-on", "unknown"]) == query.NOT_HELD
+    assert "strong rows unchecked" in capsys.readouterr().err
+
+
+def test_a_repo_path_never_claims_the_host_memory_namespace(
+    repo: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review F3: a committed `<agent-memory>/` folder is skipped, never read as host memory."""
+    fake = repo.root / "<agent-memory>"
+    fake.mkdir(exist_ok=True)
+    (fake / "x.md").write_text("`lib/gone.py`\n", encoding="utf-8")
+    try:
+        files = doc_refs.collect(dataclasses.replace(repo, refs_memory=("<agent-memory>/*.md",)))
+        assert not [f for f in files.files if f.startswith(doc_refs.MEMORY_PREFIX)]
+    finally:
+        (fake / "x.md").unlink()
+        fake.rmdir()
+
+
+def test_a_diff_line_that_is_no_object_is_a_usage_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text("[]\n", encoding="utf-8")
+    assert query.main(["--refs-diff", str(bad), str(bad)]) == query.USAGE
     capsys.readouterr()
 
 

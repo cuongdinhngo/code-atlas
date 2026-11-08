@@ -202,7 +202,8 @@ def test_an_absence_greps_only_its_languages_files(tmp_path: Path) -> None:
     assert gitutil.word_sites(root, ["Orders"], timeout=5, suffixes=(".php",)) == {
         "Orders": [("b.php", 1)]
     }
-    assert compute._suffixes({"x/a.php", "b.phtml", "c", "d.p hp"}) == (".php", ".phtml")
+    assert compute._suffixes({"x/a.php", "b.phtml"}) == (".php", ".phtml")
+    assert compute._suffixes({"x/a.php", "bin/console"}) == ()  # review F2: no suffix names it
 
 
 def test_word_sites_counts_each_occurrence_tracked_or_not(tmp_path: Path) -> None:

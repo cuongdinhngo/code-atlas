@@ -906,9 +906,11 @@ a `reason` — `ok`, `moved` (one `successor`, or `successors` on a split), `gon
 `nearest_existing` for a path), `never_existed`, `ambiguous`, `unknown` (never `ok`) — plus
 `strength`: `strong` for a path git or the tree knows, a path with a folder and a suffix, or an
 adapter-shaped symbol written as code; `weak` otherwise. **Actionable** = `moved`/`gone`, strong, not
-archive. With no `globs`, `doc_class`, `state`, `strength` or `limit` the answer is `actionable`
-(counts per class and state), `actionable_total`, and up to 20 compact rows, instruction files first;
-any filter answers every state with `by_class`, `files` (per-file actionable counts) and full rows. A
+archive. With no `globs`, `doc_class`, `state` or `strength` the answer is `actionable` (counts per
+class and state), `actionable_total`, `unchecked` (strong rows left `unknown`, `ambiguous` or
+`never_existed` — never ok; `reason` `nothing_actionable_but_unchecked` when only those remain) and
+up to 20 compact rows (`limit` widens the page, not the view), instruction files first; any filter
+answers every state with `by_class`, `files` (per-file actionable counts) and full rows. A
 reference doc's weak rows leave every summary unless `strength` names them (`weak_rows_not_counted`).
 A member its class does not declare is `ok` (`inherited`) when an ancestor declares it, `gone` only
 when git shows it left the class's file, else `unknown` (`not_declared_on_container`). A `moved` row
