@@ -132,7 +132,11 @@ The can't-tell is AC3, an acceptance check off the diff: the anchor timings live
 not close** — the PR opens as a DRAFT and DISCLOSURE says why.
 
 Gate-driven after round 2: the full suite found two core rules the targeted runs missed — one contract word per
-statement (R3.2) and no language named in the core (R1.1, a param's example text). Round 3 verifies that range.
+statement (R3.2) and no language named in the core (R1.1, a param's example text). Round 3 (`c1178a9b`) verified
+that range and caught one more: the rewritten param line ran past 100 columns (E501), wrapped in `196ce137`; round 4
+verified the wrap. Both: 13 met · 1 can't tell (AC3), nothing new.
+
+Reviewed at 196ce137
 
 `Ph3/4 proven by`: AC1–AC2 → `tests/test_compute_catalogue.py` (45); AC3 → the anchor report (counts and timings only).
 
@@ -146,6 +150,16 @@ statement (R3.2) and no language named in the core (R1.1, a param's example text
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+Ran at 196ce137
+
+```
+$ scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
+A first gate run at `c1178a9b` was stopped once round 3 found the E501 it would fail on.
+
 ### Outward actions
 
 Under the handover: push `feat/441-compute-catalogue`; open its PR against `main` (draft — the review gate's
@@ -157,3 +171,7 @@ arithmetic does not close on an off-diff AC). Deferred: ratify W1–W5; merge.
 |---|---|---|---|
 | 4 review | ticket-blind `challenger` | 1 | 84,365 |
 | 4 review | ticket-blind `challenger` | 2 | 4,196 (resumed: 88,561 cumulative − 84,365) |
+| 4 review | ticket-blind `challenger` | 3 | 2,109 (resumed: 90,670 cumulative − 88,561) |
+| 4 review | ticket-blind `challenger` | 4 | 837 (resumed: 91,507 cumulative − 90,670) |
+
+`LEDGER TOTAL: 91,507 · top cost driver: 4 review / challenger` — main loop unmeasured.
