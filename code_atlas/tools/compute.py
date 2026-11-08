@@ -67,7 +67,7 @@ PARAM_TYPES: Mapping[str, tuple[str, ...]] = {
     "node_kind": contract.NODE_KINDS,
     "edge_kind": contract.EDGE_KINDS,
     "path_prefix": (),
-    "language": (),  # a value the index recorded, e.g. php — never a branch on it (R1.1)
+    "language": (),  # a value the index recorded — never a branch on it (R1.1)
     "qname_glob": (),  # GLOB over a qname: `*` any run, `?` one character
     "name_pattern": (),  # a name with exactly one `*`, the stem two variants share
 }
@@ -103,7 +103,7 @@ TEMPLATES: tuple[Template, ...] = (
         "Which objects of one kind does no edge from one language reach, by evidence level?",
         (
             Param("kind", True, "a node kind, e.g. Table", "node_kind"),
-            Param("language", False, "count only referrers in this language, e.g. php", "language"),
+            Param("language", False, "count only referrers in this language, as the index names it", "language"),
             _PREFIX,
         ),
         "unreferenced_objects",
