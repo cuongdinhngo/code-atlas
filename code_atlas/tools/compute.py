@@ -103,7 +103,9 @@ TEMPLATES: tuple[Template, ...] = (
         "Which objects of one kind does no edge from one language reach, by evidence level?",
         (
             Param("kind", True, "a node kind, e.g. Table", "node_kind"),
-            Param("language", False, "count only referrers in this language, as the index names it", "language"),
+            Param(
+                "language", False, "count only referrers in this language, as indexed", "language"
+            ),
             _PREFIX,
         ),
         "unreferenced_objects",
