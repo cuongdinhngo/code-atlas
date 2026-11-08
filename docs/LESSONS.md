@@ -258,6 +258,21 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: the literal-mention pass scanned every edge's string arguments in SQL; on the anchor it hit its 3 s
   deadline on every call, so every absence read `mention_unchecked` — honest and useless. One time-capped `git grep`
   for a page's names answers in ~1 s. Measure a capped check on the real corpus before shipping it.
+### 438-C1 — a lookup per reference over git history needs an index built once
+
+- type: 2 (heuristic) · handle: `area:verify_refs`
+- status: proposed · seen: 438
+- evidence: the first anchor run passed 15 min: each unresolved path scanned 181k history paths for a prefix. A
+  directory index built once per run brought 1,884 files to 24 s. Fixtures of ten paths never show it — time the corpus.
+- destination: first sighting.
+
+### 437-C1 — a fingerprint is taken over the span the scanner names, not the statement
+
+- type: 2 (heuristic) · handle: `area:body_hash`
+- status: proposed · seen: 437
+- evidence: `CREATE OR` + newline + `ALTER PROCEDURE` normalised correctly as text, yet still hashed apart:
+  the scanner starts the routine's span at the `ALTER` line, so the span never held `CREATE`. Test a
+  normalisation through the adapter's own spans (the reviewer's split-header case), never on a string.
 - destination: first sighting.
 
 ### 386-C1 — a hook that compacts `git diff` output makes a saved patch unusable

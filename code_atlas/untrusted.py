@@ -80,6 +80,8 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "supertypes[].name",
         "qname",
         "path_excluded[]",
+        "ambiguous_definitions[].superseded_by.qname",
+        "ambiguous_definitions[].superseded_by.file",
         *_RECORDS,
         *_MISS,
         *_REF,

@@ -83,6 +83,7 @@ Call `get_index_status` first whenever you are unsure the index is current.
 - **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.
 - **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:** `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and answer `holds`, `changed` or `unverifiable`.
 - **"Has this method changed since revision X?"** `--snapshot-symbols <out>` at X, then `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`, `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.
+- **"Is what `CLAUDE.md` and the docs say still true?"** `--verify-refs [globs]` states each path and symbol they name `ok`, `moved` (with its successor), `gone`, `never_existed`, `ambiguous` or `unknown`; `--class instruction`, `--format md`, `--limit N`, and `--fail-on moved,gone` to fail a pre-commit hook.
 
 ## What this skill is not
 

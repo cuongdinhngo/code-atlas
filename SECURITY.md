@@ -101,7 +101,8 @@ Every command below runs with `shell=False` and a timeout. In the indexed repo, 
 is the only spawner: it overrides the repo's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`
 and `diff.external`, drops every `GIT_*` variable of yours, sets `GIT_CONFIG_NOSYSTEM=1` and
 `GIT_TERMINAL_PROMPT=0`, and accepts a stored
-revision only as a full object id (or the literal `HEAD`), after `--end-of-options`.
+revision only as a full object id (or the literal `HEAD`), after `--end-of-options` — `git grep`
+takes none, so its revision is checked first and its search word fenced by `-e`.
 
 - `git ls-files` — which files to index, and whether git tracks the index.
 - `git rev-parse` — the repo's top level, `HEAD` and branch.
@@ -110,6 +111,10 @@ revision only as a full object id (or the literal `HEAD`), after `--end-of-optio
 - `git --version` — refuse a git too old for `--end-of-options`.
 - `git grep --untracked --no-color --no-column -n -o -w -F -i` — `compute` (440): where a page's names
   appear, time-capped; each name fenced by `-e`, no revision.
+- `git log` — `--verify-refs` (438): renames and deletions on `HEAD`, paths any branch ever added,
+  a doc's last commit, and the last commit whose diff named a symbol (`-S`), time-capped.
+- `git grep -l -w -F` — `--verify-refs`: which files at `HEAD`, or at a doc's commit, name a symbol.
+- `git cat-file blob` — `--verify-refs`: a file's text at a doc's commit, parsed to compare bodies.
 - `git ls-remote` — the release check above; it runs from code-atlas's own cache directory,
   never the indexed repo, with the same hardening.
 

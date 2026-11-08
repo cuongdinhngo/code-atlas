@@ -42,6 +42,8 @@ function serve(Parser $parser): void
             ['kind' => 'declaration', 'pattern' => '\\bfunction\\s+&?\\w+|\\b(class|interface|trait|enum)\\s+\\w+'],
             ['kind' => 'reference', 'pattern' => '(->|::)\\s*\\w+\\s*\\\\?\\(|\\bnew\\s+\\\\?\\w'],
             ['kind' => 'call', 'pattern' => '^\\w+\\\\?\\($'],
+            // A symbol as a doc writes it whole: a namespaced name or a `Class::member` (438).
+            ['kind' => 'qualified', 'pattern' => '^\\\\?[A-Za-z_]\\w*(?:(?:\\\\[A-Za-z_]\\w*)+(?:::\\$?\\w+)?|::\\$?\\w+)$'],
         ],
     ]);
 

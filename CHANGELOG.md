@@ -21,6 +21,20 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   never SQL a caller writes, run in a read-only sandbox (`query_only`, an authorizer, a 3 s deadline, 200 rows).
   Two templates ship: `tier_mix` and `no_referrer`, whose rows say whether a name with no edge is still mentioned
   somewhere (`no_edge_but_mentioned` is unknown, never dead). `code-atlas query compute --args '{…}'` asks it from a shell.
+- **`code-atlas query --verify-refs` (438).** Which references in agent-facing docs still resolve: each path,
+  symbol and backticked name in `CLAUDE.md`, `AGENTS.md`, rules, skills and `docs/**` gets one state with a reason —
+  `ok`, `moved` (a git rename, or one same-name definition hashing as the body the doc's commit held), `gone`,
+  `never_existed`, `ambiguous`, `unknown`. Classes come from `refs_*` toml globs; reference strings only, never prose.
+  Adapters announce a `qualified` symbol shape (a contract addition, owed in the 0.11 bump); the Python
+  `body_hash` no longer counts the dedent closing the block before a symbol, so stored Python hashes move once too.
+- **Which definition is live (437).** `definition_order` in `.code-atlas.toml` lists path globs, most
+  authoritative first; one `<n>` reads a version from the path (`db/migrations/V<n>__*.sql`), so of a
+  routine redefined in migrations and a snapshot the highest version is the one `read_symbol`
+  answers, marked `definition_state: "live"`; each other definition names it in `superseded_by`. A rules file's `definitions.precedence` takes `<n>` too. No rule, or a tie, names none.
+- **The SQL `body_hash` ignores formatting (437).** Keyword case, a needless `[bracket]` or `"quote"`,
+  the opening `CREATE`, `ALTER` or `CREATE OR ALTER` and a reflowed statement keep one fingerprint. **Full rebuild
+  required** once this lands: every stored SQL `body_hash` moves, so a `--changed-since` snapshot
+  taken before it reports SQL symbols as changed. The contract bump is owed at the 0.11 release.
 - **`code-atlas query` and a closed pipe (436).** A reader that closes stdout early (`| head`) no longer
   reports "unreadable index"; the command exits `141` quietly. A real database error keeps its message.
 - **Tool surface: the 24 descriptions are shortened to 10,066 characters in all** (434), from 45,574.

@@ -2224,6 +2224,20 @@ class GraphStore:
         )
         return self._rows(NODE_ROW_KEYS, sql, (name, pattern, limit))
 
+    def qname_prefix_exists(self, prefixes: Sequence[str]) -> bool:
+        """Whether any node's qualified name starts with one of ``prefixes`` — a range seek on the
+        ``(qualified_name, file_path)`` key, never a scan (438)."""
+        for prefix in prefixes:
+            if not prefix:
+                continue
+            row = self._conn.execute(
+                "SELECT 1 FROM nodes WHERE qualified_name >= ? AND qualified_name < ? LIMIT 1",
+                (prefix, prefix + "\U0010ffff"),
+            ).fetchone()
+            if row is not None:
+                return True
+        return False
+
     def nodes_by_kind(self, kind: str, *, limit: int) -> list[Row]:
         return self._nodes("kind = ?", kind, None, limit)
 

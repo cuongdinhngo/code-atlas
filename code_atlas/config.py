@@ -31,6 +31,8 @@ ADAPTER_CMD_ENV = re.compile(r"^CA_([A-Z0-9_]+)_CMD$")
 # The indexed repo is untrusted: its file may name an argv only once the user opts in, from a place
 # the repo does not control (341). Not `*_CMD`, or ADAPTER_CMD_ENV would read it as a language.
 TRUST_PROJECT_FILE_ENV = "CA_TRUST_PROJECT_FILE"
+# The version a definition-order glob reads from a path: `db/V<n>__*.sql` (437).
+VERSION_TOKEN = "<n>"
 
 KNOB_KEYS: tuple[str, ...] = (
     "db_path",
@@ -57,6 +59,11 @@ KNOB_KEYS: tuple[str, ...] = (
     "host_root",
     "container_root",
     "caller_root",
+    "definition_order",
+    "refs_instruction",
+    "refs_memory",
+    "refs_reference",
+    "refs_archive",
 )
 
 # Query-time only: kept out of the ``CA_*`` slice of ``config_identity`` (259). The project file
@@ -137,6 +144,13 @@ class Config:
     caller_root: Path | None = None
     # A source file above this is skipped and counted, never sent to an adapter (430).
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
+    # Path globs, most authoritative first: which of a qname's definitions is live (437).
+    definition_order: tuple[str, ...] | None = None
+    # The doc corpus `--verify-refs` reads, per priority class; None keeps the default (438).
+    refs_instruction: tuple[str, ...] | None = None
+    refs_memory: tuple[str, ...] | None = None
+    refs_reference: tuple[str, ...] | None = None
+    refs_archive: tuple[str, ...] | None = None
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -295,6 +309,13 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         max_file_bytes=_resolve(
             "max_file_bytes", _as_int, DEFAULT_MAX_FILE_BYTES, environ, file_values
         ),
+        definition_order=_resolve(
+            "definition_order", _as_definition_order, None, environ, file_values
+        ),
+        refs_instruction=_resolve("refs_instruction", as_doc_globs, None, environ, file_values),
+        refs_memory=_resolve("refs_memory", as_doc_globs, None, environ, file_values),
+        refs_reference=_resolve("refs_reference", as_doc_globs, None, environ, file_values),
+        refs_archive=_resolve("refs_archive", as_doc_globs, None, environ, file_values),
     )
 
 
@@ -556,6 +577,54 @@ def _as_architecture_rules(label: str, raw: object) -> tuple[str, ...] | None:
     return _as_repo_relative_list(
         label, raw, item="file path", collection="rule file paths"
     )
+
+
+def _as_definition_order(label: str, raw: object) -> tuple[str, ...] | None:
+    """Path globs, most authoritative first (437). The toml takes a list; the environment a comma
+    list, as every list knob does. Blank/unset = off."""
+    if label.startswith(PROJECT_FILE) and not (
+        isinstance(raw, list) and all(isinstance(item, str) and item.strip() for item in raw)
+    ):
+        raise ConfigError(f"{label}: {raw!r} is not a list of path globs")
+    names = raw.split(",") if isinstance(raw, str) else raw
+    if not isinstance(names, list):
+        raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of path globs")
+    return tuple(definition_globs(label, [name for name in names if str(name).strip()])) or None
+
+
+def as_doc_globs(label: str, raw: object) -> tuple[str, ...] | None:
+    """Repo-relative path globs naming docs to read, never run (438, 430). Blank/unset = default."""
+    if label.startswith(PROJECT_FILE) and not isinstance(raw, list):
+        raise ConfigError(f"{label}: {raw!r} is not a list of path globs")
+    names = raw.split(",") if isinstance(raw, str) else raw
+    if not isinstance(names, list):
+        raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of path globs")
+    kept: list[str] = []
+    for name in names:
+        if not isinstance(name, str):
+            raise ConfigError(f"{label}: {name!r} is not a path glob")
+        if not name.strip():
+            continue
+        if not _is_repo_relative(name):
+            raise ConfigError(f"{label}: {name!r} must be a repo-relative glob (no '/', '.', '..')")
+        kept.append(name.strip().replace("\\", "/").strip("/"))
+    return tuple(dict.fromkeys(kept)) or None
+
+
+def definition_globs(label: str, globs: Sequence[object]) -> list[str]:
+    """Repo-relative globs with at most one ``<n>`` version token each — the one check the toml's
+    ``definition_order`` and a rules file's ``definitions.precedence`` share (414, 437)."""
+    kept: list[str] = []
+    for glob in globs:
+        if not isinstance(glob, str) or not glob.strip():
+            raise ConfigError(f"{label}: {glob!r} is not a path glob")
+        if glob.count(VERSION_TOKEN) > 1:
+            raise ConfigError(f"{label}: {glob!r} names {VERSION_TOKEN} more than once")
+        if re.search(r"\[[^\]]*" + re.escape(VERSION_TOKEN), glob):
+            raise ConfigError(f"{label}: {glob!r} puts {VERSION_TOKEN} inside a [...] class")
+        # Paths are repo-relative: a leading `/` is dropped, never left to match nothing.
+        kept.append(glob.strip().lstrip("/"))
+    return list(dict.fromkeys(kept))
 
 
 def _as_repo_relative_list(
