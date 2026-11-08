@@ -146,6 +146,18 @@ Reviewed at a8c08fb0
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+**After review — one gate-driven change, not re-reviewed.** Gate run 1 at `3d595ad0` was RED on one pin: the
+claim-signing doc's unsigned-tools list must name every tool (`docs/design/impact-and-claims.md` gained the
+`verify_refs` row, `404cf5f4`). Docs only; no seat saw it. Run 2:
+
+Ran at 404cf5f4
+
+```
+$ scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
 ### Outward actions
 
 Under the handover: push `feat/439-verify-refs-surfaces`; open its PR against `main`. Deferred: ratify W1–W5; merge.
