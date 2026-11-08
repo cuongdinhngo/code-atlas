@@ -4,7 +4,7 @@ slug: verify-refs-core
 title: "`verify_refs`: find which references in agent docs no longer resolve — extraction, classes, states, CLI"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [384, 429, 430]
 ---
 
@@ -57,7 +57,7 @@ ticket is the finder; 439 adds the fix (patches) and the surfaces an agent sees.
 
 ## Session status
 
-- **KEY:** 438 · **work_doc_mode:** embed · **Current phase:** 5 finalise — the PR is open; merging is the maintainer's.
+- **KEY:** 438 · **work_doc_mode:** embed · **Current phase:** done · merged in #165 as `12d85a23`.
 - `TRACK: backend` · Run mode: `autorun 437 - 438 - 440`, second — `REVIEWER: ON` · `CHALLENGER: ON` · `cost_tier: standard`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/438-verify-refs-core`, stacked on 437 (#164, uses its `definition_states`). Contract
