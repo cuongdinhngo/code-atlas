@@ -90,9 +90,11 @@ class LineText {
 
   /** @param {string} ch a literal's character, kept as written */
   literal(ch) {
+    // A gap after the last word, read before breakWords clears it (`N'x'` holds `n` unflushed).
+    const spaced = this.space && this.word === "";
     this.breakWords();
     // `N 'x'` (a column and its alias) is not `N'x'` (one literal).
-    if (this.space && isWord(this.out[this.out.length - 1])) this.out += " ";
+    if (spaced && isWord(this.out[this.out.length - 1])) this.out += " ";
     this.space = false;
     this.out += ch;
   }
@@ -132,7 +134,7 @@ class LineText {
   }
 }
 
-/** @typedef {{hash: number[], power: number[], length: number, head: boolean, tail: boolean}} Poly */
+/** @typedef {{hash: number[], power: number[], length: number, head: boolean, opens: boolean, tail: boolean}} Poly */
 
 /**
  * Three composable polynomial hashes of `text`, and whether it opens and closes on a word.
@@ -150,7 +152,13 @@ function polynomial(text) {
     }
   }
   return {
-    hash, power, length: text.length, head: isWord(text[0]), tail: isWord(text[text.length - 1]),
+    hash,
+    power,
+    length: text.length,
+    head: isWord(text[0]),
+    // Opens on a literal: after a word it keeps its space, as `LineText.literal` does in a line.
+    opens: text[0] in CLOSERS,
+    tail: isWord(text[text.length - 1]),
   };
 }
 
@@ -226,11 +234,12 @@ function lineFingerprints() {
     const first = lowerBound(lines, start);
     for (let at = first; at < lines.length && lines[at] <= end; at += 1) {
       const part = at === first ? (parts[at].lead ?? parts[at]) : parts[at];
+      const spaced = tail && (part.head || part.opens);
       for (let k = 0; k < 3; k += 1) {
-        if (tail && part.head) hash[k] = (hash[k] * BASES[k] + SPACE) % MODULI[k];
+        if (spaced) hash[k] = (hash[k] * BASES[k] + SPACE) % MODULI[k];
         hash[k] = (hash[k] * part.power[k] + part.hash[k]) % MODULI[k];
       }
-      length += part.length + (tail && part.head ? 1 : 0);
+      length += part.length + (spaced ? 1 : 0);
       tail = part.tail;
     }
     return digest(`${hash.join(".")}.${length}`);

@@ -257,6 +257,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Refuse before freshness — the list needs no file bytes (078 review).
             # path_prefix filters definition rows before the multiplicity test (327).
             complete = len(rows) < fetch_limit  # a cut fetch may hide a second production row
+            unfiltered = len(rows)
             rows, prefix_miss = _apply_path_prefix(
                 rows, path_prefix, qname=qname, detail_level=detail_level, config=config
             )
@@ -315,6 +316,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if miss is not None:
                         return _stamp(miss)
                 complete = len(rows) < fetch_limit
+                unfiltered = len(rows)
                 rows, prefix_miss = _apply_path_prefix(
                     rows, path_prefix, qname=qname,
                     detail_level=detail_level, config=config,
@@ -394,7 +396,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             attach_other_indexed_files_drifted(payload, guard)
             _attach_records(payload, store, str(node["qualified_name"]), config, records_filter)
-            _attach_pointers(payload, store, node, rows if ambiguity else (), ambiguity)
+            _attach_pointers(
+                payload, store, node, rows if ambiguity else (), ambiguity,
+                every_definition=len(rows) == unfiltered,
+            )
             if overlay is not None:
                 overlay.label(payload)
             return attach_next_tools(payload, str(node["kind"]))
@@ -429,6 +434,8 @@ def _attach_pointers(
     node: Mapping[str, object],
     candidates: Sequence[Mapping[str, object]],
     ambiguity: str | None = None,
+    *,
+    every_definition: bool = True,
 ) -> None:
     """Where else this code lives — overrides, aliases, the definitions that did not answer (394,
     403); omitted when empty."""
@@ -440,7 +447,8 @@ def _attach_pointers(
         payload[AMBIGUITY_FIELD] = ambiguity
         # Labelled, so even one other definition is named: the >1 rule is for an unlabelled list.
         sites = definition_sites([dict(c) for c in candidates[1:]])
-        if ambiguity == DEFINITION_PRECEDENCE:
+        if ambiguity == DEFINITION_PRECEDENCE and every_definition:
+            # A path_prefix hid rows: the best one left is not proven live, so no state is named.
             # The declared order names the live one; each other definition says what supersedes it.
             states = definition_states([dict(c) for c in candidates], declared_precedence(store))
             payload[DEFINITION_STATE_FIELD] = states[0]["state"]

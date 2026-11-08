@@ -195,8 +195,8 @@ def declared_precedence(store: GraphStore) -> tuple[str, ...]:
     return tuple(dict.fromkeys(globs))
 
 
-# What `fnmatch.translate` returns: `(?s:<body>)\Z`.
-_TRANSLATED = re.compile(r"\(\?s:(.*)\)\\Z", re.DOTALL)
+# What `fnmatch.translate` returns: `(?s:<body>)\Z` (`\z` from Python 3.14).
+_TRANSLATED = re.compile(r"\(\?s:(.*)\)\\[Zz]", re.DOTALL)
 
 
 @functools.lru_cache(maxsize=256)
@@ -208,7 +208,8 @@ def _glob_pattern(glob: str) -> re.Pattern[str]:
         if body is None:  # a Python whose fnmatch wraps its pattern differently: fail loud
             raise RuntimeError(f"fnmatch.translate({part!r}) has an unknown shape")
         parts.append(body.group(1))
-    return re.compile(r"(\d+(?:[._]\d+)*)".join(parts), re.DOTALL)
+    # Whole digit runs only: a greedy `*` before `<n>` must not leave `V10` reading as `0`.
+    return re.compile(r"(?<!\d)(?<!\d[._])(\d+(?:[._]\d+)*)(?!\d)".join(parts), re.DOTALL)
 
 
 def _rank(path: str, precedence: Sequence[str]) -> tuple[int, tuple[int, ...]] | None:

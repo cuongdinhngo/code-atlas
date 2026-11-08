@@ -202,6 +202,11 @@ naming this first; the reviewer's conditional LGTM stands, its findings 1 and 2 
 AC3 → `tests/test_sql_body_hash_normalised.py` (19 variants, the reviewer's and challenger's cases included); AC5 →
 `~/code-atlas-review/437-anchor.md`; G1 → AC1 + AC5.
 
+Pre-merge review (maintainer session; E2–E4 ratified): `*<n>` read only the last digit (`V10` ranked as
+`0`), now a whole digit run; `fnmatch`'s `\z` ending (Python 3.14) is accepted; a `path_prefix` that hides
+definitions names no `definition_state`; `N 'x'` was hashed as `N'x'` within a line (the gap was cleared
+before it was read) and across a line break — both fixed. Tests: +2 in each proving file.
+
 ## Phase 5 — finalise
 
 **Durable lesson.** 437-C1 `a-fingerprint-is-taken-over-the-span-the-scanner-names` (new, type 2).
