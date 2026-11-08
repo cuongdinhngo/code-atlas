@@ -4,7 +4,7 @@ slug: verify-refs-patches-and-surfaces
 title: "`verify_refs`: ready-to-apply patches, the MCP tool, and a count-only SessionStart line"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: todo
+status: in-progress
 depends_on: [438, 434]
 ---
 
@@ -44,7 +44,7 @@ session start that names the instruction-file count first.
 
 ## Session status
 
-- **KEY:** 439 · **work_doc_mode:** embed · **Current phase:** 4 review.
+- **KEY:** 439 · **work_doc_mode:** embed · **Current phase:** 5 finalise.
 - `TRACK: backend` · Run mode: `autorun 439 - 441`, first — `REVIEWER: OFF` (waived: "with skipped reviewer") ·
   `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/439-verify-refs-surfaces` from `main` at `e7896fa1`. Contract `.mango/run-contract-439.txt`
@@ -113,3 +113,48 @@ first, replacing only bounded occurrences of the reference on its line; `session
 Main loop, no `implementer` (`ac4f9d02`). **R6.5:** on `main` the test cannot import the tool; while building, AC1's
 split row read `ok` (an emptied folder `git mv` leaves behind) and the surface cap was 96 chars over until the
 description was cut. **This repo (counts only):** the session line takes 3.4 s; a full scan 3.4 s, 10,638 rows.
+
+## Phase 4 — review
+
+`REVIEWER: OFF` (waived by the run's args — no rule-book seat looked) · `CHALLENGER: ON`. Review step: the ticket-blind
+`challenger` alone, at `ac4f9d02`.
+
+- **`challenger` round 1** (68,413 tokens): 9 met · 2 not met. **Taken:** High 1 — a CRLF doc's patch failed
+  `git apply` (`read_text` normalises line endings): `patches()` now reads bytes. High 2 — `splitlines` broke at
+  U+2028: diff and extractor both count lines at `\n`. Medium 3 — five `verify_refs` paths a live answer reaches
+  left the unreachable list. A CRLF + U+2028 test was seen red on `ac4f9d02`, green on `a8c08fb0`.
+  **Not taken:** `--state`, `detail_level` and `markdown` (every tool takes `detail_level`; the filter is scope 3's on
+  the CLI too); the session line's trailing route pointer.
+- **`challenger` round 2** (verify-only, at `a8c08fb0`): its final line, transcribed:
+
+`CHALLENGER VERDICT: 11 requirement(s) rebuilt | 11 met | 0 not met | 0 can't tell | 0 not-met covered by a recorded exclusion`
+
+Residual it named, unprobed: a doc with lone-`\r` line endings has its rows skipped (counted), never mis-patched.
+
+Verdict: clean (challenger 11 of 11; no rule-book reviewer). `Ph3/4 proven by`: AC1–AC3 →
+`tests/test_verify_refs_surfaces.py` (13); AC4 → `tests/test_tool_surface_budget.py`, `test_tool_manifest.py`.
+
+Reviewed at a8c08fb0
+
+## Phase 5 — finalise
+
+**Durable lesson.** 439-C1 `text-read-for-meaning-cannot-feed-a-byte-exact-writer` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/439-verify-refs-surfaces`; open its PR against `main`. Deferred: ratify W1–W5; merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | ticket-blind `challenger` | 1 | 68,413 |
+| 4 review | ticket-blind `challenger` | 2 | 4,380 (resumed: 72,793 cumulative − 68,413) |
+
+`LEDGER TOTAL: 72,793 · top cost driver: 4 review / challenger` — main loop unmeasured.
