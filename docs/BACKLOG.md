@@ -32,7 +32,11 @@ day-7 result decides what continues.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–441 |
+| 443 | [verify_refs counts the actionable set; full export; stored session line](tasks/443_verify-refs-actionable-set.md) | Verify | in-progress | 438, 439 |
+| 444 | [compute: multi_defined per kind; the mention check audited](tasks/444_compute-semantics.md) | Compute | in-progress | 441 |
+| 445 | [compute and verify_refs: one-line descriptions; the 434 budget to §19](tasks/445_tool-description-budget.md) | Surface | in-progress | 434, 440, 441 |
+| 446 | [0.11.0 prepared: contract 21, version, CHANGELOG, §19 draft](tasks/446_release-0-11-0-prep.md) | Release | in-progress | 443–445 |
+| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446 |
 
 ## Open work — Trust (security)
 
@@ -98,8 +102,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   questions await a contract-19 rebuild (E1) — 410.
 - **`impact` walks no `READS`/`WRITES`**, so a table's blast radius is its seed alone; its readers and
   writers are `find_references`' answer — 414.
-- **The 0.11 release owes one `contract_version` bump** — 437 moved every SQL `body_hash` and 438's
-  reference shapes join the handshake; no bump forces the rebuild until then — 437.
 - **The PreCompact state line reaches no one** — Claude Code adds no PreCompact stdout to context and
   discards its `systemMessage` (`hooks.md`, read 2026-10-10); the hook still runs there — 381.
 

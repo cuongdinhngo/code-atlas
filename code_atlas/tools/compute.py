@@ -143,7 +143,8 @@ TEMPLATES: tuple[Template, ...] = (
     Template(
         "multi_defined",
         "Which objects are defined more than once, and which definition is live?",
-        (_KIND, _PREFIX),
+        (_KIND, Param("language", False, "only definitions in this language, as indexed",
+                      "language"), _PREFIX),
         "multi_defined",
     ),
     Template(
@@ -538,12 +539,16 @@ def multi_defined(
     box: ComputeSandbox, params: Params, cap: int, config: Config
 ) -> dict[str, object]:
     body = "multi_defined"
+    # Namespaces span files: each file declaring one is no second definition (contract, 416).
+    params = {**params, "spanning": contract.SPANNING_KINDS[0]}
     found, truncated = box.query(body, params, cap=cap)
     order = _precedence(box)
     rows: list[dict[str, object]] = []
     named = 0
-    for qname, count in found:
-        sites, cut = box.query("multi_defined.sites", {"qname": qname}, cap=SITES_CAP)
+    for qname, kind, count in found:
+        sites, cut = box.query(
+            "multi_defined.sites", {"qname": qname, "site_kind": kind}, cap=SITES_CAP
+        )
         defs: list[dict[str, object]] = []
         for q, f, n, t in sites:
             # One key per statement: the contract's field words stay out of a collection literal.
@@ -554,7 +559,7 @@ def multi_defined(
             defs.append(site)
         live = [s for s in definition_states(defs, order, complete=not cut)
                 if s["state"] == DEFINITION_LIVE]
-        row: dict[str, object] = {"qname": qname, "definitions": count}
+        row: dict[str, object] = {"qname": qname, "kind": kind, "definitions": count}
         if live:
             named += 1
             row["live"] = {"file": live[0]["file"], "line": live[0]["line"]}
@@ -573,7 +578,8 @@ def multi_defined(
             (f"a definition_order of {len(order)} glob(s) named the live one for {named} of "
              f"{len(rows)} on this page" if order else
              "no definition_order is declared: no live definition is named")
-            + "; test copies and definitions outside path_prefix are not counted"
+            + "; one object is one kind and qname; namespaces, test copies and definitions "
+            "outside path_prefix are not counted"
         ),
         "caveat_data": {"declared_globs": len(order), "live_named": named},
         "empty_reason": "no_qname_defined_twice",
@@ -646,13 +652,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Count, group or prove an absence over the whole graph — exact, not sampled.
-
-        Use for "how many", "which have none", "what share" questions; leave a template out
-        to list the catalogue (id, question, params). `no_referrer` overlaps `find_orphans`
-        but needs no entry points and labels each absence `no_edge_no_mention` (a strong
-        candidate) or `no_edge_but_mentioned` (unknown, never dead). Set `template`,
-        `params`, `limit`. Read `caveat`, `total_count`, `truncated`, `reason` when empty.
+        """Exact counts, groupings and absences over the whole graph from a named template.
+        No `template` lists the catalogue. Read `caveat`, `total_count`, `truncated`, `reason`.
         """
         if template is None:
             return {**catalogue(), "index_root": config.index_root}

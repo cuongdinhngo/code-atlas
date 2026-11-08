@@ -24,6 +24,10 @@ time does not count.
   `CLAUDE.md`. `verify_refs`, its SessionStart line and `compute` stay **off**.
 - **Days 1–3 (control):** normal work. Day 3: re-run privately, diff against the baseline —
   `control_fix_rate` = baseline findings fixed ÷ baseline findings, per priority class.
+- **What counts (443):** a finding is an *actionable* row — `moved`/`gone`, strong, not archive. The
+  baseline is `code-atlas query --verify-refs --format jsonl` (every row, uncapped); each later run is
+  diffed with `--refs-diff`, which counts actionable rows only, so every fix-rate denominator is the
+  actionable set. The pre-flight static checks (Day 4's, moved earlier) gate Day 0.
 - **Day 4 (static checks):** R1 precision ≥ 80% on 50 hand-checked `moved` + `gone` rows; ≥ 80% of 20
   `moved` patches correct; R3: 10 answers checked against hand counts or bounded grep, **zero** wrong
   for a missing caveat; p95 ≤ 3 s. A failed check stops that component; re-run only if the cause is a

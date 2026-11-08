@@ -236,14 +236,30 @@ def _snapshot_symbols(config: Config, out: str) -> int:
 
 
 def _verify_refs(config: Config, args: argparse.Namespace) -> int:
-    """One answer: every reference's state, JSON or a table; ``--fail-on`` makes it a lint."""
+    """One answer: actionable counts and rows by default, every state behind a filter, or every
+    row as JSONL; ``--fail-on`` makes it a lint over the actionable set (443)."""
     from code_atlas.store import GraphStore
 
-    if not 1 <= args.limit <= doc_refs.MAX_LIMIT:
-        raise ValueError(f"limit must be 1..{doc_refs.MAX_LIMIT}, got {args.limit}")
+    budget = args.history_budget or (
+        doc_refs.EXPORT_BUDGET_S if args.format == "jsonl" else doc_refs.HISTORY_BUDGET_S
+    )
     with GraphStore(config.db_path) as store:
-        found = doc_refs.scan(config, store, globs=args.verify_refs, classes=args.doc_class)
-    answer = doc_refs.summarize(found, states=args.state, limit=args.limit)
+        found = doc_refs.scan(
+            config, store, globs=args.verify_refs, classes=args.doc_class, budget_s=budget
+        )
+    if args.format == "jsonl":
+        written = 0
+        for row in doc_refs.export_rows(found):
+            sys.stdout.write(json.dumps(row, ensure_ascii=False, sort_keys=False) + "\n")
+            written += 1
+        actionable = sum(1 for row in found.rows if row.get("actionable"))
+        _say(f"{written} rows (total_count {len(found.rows)}), {actionable} actionable")
+        return _fail_on(found.rows, args.fail_on)
+    explicit = bool(args.verify_refs or args.doc_class or args.state or args.strength
+                    or args.limit is not None)
+    limit = args.limit or (doc_refs.DEFAULT_LIMIT if explicit else doc_refs.DEFAULT_ROWS)
+    answer = doc_refs.summarize(found, states=args.state, strengths=args.strength, limit=limit,
+                                actionable=not explicit)
     if args.format == "patch":
         # Every patch-ready row, never only the page; what could not be placed is said on stderr.
         made, skipped = doc_refs.patches(config, found.rows)
@@ -257,15 +273,34 @@ def _verify_refs(config: Config, args: argparse.Namespace) -> int:
         sys.stdout.write(doc_refs.markdown(answer))
     else:
         print(json.dumps(answer, ensure_ascii=False), flush=True)
-    failing = {state for state in args.fail_on.split(",") if state}
-    by_class = answer["by_class"]
-    assert isinstance(by_class, dict)
-    hit = any(
-        by_class.get(name, {}).get(state, 0)
-        for name in doc_refs.COUNTED_CLASSES
-        for state in failing
-    )
+    return _fail_on(found.rows, args.fail_on)
+
+
+ACTIONABLE = "actionable"
+
+
+def _fail_on(rows: list[dict[str, object]], spec: str) -> int:
+    """``NOT_HELD`` when an actionable row is in a named state (``actionable`` names both)."""
+    failing = {state for state in spec.split(",") if state}
+    if ACTIONABLE in failing:
+        failing |= set(doc_refs.ACTIONABLE_STATES)
+    hit = any(row.get("actionable") and row["state"] in failing for row in rows)
     return NOT_HELD if hit else OK
+
+
+def _refs_diff(old: str, new: str) -> int:
+    """Count what two exports say changed; reads only the two files named on the command line."""
+    try:
+        with open(old, encoding="utf-8") as before, open(new, encoding="utf-8") as after:
+            result = doc_refs.diff_exports(
+                (json.loads(line) for line in before if line.strip()),
+                (json.loads(line) for line in after if line.strip()),
+            )
+    except (OSError, ValueError) as error:
+        _say(f"--refs-diff: {error}")
+        return USAGE
+    print(json.dumps(result), flush=True)
+    return OK
 
 
 def _changed_since(
@@ -359,33 +394,48 @@ def main(argv: list[str] | None = None) -> int:
         help="--verify-refs: only rows in these states (summaries still count every row)",
     )
     parser.add_argument(
+        "--strength", action="append", default=[], choices=doc_refs.STRENGTHS,
+        help="--verify-refs: strong or weak rows only (reference docs: strong by default)",
+    )
+    parser.add_argument(
         "--format",
-        choices=("json", "md", "patch"),
+        choices=("json", "md", "patch", "jsonl"),
         default="json",
-        help="--verify-refs; patch prints unified diffs for `git apply`, applied by nobody else",
+        help="--verify-refs; patch prints diffs for `git apply`; jsonl streams every row, uncapped",
     )
     parser.add_argument(
         "--fail-on", default="", metavar="STATES",
-        help=f"--verify-refs: exit {NOT_HELD} when a counted row is in one (e.g. moved,gone)",
+        help=f"--verify-refs: exit {NOT_HELD} on an actionable row (moved,gone or actionable)",
     )
-    parser.add_argument("--limit", type=int, default=doc_refs.DEFAULT_LIMIT, help="--verify-refs")
+    parser.add_argument("--limit", type=int, default=None, help="--verify-refs")
+    parser.add_argument(
+        "--history-budget", type=float, default=None, metavar="SECONDS",
+        help=f"--verify-refs: git time per run (default {doc_refs.HISTORY_BUDGET_S:g}; "
+        f"jsonl {doc_refs.EXPORT_BUDGET_S:g}); past it rows are unknown",
+    )
+    parser.add_argument(
+        "--refs-diff", nargs=2, metavar=("OLD", "NEW"),
+        help="fixed / new / unchanged actionable rows between two --format jsonl exports",
+    )
     parser.add_argument("--qname", action="append", default=[], help="a symbol to judge")
     parser.add_argument("--path", action="append", default=[], help="a file whose symbols to judge")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     modes = (
         args.tool, args.batch, args.verify_claim, args.verify_claims,
-        args.snapshot_symbols, args.changed_since, args.verify_refs,
+        args.snapshot_symbols, args.changed_since, args.verify_refs, args.refs_diff,
     )
     if sum(mode is not None for mode in modes) != 1:
         parser.error(
             "name exactly one of a tool, --batch, --verify-claim, --verify-claims, "
-            "--snapshot-symbols, --changed-since or --verify-refs"
+            "--snapshot-symbols, --changed-since, --verify-refs or --refs-diff"
         )
-    if not 1 <= args.limit <= doc_refs.MAX_LIMIT:
+    if args.limit is not None and not 1 <= args.limit <= doc_refs.MAX_LIMIT:
         parser.error(f"--limit: 1..{doc_refs.MAX_LIMIT}")
     fail_on = {state for state in args.fail_on.split(",") if state}
-    if fail_on - set(doc_refs.STATES):
-        parser.error(f"--fail-on: states are {', '.join(doc_refs.STATES)}")
+    if fail_on - {*doc_refs.ACTIONABLE_STATES, ACTIONABLE}:
+        parser.error(f"--fail-on: {', '.join(doc_refs.ACTIONABLE_STATES)} or {ACTIONABLE}")
+    if args.refs_diff is not None:
+        return _refs_diff(*args.refs_diff)
     if (args.qname or args.path) and args.changed_since is None:
         parser.error("--qname and --path belong to --changed-since")
     if args.changed_since is not None and not (args.qname or args.path):
