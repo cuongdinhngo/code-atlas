@@ -9,9 +9,11 @@ with a deadline and a row cap. Every answer carries a data-driven ``caveat``, a 
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Literal
 
 from code_atlas import contract, gitutil
@@ -286,13 +288,18 @@ def _absence(
 ) -> dict[str, object]:
     rows, truncated = box.query(body, params, cap=cap)
     language = params.get("language")
-    # Inside a longer name counts (`tblOrders`): a strong candidate needs no trace at all (444).
-    sites = gitutil.word_sites(
-        config.root, sorted({str(r[1]) for r in rows}), timeout=GREP_DEADLINE_S, whole_word=False
-    )
-    if sites is not None and language:
+    inside: set[str] | None = None
+    if language:
         listed = _whole(box, "language.file_list", params)  # a cut list would hide a mention
         inside = {str(r[0]) for r in listed}
+    # Inside a longer name counts (`tblOrders`): a strong candidate needs no trace at all (444).
+    # A name under the minimum is unchecked by rule; grepped as a substring it matches every line.
+    names = sorted({str(r[1]) for r in rows if len(str(r[1])) >= _MIN_TEXT_MATCH})
+    sites = gitutil.word_sites(
+        config.root, names, timeout=GREP_DEADLINE_S, whole_word=False,
+        suffixes=_suffixes(inside) if inside is not None else (),
+    )
+    if sites is not None and inside is not None:
         sites = {name: [s for s in found if s[0] in inside] for name, found in sites.items()}
     shaped: list[dict[str, object]] = []
     levels = {NO_EDGE_NO_MENTION: 0, NO_EDGE_BUT_MENTIONED: 0, MENTION_UNCHECKED: 0}
@@ -332,6 +339,15 @@ def _absence(
             "every_one_is_referenced" if data["population"] else "no_symbol_of_that_kind"
         ),
     }
+
+
+_SUFFIX = re.compile(r"\.[A-Za-z0-9_+-]{1,16}")
+
+
+def _suffixes(files: set[str]) -> tuple[str, ...]:
+    """The suffixes a language's indexed files carry: the grep reads only those (444)."""
+    found = {PurePosixPath(f).suffix for f in files}
+    return tuple(sorted(s for s in found if _SUFFIX.fullmatch(s)))
 
 
 def _evidence(

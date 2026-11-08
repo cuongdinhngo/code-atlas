@@ -923,7 +923,8 @@ question and typed params, and the table row above has the semantics. `multi_def
 object per kind and qualified name — a namespace each file re-declares is none — and takes
 `language`; ask `kind: Function, language: sql` for redefined SQL routines (procedures, functions,
 triggers). An absence's mention check is a case-insensitive `git grep` that counts a name inside a
-longer one too (`tblOrders` names `Orders`, 444), kept to files in `language` when one is given; past
+longer one too (`tblOrders` names `Orders`, 444), kept to the suffixes of `language`'s files when one
+is given, and skips a name under three characters (unchecked by rule); past
 its deadline a row is `mention_unchecked`, never strong.
 
 ### `class_diagram`
