@@ -133,7 +133,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated = len(outcome.rows) > config.impact_max_nodes
             rows = outcome.rows[: config.impact_max_nodes]
             place_preferred_seeds(rows, plan)
-            owners, table_truncated = _owners(store, config)
+            owners, table_truncated = module_owners(store, config)
             staleness = compute_staleness(store, config, include_dirty_count=True) if sign else {}
 
         rollups = _rollup(rows, owners)
@@ -198,7 +198,7 @@ def _empty(
     }
 
 
-def _owners(store: GraphStore, config: Config) -> tuple[Mapping[str, str], bool]:
+def module_owners(store: GraphStore, config: Config) -> tuple[Mapping[str, str], bool]:
     """Directory → module from 114's table, plus whether that table was itself capped.
 
     ``fan_in`` is left empty on purpose: it feeds only each row's ``hub``/``hub_fan_in``, which a

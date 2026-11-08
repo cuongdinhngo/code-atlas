@@ -23,7 +23,7 @@ PER_TOOL_CAP = 600
 LARGE_TOOL_CAP = 900
 LARGE_TOOLS = frozenset({"find_callers", "find_references", "impact"})
 # 59,088 chars (json.dumps default separators) before 434; the ticket asks for a 60% cut.
-SURFACE_CAP = 23_635 + 1_200  # + compute: 600 of description and its four-field schema (440)
+SURFACE_CAP = 23_635 + 1_200 + 130  # + compute (440); + its seven template ids (441)
 
 # (NNN), (NNN/NNN), "task NNN", a rule id R1.2 or a plan section sign — never a bare number.
 _REFERENCE = re.compile(

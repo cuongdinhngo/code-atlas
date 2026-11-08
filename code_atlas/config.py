@@ -64,6 +64,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "refs_memory",
     "refs_reference",
     "refs_archive",
+    "variant_pairs",
 )
 
 # Query-time only: kept out of the ``CA_*`` slice of ``config_identity`` (259). The project file
@@ -151,6 +152,8 @@ class Config:
     refs_memory: tuple[str, ...] | None = None
     refs_reference: tuple[str, ...] | None = None
     refs_archive: tuple[str, ...] | None = None
+    # Name-pattern pairs compute's `variant_pairs` reads when no params name one (441).
+    variant_pairs: tuple[tuple[str, str], ...] | None = None
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -316,6 +319,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         refs_memory=_resolve("refs_memory", as_doc_globs, None, environ, file_values),
         refs_reference=_resolve("refs_reference", as_doc_globs, None, environ, file_values),
         refs_archive=_resolve("refs_archive", as_doc_globs, None, environ, file_values),
+        variant_pairs=_resolve("variant_pairs", _as_variant_pairs, None, environ, file_values),
     )
 
 
@@ -609,6 +613,31 @@ def as_doc_globs(label: str, raw: object) -> tuple[str, ...] | None:
             raise ConfigError(f"{label}: {name!r} must be a repo-relative glob (no '/', '.', '..')")
         kept.append(name.strip().replace("\\", "/").strip("/"))
     return tuple(dict.fromkeys(kept)) or None
+
+
+def variant_pattern(label: str, raw: str) -> str:
+    """A name with exactly one ``*`` — the stem two variants share — and no other glob character."""
+    if raw.count("*") != 1 or any(ch in raw for ch in "?[]/\\ ") or len(raw) > 200:
+        raise ConfigError(f"{label}: {raw!r} must be a name with exactly one * (e.g. *Async)")
+    return raw
+
+
+def _as_variant_pairs(label: str, raw: object) -> tuple[tuple[str, str], ...] | None:
+    """Pairs of name patterns: TOML ``[["*Async", "*"]]``, or the environment's ``*Async|*,…``."""
+    if isinstance(raw, str):
+        items: object = [part.split("|") for part in raw.split(",") if part.strip()]
+    else:
+        items = raw
+    if not isinstance(items, list):
+        raise ConfigError(f"{label}: {raw!r} is not a list of [left, right] name patterns")
+    pairs: list[tuple[str, str]] = []
+    for item in items:
+        pair = item if isinstance(item, list) and len(item) == 2 else None
+        if pair is None or not all(isinstance(i, str) for i in pair):
+            raise ConfigError(f"{label}: {item!r} is not a [left, right] pair of name patterns")
+        left, right = (variant_pattern(label, str(i).strip()) for i in pair)
+        pairs.append((left, right))
+    return tuple(dict.fromkeys(pairs)) or None
 
 
 def definition_globs(label: str, globs: Sequence[object]) -> list[str]:

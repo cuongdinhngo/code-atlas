@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **Eight `compute` templates (441).** `unreferenced_objects`, `calls_by_module`, `untested_classes`,
+  `resolved_share`, `includes_by_dir`, `multi_defined` and `variant_pairs` join `tier_mix`, which now splits each
+  kind by source and target language. Module rollups use the one business-module table; `multi_defined` names a live
+  definition only from a declared `definition_order`. `variant_pairs` reads `variant_pairs` from `.code-atlas.toml`.
 - **`compute`, a 25th tool (440).** Counting, grouping and absences over the whole graph come from a named template,
   never SQL a caller writes, run in a read-only sandbox (`query_only`, an authorizer, a 3 s deadline, 200 rows).
   Two templates ship: `tier_mix` and `no_referrer`, whose rows say whether a name with no edge is still mentioned
