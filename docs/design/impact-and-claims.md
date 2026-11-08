@@ -103,6 +103,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `include_graph` | direction. `imports` and `imported_by` are different claims and a single count conflates them |
 | `subtree_dependencies` | attributable vs unattributable is a pair — a one-line blocker count is precisely the naive error this tool exists to prevent (120) |
 | `compute` | the `caveat` and, for an absence, each row's evidence level — a one-line count would turn `no_edge_but_mentioned` (unknown) into a number that reads as dead code (440) |
+| `verify_refs` | each row's state, reason and successor — a one-line "N references stale" drops which file, which reference and whether a patch is ready, the parts a reader acts on (439) |
 | `reachable_from` | the entry-point set it was configured with — the claim is only as good as `CA_ENTRY_POINTS`, which the line cannot carry |
 | `find_orphans` | "unreachable" is a candidate, not a verdict — dynamic dispatch and framework wiring are outside the graph |
 | `explain_path` | a path is a sequence; its length without its hops is not checkable |
