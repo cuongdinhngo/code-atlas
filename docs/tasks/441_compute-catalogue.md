@@ -175,3 +175,7 @@ arithmetic does not close on an off-diff AC). Deferred: ratify W1–W5; merge.
 | 4 review | ticket-blind `challenger` | 4 | 837 (resumed: 91,507 cumulative − 90,670) |
 
 `LEDGER TOTAL: 91,507 · top cost driver: 4 review / challenger` — main loop unmeasured.
+
+**After #167 merged.** `main` merged into this branch (`a7260c78`): the knob count is 31, the surface cap carries both
+tools plus 441's ids (+135, 2 chars past +130 once combined), and both sides' docs kept. Gate on `a7260c78`: GATE GREEN
+— 26 passed · 0 failed · 0 skipped. The maintainer accepted W1–W5 and AC3's anchor timings in-session.
