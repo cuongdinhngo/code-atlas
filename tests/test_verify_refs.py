@@ -143,7 +143,7 @@ def test_ac1_each_reference_has_exactly_one_state_and_its_reason(
 
 def test_ac1_a_move_names_its_successor(answer: dict[str, Any]) -> None:
     assert row(answer, "lib/renamed_from.py")["successor"] == "lib/renamed_to.py"
-    assert row(answer, "lib.a.compute_total")["successor"]["qname"] == "lib.b.compute_total"
+    assert row(answer, "lib.a.compute_total")["successor"] == "lib.b.compute_total"
     gone = row(answer, "lib/deleted.py")
     assert len(gone["last_seen_rev"]) == 12 and len(gone["last_seen"]) == 10
 

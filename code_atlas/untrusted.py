@@ -26,6 +26,23 @@ _EACH = "*"
 # Free text keeps its line breaks; every other named field is one line, so it cannot forge a second.
 _MULTILINE = frozenset({"source", "call_sources", "markdown", "text", "default"})
 
+# The doc corpus's reference strings and the repo's paths and names they resolve to (439).
+_DOC_REFS = (
+    "rows[].ref",
+    "rows[].file",
+    "rows[].path",
+    "rows[].successor",
+    "rows[].successors",
+    "rows[].replacement",
+    "rows[].container",
+    "rows[].site.qname",
+    "rows[].site.file",
+    "rows[].candidate_paths",
+    "rows[].candidates[].qname",
+    "rows[].candidates[].file",
+    "files[].file",
+)
+
 _ROUTES = (
     "routes[].route",
     "routes[].target",
@@ -98,6 +115,14 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "rows[].pair",
         "rows[].live.file",
         "detail",
+    ),
+    "verify_refs": (
+        *_DOC_REFS,
+        "markdown",
+        "edits[].file",
+        "edits[].ref",
+        "edits[].replacement",
+        "corpus_globs.*",
     ),
     "find_callers": (*_ROWS, *_CALLS, *_RESOLVED, *_MISS, *_REF, *_CLAIM),
     "find_references": (*_ROWS, "results[].source", *_RECORDS, *_RESOLVED, *_MISS, *_REF, *_CLAIM),

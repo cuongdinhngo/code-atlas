@@ -1,6 +1,6 @@
 # Tools — the full surface
 
-> The agent-facing surface of code-atlas: all 25 tools, what each returns, which take a list of
+> The agent-facing surface of code-atlas: all 26 tools, what each returns, which take a list of
 > subjects and which do not, the operator prompts, and the opt-in hooks. The
 > [README](../README.md) names the handful you call first; this is the reference. It is **not**
 > the payload contract (→ [`CONVENTION.md`](CONVENTION.md) §6) and not design reasoning
@@ -23,6 +23,8 @@
 | `subtree_dependencies` | tree-to-tree crossing with duplicate-declaration attribution — attributable vs unattributable always paired; dynamic alias bridges surfaced |
 | `reachable_from` | forward reachability from configured entry points. Default `detail_level` is **`minimal`** (268) — ask for `standard` when you want the full walk |
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates). Default `detail_level` is **`minimal`** (268); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. Roots that match nothing, a walk that exhausts its budget (182), and an index stamped with `unmodelled_resolution_by_language` (279, and 294-296 for the other three adapters) [refuse instead of returning rows](design/indexing.md#find-orphans-refuses-rather-than-dumping-what-it-has-flagged-tasks-182-279) |
+| `compute` | exact answers over the whole graph from a named template, never caller SQL (440): no `template` lists the catalogue (id, question, params). `tier_mix` splits edges per kind across confidence tiers; `no_referrer` lists the symbols of a `kind` no edge reaches, each labelled `no_edge_no_mention` (a strong candidate) or `no_edge_but_mentioned` (unknown, never dead) — or `mention_unchecked` when a name is under three characters or the literal pass hit its deadline. Every answer carries a data-driven `caveat` and `caveat_data`, a truthful `total_count`, `truncated`, and when empty a `reason` (`no_edge_matches`, `no_symbol_of_that_kind`, `every_one_is_referenced`). A template that does not take a param refuses it. Runs in a read-only sandbox — `mode=ro`, `query_only`, an authorizer allowing SELECT/READ and a short function list, 3 s per statement, at most 200 rows; a refusal or a deadline answers no rows with `reason` `refused_by_sandbox` / `deadline_exceeded`. Overlaps `find_orphans` without entry points: that one walks reachability, this one counts edges |
+| `verify_refs` | which paths and symbols named in instruction files, memory and docs still resolve (439, core in 438): each row `ok` · `moved` · `gone` · `never_existed` · `ambiguous` · `unknown` with its reason, instruction files first; `globs`, `doc_class`, `state` narrow it and summaries count every row. A `moved` row with one successor carries `replacement` — written the way the doc wrote it, root- or doc-relative — and `patch_ready`; a split, a gone or an ambiguous row carries a `hint` instead, and archive rows are never patched. `format: patch` answers `edits` (file, line, ref, replacement) and `apply_with`, the shell command whose diff `git apply` takes; the diff itself carries doc lines, so it never rides the MCP payload |
 | `compute` | exact answers over the whole graph from a named template, never caller SQL (440): no `template` lists the catalogue (id, question, params). `tier_mix` splits edges per kind and source × target language across confidence tiers; `no_referrer` lists the symbols of a `kind` no edge reaches, each labelled `no_edge_no_mention` (a strong candidate) or `no_edge_but_mentioned` (unknown, never dead) — or `mention_unchecked` when a name is under three characters or the literal pass hit its deadline. Every answer carries a data-driven `caveat` and `caveat_data`, a truthful `total_count`, `truncated`, and when empty a `reason` (`no_edge_matches`, `no_symbol_of_that_kind`, `every_one_is_referenced`). A template that does not take a param refuses it. Runs in a read-only sandbox — `mode=ro`, `query_only`, an authorizer allowing SELECT/READ and a short function list, 3 s per statement, at most 200 rows; a refusal or a deadline answers no rows with `reason` `refused_by_sandbox` / `deadline_exceeded`. Overlaps `find_orphans` without entry points: that one walks reachability, this one counts edges. 441 adds seven: `unreferenced_objects` (no_referrer's evidence split, counting only referrers in `language`; a language no file is in answers `no_file_in_that_language`), `calls_by_module` (calls into a `target` qname GLOB or a `target_kind`, per module of the one business-module table, unassigned files in `unassigned`), `untested_classes` (types no edge from a test symbol reaches — directly or through a member — with `by_module`; `no_test_symbol_indexed` when nothing is a test), `resolved_share` (RESOLVED share of CALLS per module), `includes_by_dir` (INCLUDES per top directory by tier), `multi_defined` (qnames defined more than once, `live` from the declared `definition_order` — `live_state: unknown` with `why_unknown`, never a guess) and `variant_pairs` (same-container names sharing a stem through `left`/`right` one-`*` patterns, or the toml's `variant_pairs`, where exactly one side has an inbound edge). A per-file or per-type aggregate larger than 200,000 rows is refused (`over_internal_cap`), never cut |
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them — default `detail_level` is **`minimal`** (268) — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
@@ -1032,6 +1034,7 @@ for a reason:
 | `reachable_from` | its subject is the configured entry-point set, not a caller-supplied name |
 | `find_orphans` | the complement of the whole graph — there is no subject to list |
 | `compute` | its subject is a template over the whole graph; a list of templates is a batch the client can send itself |
+| `verify_refs` | its subject is the doc corpus; `globs` already narrow it to a list of files |
 | `explain_path` | its subject is already a pair; a list of pairs is a query language, which 101 deliberately is not |
 | `architecture_overview` | its subject is the whole index — there is one repo to lay out, and a list of subjects has no meaning for a repo-wide shape |
 | `guided_tour` | its subject is the whole index — there is one reading order, and a list of subjects has no meaning for a repo-wide walk |
@@ -1059,7 +1062,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 25 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 26 tools |
 
 ## Hooks (opt-in)
 
@@ -1128,6 +1131,9 @@ index (348, 374), and so does a uv tool install pinned to `?rev=`, which `uv too
 (381). At `SessionStart` a skew, a pin or a pending rebuild goes out as JSON — `systemMessage` for the
 developer, `additionalContext` for the agent — since that event's plain stdout reaches only the agent
 (381); always exits 0; never builds, reparses or takes the build lock.
+With `refs_session_line = true` it adds, at `SessionStart` only, one count-only line of stale doc
+references — instruction files first, `unknown` counted apart from `ok`, archive never — inside the
+read signal's 150 tokens, its git history capped at 3 s (439).
 
 ### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)
 
@@ -1171,6 +1177,8 @@ a silent fallback.
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
 | `CA_DEFINITION_ORDER` | `definition_order` | unset | path globs, most authoritative first, naming the **live** definition of a qname defined more than once (437): one `<n>` in a glob reads a version from the path, highest wins (`["db/migrations/V<n>__*.sql", "db/snapshot/*.sql"]`). Read before a rules file's `definitions.precedence`, [same rules](#indirection-rule-files). In the toml anything but a list of globs fails loud |
 | `CA_REFS_INSTRUCTION` · `CA_REFS_MEMORY` · `CA_REFS_REFERENCE` · `CA_REFS_ARCHIVE` | `refs_instruction` · `refs_memory` · `refs_reference` · `refs_archive` | `CLAUDE.md`, `AGENTS.md`, `.claude/rules|skills/**`, `.cursor/rules/**`, `.github/copilot-instructions.md` · none · `docs/**`, wiki folders · none | the doc corpus `code-atlas query --verify-refs` reads, per priority class (438): repo-relative globs of markdown files, matched, never run (430). `archive` is reported and never counted; a file two classes name takes the more authoritative |
+| `CA_REFS_SESSION_LINE` | `refs_session_line` | `false` | `true` adds the stale-reference count line to `code-atlas-state` at `SessionStart` (439); off, nothing reads the corpus at session start |
+| `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 26. |
 | `CA_VARIANT_PAIRS` | `variant_pairs` | none | name-pattern pairs `compute`'s `variant_pairs` reads when no params name one (441): toml `[["*Async", "*"]]`, env `*Async|*,get*|set*`; each side a name with exactly one `*` and no other glob character, matched, never run |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 25. |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |

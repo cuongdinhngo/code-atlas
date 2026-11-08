@@ -369,8 +369,9 @@ SHELL_ROUTE: tuple[str, ...] = (
     " `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.",
     "- **\"Is what `CLAUDE.md` and the docs say still true?\"** `--verify-refs [globs]` states each"
     " path and symbol they name `ok`, `moved` (with its successor), `gone`, `never_existed`,"
-    " `ambiguous` or `unknown`; `--class instruction`, `--format md`, `--limit N`, and"
-    " `--fail-on moved,gone` to fail a pre-commit hook.",
+    " `ambiguous` or `unknown`; `--class instruction`, `--state moved`, `--format md`,"
+    " `--limit N`, and `--fail-on moved,gone` to fail a pre-commit hook. `--format patch |"
+    " git apply` corrects each one-successor move in place (the `verify_refs` tool lists them).",
 )
 
 # A subagent's worktree shares its parent's server and roots (408); only the call can name it.

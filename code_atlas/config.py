@@ -65,6 +65,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "refs_reference",
     "refs_archive",
     "variant_pairs",
+    "refs_session_line",
 )
 
 # Query-time only: kept out of the ``CA_*`` slice of ``config_identity`` (259). The project file
@@ -154,6 +155,8 @@ class Config:
     refs_archive: tuple[str, ...] | None = None
     # Name-pattern pairs compute's `variant_pairs` reads when no params name one (441).
     variant_pairs: tuple[tuple[str, str], ...] | None = None
+    # Opt-in: SessionStart adds one count-only line of stale doc references (439).
+    refs_session_line: bool = False
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -320,6 +323,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         refs_reference=_resolve("refs_reference", as_doc_globs, None, environ, file_values),
         refs_archive=_resolve("refs_archive", as_doc_globs, None, environ, file_values),
         variant_pairs=_resolve("variant_pairs", _as_variant_pairs, None, environ, file_values),
+        refs_session_line=_resolve("refs_session_line", _as_bool, False, environ, file_values),
     )
 
 
@@ -508,6 +512,18 @@ def _as_int(label: str, raw: object) -> int:
     if value < 1:
         raise ConfigError(f"{label}: {value} is not 1 or greater")
     return value
+
+
+def _as_bool(label: str, raw: object) -> bool:
+    """A switch: TOML's true/false, or the environment's 1/0, true/false, yes/no."""
+    if isinstance(raw, bool):
+        return raw
+    word = raw.strip().lower() if isinstance(raw, str) else None
+    if word in {"1", "true", "yes", "on"}:
+        return True
+    if word in {"0", "false", "no", "off", ""}:
+        return False
+    raise ConfigError(f"{label}: {raw!r} is not true or false")
 
 
 def _as_tools(label: str, raw: object) -> tuple[str, ...] | None:

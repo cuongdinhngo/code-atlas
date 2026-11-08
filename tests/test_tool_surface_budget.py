@@ -18,12 +18,12 @@ from code_atlas.main import TOOL_NAMES, build_server
 from tests.test_nav_tools import db_config
 
 # 24 tools at 434; each tool a later ticket adds brings its own 600-char share (440).
-TOTAL_DESCRIPTION_CAP = 10_100 + 600
+TOTAL_DESCRIPTION_CAP = 10_100 + 2 * 600
 PER_TOOL_CAP = 600
 LARGE_TOOL_CAP = 900
 LARGE_TOOLS = frozenset({"find_callers", "find_references", "impact"})
 # 59,088 chars (json.dumps default separators) before 434; the ticket asks for a 60% cut.
-SURFACE_CAP = 23_635 + 1_200 + 130  # + compute (440); + its seven template ids (441)
+SURFACE_CAP = 23_635 + 2 * 1_200 + 135  # + compute (440), verify_refs (439); 441's ids
 
 # (NNN), (NNN/NNN), "task NNN", a rule id R1.2 or a plan section sign — never a bare number.
 _REFERENCE = re.compile(
@@ -62,7 +62,7 @@ def test_the_budget_check_flags_a_planted_over_budget_description() -> None:
     assert over_budget({"search_symbol": "x" * (PER_TOOL_CAP + 1)}) == ["search_symbol"]
     assert over_budget({"impact": "x" * LARGE_TOOL_CAP}) == []
     assert over_budget({"impact": "x" * (LARGE_TOOL_CAP + 1)}) == ["impact"]
-    spread = {f"t{i}": "x" * 500 for i in range(22)}
+    spread = {f"t{i}": "x" * 500 for i in range(23)}
     assert over_budget(spread) == ["<total>"]
 
 

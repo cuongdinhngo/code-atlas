@@ -12,6 +12,10 @@ restates the same line at the boundaries where the first delivery has decayed:
 
 No other occasion earns a line (R1.2 — 099 refused a third on the same ground).
 
+**Stale doc references (439), opt-in** (``refs_session_line``): at ``SessionStart`` only, one
+count-only line — instruction files first — from ``doc_refs.session_line``, within the read
+signal's 150-token cap. Nothing runs in the edit loop.
+
 **It lifts, never recomposes:** the line is ``get_index_status(...)["summary"]``, the value
 ``instructions._state()`` already lifts (316/319, R6.7), plus the one field that moves minute to
 minute — a running build's live phase and the route to it.
@@ -378,6 +382,26 @@ def state_line(root: Path, *, verbose: bool = False) -> str | None:
     return _fit(summary, checked_progress(read_build_progress(db)))
 
 
+def refs_line(root: Path, *, verbose: bool = False) -> str | None:
+    """The stale-reference count line, or ``None``: not opted in, no index, or nothing stale."""
+    from code_atlas.config import load_config
+    from code_atlas.doc_refs import session_line
+    from code_atlas.hooks.signal import TOKEN_BUDGET as SIGNAL_BUDGET
+    from code_atlas.store import GraphStore
+
+    config = load_config(root)
+    if not config.refs_session_line:
+        _note("refs: silent, refs_session_line is off", verbose=verbose)
+        return None
+    if not config.db_path.is_file() or config.db_path.stat().st_size == 0:
+        return None
+    with GraphStore(config.db_path) as store:
+        line = session_line(config, store)
+    if line is not None and estimate_tokens(line) > SIGNAL_BUDGET:
+        return None  # counts only, so never expected; a line over the cap is silence, not chrome
+    return line
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry: ``code-atlas-state`` / ``python -m code_atlas.hooks.state``."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -387,6 +411,7 @@ def main(argv: list[str] | None = None) -> int:
     verbose = _verbose(args)
     expected = _expected(args)
     skew: str | None = None
+    refs: str | None = None
     event: object = None
     try:
         payload = json.load(sys.stdin)
@@ -402,7 +427,12 @@ def main(argv: list[str] | None = None) -> int:
         # A broken state line must never break the session boundary it rides on.
         print(f"code-atlas state skipped: {type(error).__name__}: {error}", file=sys.stderr)
         line = None
-    lines = [text for text in (skew, line) if text]
+    if event == SCREEN_EVENT:
+        try:
+            refs = refs_line(_project_root(), verbose=verbose)
+        except Exception as error:  # nor may a broken refs line cost the state line
+            print(f"code-atlas refs skipped: {type(error).__name__}: {error}", file=sys.stderr)
+    lines = [text for text in (skew, line, refs) if text]  # the refs line: the agent's only
     screen = screen_lines(skew, line)
     if event == SCREEN_EVENT and screen:
         context = {"hookEventName": SCREEN_EVENT, "additionalContext": "\n".join(lines)}

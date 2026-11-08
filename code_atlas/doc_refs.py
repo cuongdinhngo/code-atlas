@@ -22,7 +22,7 @@ from typing import Literal
 
 from code_atlas import gitutil
 from code_atlas.config import Config
-from code_atlas.containment import read_text, resolves_inside, safe_write
+from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
 from code_atlas.contract import MEMBER_SEPARATOR, QUALIFIED_SHAPE
 from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
@@ -185,7 +185,8 @@ def extract(path: str, doc_class: str, text: str) -> tuple[list[Mention], int]:
     mentions: list[Mention] = []
     commands = 0
     fence: tuple[str, str] | None = None
-    for number, line in enumerate(text.splitlines(), start=1):
+    # Lines end at "\n" only, as git counts them: U+2028 or a form feed is not a line break.
+    for number, line in enumerate(text.split("\n"), start=1):
         opened = _FENCE.match(line)
         if fence is not None:
             if opened and opened.group(1).startswith(fence[0][0]) and len(opened.group(1)) >= len(
@@ -325,8 +326,11 @@ class Verdict:
 class Resolver:
     """Answers one reference at a time; history is read once per run and only when needed."""
 
-    def __init__(self, config: Config, store: GraphStore, shapes: Shapes) -> None:
+    def __init__(
+        self, config: Config, store: GraphStore, shapes: Shapes, budget_s: float = HISTORY_BUDGET_S
+    ) -> None:
         self.config = config
+        self.budget_s = budget_s
         self.store = store
         self.shapes = shapes
         self.precedence = declared_precedence(store)
@@ -346,7 +350,7 @@ class Resolver:
         return target.exists() and resolves_inside(self.config.root, target)
 
     def _git_budget(self) -> float | None:
-        left = HISTORY_BUDGET_S - self._spent
+        left = self.budget_s - self._spent
         if left <= 0:
             self.budget_spent += 1
             return None
@@ -402,14 +406,16 @@ class Resolver:
         if len(under) == 1 and self._exists(under[0]):
             return Verdict(OK, "under_a_subproject", {"path": under[0]})
         if len(under) > 1:
-            return Verdict(AMBIGUOUS, "several_paths_end_so", {"candidates": under[:CANDIDATE_CAP]})
+            return Verdict(
+                AMBIGUOUS, "several_paths_end_so", {"candidate_paths": under[:CANDIDATE_CAP]}
+            )
         history, added = self.history(), self.added()
         if history is None or added is None:
             return Verdict(UNKNOWN, "no_git_history")
         for rel in tries:
             found = self._path_in_history(rel, history, added)
             if found is not None:
-                return found
+                return _path_replacement(found, ref, rel, here)
         for rel in self._ending(tries[0], self._added_index(added))[:CANDIDATE_CAP]:
             found = self._path_in_history(rel, history, added)
             if found is not None:
@@ -441,9 +447,12 @@ class Resolver:
             successor, hops = history.renamed[successor], hops + 1
         if hops and self._exists(successor):
             return Verdict(MOVED, "git_rename", {"successor": successor})
-        moved_dir = self._moved_dir(rel, history)
-        if moved_dir is not None:
-            return Verdict(MOVED, "git_rename", {"successor": moved_dir})
+        moved_dirs = self._moved_dirs(rel, history)
+        if len(moved_dirs) == 1:
+            return Verdict(MOVED, "git_rename", {"successor": moved_dirs[0]})
+        if moved_dirs:
+            # Its files went to several places: moved, and no one successor to patch to.
+            return Verdict(MOVED, "git_rename_split", {"successors": moved_dirs[:CANDIDATE_CAP]})
         dirs = self._dir_index(history, added)
         gone = history.deleted.get(successor) or dirs.deleted.get(rel)
         if gone is not None:
@@ -461,14 +470,12 @@ class Resolver:
             self._dirs = _DirIndex.build(history, added)
         return self._dirs
 
-    def _moved_dir(self, rel: str, history: gitutil.PathHistory) -> str | None:
+    def _moved_dirs(self, rel: str, history: gitutil.PathHistory) -> list[str]:
         added = self.added() or frozenset()
         targets = self._dir_index(history, added).renamed.get(rel, set())
-        if len(targets) == 1:
-            (target,) = targets
-            if target and self._exists(target):
-                return target
-        return None
+        if None in targets:
+            return []  # a file left the folder under another name: not a folder move
+        return sorted(t for t in targets if t and self._exists(t))
 
     # ----------------------------------------------------------------- symbols
     def _matches(self, ref: str, last: str) -> list[Row]:
@@ -598,7 +605,12 @@ class Resolver:
         old = self._old_hashes(rev, files, ref if kind == SYMBOL else last)
         self._clock(started)
         if now in old:
-            return Verdict(MOVED, "body_hash", {"successor": _site(candidates[0])})
+            site = _site(candidates[0])
+            detail: dict[str, object] = {"successor": site["qname"], "site": site}
+            form = _symbol_form(str(site["qname"]), ref, last)
+            if form is not None:
+                detail["replacement"] = form
+            return Verdict(MOVED, "body_hash", detail)
         if old:
             # Same name elsewhere, another body: moved and edited, or a namesake — never gone.
             return Verdict(AMBIGUOUS, "same_name_elsewhere_body_changed",
@@ -720,60 +732,285 @@ def _resolve(resolver: Resolver, ref: str, kind: str, doc: str) -> tuple[str, Ve
     return kind, verdict
 
 
+@dataclass(slots=True)
+class Scan:
+    """Every row the corpus yields, before any filter or cap — what patches and counts read."""
+
+    corpus: Corpus
+    matched: int
+    resolver: Resolver
+    rows: list[dict[str, object]]
+
+
+def scan(
+    config: Config,
+    store: GraphStore,
+    *,
+    globs: Sequence[str] = (),
+    classes: Sequence[str] = (),
+    budget_s: float = HISTORY_BUDGET_S,
+) -> Scan:
+    """Read the corpus and resolve every reference once, sorted by class, state, file, line."""
+    corpus = collect(config, globs)
+    matched = len(corpus.files)
+    if classes:
+        corpus.files = {p: c for p, c in corpus.files.items() if c in classes}
+    resolver = Resolver(config, store, Shapes.from_store(store), budget_s)
+    rows = list(_rows(config, store, corpus, resolver))
+    order = {name: n for n, name in enumerate(CLASSES)}
+    rank = {name: n for n, name in enumerate(STATES)}
+    rows.sort(key=lambda r: (order[str(r["class"])], rank[str(r["state"])], r["file"], r["line"]))
+    for row in rows:
+        _annotate(row)
+    return Scan(corpus, matched, resolver, rows)
+
+
 def verify_refs(
     config: Config,
     store: GraphStore,
     *,
     globs: Sequence[str] = (),
     classes: Sequence[str] = (),
+    states: Sequence[str] = (),
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, object]:
     """Every reference the corpus makes, one state each; summaries count every row."""
     if not 1 <= limit <= MAX_LIMIT:
         raise ValueError(f"limit must be 1..{MAX_LIMIT}, got {limit}")
-    corpus = collect(config, globs)
-    matched = len(corpus.files)
-    if classes:
-        corpus.files = {p: c for p, c in corpus.files.items() if c in classes}
-    resolver = Resolver(config, store, Shapes.from_store(store))
-    rows = list(_rows(config, store, corpus, resolver))
-    order = {name: n for n, name in enumerate(CLASSES)}
-    rank = {name: n for n, name in enumerate(STATES)}
-    rows.sort(key=lambda r: (order[str(r["class"])], rank[str(r["state"])], r["file"], r["line"]))
+    unknown = [s for s in states if s not in STATES]
+    if unknown:
+        raise ValueError(f"unknown state {unknown[0]!r}; one of {', '.join(STATES)}")
+    return summarize(scan(config, store, globs=globs, classes=classes), states=states, limit=limit)
+
+
+def summarize(
+    found: Scan, *, states: Sequence[str] = (), limit: int = DEFAULT_LIMIT
+) -> dict[str, object]:
+    """The payload: counts over every row, then the rows a state filter keeps, capped."""
+    corpus, rows = found.corpus, found.rows
     by_class: dict[str, dict[str, int]] = {}
     by_file: dict[str, dict[str, int]] = {}
+    ready: dict[str, int] = {}
     for row in rows:
         for bucket, key in ((by_class, str(row["class"])), (by_file, str(row["file"]))):
             counts = bucket.setdefault(key, {state: 0 for state in STATES})
             counts[str(row["state"])] += 1
+        if row.get("patch_ready"):
+            ready[str(row["class"])] = ready.get(str(row["class"]), 0) + 1
+    kept = [row for row in rows if not states or row["state"] in states]
     if not corpus.files:
-        reason = "class_filter_left_no_file" if matched else "no_file_matched"
-    elif not resolver.shapes.qualified:
+        reason = "class_filter_left_no_file" if found.matched else "no_file_matched"
+    elif not found.resolver.shapes.qualified:
         # No build stamped a symbol shape: every symbol a doc names went unread, never resolved.
         reason = "symbols_unchecked_no_index"
     elif not rows:
         reason = "no_references"
+    elif not kept:
+        reason = "state_filter_left_no_row"
     else:
         reason = "ok"
     return {
         "reason": reason,
         "files_read": len(corpus.files),
-        "total_count": len(rows),
-        "returned": min(limit, len(rows)),
-        "truncated": len(rows) > limit,
+        "total_count": len(kept),
+        "returned": min(limit, len(kept)),
+        "truncated": len(kept) > limit,
         "limit": limit,
+        "states": list(states),
         "by_class": by_class,
+        "patch_ready": ready,
         "commands": corpus.commands,
         "files": [
             {"file": path, "class": corpus.files[path], **counts}
             for path, counts in sorted(by_file.items())
         ],
-        "history_budget_spent": resolver.budget_spent,
-        "skipped_as_external": resolver.skipped_external,
-        "rows": rows[:limit],
-        "corpus_globs": corpus.globs,
+        "history_budget_spent": found.resolver.budget_spent,
+        "skipped_as_external": found.resolver.skipped_external,
+        "rows": kept[:limit],
+        "corpus_globs": {name: list(globs) for name, globs in corpus.globs.items()},
         "untrusted_fields": list(UNTRUSTED),
     }
+
+
+# The cheapest correction a row that is not ok carries when no patch can (439).
+HINTS: Mapping[str, str] = {
+    GONE: "remove the reference, or name what replaced it",
+    NEVER_EXISTED: "no branch ever held it: correct the spelling or remove it",
+    AMBIGUOUS: "name one of the candidates in full",
+    MOVED: "several successors: name the one meant",
+}
+
+
+def _annotate(row: dict[str, object]) -> None:
+    """``patch_ready`` on a moved row with one successor and an in-place form; a hint otherwise.
+    An archive row is never patched: it records what was true then."""
+    state = row["state"]
+    if state == MOVED and "replacement" in row and row["class"] != ARCHIVE:
+        row["patch_ready"] = True
+    elif state in HINTS and not (state == MOVED and "replacement" in row):
+        row["hint"] = (
+            HINTS[str(state)]
+            if state != MOVED or "successors" in row
+            else ("no in-place form: replace it by hand with the successor")
+        )
+
+
+def _path_replacement(found: Verdict, ref: str, rel: str, here: str) -> Verdict:
+    """A moved path's successor written the way the doc wrote the reference: from the repo root,
+    or relative to the doc's folder; a trailing ``/`` kept."""
+    successor = found.detail.get("successor")
+    if found.state != MOVED or not isinstance(successor, str):
+        return found
+    rooted = posixpath.normpath(ref.rstrip("/"))
+    form = successor if rel == rooted else posixpath.relpath(successor, here or ".")
+    if ref.endswith("/"):
+        form += "/"
+    return dataclasses.replace(found, detail={**found.detail, "replacement": form})
+
+
+def _symbol_form(qname: str, ref: str, last: str) -> str | None:
+    """The successor's qname in the doc's spelling: its member separator and leading backslash."""
+    form = qname if ref.startswith("\\") else qname.lstrip("\\")
+    cut = len(ref) - len(last)
+    sep = ref[:cut][len(ref[:cut].rstrip(":\\./->")) :] if cut > 0 else ""
+    member = MEMBER_SEPARATOR + last
+    if sep and sep != MEMBER_SEPARATOR and form.endswith(member):
+        form = form[: -len(member)] + sep + last
+    return form if form.endswith(last) and form != ref else None
+
+
+# ----------------------------------------------------------------- patches (439)
+_BEFORE_WORD = re.compile(r"[\w/\\.$-]")
+_AFTER_WORD = re.compile(r"[\w/\\]|\.\w")
+PATCH_CONTEXT = 3
+
+
+@dataclass(slots=True)
+class Patch:
+    """One file's unified diff and the rows it carries; rows it could not place are skipped."""
+
+    doc_class: str
+    file: str
+    diff: str
+    rows: int
+
+
+def _bounded(line: str, ref: str) -> list[int]:
+    """Where ``ref`` stands whole on a line: not inside a longer path or name."""
+    found, start = [], line.find(ref)
+    while start != -1:
+        before = line[start - 1] if start else ""
+        after = line[start + len(ref) : start + len(ref) + 2]
+        if not (before and _BEFORE_WORD.match(before)) and not _AFTER_WORD.match(after):
+            found.append(start)
+        start = line.find(ref, start + 1)
+    return found
+
+
+def _replaced(line: str, ref: str, form: str) -> str | None:
+    spots = _bounded(line, ref)
+    for start in reversed(spots):
+        line = line[:start] + form + line[start + len(ref) :]
+    return line if spots else None
+
+
+def patches(config: Config, rows: Sequence[Mapping[str, object]]) -> tuple[list[Patch], int]:
+    """Unified diffs, per priority class then file, that swap each patch-ready reference for its
+    successor and change nothing else; and how many rows no longer stand on their line."""
+    by_file: dict[str, list[Mapping[str, object]]] = {}
+    for row in rows:
+        if row.get("patch_ready"):
+            by_file.setdefault(str(row["file"]), []).append(row)
+    order = {name: n for n, name in enumerate(CLASSES)}
+    out: list[Patch] = []
+    skipped = 0
+    ranked = sorted(by_file.items(), key=lambda kv: (order[str(kv[1][0]["class"])], kv[0]))
+    for doc, edits in ranked:
+        try:
+            # The bytes as they are: CRLF kept, so the diff matches what `git apply` reads.
+            text = read_bytes(config.root, config.root / doc).decode("utf-8")
+        except (OSError, ValueError):
+            skipped += len(edits)
+            continue
+        old = text.split("\n")
+        old = [line + "\n" for line in old[:-1]] + ([old[-1]] if old[-1] else [])
+        new = list(old)
+        placed = 0
+        for edit in edits:
+            index = int(str(edit["line"])) - 1
+            line = (
+                _replaced(new[index], str(edit["ref"]), str(edit["replacement"]))
+                if (0 <= index < len(new))
+                else None
+            )
+            if line is None:
+                skipped += 1
+                continue
+            new[index] = line
+            placed += 1
+        if placed:
+            out.append(Patch(str(edits[0]["class"]), doc, unified_diff(doc, old, new), placed))
+    return out, skipped
+
+
+def unified_diff(path: str, old: Sequence[str], new: Sequence[str]) -> str:
+    """A ``git apply``-able diff of two same-length line lists (only lines change, never count)."""
+    changed = [n for n, (a, b) in enumerate(zip(old, new, strict=True)) if a != b]
+    groups: list[list[int]] = []
+    for n in changed:
+        if groups and n - groups[-1][-1] <= 2 * PATCH_CONTEXT:
+            groups[-1].append(n)
+        else:
+            groups.append([n])
+    out = [f"diff --git a/{path} b/{path}\n", f"--- a/{path}\n", f"+++ b/{path}\n"]
+    for group in groups:
+        lo = max(0, group[0] - PATCH_CONTEXT)
+        hi = min(len(old), group[-1] + PATCH_CONTEXT + 1)
+        out.append(f"@@ -{lo + 1},{hi - lo} +{lo + 1},{hi - lo} @@\n")
+        for n in range(lo, hi):
+            if n in group:
+                out += [_diff_line("-", old[n]), _diff_line("+", new[n])]
+            else:
+                out.append(_diff_line(" ", old[n]))
+    return "".join(out)
+
+
+def _diff_line(mark: str, line: str) -> str:
+    if line.endswith("\n"):
+        return mark + line
+    return f"{mark}{line}\n\\ No newline at end of file\n"
+
+
+# ----------------------------------------------------------------- session line (439)
+# A session start cannot wait on the run's full history budget: past this, rows are unknown.
+SESSION_BUDGET_S = 3.0
+STALE: tuple[str, ...] = (MOVED, GONE, NEVER_EXISTED, AMBIGUOUS)
+
+
+def session_line(config: Config, store: GraphStore) -> str | None:
+    """One count-only line, the instruction class first; ``None`` when every reference resolves.
+    Archive files are not read — they never count."""
+    found = scan(config, store, classes=COUNTED_CLASSES, budget_s=SESSION_BUDGET_S)
+    stale = {name: 0 for name in COUNTED_CLASSES}
+    unknown = ready = 0
+    for row in found.rows:
+        name = str(row["class"])
+        if row["state"] in STALE:
+            stale[name] += 1
+        elif row["state"] == UNKNOWN:
+            unknown += 1
+        if name == INSTRUCTION and row.get("patch_ready"):
+            ready += 1
+    others = stale[MEMORY] + stale[REFERENCE]
+    if not (stale[INSTRUCTION] or others or unknown):
+        return None
+    line = f"code-atlas: {stale[INSTRUCTION]} refs in instruction files no longer resolve"
+    if ready:
+        line += f" ({ready} moved — patch ready)"
+    line += f"; {others} in other docs"
+    if unknown:
+        line += f"; {unknown} unchecked (unknown, not ok)"
+    return line + " — `code-atlas query --verify-refs --format md`."
 
 
 # Doc-derived and repo-derived text in the payload: data, never instructions (429).
@@ -782,8 +1019,11 @@ UNTRUSTED: tuple[str, ...] = (
     "rows[].file",
     "rows[].path",
     "rows[].successor",
+    "rows[].successors",
+    "rows[].replacement",
     "rows[].container",
     "rows[].site.*",
+    "rows[].candidate_paths",
     "rows[].candidates[].*",
     "files[].file",
 )
@@ -809,9 +1049,10 @@ def markdown(answer: Mapping[str, object]) -> str:
     for row in rows:
         if row["state"] == OK:
             continue
-        hint = row.get("successor") or row.get("reason")
-        if isinstance(hint, dict):
-            hint = f"{hint.get('qname')} ({hint.get('file')}:{hint.get('line')})"
+        hint = row.get("successor") or row.get("hint") or row.get("reason")
+        site = row.get("site")
+        if row["state"] == MOVED and isinstance(site, dict):
+            hint = f"{hint} ({site.get('file')}:{site.get('line')})"
         cells = [f"{row['file']}:{row['line']}", row["class"], row["state"], f"`{row['ref']}`"]
         cells.append(hint)
         head.append("| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |")

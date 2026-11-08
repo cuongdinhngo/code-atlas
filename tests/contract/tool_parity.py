@@ -44,6 +44,7 @@ from code_atlas.tools import (
     search_symbol,
     subtree_dependencies,
     trace_capability,
+    verify_refs,
 )
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
@@ -154,6 +155,7 @@ INVOKERS: dict[str, Invoker] = {
     reachable_from.NAME: Invoker(lambda c, s, n: reachable_from.create(c)(), "results"),
     find_orphans.NAME: Invoker(lambda c, s, n: find_orphans.create(c)(), "results"),
     compute.NAME: Invoker(lambda c, s, n: compute.create(c)(template="tier_mix"), "rows"),
+    verify_refs.NAME: Invoker(lambda c, s, n: verify_refs.create(c)(), "rows"),
     explain_path.NAME: Invoker(
         lambda c, s, n: explain_path.create(c)(from_qname=s["caller"], to_qname=s["callee"]),
         "path",
@@ -246,6 +248,7 @@ PHP_PARITY = ToolParity(
             reachable_from.NAME,
             find_orphans.NAME,
             compute.NAME,
+            verify_refs.NAME,
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,
@@ -290,6 +293,7 @@ TS_PARITY = ToolParity(
             reachable_from.NAME,
             find_orphans.NAME,
             compute.NAME,
+            verify_refs.NAME,
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,
@@ -367,6 +371,7 @@ SQL_PARITY = ToolParity(
             reachable_from.NAME,
             find_orphans.NAME,
             compute.NAME,
+            verify_refs.NAME,
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,
@@ -444,6 +449,7 @@ PY_PARITY = ToolParity(
             reachable_from.NAME,
             find_orphans.NAME,
             compute.NAME,
+            verify_refs.NAME,
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,

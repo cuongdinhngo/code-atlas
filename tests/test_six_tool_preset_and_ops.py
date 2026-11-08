@@ -41,10 +41,10 @@ def _git(root: Path, *args: str) -> None:
 
 
 def test_field18_preset_is_six_and_default_is_still_full() -> None:
-    """AC1 — documented preset size; default surface stays 25."""
+    """AC1 — documented preset size; default surface stays 26."""
     assert len(FIELD18_TOOLS) == 6
     assert set(FIELD18_TOOLS) <= set(TOOL_NAMES)
-    assert len(TOOL_NAMES) == 25
+    assert len(TOOL_NAMES) == 26
     assert allowed_tools(None) == TOOL_NAMES
     assert allowed_tools(FIELD18_TOOLS) == FIELD18_TOOLS
 
