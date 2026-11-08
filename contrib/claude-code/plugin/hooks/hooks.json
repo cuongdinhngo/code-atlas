@@ -512,7 +512,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || { echo 'code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: uv tool install --force git+https://github.com/cuongdinhngo/code-atlas.git@v0.10.0'; exit 0; }; exec code-atlas-state --expect-contract 20 --expect-version 0.10.0",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || { echo 'code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: uv tool install --force git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0'; exit 0; }; exec code-atlas-state --expect-contract 21 --expect-version 0.11.0",
             "timeout": 10
           }
         ]
@@ -531,7 +531,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-release-check >/dev/null 2>&1 || exit 0; exec code-atlas-release-check --expect-version 0.10.0",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-release-check >/dev/null 2>&1 || exit 0; exec code-atlas-release-check --expect-version 0.11.0",
             "timeout": 10
           }
         ]
@@ -552,7 +552,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || exit 0; exec code-atlas-state --expect-contract 20 --expect-version 0.10.0",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || exit 0; exec code-atlas-state --expect-contract 21 --expect-version 0.11.0",
             "timeout": 10
           }
         ]

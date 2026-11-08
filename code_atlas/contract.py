@@ -47,7 +47,9 @@ from typing import Literal, get_args
 # v20: the rule file's stored blocks (411–415). A pre-411 index kept one handler per route key, no
 # census, no record `attributes`/`stop_at`, no `definitions.precedence`: its answers would read as
 # complete, so it rebuilds instead.
-CONTRACT_VERSION = 20
+# v21: a declared definition order, the SQL `body_hash` that ignores formatting and the adapters'
+# `qualified` shapes (437–443). A pre-437 index holds the old hashes and no shapes: it rebuilds.
+CONTRACT_VERSION = 21
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[

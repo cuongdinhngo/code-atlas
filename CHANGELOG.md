@@ -17,6 +17,34 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+## 0.11.0 — 2026-11-08 · contract 21 · schema 9
+
+Verify & Compute: which references an agent was told still hold, and exact answers over the graph.
+**Full rebuild required.** Contract 21 covers the SQL `body_hash`, a declared definition order and
+the adapters' `qualified` shapes. **Adapter checkout must be updated.** Every adapter speaks 21.
+
+- **The actionable set (443).** Each `verify_refs` row is `strong` (a path git or the tree knows, a
+  path with a folder and a suffix, or an adapter-shaped symbol, written as code) or `weak`; a
+  `moved` or `gone` strong row outside the archive is *actionable*, and only those drive the default
+  answer, the session line and `--fail-on`. The default MCP answer is the actionable counts per class
+  and up to 20 compact rows, instruction files first; `state`, `doc_class`, `strength` or `limit`
+  ask for every state. A reference doc's weak rows leave the summaries unless `strength` names them.
+- **`--format jsonl` and `--refs-diff` (443).** Every row, uncapped and keyed, for a private
+  baseline; `--refs-diff OLD NEW` counts fixed / new / unchanged actionable rows per class. An export
+  gets 1,800 s of git history (`--history-budget` overrides).
+- **A member its class does not declare (443)** is `ok` when an ancestor declares it, `moved` when its
+  body is found elsewhere, `gone` only when git shows it left the class's file, else `unknown`
+  (`not_declared_on_container`) — before, every one read `gone`. A gone path names
+  `nearest_existing`, its deepest folder still there. Instruction files are resolved first.
+- **Memory is read by default (443):** the host's project memory folder, chosen by the host, never
+  the repo (`refs_memory` globs replace it). Its rows are edits, never a `git apply` diff.
+- **The session line reads a stored summary (443).** A build or refresh with `refs_session_line`
+  stores the actionable counts; a session start never scans, and says `(docs changed since last
+  scan)` instead of rescanning.
+- **`multi_defined` is one object per kind and qname (443)**, a namespace each file re-declares is not
+  one, and `language` scopes it; rows carry `kind`.
+- **Tool surface:** `compute` and `verify_refs` descriptions cut to one line each; their detail is in
+  `docs/TOOLS.md`. `verify_refs` gains `strength`; `multi_defined` gains `language`.
 - **Eight `compute` templates (441).** `unreferenced_objects`, `calls_by_module`, `untested_classes`,
   `resolved_share`, `includes_by_dir`, `multi_defined` and `variant_pairs` join `tier_mix`, which now splits each
   kind by source and target language. Module rollups use the one business-module table; `multi_defined` names a live
