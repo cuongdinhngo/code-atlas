@@ -502,14 +502,12 @@ class Resolver:
             rows = list(self.store.nodes_by_name(bare, limit=50))
         else:
             rows = self._matches(bare, last)
-            if not rows and self._external(bare):
-                self.skipped_external += 1  # `os.path`: counted, so a vanished package is seen
-                return None
         if rows:
             return self._found(rows)
         if kind == NAME and not ref.endswith("()"):
             return None  # a word in backticks that names nothing indexed is not a reference
         if kind == SYMBOL:
+            # Before the external test: `Repo.gone` starts on no qname, but `Repo` is indexed.
             container = bare[: len(bare) - len(last)].rstrip(":\\./->")
             owners = self._matches(container, (_WORD_RUN.findall(container) or [""])[-1]) if (
                 container
@@ -520,6 +518,9 @@ class Resolver:
                 found = seen if isinstance(seen, tuple) else (None, None)
                 detail.update(last_seen_rev=found[0][:12] if found[0] else None, last_seen=found[1])
                 return Verdict(GONE, "missing_on_live_container", detail)
+            if self._external(bare):
+                self.skipped_external += 1  # `os.path`: counted, so a vanished package is seen
+                return None
         moved = self._moved_by_body(bare, last, kind, doc)
         if moved is not None:
             return moved
@@ -670,7 +671,7 @@ def _body_hash(row: Row) -> str | None:
 def _rows(
     config: Config, store: GraphStore, corpus: Corpus, resolver: Resolver
 ) -> Iterator[dict[str, object]]:
-    seen: dict[tuple[str, str, str], Verdict | None] = {}
+    seen: dict[tuple[str, str, str], tuple[str, Verdict | None]] = {}
     for doc, doc_class in corpus.files.items():
         try:
             text = read_text(config.root, config.root / doc, errors="replace")
@@ -690,10 +691,8 @@ def _rows(
                 continue
             key = (ref, kind, posixpath.dirname(doc) if kind == PATH else doc)
             if key not in seen:
-                seen[key] = (
-                    resolver.path(ref, doc) if kind == PATH else resolver.symbol(ref, kind, doc)
-                )
-            verdict = seen[key]
+                seen[key] = _resolve(resolver, ref, kind, doc)
+            kind, verdict = seen[key]
             if verdict is None:
                 continue
             # A prose word is a reference only on an exact hit, never a stale guess.
@@ -707,6 +706,18 @@ def _rows(
                 "origin": mention.origin, "ref": ref, "ref_kind": kind,
                 "state": verdict.state, "reason": verdict.reason, **verdict.detail,
             }
+
+
+def _resolve(resolver: Resolver, ref: str, kind: str, doc: str) -> tuple[str, Verdict | None]:
+    """One reference's kind and verdict. `threading.Lock` reads like a file and never was one:
+    a slash-less path no branch held, in a symbol's shape, is asked again as a symbol."""
+    if kind != PATH:
+        return kind, resolver.symbol(ref, kind, doc)
+    verdict = resolver.path(ref, doc)
+    if verdict.state == NEVER_EXISTED and "/" not in ref:
+        if resolver.shapes.qualified_suffixes(ref) is not None:
+            return SYMBOL, resolver.symbol(ref, SYMBOL, doc)
+    return kind, verdict
 
 
 def verify_refs(

@@ -168,6 +168,11 @@ E1's report: `m + g = 16 ≠ 17`, so **Gate 4 does not close by the harness's ar
 437; the PR opens as a draft. `Ph3/4 proven by`: AC1–AC5 → `tests/test_verify_refs.py` (26); AC6 →
 `~/code-atlas-review/438-anchor.md`.
 
+Pre-merge review (maintainer session; W1–W2 ratified): a short-form member (`Repo.vanished`,
+`a.Repo.vanished`) was dropped as external before its live container was looked up — the container
+test now runs first; a slash-less dotted span no branch ever held (`threading.Lock`, `response.json`)
+is asked again as a symbol rather than reported `never_existed`. Tests: `tests/test_verify_refs.py` (+2 rows).
+
 ## Phase 5 — finalise
 
 **Durable lesson.** 438-C1 `a-lookup-per-reference-over-history-needs-an-index-built-once` (new, type 2).
