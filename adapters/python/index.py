@@ -33,6 +33,8 @@ META = {
             "pattern": r"\.\s*\w+\s*\\?\(|\bimport\s+\w+|\bfrom\s+[\w.]+\s+import\b",
         },
         {"kind": "call", "pattern": r"^\w+\\?\($"},
+        # A symbol as a doc writes it whole: a dotted module path (438).
+        {"kind": "qualified", "pattern": r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$"},
     ],
 }
 

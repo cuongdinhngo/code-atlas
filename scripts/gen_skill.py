@@ -367,6 +367,10 @@ SHELL_ROUTE: tuple[str, ...] = (
     "- **\"Has this method changed since revision X?\"** `--snapshot-symbols <out>` at X, then"
     " `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`,"
     " `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.",
+    "- **\"Is what `CLAUDE.md` and the docs say still true?\"** `--verify-refs [globs]` states each"
+    " path and symbol they name `ok`, `moved` (with its successor), `gone`, `never_existed`,"
+    " `ambiguous` or `unknown`; `--class instruction`, `--format md`, `--limit N`, and"
+    " `--fail-on moved,gone` to fail a pre-commit hook.",
 )
 
 # A subagent's worktree shares its parent's server and roots (408); only the call can name it.

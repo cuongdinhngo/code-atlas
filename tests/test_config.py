@@ -237,6 +237,42 @@ KNOBS = (
         lambda root: None,
     ),
     Knob(
+        "CA_REFS_INSTRUCTION",
+        'refs_instruction = ["notes/instruction/*.md"]',
+        "env/a.md,env/b/**",
+        lambda config: config.refs_instruction,
+        lambda root: ("env/a.md", "env/b/**"),
+        lambda root: ("notes/instruction/*.md",),
+        lambda root: None,
+    ),
+    Knob(
+        "CA_REFS_MEMORY",
+        'refs_memory = ["notes/memory/*.md"]',
+        "env/a.md,env/b/**",
+        lambda config: config.refs_memory,
+        lambda root: ("env/a.md", "env/b/**"),
+        lambda root: ("notes/memory/*.md",),
+        lambda root: None,
+    ),
+    Knob(
+        "CA_REFS_REFERENCE",
+        'refs_reference = ["notes/reference/*.md"]',
+        "env/a.md,env/b/**",
+        lambda config: config.refs_reference,
+        lambda root: ("env/a.md", "env/b/**"),
+        lambda root: ("notes/reference/*.md",),
+        lambda root: None,
+    ),
+    Knob(
+        "CA_REFS_ARCHIVE",
+        'refs_archive = ["notes/archive/*.md"]',
+        "env/a.md,env/b/**",
+        lambda config: config.refs_archive,
+        lambda root: ("env/a.md", "env/b/**"),
+        lambda root: ("notes/archive/*.md",),
+        lambda root: None,
+    ),
+    Knob(
         "CA_TOOLS",
         'tools = ["search_symbol"]',
         "read_symbol,file_outline",
@@ -316,7 +352,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 25
+    assert len(KNOB_KEYS) == 29
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -346,6 +382,10 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_CONTAINER_ROOT",
         "CA_CALLER_ROOT",
         "CA_DEFINITION_ORDER",
+        "CA_REFS_INSTRUCTION",
+        "CA_REFS_MEMORY",
+        "CA_REFS_REFERENCE",
+        "CA_REFS_ARCHIVE",
     ]
 
 

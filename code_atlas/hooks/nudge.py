@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from code_atlas.containment import safe_append, safe_write
-from code_atlas.contract import SHAPE_KINDS
+from code_atlas.contract import GREP_SHAPE_KINDS
 from code_atlas.hooks import additional_context
 from code_atlas.index_text import checked_name
 
@@ -231,7 +231,9 @@ def nudge(
     hits = set(matched_kinds(call, shapes))
     # Both are stamped index text, the repo's to write: only a checked name and a contract kind
     # reach the log or the agent (421).
-    checked = {(name, kind) for name, kind in hits if checked_name(name) and kind in SHAPE_KINDS}
+    checked = {
+        (name, kind) for name, kind in hits if checked_name(name) and kind in GREP_SHAPE_KINDS
+    }
     key = dedupe_key(session, agent)
     state = _load_state(index / STATE_FILE)
     seen = set(state.get(key, []))

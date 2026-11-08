@@ -13,7 +13,10 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 # Metadata ops (rev-parse/ls-files/diff --name-only) are sub-second even on huge repos; 30s covers a
 # cold FS. The tree-kill + bounded drain below is the real backstop, so the ceiling stays tight.
@@ -181,6 +184,113 @@ def config_value(root: Path, key: str) -> str | None:
     return None if found is None else found.strip()
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class PathHistory:
+    """What HEAD's history says about paths that are gone: renames and deletions (438)."""
+
+    renamed: Mapping[str, str]  # old path -> new path, the newest rename of that path
+    renamed_at: Mapping[str, tuple[str, str]]  # old path -> (renaming commit, its day)
+    deleted: Mapping[str, tuple[str, str]]  # path -> (deleting commit, its day), newest first
+
+
+def path_history(root: Path, *, timeout: float = GIT_TIMEOUT) -> PathHistory | None:
+    """One pass over HEAD's first-parent history, merges diffed against their first parent so a
+    file a merge removed is seen, with rename detection (``-M``); None when git cannot answer."""
+    found = _run(
+        root, "log", "-M", "-m", "--first-parent", "--diff-filter=RD", "--name-status", "-z",
+        "--format=@%H %cs", revision=_HEAD, timeout=timeout,
+    )
+    if found is None:
+        return None
+    renamed: dict[str, str] = {}
+    renamed_at: dict[str, tuple[str, str]] = {}
+    deleted: dict[str, tuple[str, str]] = {}
+    commit = ("", "")
+    tokens = iter(token.strip("\n") for token in found.split("\0"))
+    for token in tokens:
+        if token.startswith("@"):
+            sha, _, day = token[1:].partition(" ")
+            commit = (sha, day)
+        elif token.startswith("R"):
+            old, new = next(tokens, ""), next(tokens, "")
+            renamed.setdefault(old, new)
+            renamed_at.setdefault(old, commit)
+        elif token == "D":
+            deleted.setdefault(next(tokens, ""), commit)
+    return PathHistory(renamed=renamed, renamed_at=renamed_at, deleted=deleted)
+
+
+def paths_ever_added(root: Path, *, timeout: float = GIT_TIMEOUT) -> frozenset[str] | None:
+    """Every path any branch or tag ever added — the "it existed somewhere" set (438)."""
+    found = _run(
+        root, "log", "--all", "--no-renames", "--diff-filter=A", "--name-only", "-z", "--format=",
+        timeout=timeout,
+    )
+    if found is None:
+        return None
+    return frozenset(token.strip("\n") for token in found.split("\0") if token.strip("\n"))
+
+
+def last_commit_of(
+    root: Path, path: str, *, timeout: float = GIT_TIMEOUT
+) -> tuple[str, str] | None:
+    """The newest commit that touched ``path`` and its day, or None."""
+    found = _run(root, "log", "-1", "--format=%H %cs", "--", f":(literal){path}", timeout=timeout)
+    sha, _, day = (found or "").strip().partition(" ")
+    return (sha, day) if sha else None
+
+
+def files_naming(root: Path, word: str, revision: str, *, timeout: float) -> tuple[str, ...] | None:
+    """The files at ``revision`` that hold ``word`` as a whole word, or None (timeout, no git)."""
+    # `git grep` takes no `--end-of-options`: the revision is checked here; `-e` fences the word.
+    if revision != _HEAD and not is_object_id(revision):
+        return None
+    found = _run(
+        root, "grep", "-l", "-w", "-F", "-I", "-z", "-e", word, revision, "--",
+        timeout=timeout, empty_exit=1,
+    )
+    if found is None:
+        return None
+    prefix = f"{revision}:"
+    return tuple(sorted(p.removeprefix(prefix) for p in found.split("\0") if p))
+
+
+def blob_at(root: Path, revision: str, path: str) -> str | None:
+    """A file's text at ``revision`` (a full object id), or None."""
+    if not is_object_id(revision):
+        return None
+    return _run(root, "cat-file", "blob", f"{revision}:{path}")
+
+
+def last_change_of(
+    root: Path,
+    needle: str,
+    *,
+    every_ref: bool,
+    timeout: float,
+    path: str | None = None,
+    suffixes: Sequence[str] = (),
+) -> tuple[str, str] | None | Literal[False]:
+    """The newest commit whose diff adds or removes ``needle`` (``git log -S``): its id and day.
+
+    ``False`` when no commit ever did; ``None`` when git could not answer in ``timeout``.
+    """
+    scope = ("--all",) if every_ref else ("HEAD",)
+    if path:
+        tail: tuple[str, ...] = ("--", f":(literal){path}")
+    else:
+        tail = ("--", *(f":(glob)**/*.{suffix}" for suffix in suffixes)) if suffixes else ()
+    found = _run(
+        root, "log", *scope, "-1", "--format=%H %cs", f"-S{needle}", *tail, timeout=timeout
+    )
+    if found is None:
+        return None
+    sha, _, day = found.strip().partition(" ")
+    return (sha, day) if sha else False
+
+
 @functools.cache
 def git_version() -> tuple[int, int] | None:
     """``(major, minor)`` of the git on PATH, or None when it cannot be read. Asked once."""
@@ -226,7 +336,12 @@ def git_env(*, system_config: bool = False) -> dict[str, str]:
 
 
 def _run(
-    root: Path, *arguments: str, revision: str | None = None, system_config: bool = False
+    root: Path,
+    *arguments: str,
+    revision: str | None = None,
+    system_config: bool = False,
+    timeout: float = GIT_TIMEOUT,
+    empty_exit: int | None = None,
 ) -> str | None:
     """One read-only, hardened git command. Anything git cannot answer is None, never partial.
 
@@ -258,7 +373,7 @@ def _run(
     except OSError:
         return None
     try:
-        stdout, _ = proc.communicate(timeout=GIT_TIMEOUT)
+        stdout, _ = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         # A wedged git (or a grandchild holding the pipe) never yielded EOF. Kill the tree, then
         # drain briefly so communicate() returns rather than blocking on the now-dead pipe.
@@ -271,6 +386,8 @@ def _run(
     except (OSError, ValueError):
         _kill_tree(proc)
         return None
+    if empty_exit is not None and proc.returncode == empty_exit:
+        return ""  # a "found nothing" status (`git grep` exits 1), not a failure
     if proc.returncode != 0:
         if revision is not None:
             _too_old()
