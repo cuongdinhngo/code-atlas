@@ -134,7 +134,10 @@ Residual it named, unprobed: a doc with lone-`\r` line endings has its rows skip
 Verdict: clean (challenger 11 of 11; no rule-book reviewer). `Ph3/4 proven by`: AC1–AC3 →
 `tests/test_verify_refs_surfaces.py` (13); AC4 → `tests/test_tool_surface_budget.py`, `test_tool_manifest.py`.
 
-Reviewed at a8c08fb0
+- **`challenger` round 3** (verify-only, at `404cf5f4`): the gate-driven docs-only range `a8c08fb0..404cf5f4` —
+  no code changed; 11 met.
+
+Reviewed at 404cf5f4
 
 ## Phase 5 — finalise
 
@@ -146,9 +149,9 @@ Reviewed at a8c08fb0
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
-**After review — one gate-driven change, not re-reviewed.** Gate run 1 at `3d595ad0` was RED on one pin: the
+**One gate-driven change, re-reviewed by round 3.** Gate run 1 at `3d595ad0` was RED on one pin: the
 claim-signing doc's unsigned-tools list must name every tool (`docs/design/impact-and-claims.md` gained the
-`verify_refs` row, `404cf5f4`). Docs only; no seat saw it. Run 2:
+`verify_refs` row, `404cf5f4`). Docs only; the challenger's round 3 saw it. Run 2:
 
 Ran at 404cf5f4
 
@@ -168,5 +171,6 @@ Under the handover: push `feat/439-verify-refs-surfaces`; open its PR against `m
 |---|---|---|---|
 | 4 review | ticket-blind `challenger` | 1 | 68,413 |
 | 4 review | ticket-blind `challenger` | 2 | 4,380 (resumed: 72,793 cumulative − 68,413) |
+| 4 review | ticket-blind `challenger` | 3 | 1,919 (resumed: 74,712 cumulative − 72,793) |
 
-`LEDGER TOTAL: 72,793 · top cost driver: 4 review / challenger` — main loop unmeasured.
+`LEDGER TOTAL: 74,712 · top cost driver: 4 review / challenger` — main loop unmeasured.
