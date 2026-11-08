@@ -82,6 +82,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 23 | Which writers of this table leave a column to its DEFAULT? | `check_column_defaults` |
 | 24 | What happens when a user does this — what does one request touch, entry to data? | `trace_capability` |
 | 25 | How many functions does nothing call, and is each one still named somewhere? | `compute` |
+| 26 | Which paths in CLAUDE.md no longer exist, and what replaced them? | `verify_refs` |
 
 ### Why Q4 discriminates (task 097)
 

@@ -193,4 +193,4 @@ def test_no_limit_taking_tool_opts_out_of_the_signal() -> None:
         if "clamp_limit(" not in src or "attach_limit_capped(" not in src:
             offenders.append(module.name)
     assert not offenders, f"limit-taking tools missing the clamp signal: {offenders}"
-    assert len(covered) == 14  # +impact (412), +compute (440)
+    assert len(covered) == 15  # +impact (412), +compute (440), +verify_refs (439)

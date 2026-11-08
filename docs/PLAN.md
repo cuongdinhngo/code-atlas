@@ -1,7 +1,7 @@
 # Code-Atlas MCP — Build Plan
 
 > Status: **Phase 1 — the pre-public build — closed 2026-09-27** (335 tickets): the core, four
-> adapters (PHP · TS/JS · T-SQL · Python; C#/.NET deferred, §19), the onboarding layer, 25 tools.
+> adapters (PHP · TS/JS · T-SQL · Python; C#/.NET deferred, §19), the onboarding layer, 26 tools.
 > What it delivered is §15. **Phase 2** improves and extends it in the public repo; open work is
 > [`BACKLOG.md`](BACKLOG.md).
 

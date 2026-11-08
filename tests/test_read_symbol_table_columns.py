@@ -320,7 +320,7 @@ def test_foreign_key_only_table_reports_no_indexed_columns(tmp_path: Path) -> No
 
 def test_tool_count_stays_at_twenty_four() -> None:
     """AC6: extending read_symbol keeps the documented tool count at 24."""
-    assert len(TOOL_NAMES) == 25
+    assert len(TOOL_NAMES) == 26
     assert "read_symbol" in TOOL_NAMES
     assert "table_columns" not in TOOL_NAMES
 

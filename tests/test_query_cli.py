@@ -49,6 +49,7 @@ ARGS: dict[str, dict[str, object]] = {
     "reachable_from": {},
     "find_orphans": {},
     "compute": {"template": "tier_mix"},
+    "verify_refs": {},
     "explain_path": {"from_qname": CALLER, "to_qname": SUBJECT},
     "architecture_overview": {},
     "guided_tour": {},

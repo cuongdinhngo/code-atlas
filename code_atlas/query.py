@@ -8,7 +8,8 @@ an agent asked (260, 379), and one batch would drown them.
 answer ``holds``, ``changed`` (naming each key that moved) or ``unverifiable`` (task 383).
 ``--snapshot-symbols`` writes the per-symbol fingerprints a consumer keeps; ``--changed-since``
 judges named qnames or paths against one (task 384). Both read the index directly, not a tool.
-``--verify-refs`` states which references in agent-facing docs still resolve (task 438).
+``--verify-refs`` states which references in agent-facing docs still resolve (task 438);
+``--format patch`` prints the diffs that correct the moved ones, for ``git apply`` (task 439).
 """
 
 from __future__ import annotations
@@ -238,11 +239,21 @@ def _verify_refs(config: Config, args: argparse.Namespace) -> int:
     """One answer: every reference's state, JSON or a table; ``--fail-on`` makes it a lint."""
     from code_atlas.store import GraphStore
 
+    if not 1 <= args.limit <= doc_refs.MAX_LIMIT:
+        raise ValueError(f"limit must be 1..{doc_refs.MAX_LIMIT}, got {args.limit}")
     with GraphStore(config.db_path) as store:
-        answer = doc_refs.verify_refs(
-            config, store, globs=args.verify_refs, classes=args.doc_class, limit=args.limit
+        found = doc_refs.scan(config, store, globs=args.verify_refs, classes=args.doc_class)
+    answer = doc_refs.summarize(found, states=args.state, limit=args.limit)
+    if args.format == "patch":
+        # Every patch-ready row, never only the page; what could not be placed is said on stderr.
+        made, skipped = doc_refs.patches(config, found.rows)
+        sys.stdout.write("".join(patch.diff for patch in made))
+        print(
+            f"code-atlas: {sum(p.rows for p in made)} references patched in {len(made)} files; "
+            f"{skipped} no longer stand on their line — apply from {config.root}",
+            file=sys.stderr,
         )
-    if args.format == "md":
+    elif args.format == "md":
         sys.stdout.write(doc_refs.markdown(answer))
     else:
         print(json.dumps(answer, ensure_ascii=False), flush=True)
@@ -340,7 +351,19 @@ def main(argv: list[str] | None = None) -> int:
         "--class", dest="doc_class", action="append", default=[], choices=doc_refs.CLASSES,
         help="--verify-refs: only these priority classes",
     )
-    parser.add_argument("--format", choices=("json", "md"), default="json", help="--verify-refs")
+    parser.add_argument(
+        "--state",
+        action="append",
+        default=[],
+        choices=doc_refs.STATES,
+        help="--verify-refs: only rows in these states (summaries still count every row)",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("json", "md", "patch"),
+        default="json",
+        help="--verify-refs; patch prints unified diffs for `git apply`, applied by nobody else",
+    )
     parser.add_argument(
         "--fail-on", default="", metavar="STATES",
         help=f"--verify-refs: exit {NOT_HELD} when a counted row is in one (e.g. moved,gone)",

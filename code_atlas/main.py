@@ -52,6 +52,7 @@ from code_atlas.tools import (
     search_symbol,
     subtree_dependencies,
     trace_capability,
+    verify_refs,
 )
 from code_atlas.tools.schema_guard import guard
 from code_atlas.untrusted import framed
@@ -76,6 +77,7 @@ TOOL_NAMES: tuple[str, ...] = (
     reachable_from.NAME,
     find_orphans.NAME,
     compute.NAME,
+    verify_refs.NAME,
     explain_path.NAME,
     architecture_overview.NAME,
     guided_tour.NAME,
@@ -293,6 +295,8 @@ def build_server(
         serve(find_orphans.NAME, guard(find_orphans.create(config), config))
     if compute.NAME in names:
         serve(compute.NAME, guard(compute.create(config), config))
+    if verify_refs.NAME in names:
+        serve(verify_refs.NAME, guard(verify_refs.create(config), config))
     if explain_path.NAME in names:
         serve(explain_path.NAME, guard(explain_path.create(config), config))
     if architecture_overview.NAME in names:
