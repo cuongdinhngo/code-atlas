@@ -174,3 +174,8 @@ Under the handover: push `feat/439-verify-refs-surfaces`; open its PR against `m
 | 4 review | ticket-blind `challenger` | 3 | 1,919 (resumed: 74,712 cumulative − 72,793) |
 
 `LEDGER TOTAL: 74,712 · top cost driver: 4 review / challenger` — main loop unmeasured.
+
+**After the PR — CI only.** CI's test job failed two tests the local gate passed: the CLI and SessionStart tests load
+their config from the environment, and this host's shell exports `CA_PYTHON_CMD`, CI's does not — so the moved
+symbol's old body could not be parsed and read `unknown`. The tests now name the adapter as 438's CLI test does; seen
+red with every `CA_*` unset, green after. Test-only change, after `Reviewed at` and the gate; CI re-verifies.
