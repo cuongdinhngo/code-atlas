@@ -36,7 +36,7 @@ day-7 result decides what continues.
 | 438 | [`verify_refs`: stale refs in agent docs](tasks/438_verify-refs-core.md) | Verify | in-progress | 384, 429, 430 |
 | 439 | [`verify_refs`: patches, MCP tool, SessionStart line](tasks/439_verify-refs-patches-and-surfaces.md) | Verify | todo | 438, 434 |
 | 440 | [`compute`: views, sandbox, template contract](tasks/440_compute-sandbox-and-contract.md) | Compute | in-progress | 428, 434 |
-| 441 | [`compute`: the first eight templates](tasks/441_compute-catalogue.md) | Compute | todo | 440, 437 |
+| 441 | [`compute`: the first eight templates](tasks/441_compute-catalogue.md) | Compute | in-progress | 440, 437 |
 | 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–441 |
 
 ## Open work — Trust (security)

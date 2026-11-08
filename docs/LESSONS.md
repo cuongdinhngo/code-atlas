@@ -258,6 +258,13 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: the literal-mention pass scanned every edge's string arguments in SQL; on the anchor it hit its 3 s
   deadline on every call, so every absence read `mention_unchecked` — honest and useless. One time-capped `git grep`
   for a page's names answers in ~1 s. Measure a capped check on the real corpus before shipping it.
+### 441-C1 — a page and its total each run the body: read a small aggregate once
+
+- type: 2 (heuristic) · handle: `area:compute`
+- status: proposed · seen: 441
+- evidence: `tier_mix` ran its grouping for the page, again inside `COUNT(*)` for `total_count`, and a caveat
+  query beside them; each fit the 3 s statement deadline on the fixture, the three together failed it on the
+  anchor. An aggregate bounded by vocabulary (kinds × languages × tiers) is read once and paged in Python.
 ### 438-C1 — a lookup per reference over git history needs an index built once
 
 - type: 2 (heuristic) · handle: `area:verify_refs`

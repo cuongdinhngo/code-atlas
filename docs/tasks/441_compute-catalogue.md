@@ -4,7 +4,7 @@ slug: compute-catalogue
 title: "`compute`: the first eight templates, each with fixtures for its answer, caveat, empty and truncation"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: todo
+status: in-progress
 depends_on: [440, 437]
 ---
 
@@ -41,7 +41,7 @@ names baked in (R2). No template branches on language (R1.1) — a language is a
 
 ## Session status
 
-- **KEY:** 441 · **work_doc_mode:** embed · **Current phase:** 4 review.
+- **KEY:** 441 · **work_doc_mode:** embed · **Current phase:** 5 finalise.
 - `TRACK: backend` · Run mode: `autorun 439 - 441`, second — `REVIEWER: OFF` (waived: "with skipped reviewer") ·
   `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/441-compute-catalogue` from `main` at `e7896fa1`, built in a worktree while 439's gate held the main
@@ -111,3 +111,49 @@ Main loop, no `implementer` (`34de5257`). **R6.5:** on `main` the catalogue has 
 red. **Anchor (counts only, a copy of the index; `~/code-atlas-review/441-anchor.md`):** first pass, `tier_mix` and
 `calls_by_module` hit the 3 s deadline; after one grouped pass and an `IN` set, warm p95 ≤ 2.08 s for all eight
 (`tier_mix` 2.08, `untested_classes` 1.92, `unreferenced_objects` 1.41, the rest ≤ 0.61); cold within 0.05 s of warm.
+
+## Phase 4 — review
+
+`REVIEWER: OFF` (waived by the run's args — no rule-book seat looked) · `CHALLENGER: ON`. Review step: the ticket-blind
+`challenger` alone, at `34de5257`.
+
+- **`challenger` round 1** (84,365 tokens): 13 met · 0 not met · 1 can't tell (AC3 — the anchor is private).
+  **Taken:** F4 — `untested_classes` saw only edges whose source symbol is a test; every edge a test file makes now
+  counts (a module-level `NEW`, seen red on `34de5257`). F1 — a language's file list past the cap is refused, never
+  cut. F2, F3 — the caveats name test copies, the prefix and a null `target_language`. **Not taken:** F5 (the anchor
+  run settles it: below), F6 (a GLOB is a bound value under the deadline), F7 (`no_referrer` stays; the views'
+  language fallback is H2).
+- **`challenger` round 2** (verify-only, at `f07f95a0`): its final line, transcribed:
+
+`CHALLENGER VERDICT: 14 requirement(s) rebuilt | 13 met | 0 not met | 1 can't tell | 0 not-met covered by a recorded exclusion`
+
+The can't-tell is AC3, an acceptance check off the diff: the anchor timings live in
+`~/code-atlas-review/441-anchor.md` (warm p95 ≤ 2.07 s, all eight). `m + g = 13 ≠ 14 = n`: **the arithmetic gate does
+not close** — the PR opens as a DRAFT and DISCLOSURE says why.
+
+Gate-driven after round 2: the full suite found two core rules the targeted runs missed — one contract word per
+statement (R3.2) and no language named in the core (R1.1, a param's example text). Round 3 verifies that range.
+
+`Ph3/4 proven by`: AC1–AC2 → `tests/test_compute_catalogue.py` (45); AC3 → the anchor report (counts and timings only).
+
+## Phase 5 — finalise
+
+**Durable lesson.** 441-C1 `a-page-and-its-total-each-run-the-body` (new, type 2).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover: push `feat/441-compute-catalogue`; open its PR against `main` (draft — the review gate's
+arithmetic does not close on an off-diff AC). Deferred: ratify W1–W5; merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 4 review | ticket-blind `challenger` | 1 | 84,365 |
+| 4 review | ticket-blind `challenger` | 2 | 4,196 (resumed: 88,561 cumulative − 84,365) |
