@@ -19,9 +19,11 @@ routines, and 48 of 50 `unreferenced_objects(Table, php)` rows read `no_edge_no_
    Function, 276 Table and smaller groups. A namespace every file re-declares is not an object
    (`contract.SPANNING_KINDS`); `language` scopes it; each row carries `kind`.
 2. The mention check, audited: a case-insensitive whole-word `git grep`, kept to files in `language`;
-   a schema prefix or `[brackets]` bounds a word, so both are found. 206 of the 1,221 rows are `#temp`
-   tables (no PHP mention, correctly); a full-answer grep past its deadline makes every row
-   `mention_unchecked`, as designed.
+   a schema prefix or `[brackets]` bounds a word, so both are found. Of 10 seeded "strong" non-temp
+   rows re-grepped on the anchor, 4 had no PHP text at all and 6 sat in PHP only inside a longer name
+   — so the check now counts a substring too (`whole_word=False`): a strong candidate has no trace at
+   all. 206 of the 1,221 rows are `#temp` tables (no PHP mention, correctly); a grep past its
+   deadline makes rows `mention_unchecked`, as designed.
 3. `variant_pairs`: the region-twin shape as a config example, placeholders only (`docs/TOOLS.md`).
 
 ## Acceptance

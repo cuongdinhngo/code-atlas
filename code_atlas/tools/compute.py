@@ -286,8 +286,9 @@ def _absence(
 ) -> dict[str, object]:
     rows, truncated = box.query(body, params, cap=cap)
     language = params.get("language")
+    # Inside a longer name counts (`tblOrders`): a strong candidate needs no trace at all (444).
     sites = gitutil.word_sites(
-        config.root, sorted({str(r[1]) for r in rows}), timeout=GREP_DEADLINE_S
+        config.root, sorted({str(r[1]) for r in rows}), timeout=GREP_DEADLINE_S, whole_word=False
     )
     if sites is not None and language:
         listed = _whole(box, "language.file_list", params)  # a cut list would hide a mention

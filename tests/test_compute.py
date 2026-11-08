@@ -187,6 +187,15 @@ def _git_repo(root: Path, files: dict[str, str]) -> Path:
     return root
 
 
+def test_an_absence_counts_a_name_inside_a_longer_one(tmp_path: Path) -> None:
+    """444: `tblOrders` names `Orders` for the absence check; the word grep alone missed it."""
+    root = _git_repo(tmp_path, {"a.txt": "$t = 'tblOrders';\n"})
+    assert gitutil.word_sites(root, ["Orders"], timeout=5) == {"Orders": []}
+    assert gitutil.word_sites(root, ["Orders"], timeout=5, whole_word=False) == {
+        "Orders": [("a.txt", 1)]
+    }
+
+
 def test_word_sites_counts_each_occurrence_tracked_or_not(tmp_path: Path) -> None:
     """The grep arm: every occurrence, untracked files too, a flag-like word stays a word."""
     root = _git_repo(tmp_path, {"a.txt": "foo(foo)\nbar -x\n", "b.txt": "foo\n"})

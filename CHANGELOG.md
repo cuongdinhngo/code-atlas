@@ -41,8 +41,9 @@ the adapters' `qualified` shapes. **Adapter checkout must be updated.** Every ad
 - **The session line reads a stored summary (443).** A build or refresh with `refs_session_line`
   stores the actionable counts; a session start never scans, and says `(docs changed since last
   scan)` instead of rescanning.
-- **`multi_defined` is one object per kind and qname (443)**, a namespace each file re-declares is not
-  one, and `language` scopes it; rows carry `kind`.
+- **`multi_defined` is one object per kind and qname (444)**, a namespace each file re-declares is not
+  one, and `language` scopes it; rows carry `kind`. An absence's mention check counts a name inside a
+  longer one (`tblOrders` names `Orders`), so `no_edge_no_mention` means no trace at all.
 - **Tool surface:** `compute` and `verify_refs` descriptions cut to one line each; their detail is in
   `docs/TOOLS.md`. `verify_refs` gains `strength`; `multi_defined` gains `language`.
 - **Eight `compute` templates (441).** `unreferenced_objects`, `calls_by_module`, `untested_classes`,

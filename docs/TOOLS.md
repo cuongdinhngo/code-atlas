@@ -922,8 +922,9 @@ Its description is one line (443); the catalogue (`compute` with no `template`) 
 question and typed params, and the table row above has the semantics. `multi_defined` counts one
 object per kind and qualified name — a namespace each file re-declares is none — and takes
 `language`; ask `kind: Function, language: sql` for redefined SQL routines (procedures, functions,
-triggers). An absence's mention check is a case-insensitive whole-word `git grep`, kept to files in
-`language` when one is given; past its deadline a row is `mention_unchecked`, never strong.
+triggers). An absence's mention check is a case-insensitive `git grep` that counts a name inside a
+longer one too (`tblOrders` names `Orders`, 444), kept to files in `language` when one is given; past
+its deadline a row is `mention_unchecked`, never strong.
 
 ### `class_diagram`
 
