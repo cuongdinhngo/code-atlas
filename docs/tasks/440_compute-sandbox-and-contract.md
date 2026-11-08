@@ -149,6 +149,12 @@ Verdict: clean (conditional LGTM landed; challenger 15 met + 1 recorded exclusio
 
 Reviewed at 813d93f3
 
+Pre-merge review (maintainer session): the grep ignores the user's color/column config and case (a
+reshaped record had read every row `no_edge_no_mention`); `path_prefix` keeps a leading dot; a slow
+mention check costs its row, all checks share one budget; a failed open closes its handle; the page
+order ends on `qname`; the authorizer allows SQLite 3.40's UPDATE check on `main.sqlite_master` when
+FTS5 connects (the Docker image refused every text lookup). Tests: `tests/test_compute.py` (+4).
+
 ## Phase 5 — finalise
 
 **Durable lesson.** 440-C1 `a-deadline-on-a-scan-is-an-answer-only-if-the-scan-ever-fits` (new, type 2).

@@ -71,6 +71,7 @@ def ask(config: Config, **args: Any) -> dict[str, Any]:
         ("ATTACH DATABASE ':memory:' AS other", "refused_by_sandbox"),
         ("SELECT load_extension('x')", "refused_by_sandbox"),
         ("PRAGMA query_only = OFF", "refused_by_sandbox"),
+        ("UPDATE sqlite_master SET sql = 'x'", "refused_by_sandbox"),
         (
             "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n) "
             "SELECT COUNT(*) FROM n",
@@ -259,3 +260,36 @@ def test_the_tool_is_read_only_and_answers_from_a_shell(
     monkeypatch.setenv("CA_PYTHON_CMD", shlex.join([sys.executable, str(PY_ENTRY), "--server"]))
     assert query.main(["compute", "--args", '{"template": "tier_mix"}']) == query.OK
     assert '"template": "tier_mix"' in capsys.readouterr().out
+
+
+def test_a_dot_directory_prefix_keeps_its_dot(repo: Config) -> None:
+    """`.lib` is not `lib`: a prefix loses `./`, never the leading dot of a name."""
+    function = {"kind": "Function"}
+    plain = ask(repo, template="no_referrer", params={**function, "path_prefix": "lib"})
+    assert ask(repo, template="no_referrer", params={**function, "path_prefix": "./lib"}) == plain
+    dotted = ask(repo, template="no_referrer", params={**function, "path_prefix": ".lib"})
+    assert dotted["rows"] == []
+
+
+def test_word_sites_ignores_the_users_grep_config_and_case(tmp_path: Path) -> None:
+    """A colored or column-numbered grep would drop every site; a mention in another case counts."""
+    root = _git_repo(tmp_path, {"a.txt": "FOO()\nfoo\n"})
+    for key, value in (("color.ui", "always"), ("color.grep", "always"), ("grep.column", "true")):
+        subprocess.run(["git", "config", key, value], cwd=root, check=True, capture_output=True)
+    assert gitutil.word_sites(root, ["foo"], timeout=5) == {"foo": [("a.txt", 1), ("a.txt", 2)]}
+
+
+def test_a_slow_mention_check_costs_its_row_not_the_page(
+    repo: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = ComputeSandbox.scalar
+
+    def slow(self: ComputeSandbox, body: str, *args: Any, **kwargs: Any) -> Any:
+        if body.startswith("mention."):
+            raise ComputeRefused("deadline_exceeded", "over 3 s")
+        return real(self, body, *args, **kwargs)
+
+    monkeypatch.setattr(ComputeSandbox, "scalar", slow)
+    answer = ask(repo, template="no_referrer", params={"kind": "Function"})
+    assert answer["reason"] == "ok"
+    assert {row["evidence"] for row in answer["rows"]} == {"mention_unchecked"}

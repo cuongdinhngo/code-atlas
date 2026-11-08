@@ -195,18 +195,23 @@ def word_sites(
     if not searchable:
         return {}
     patterns = [part for word in searchable for part in ("-e", word)]
+    # The user's color/column config would reshape each record; -i over-reports, never under.
     found = _run(
-        root, "grep", "--untracked", "-n", "-o", "-w", "-F", "-I", "-z", *patterns, "--",
-        timeout=timeout, empty_exit=1,
+        root, "grep", "--untracked", "--no-color", "--no-column", "-n", "-o", "-w", "-F", "-i",
+        "-I", "-z", *patterns, "--", timeout=timeout, empty_exit=1,
     )
     if found is None:
         return None
     sites: dict[str, list[tuple[str, int]]] = {word: [] for word in searchable}
+    folded: dict[str, list[str]] = {}
+    for word in searchable:
+        folded.setdefault(word.casefold(), []).append(word)
     for record in found.split("\n"):
         path, _, rest = record.partition("\0")
-        line, _, word = rest.partition("\0")
-        if word in sites and line.isdigit():
-            sites[word].append((path, int(line)))
+        line, _, matched = rest.partition("\0")
+        if line.isdigit():
+            for word in folded.get(matched.casefold(), ()):
+                sites[word].append((path, int(line)))
     return sites
 
 

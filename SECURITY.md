@@ -108,8 +108,8 @@ revision only as a full object id (or the literal `HEAD`), after `--end-of-optio
 - `git diff --name-only` — what changed since the last build.
 - `git config --get` — one value (`core.autocrlf`); it reads the system file too.
 - `git --version` — refuse a git too old for `--end-of-options`.
-- `git grep --untracked -n -o -w -F` — `compute` (440): where a page's names appear, time-capped; each
-  name fenced by `-e`, no revision.
+- `git grep --untracked --no-color --no-column -n -o -w -F -i` — `compute` (440): where a page's names
+  appear, time-capped; each name fenced by `-e`, no revision.
 - `git ls-remote` — the release check above; it runs from code-atlas's own cache directory,
   never the indexed repo, with the same hardening.
 

@@ -8,6 +8,7 @@ with a deadline and a row cap. Every answer carries a data-driven ``caveat``, a 
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,8 @@ MENTION_UNCHECKED = "mention_unchecked"
 _MIN_TEXT_MATCH = 3
 # One git grep for the page's names; past it an absence is `mention_unchecked`, never strong.
 GREP_DEADLINE_S = 3.0
+# Every row's mention checks share one budget; a row past it is mention_unchecked.
+MENTION_BUDGET_S = 10.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +122,10 @@ def _checked(template: Template, given: Mapping[str, object]) -> dict[str, str |
     if edge_kind is not None and edge_kind not in contract.EDGE_KINDS:
         raise ValueError(f"edge_kind must be one of {', '.join(contract.EDGE_KINDS)}")
     # `.`, `./` and `/` all name the repo root: no filter, never a prefix that matches nothing.
-    prefix = str(given.get("path_prefix") or "").strip().lstrip("./").rstrip("/")
+    prefix = str(given.get("path_prefix") or "").strip()
+    while prefix.startswith("./"):
+        prefix = prefix[2:]
+    prefix = "" if prefix == "." else prefix.lstrip("/").rstrip("/")
     return {
         "kind": str(kind) if kind else None,
         "edge_kind": str(edge_kind) if edge_kind else None,
@@ -164,8 +170,10 @@ def no_referrer(
     sites = gitutil.word_sites(root, sorted({str(r[1]) for r in rows}), timeout=GREP_DEADLINE_S)
     shaped: list[dict[str, object]] = []
     levels = {NO_EDGE_NO_MENTION: 0, NO_EDGE_BUT_MENTIONED: 0, MENTION_UNCHECKED: 0}
+    until = time.monotonic() + MENTION_BUDGET_S
     for qname, name, file, line in rows:
-        level = _evidence(box, (str(qname), str(name), str(file), int(str(line))), sites)
+        symbol = (str(qname), str(name), str(file), int(str(line)))
+        level = _evidence(box, symbol, sites) if time.monotonic() < until else MENTION_UNCHECKED
         levels[level] += 1
         # One key per statement: the contract's field words stay out of a collection literal.
         row: dict[str, object] = {"qname": qname, "evidence": level}
@@ -201,12 +209,17 @@ def _evidence(
     """Whether a name no edge reaches is still named: an unlinked reference, another symbol's
     text, or anywhere in the tracked tree but its own definition line (a time-capped grep)."""
     qname, name, file, line = symbol
-    if box.scalar("mention.raw", {"name": name, "qname": qname}):
-        return NO_EDGE_BUT_MENTIONED
-    if len(name) >= _MIN_TEXT_MATCH:
-        phrase = '{name params} : "' + name.replace('"', '""') + '"'
-        if box.scalar("mention.text", {"phrase": phrase, "qname": qname}):
+    try:
+        if box.scalar("mention.raw", {"name": name, "qname": qname}):
             return NO_EDGE_BUT_MENTIONED
+        if len(name) >= _MIN_TEXT_MATCH:
+            phrase = '{name params} : "' + name.replace('"', '""') + '"'
+            if box.scalar("mention.text", {"phrase": phrase, "qname": qname}):
+                return NO_EDGE_BUT_MENTIONED
+    except ComputeRefused as refused:
+        if refused.reason != "deadline_exceeded":
+            raise
+        return MENTION_UNCHECKED  # one slow check costs its row, never the page
     if sites is None or name not in sites:
         return MENTION_UNCHECKED  # cut by the deadline, or a name grep cannot search
     # One occurrence is the definition itself; `foo(foo)` on that line is still a mention.

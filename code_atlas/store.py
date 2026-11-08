@@ -5070,7 +5070,7 @@ COMPUTE_QUERIES: Mapping[str, str] = {
         "WHERE s.kind = :kind AND s.is_test = 0 AND " + _PREFIX.format(col="s.file") + " "
         "AND NOT EXISTS (SELECT 1 FROM v_edge e WHERE e.target = s.qname "
         "AND e.kind != 'CONTAINS' AND e.source != s.qname) "
-        "ORDER BY s.file, s.line"
+        "ORDER BY s.file, s.line, s.qname"
     ),
     "no_referrer.population": (
         "SELECT COUNT(*) FROM v_symbol WHERE kind = :kind AND is_test = 0 AND "
@@ -5114,6 +5114,8 @@ class ComputeSandbox:
             for view in _COMPUTE_VIEWS:  # before query_only: a temp view is its last write
                 self._conn.execute(view)
         except sqlite3.Error as error:
+            if hasattr(self, "_conn"):
+                self._conn.close()  # no meta table, or a view failed: never leak the handle
             raise ComputeRefused("index_unreadable", str(error)) from None
         self._conn.execute("PRAGMA query_only = ON")
         self._deadline_s = deadline_s
@@ -5141,6 +5143,11 @@ class ComputeSandbox:
         allowed = allowed or (
             action == sqlite3.SQLITE_PRAGMA and arg1 == "data_version" and arg2 is None
         )
+        # SQLite < 3.4x asks an UPDATE on main.sqlite_master when FTS5 connects; mode=ro and
+        # query_only still refuse any real schema write (the AC1 probe proves it).
+        allowed = allowed or (
+            action == sqlite3.SQLITE_UPDATE and arg1 == "sqlite_master" and _[:1] == ("main",)
+        )
         if allowed:
             return sqlite3.SQLITE_OK
         what = arg2 if action == sqlite3.SQLITE_FUNCTION else f"action {action} {arg1 or ''}"
@@ -5162,7 +5169,7 @@ class ComputeSandbox:
                 raise ComputeRefused("refused_by_sandbox", self._denied or str(error)) from None
             if "interrupted" in str(error):
                 raise ComputeRefused("deadline_exceeded", f"over {self._deadline_s:g} s") from None
-            if "readonly" in str(error) or "read-only" in str(error):
+            if any(w in str(error) for w in ("readonly", "read-only", "may not be modified")):
                 raise ComputeRefused("refused_by_sandbox", "a write") from None
             raise ComputeRefused("query_failed", str(error)) from None
         return [tuple(row) for row in rows[:cap]], len(rows) > cap
