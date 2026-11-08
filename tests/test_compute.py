@@ -130,7 +130,8 @@ def test_ac2_the_mcp_schema_is_closed(repo: Config) -> None:
 def test_no_template_lists_the_catalogue(repo: Config) -> None:
     answer = ask(repo)
     assert answer["reason"] == "catalogue"
-    assert {t["id"] for t in answer["templates"]} == {"tier_mix", "no_referrer"}
+    assert {t["id"] for t in answer["templates"]} == set(compute._RUNNERS)  # 441's eight + 440's
+    assert len(answer["templates"]) == 9
     assert all(t["question"].endswith("?") for t in answer["templates"])
 
 

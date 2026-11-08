@@ -5045,12 +5045,16 @@ def _path_prefix_predicate(path_prefix: str | None) -> _Predicate:
 # Private views the compute templates read — not a public API, free to change with the schema.
 _COMPUTE_VIEWS = (
     "CREATE TEMP VIEW v_file AS SELECT path AS file, language, parsed_ok FROM main.files",
-    "CREATE TEMP VIEW v_symbol AS SELECT id, kind, name, qualified_name AS qname, "
-    "file_path AS file, line_start AS line, line_end, language, COALESCE(is_test, 0) AS is_test "
-    "FROM main.nodes",
-    "CREATE TEMP VIEW v_edge AS SELECT kind, source_qname AS source, target_qname AS target, "
-    "target_raw, file_path AS file, line, COALESCE(confidence_tier, 'RESOLVED') AS tier, "
-    "arg_strings, language FROM main.edges",
+    # A row's language is its own, else its file's (the rule `_NODE_LANGUAGE` states).
+    "CREATE TEMP VIEW v_symbol AS SELECT n.id, n.kind, n.name, n.qualified_name AS qname, "
+    "n.file_path AS file, n.line_start AS line, n.line_end, "
+    "COALESCE(n.language, f.language) AS language, COALESCE(n.is_test, 0) AS is_test "
+    "FROM main.nodes n LEFT JOIN main.files f ON f.path = n.file_path",
+    "CREATE TEMP VIEW v_edge AS SELECT e.kind, e.source_qname AS source, "
+    "e.target_qname AS target, e.target_raw, e.file_path AS file, e.line, "
+    "COALESCE(e.confidence_tier, 'RESOLVED') AS tier, e.arg_strings, "
+    "COALESCE(e.language, f.language) AS language "
+    "FROM main.edges e LEFT JOIN main.files f ON f.path = e.file_path",
 )
 COMPUTE_DEADLINE_S = 3.0
 COMPUTE_ROW_CAP = 200
@@ -5064,20 +5068,19 @@ _COMPUTE_ACTIONS = {
 _COMPUTE_FUNCTIONS = frozenset(
     {"count", "sum", "total", "min", "max", "avg", "coalesce", "ifnull", "nullif", "iif", "round",
      "abs", "instr", "length", "lower", "upper", "substr", "substring", "printf", "match",
-     "group_concat", "json_extract", "json_array_length"}
+     "group_concat", "json_extract", "json_array_length", "glob"}
 )  # fmt: skip
 _PREFIX = "(:prefix IS NULL OR substr({col}, 1, length(:prefix)) = :prefix)"
 # The template bodies: the only SQL a compute answer runs. Callers name a template, never SQL.
 COMPUTE_QUERIES: Mapping[str, str] = {
+    # Grouped by target first, so each distinct target's language is looked up once (441).
     "tier_mix": (
-        "SELECT kind, tier, COUNT(*) AS edges FROM v_edge "
-        "WHERE (:edge_kind IS NULL OR kind = :edge_kind) AND " + _PREFIX.format(col="file") + " "
-        "GROUP BY kind, tier ORDER BY kind, tier"
-    ),
-    "tier_mix.caveat": (
-        "SELECT COUNT(*), COALESCE(SUM(tier = 'HEURISTIC'), 0), COALESCE(SUM(target IS NULL), 0) "
-        "FROM v_edge WHERE (:edge_kind IS NULL OR kind = :edge_kind) AND "
+        "SELECT g.kind, g.source_language, CASE WHEN g.target IS NULL THEN NULL ELSE "
+        "COALESCE((SELECT s.language FROM v_symbol s WHERE s.qname = g.target LIMIT 1), '') END, "
+        "g.tier, SUM(g.edges) FROM (SELECT kind, language AS source_language, tier, target, "
+        "COUNT(*) AS edges FROM v_edge WHERE (:edge_kind IS NULL OR kind = :edge_kind) AND "
         + _PREFIX.format(col="file")
+        + " GROUP BY 1, 2, 3, 4) g GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3, 4"
     ),
     "no_referrer": (
         "SELECT s.qname, s.name, s.file, s.line FROM v_symbol s "
@@ -5092,6 +5095,87 @@ COMPUTE_QUERIES: Mapping[str, str] = {
     ),
     "no_referrer.caveat": (
         "SELECT COUNT(*), COALESCE(SUM(target IS NULL), 0) FROM v_edge WHERE kind != 'CONTAINS'"
+    ),
+    # 441: a referrer is an edge from `:language` (any language when NULL).
+    "unreferenced_objects": (
+        "SELECT s.qname, s.name, s.file, s.line FROM v_symbol s "
+        "WHERE s.kind = :kind AND s.is_test = 0 AND " + _PREFIX.format(col="s.file") + " "
+        "AND NOT EXISTS (SELECT 1 FROM v_edge e WHERE e.target = s.qname "
+        "AND e.kind != 'CONTAINS' AND e.source != s.qname "
+        "AND (:language IS NULL OR e.language = :language)) "
+        "ORDER BY s.file, s.line, s.qname"
+    ),
+    "language.files": "SELECT COUNT(*) FROM v_file WHERE language = :language",
+    "language.edges": (
+        "SELECT COUNT(*), COALESCE(SUM(target IS NULL), 0) FROM v_edge "
+        "WHERE kind != 'CONTAINS' AND language = :language"
+    ),
+    "language.file_list": "SELECT file FROM v_file WHERE language = :language",
+    "mention.raw_in": (
+        "SELECT 1 FROM v_edge WHERE target_raw IN (:name, :qname) AND kind != 'CONTAINS' "
+        "AND language = :language LIMIT 1"
+    ),
+    # Per caller file; the tool rolls files up to the one module table (PLAN §1).
+    "calls_by_module": (
+        "SELECT e.file, COUNT(*), COALESCE(SUM(e.tier = 'RESOLVED'), 0) FROM v_edge e "
+        "WHERE e.kind = :edge_kind AND e.target IS NOT NULL "
+        "AND (:target IS NULL OR e.target GLOB :target) "
+        "AND (:target_kind IS NULL OR e.target IN (SELECT qualified_name FROM main.nodes "
+        "WHERE kind = :target_kind)) "
+        "AND " + _PREFIX.format(col="e.file") + " GROUP BY e.file ORDER BY e.file"
+    ),
+    "calls_by_module.unlinked": (
+        "SELECT COUNT(*) FROM v_edge WHERE kind = :edge_kind AND target IS NULL AND "
+        + _PREFIX.format(col="file")
+    ),
+    "resolved_share": (
+        "SELECT file, COUNT(*), COALESCE(SUM(tier = 'RESOLVED'), 0), "
+        "COALESCE(SUM(target IS NULL), 0) FROM v_edge "
+        "WHERE kind = 'CALLS' AND " + _PREFIX.format(col="file") + " GROUP BY file ORDER BY file"
+    ),
+    "untested.types": (
+        "SELECT qname, file, line FROM v_symbol WHERE kind = :kind AND is_test = 0 AND "
+        + _PREFIX.format(col="file") + " ORDER BY file, line, qname"
+    ),
+    # Every edge a test file makes, a module-level one included: a file holding a test symbol.
+    "untested.reached": (
+        "SELECT DISTINCT target FROM v_edge WHERE target IS NOT NULL AND kind != 'CONTAINS' "
+        "AND file IN (SELECT file FROM v_symbol WHERE is_test = 1)"
+    ),
+    "untested.tests": "SELECT COUNT(*) FROM v_symbol WHERE is_test = 1",
+    "includes_by_dir": (
+        "SELECT CASE WHEN instr(file, '/') > 0 THEN substr(file, 1, instr(file, '/') - 1) "
+        "ELSE '.' END AS dir, COUNT(*), COALESCE(SUM(tier = 'RESOLVED'), 0), "
+        "COALESCE(SUM(tier = 'DYNAMIC'), 0), COALESCE(SUM(target IS NULL), 0) FROM v_edge "
+        "WHERE kind = 'INCLUDES' AND " + _PREFIX.format(col="file") + " GROUP BY 1 ORDER BY 1"
+    ),
+    "multi_defined": (
+        "SELECT qname, COUNT(*) FROM v_symbol WHERE is_test = 0 "
+        "AND (:kind IS NULL OR kind = :kind) AND " + _PREFIX.format(col="file") + " "
+        "GROUP BY qname HAVING COUNT(*) > 1 ORDER BY qname"
+    ),
+    "multi_defined.sites": (
+        "SELECT qname, file, line, is_test FROM v_symbol WHERE qname = :qname "
+        "ORDER BY file, line"
+    ),
+    "meta.value": "SELECT value FROM main.meta WHERE key = :key",
+    # Same container, names `lp*ls` and `rp*rs` sharing the stem; exactly one side referenced.
+    "variant_pairs": (
+        "SELECT * FROM (SELECT a.qname, a.file, a.line, b.qname, b.file, b.line, "
+        "EXISTS (SELECT 1 FROM v_edge e WHERE e.target = a.qname AND e.kind != 'CONTAINS' "
+        "AND e.source != a.qname) AS a_used, "
+        "EXISTS (SELECT 1 FROM v_edge e WHERE e.target = b.qname AND e.kind != 'CONTAINS' "
+        "AND e.source != b.qname) AS b_used "
+        "FROM v_symbol a JOIN v_symbol b ON b.name = :rp || substr(a.name, length(:lp) + 1, "
+        "length(a.name) - length(:lp) - length(:ls)) || :rs "
+        "AND substr(b.qname, 1, length(b.qname) - length(b.name)) = "
+        "substr(a.qname, 1, length(a.qname) - length(a.name)) "
+        "WHERE a.is_test = 0 AND b.is_test = 0 AND a.qname != b.qname "
+        "AND length(a.name) > length(:lp) + length(:ls) "
+        "AND substr(a.name, 1, length(:lp)) = :lp "
+        "AND (:ls = '' OR substr(a.name, length(a.name) - length(:ls) + 1) = :ls) "
+        "AND (:kind IS NULL OR (a.kind = :kind AND b.kind = :kind)) AND "
+        + _PREFIX.format(col="a.file") + ") WHERE a_used != b_used ORDER BY 2, 3, 1"
     ),
     "mention.raw": (
         "SELECT 1 FROM v_edge WHERE target_raw IN (:name, :qname) AND kind != 'CONTAINS' LIMIT 1"

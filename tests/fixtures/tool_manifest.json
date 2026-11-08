@@ -327,7 +327,14 @@
               {
                 "enum": [
                   "tier_mix",
-                  "no_referrer"
+                  "no_referrer",
+                  "unreferenced_objects",
+                  "calls_by_module",
+                  "untested_classes",
+                  "resolved_share",
+                  "includes_by_dir",
+                  "multi_defined",
+                  "variant_pairs"
                 ],
                 "type": "string"
               },

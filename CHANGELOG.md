@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- **Eight `compute` templates (441).** `unreferenced_objects`, `calls_by_module`, `untested_classes`,
+  `resolved_share`, `includes_by_dir`, `multi_defined` and `variant_pairs` join `tier_mix`, which now splits each
+  kind by source and target language. Module rollups use the one business-module table; `multi_defined` names a live
+  definition only from a declared `definition_order`. `variant_pairs` reads `variant_pairs` from `.code-atlas.toml`.
 - **`verify_refs`, a 26th tool, and patches (439).** A `moved` reference with one successor carries its
   `replacement`, written as the doc wrote it; `code-atlas query --verify-refs --format patch | git apply` swaps
   only those strings, and the tool answers the same corrections as edits, never doc text. `--state` / `state` filter

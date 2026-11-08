@@ -265,6 +265,13 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 - evidence: `patches()` built its diff from `read_text`, which turns CRLF into LF, and split on
   `splitlines`, which breaks at U+2028: `git apply --check` refused both (the challenger's probe). A writer
   reads the bytes and counts lines as the consumer does (`\n`), and the extractor must count the same way.
+### 441-C1 — a page and its total each run the body: read a small aggregate once
+
+- type: 2 (heuristic) · handle: `area:compute`
+- status: proposed · seen: 441
+- evidence: `tier_mix` ran its grouping for the page, again inside `COUNT(*)` for `total_count`, and a caveat
+  query beside them; each fit the 3 s statement deadline on the fixture, the three together failed it on the
+  anchor. An aggregate bounded by vocabulary (kinds × languages × tiers) is read once and paged in Python.
 ### 438-C1 — a lookup per reference over git history needs an index built once
 
 - type: 2 (heuristic) · handle: `area:verify_refs`
