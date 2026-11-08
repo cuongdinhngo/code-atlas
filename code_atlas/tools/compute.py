@@ -254,7 +254,8 @@ def tier_mix(box: ComputeSandbox, params: Params, cap: int, config: Config) -> d
         "truncated": truncated,
         "caveat": (
             f"{data['heuristic_share']:.1%} of these edges are HEURISTIC and "
-            f"{data['unlinked_share']:.1%} never linked to a definition (no target language)"
+            f"{data['unlinked_share']:.1%} never linked to a definition; a null target_language "
+            "is that, or a target the index holds no symbol for"
         ),
         "caveat_data": data,
         "empty_reason": "no_edge_matches",
@@ -286,7 +287,7 @@ def _absence(
         config.root, sorted({str(r[1]) for r in rows}), timeout=GREP_DEADLINE_S
     )
     if sites is not None and language:
-        listed, _ = box.query("language.file_list", params, cap=INTERNAL_CAP)
+        listed = _whole(box, "language.file_list", params)  # a cut list would hide a mention
         inside = {str(r[0]) for r in listed}
         sites = {name: [s for s in found if s[0] in inside] for name, found in sites.items()}
     shaped: list[dict[str, object]] = []
@@ -457,8 +458,8 @@ def untested_classes(
         "truncated": truncated,
         "by_module": {m: {"types": t, "untested": u} for m, (t, u) in sorted(per_module.items())},
         "caveat": (
-            "a test is a symbol the adapter or the path convention marked; a type reached only "
-            "through a helper or a fixture reads untested"
+            "a test file holds a symbol the adapter or the path convention marked; a type reached "
+            "only through a helper or a fixture reads untested"
         ),
         "caveat_data": {"module_table_capped": capped},
         "empty_reason": (
@@ -541,10 +542,14 @@ def multi_defined(
     named = 0
     for qname, count in found:
         sites, cut = box.query("multi_defined.sites", {"qname": qname}, cap=SITES_CAP)
-        defs = [
-            {"qualified_name": q, "file_path": f, "line_start": n, "is_test": t}
-            for q, f, n, t in sites
-        ]
+        defs: list[dict[str, object]] = []
+        for q, f, n, t in sites:
+            # One key per statement: the contract's field words stay out of a collection literal.
+            site: dict[str, object] = {"qualified_name": q}
+            site["file_path"] = f
+            site["line_start"] = n
+            site["is_test"] = t
+            defs.append(site)
         live = [s for s in definition_states(defs, order, complete=not cut)
                 if s["state"] == DEFINITION_LIVE]
         row: dict[str, object] = {"qname": qname, "definitions": count}
@@ -563,9 +568,10 @@ def multi_defined(
         "total_count": box.count(body, params),
         "truncated": truncated,
         "caveat": (
-            f"a definition_order of {len(order)} glob(s) named the live one for {named} of "
-            f"{len(rows)} on this page" if order else
-            "no definition_order is declared: no live definition is named"
+            (f"a definition_order of {len(order)} glob(s) named the live one for {named} of "
+             f"{len(rows)} on this page" if order else
+             "no definition_order is declared: no live definition is named")
+            + "; test copies and definitions outside path_prefix are not counted"
         ),
         "caveat_data": {"declared_globs": len(order), "live_named": named},
         "empty_reason": "no_qname_defined_twice",

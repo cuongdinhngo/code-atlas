@@ -5137,10 +5137,10 @@ COMPUTE_QUERIES: Mapping[str, str] = {
         "SELECT qname, file, line FROM v_symbol WHERE kind = :kind AND is_test = 0 AND "
         + _PREFIX.format(col="file") + " ORDER BY file, line, qname"
     ),
+    # Every edge a test file makes, a module-level one included: a file holding a test symbol.
     "untested.reached": (
-        "SELECT DISTINCT e.target FROM v_edge e JOIN v_symbol t "
-        "ON t.qname = e.source AND t.file = e.file "
-        "WHERE t.is_test = 1 AND e.target IS NOT NULL AND e.kind != 'CONTAINS'"
+        "SELECT DISTINCT target FROM v_edge WHERE target IS NOT NULL AND kind != 'CONTAINS' "
+        "AND file IN (SELECT file FROM v_symbol WHERE is_test = 1)"
     ),
     "untested.tests": "SELECT COUNT(*) FROM v_symbol WHERE is_test = 1",
     "includes_by_dir": (

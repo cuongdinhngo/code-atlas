@@ -65,6 +65,7 @@ GRAPH: dict[str, tuple[str, list[dict[str, Any]], list[dict[str, Any]]]] = {
     B: ("php", [
         node("Function", "\\App\\lib_fn", B, 1),
         node("Class", "\\App\\Lonely", B, 2),
+        node("Class", "\\App\\Covered", B, 4),
         node("Function", "\\App\\dup", B, 3),
     ], [
         edge("CALLS", "\\App\\lib_fn", "\\App\\Repo::save", B, 1, H),
@@ -72,6 +73,7 @@ GRAPH: dict[str, tuple[str, list[dict[str, Any]], list[dict[str, Any]]]] = {
     T: ("php", [node("Function", "\\Tests\\test_save", T, 1, test=True)], [
         edge("CALLS", "\\Tests\\test_save", "\\App\\Repo::save", T, 1, R),
         edge("INCLUDES", T, A, T, 1, R),
+        edge("NEW", T, "\\App\\Covered", T, 2, R),  # module level: no test symbol is its source
     ]),
     "db/V1__p.sql": ("sql", [node("Function", "dbo.Proc", "db/V1__p.sql", 1)], []),
     "db/V2__p.sql": ("sql", [node("Function", "dbo.Proc", "db/V2__p.sql", 1)], []),
@@ -165,6 +167,7 @@ def test_untested_classes_names_types_no_test_reaches(repo: Config, modules: Non
     answer = ask(repo, "untested_classes")
     assert [r["qname"] for r in answer["rows"]] == ["\\App\\Lonely", "\\App\\Orphan"]
     assert answer["by_module"]["web"] == {"types": 2, "untested": 1}  # Repo via Repo::save
+    assert answer["by_module"]["lib"] == {"types": 2, "untested": 1}  # Covered: a test file's edge
 
 
 def test_resolved_share_per_module(repo: Config, modules: None) -> None:
