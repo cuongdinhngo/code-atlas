@@ -691,9 +691,8 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
 - **T-SQL ordered ahead of Python and C#/.NET — 2026-08-30.** On **measured in-anchor demand**
-  (the decisive fact of a critical-path ticket sat in 378,790 lines of unread T-SQL), and because
-  tier 1a cost zero vocabulary. Its tier-2 vocabulary (`Table`, `Column`, `WRITES`, **v9**) joins no
-  existing named subset, so a repo with no `.sql` is unchanged. Honest counter-case: `n = 1` repo.
+  (`n = 1` repo; 1a cost no vocabulary). Its tier-2 vocabulary (`Table`, `Column`, `WRITES`, **v9**)
+  joins no existing named subset, so a repo with no `.sql` is unchanged.
 - **A call site keeps its string literals' values — 2026-10-18, reversing 049 (398).** A wrapped
   call needs the value; the local `graph.db` now holds literals the source holds.
 - **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
@@ -718,6 +717,8 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
     reads only the cache and speaks on screen. Plugin-only: a committed snippet never goes online (381).
   - **What stays silent, knowingly.** An install with no plugin (a hand snippet) is not told; the
     offline hook still names any half that lags another (374).
+- **0.11 Verify & Compute — ratified 2026-11-09:** 437–444 as drafted in
+  [446](tasks/446_release-0-11-0-prep.md); the tool-surface allowance stays +300 / +2,170 (445).
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04, from phase 1's external review rounds 1–4).**
@@ -855,9 +856,8 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 - **Annotations and decorators emit `REFERENCES` (232)**; `Foo::class` stays `DYNAMIC`. Class constants
   by spec markers and PEP 8 upper-case (234) — no new kind.
 - **Behind-index reads (257 · 267 · 365 · 388)** — behind + unchanged → `index_behind`, never `ok`,
-  **unasked since 388 (2026-10-17)**: 6 of 45 anchor PRs fell back to Grep, the opt-in being the cost.
-  Removed subject → `index_behind_subject_removed`; search never refuses. Only an unre-readable
-  changed subject refuses, naming its `serve_behind=true` call — served unasked under 365's lock.
+  **unasked since 388 (2026-10-17)**. Removed subject → `index_behind_subject_removed`; search never
+  refuses. Only an unre-readable changed subject refuses, naming its `serve_behind=true` call — served unasked under 365's lock.
 - **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
   write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
   floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**
