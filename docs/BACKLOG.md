@@ -34,6 +34,18 @@ day-7 result decides what continues.
 |---|---|---|---|---|
 | 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446 |
 
+## Open work — Round-3 field gaps
+
+Code-side gaps the Round-3 field feedback still hits on 0.11; the rest of that roadmap is rollout or
+the consuming repo's own config.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 447 | [PHP: an untyped property assigned `new X` types its receiver](tasks/447_php-property-type-from-assignment.md) | Coverage | todo | 393 |
+| 448 | [An `EXEC` target links case-insensitively, misses counted](tasks/448_exec-target-casefold.md) | Coverage | todo | 386 |
+| 449 | [`read_symbol` takes a `pattern`](tasks/449_read-symbol-pattern.md) | Retrieval | todo | — |
+| 450 | [PHP: inherited constructor resolves; `new Child` reaches it](tasks/450_inherited-constructor.md) | Coverage | todo | 362 |
+
 ## Open work — Trust (security)
 
 Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
@@ -81,15 +93,10 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`read_symbol`'s held-index parse starts every configured adapter** — a stored suffix→adapter
   map would start one; AC2's 1 s bar is proven on PHP alone — 365.
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
-  unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
-  subclass's `new` sites — 362.
+  unlinked — a fixture cause, not matched to the field) — 362.
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
 - **Onboarding's module facts do not order or count a `View`** (`module_facts._KIND_ORDER`), so a
   view-only SQL module summarises as empty — 402.
-- **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
-  misses `Insert_Order` (the casefold pass links writes and column reads, not `EXEC`), a `dbo.py`
-  module's function is an exact match, and a procedure in another schema leaves an uncounted
-  unresolved edge — 386.
 - **`impact_modules` reads as the PR blast-radius tool** — a name-only probe picked it for
   *"a blast-radius sentence I can paste on the PR"*; `impact` and `find_callers` are the answer — 200.
 - **The consumer brief names no contract-change occasion** — its first occasion is a rename; a widened
