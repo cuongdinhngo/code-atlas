@@ -4,7 +4,7 @@ slug: compute-semantics
 title: "compute: multi_defined is one object per kind and qname; the mention check audited"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [441]
 ---
 
@@ -44,3 +44,5 @@ routines, and 48 of 50 `unreferenced_objects(Table, php)` rows read `no_edge_no_
 ## Cost ledger
 
 Covered by 443's one review (90,836). Main loop unmeasured.
+
+Merged in #170 as `83da5186`; released as `v0.11.0`.

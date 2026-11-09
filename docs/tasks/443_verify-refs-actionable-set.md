@@ -4,7 +4,7 @@ slug: verify-refs-actionable-set
 title: "verify_refs counts the actionable set: strong moved/gone rows, a full export, a stored session line"
 phase: 2
 milestone: "0.11 Verify & Compute"
-status: in-progress
+status: done
 depends_on: [438, 439]
 ---
 
@@ -66,3 +66,5 @@ Pre-flight A1–A5 (roadmap R1, one 0.11 generation).
 | 4 review | rule-book `reviewer` (443–446 diff) | 1 | 90,836 |
 
 `LEDGER TOTAL: 90,836 · top cost driver: 4 review / reviewer` — one review for 443–446; main loop unmeasured.
+
+Merged in #170 as `83da5186`; released as `v0.11.0`.
