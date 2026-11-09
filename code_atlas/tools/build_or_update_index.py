@@ -300,6 +300,8 @@ def _build(
         # Names why a `full` ran off an incremental request, so `wrote.files` can never again mean
         # both "nothing to do" and "could not act on the request" (task 172 / 060).
         result.update(scope)
+        if config.refs_session_line:
+            result["refs_summary"] = _refs_summary(config, store)
         result["seconds"] = round(time.monotonic() - started, 3)
         # The adapters answered and the index moved, so a recorded refusal is history (401).
         clear_refresh_refused(config.db_path)
@@ -309,6 +311,17 @@ def _build(
             store.discard()
         else:
             store.close()
+
+
+def _refs_summary(config: Config, store: GraphStore) -> str:
+    """Store the doc-reference counts the session line reads: a session start never scans (443)."""
+    from code_atlas import doc_refs
+
+    try:
+        doc_refs.store_summary(config, store)
+    except Exception as error:  # noqa: BLE001 — after publish: a failed extra never fails the build
+        return f"failed: {type(error).__name__}"
+    return "stored"
 
 
 def _progress_sink(config: Config) -> Callable[[str, int, int], None]:

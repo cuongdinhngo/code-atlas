@@ -54,6 +54,7 @@ GRAPH: dict[str, tuple[str, list[dict[str, Any]], list[dict[str, Any]]]] = {
         node("Function", "\\App\\fetch", A, 6),
         node("Function", "\\App\\fetchAsync", A, 7),
         node("Function", "\\App\\dup", A, 8),
+        node("Namespace", "\\App", A, 1),
     ], [
         edge("CALLS", "\\App\\helper", "\\App\\Repo::save", A, 5, R),
         edge("CALLS", "\\App\\helper", "\\App\\fetchAsync", A, 5, R),
@@ -67,6 +68,7 @@ GRAPH: dict[str, tuple[str, list[dict[str, Any]], list[dict[str, Any]]]] = {
         node("Class", "\\App\\Lonely", B, 2),
         node("Class", "\\App\\Covered", B, 4),
         node("Function", "\\App\\dup", B, 3),
+        node("Namespace", "\\App", B, 1),
     ], [
         edge("CALLS", "\\App\\lib_fn", "\\App\\Repo::save", B, 1, H),
     ]),
@@ -189,6 +191,15 @@ def test_multi_defined_names_the_live_definition_from_the_declared_order(ordered
     assert rows["dbo.Proc"]["live_state"] == "live"
     assert rows["\\App\\dup"]["live_state"] == "unknown"  # the order names no glob it matches
     assert rows["\\App\\dup"]["why_unknown"] == "order_does_not_decide"
+
+
+def test_multi_defined_is_one_object_per_kind_and_qname(repo: Config) -> None:
+    """443 A6: a namespace each file re-declares is no object; `language` scopes, `kind` asks."""
+    rows = by(ask(repo, "multi_defined")["rows"], "qname")
+    assert "\\App" not in rows and rows["dbo.Proc"]["kind"] == "Function"
+    assert [r["qname"] for r in ask(repo, "multi_defined", language="sql")["rows"]] == ["dbo.Proc"]
+    spanning = ask(repo, "multi_defined", kind="Namespace")
+    assert [(r["qname"], r["definitions"]) for r in spanning["rows"]] == [("\\App", 2)]
 
 
 def test_ac2_multi_defined_without_an_order_never_guesses(repo: Config) -> None:

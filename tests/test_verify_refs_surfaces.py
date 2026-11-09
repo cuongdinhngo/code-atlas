@@ -228,33 +228,79 @@ def _session(
     return [line for line in lines if "refs in instruction files" in line]
 
 
+def _stored(config: Config, budget_s: float = doc_refs.HISTORY_BUDGET_S) -> None:
+    with GraphStore(config.db_path) as store:
+        doc_refs.store_summary(config, store, budget_s=budget_s)
+
+
 def test_ac3_the_session_line_is_absent_unless_opted_in(
     repo: Config, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    _stored(repo)
     monkeypatch.delenv("CA_REFS_SESSION_LINE", raising=False)
     assert _session(monkeypatch, capsys, repo.root) == []
     monkeypatch.setenv("CA_REFS_SESSION_LINE", "true")
     assert _session(monkeypatch, capsys, repo.root, "PreCompact") == []  # SessionStart only
     (line,) = _session(monkeypatch, capsys, repo.root)
     assert line.startswith(
-        "code-atlas: 4 refs in instruction files no longer resolve (2 moved — patch ready); "
-        "1 in other docs"
-    )
+        "code-atlas: 3 refs in instruction files moved or gone (2 patch ready); 1 in other docs"
+    ), line
+    assert "since last scan" not in line
     assert estimate_tokens(line) <= SIGNAL_BUDGET
 
 
-def test_ac3_unknown_is_counted_apart_from_ok_and_archive_never_counts(
+def test_ac5_the_session_path_never_scans_docs(
     repo: Config, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A spent history budget leaves rows unknown: the line says so, never folds them into ok."""
-    monkeypatch.setattr(doc_refs, "SESSION_BUDGET_S", 0.0)
+    """443 A5: the line reads the stored summary; a doc edit since is said, never rescanned."""
+    _stored(repo)
+
+    def no_scan(*_: object, **__: object) -> None:
+        raise AssertionError("the session path scanned docs")
+
+    monkeypatch.setattr(doc_refs, "scan", no_scan)
     with GraphStore(repo.db_path) as store:
         line = doc_refs.session_line(repo, store)
-    assert line is not None and "unchecked (unknown, not ok)" in line
-    assert estimate_tokens(line) <= SIGNAL_BUDGET
+    assert line is not None and "since last scan" not in line
+    guide = repo.root / "docs" / "guide.md"
+    before = guide.read_text(encoding="utf-8")
+    try:
+        guide.write_text(before + "\nMore.\n", encoding="utf-8")
+        with GraphStore(repo.db_path) as store:
+            line = doc_refs.session_line(repo, store, generation="another-commit")
+        assert line is not None and "(index moved and docs changed since last scan)" in line
+    finally:
+        guide.write_text(before, encoding="utf-8")
+
+
+def test_ac5_an_index_never_scanned_says_so(tmp_path: Path) -> None:
+    write(tmp_path, {"lib/a.py": "def f():\n    return 1\n", "CLAUDE.md": "`lib/a.py`\n"})
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-q", "-m", "first")
+    config = build(tmp_path)
+    with GraphStore(config.db_path) as store:
+        line = doc_refs.session_line(config, store)
+    assert line is not None and "not scanned for this index yet" in line
+
+
+def test_ac3_unknown_is_counted_apart_from_ok_and_archive_never_counts(repo: Config) -> None:
+    """A spent history budget leaves rows unknown: the line says so, never folds them into ok."""
     with GraphStore(repo.db_path) as store:
-        found = doc_refs.scan(repo, store, classes=doc_refs.COUNTED_CLASSES)
-    assert not [r for r in found.rows if r["class"] == "archive"]
+        store.set_meta(doc_refs.SUMMARY_KEY, "")
+    _stored(repo, budget_s=0.0)
+    try:
+        with GraphStore(repo.db_path) as store:
+            line = doc_refs.session_line(repo, store)
+        assert line is not None and "unchecked (unknown, not ok)" in line
+        assert estimate_tokens(line) <= SIGNAL_BUDGET
+        with GraphStore(repo.db_path) as store:
+            found = doc_refs.scan(repo, store, classes=doc_refs.COUNTED_CLASSES)
+        assert not [r for r in found.rows if r["class"] == "archive"]
+    finally:
+        with GraphStore(repo.db_path) as store:
+            store.set_meta(doc_refs.SUMMARY_KEY, "")
+        _stored(repo)
 
 
 def test_ac3_a_project_with_nothing_stale_is_silent(tmp_path: Path) -> None:
@@ -264,6 +310,7 @@ def test_ac3_a_project_with_nothing_stale_is_silent(tmp_path: Path) -> None:
     git(tmp_path, "add", "-A")
     git(tmp_path, "commit", "-q", "-m", "first")
     config = build(tmp_path)
+    _stored(config)
     with GraphStore(config.db_path) as store:
         assert doc_refs.session_line(config, store) is None
 

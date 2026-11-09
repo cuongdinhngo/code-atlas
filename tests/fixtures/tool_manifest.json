@@ -251,7 +251,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Count, group or prove an absence over the whole graph — exact, not sampled.\n\nUse for \"how many\", \"which have none\", \"what share\" questions; leave a template out\nto list the catalogue (id, question, params). `no_referrer` overlaps `find_orphans`\nbut needs no entry points and labels each absence `no_edge_no_mention` (a strong\ncandidate) or `no_edge_but_mentioned` (unknown, never dead). Set `template`,\n`params`, `limit`. Read `caveat`, `total_count`, `truncated`, `reason` when empty.",
+      "description": "Exact counts, groupings and absences over the whole graph from a named template.\nNo `template` lists the catalogue. Read `caveat`, `total_count`, `truncated`, `reason`.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1734,7 +1734,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Which paths and symbols named in CLAUDE.md, skills and docs still resolve: ok,\nmoved (with its successor), gone, never_existed, ambiguous, or unknown (never ok).\nInstruction files first. `format: patch` lists in-place edits for moved references and\nthe shell command that prints the diff; nothing is applied. Summaries count every row;\nread `total_count`, `truncated`.",
+      "description": "Which paths and symbols in CLAUDE.md, skills, memory and docs moved or are gone:\ncounts and up to 20 rows, instruction files first. `format: patch` lists edits.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1814,6 +1814,25 @@
                     "ambiguous",
                     "unknown",
                     "ok"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 1000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "strong",
+                    "weak"
                   ],
                   "type": "string"
                 },

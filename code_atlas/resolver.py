@@ -459,7 +459,7 @@ def _resolve_deferred(
         if not walking:
             break
         ancestries = {
-            chain.receiver: _ancestry(str(chain.receiver), parent_map) for chain in walking
+            chain.receiver: ancestry(str(chain.receiver), parent_map) for chain in walking
         }
         asked = sorted(
             {
@@ -473,10 +473,10 @@ def _resolve_deferred(
             [qname for qname in asked if qname not in declared], documented=True
         )
         for chain in walking:
-            ancestry = ancestries[chain.receiver]
-            found = _declared_class(str(chain.receiver), chain.steps[0], ancestry, declared)
+            lineage = ancestries[chain.receiver]
+            found = _declared_class(str(chain.receiver), chain.steps[0], lineage, declared)
             if found is None:
-                found = _declared_class(str(chain.receiver), chain.steps[0], ancestry, documented)
+                found = _declared_class(str(chain.receiver), chain.steps[0], lineage, documented)
                 if found is not None:
                     chain.documented = True
             chain.receiver = found
@@ -623,7 +623,7 @@ def member_of(qname: str) -> str:
     return contract.split_qname(qname)[1]
 
 
-def _ancestry(container: str, parents: Mapping[str, tuple[str, ...]]) -> list[str]:
+def ancestry(container: str, parents: Mapping[str, tuple[str, ...]]) -> list[str]:
     """``container`` then its ancestors, breadth-first in ``hierarchy_parents`` order.
 
     Breadth-first so the nearest declaration wins, and ``seen`` makes a cycle — which a broken
@@ -658,7 +658,7 @@ def _resolve_inherited(
     """
     if not inherited:
         return []
-    chains = {container: _ancestry(container, parent_map) for _, container, _ in inherited}
+    chains = {container: ancestry(container, parent_map) for _, container, _ in inherited}
     probes = {
         contract.join_qname(ancestor, member)
         for _, container, member in inherited

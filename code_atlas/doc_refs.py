@@ -6,11 +6,17 @@ bare names in code spans — and gives each exactly one state with a reason: ``o
 successor), ``gone``, ``never_existed``, ``ambiguous`` or ``unknown``. An unknown is never folded
 into ``ok`` (R5.6). Language-free: what a symbol looks like comes from each adapter's ``qualified``
 shape, stored at build (R1.1). Read-only: git is read through ``gitutil``; nothing is written.
+
+Each row is ``strong`` or ``weak``; the surfaces count the *actionable* set — a ``moved`` or
+``gone`` strong row outside the archive (443). Bare names stay in the full export only.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
+import os
 import posixpath
 import re
 import tempfile
@@ -24,7 +30,8 @@ from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
 from code_atlas.contract import MEMBER_SEPARATOR, QUALIFIED_SHAPE
-from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore, Row
+from code_atlas.resolver import ancestry
+from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
     DEFINITION_LIVE,
     declared_precedence,
@@ -44,7 +51,7 @@ DEFAULT_GLOBS: Mapping[str, tuple[str, ...]] = {
         ".cursor/rules/**",
         ".github/copilot-instructions.md",
     ),
-    MEMORY: (),
+    MEMORY: (),  # unset = the host's project memory folder (`memory_dir`), never a repo choice
     REFERENCE: ("docs/**", "wiki/**", "*.wiki/**"),
     ARCHIVE: (),
 }
@@ -58,12 +65,28 @@ PATH, SYMBOL, NAME = "path", "symbol", "name"
 CODE_SPAN, FENCE, LINK, PROSE = "code_span", "fence", "link", "prose"
 
 DEFAULT_LIMIT = 200
+# The default answer: an actionable summary and this many actionable rows (443).
+DEFAULT_ROWS = 20
+STRONG, WEAK = "strong", "weak"
+STRENGTHS: tuple[str, ...] = (STRONG, WEAK)
+ACTIONABLE_STATES: tuple[str, ...] = ("moved", "gone")
+# A path the tree or git history answered is a real path, however the doc wrote it.
+_PATH_FOUND = frozenset(
+    {"exists", "under_a_subproject", "git_rename", "git_rename_split", "deleted",
+     "renamed_then_removed"}
+)
+# Memory files live in the host's per-project folder, outside the repo; rows name them so (443).
+MEMORY_PREFIX = "<agent-memory>/"
 MAX_REF_CHARS = 512
 MAX_LIMIT = 1000
 CANDIDATE_CAP = 5
 # Wall-clock git may spend on history questions per run; past it a row is `unknown`, counted.
 HISTORY_BUDGET_S = 12.0
 GIT_CALL_CAP_S = 5.0
+# A deliberate full run gets more: the export a baseline is diffed against, and the summary a build
+# stores in the background. Rows past either are still `unknown`, counted (443).
+EXPORT_BUDGET_S = 1800.0
+SUMMARY_BUDGET_S = 120.0
 # A file suffix a doc names as a path, beside the ones the index read.
 _DOC_FILE_SUFFIXES = frozenset(
     {"md", "mdc", "json", "toml", "yaml", "yml", "txt", "sh", "cfg", "ini", "lock", "xml", "html",
@@ -161,10 +184,44 @@ def collect(config: Config, only: Sequence[str] = ()) -> Corpus:
             continue
         if narrow and not any(regex.match(path) for regex in narrow):
             continue
+        if not in_repo(path):
+            continue  # a repo path may never claim the host-memory namespace (SEC-IN-03)
         found = classify(path, globs) or (REFERENCE if narrow else None)
         if found is not None:
             corpus.files[path] = found
+    folder = memory_dir(config) if config.refs_memory is None and not narrow else None
+    for name in _memory_files(folder) if folder is not None else ():
+        corpus.files[MEMORY_PREFIX + name] = MEMORY
     return corpus
+
+
+def memory_dir(config: Config) -> Path:
+    """Claude Code's memory folder for this repo, chosen by the host, never the repo (SEC-IN-03)."""
+    home = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(config.root.resolve()))
+    return Path(home) / "projects" / slug / "memory"
+
+
+def _memory_files(folder: Path) -> list[str]:
+    if not folder.is_dir():
+        return []
+    return sorted(
+        p.relative_to(folder).as_posix()
+        for p in folder.rglob("*")
+        if p.suffix.lower() in DOC_SUFFIXES and p.is_file() and resolves_inside(folder, p)
+    )
+
+
+def in_repo(doc: str) -> bool:
+    """Whether a corpus file is the repo's own (patchable, with git history) or host memory."""
+    return not doc.startswith(MEMORY_PREFIX)
+
+
+def _doc_text(config: Config, doc: str) -> str:
+    if in_repo(doc):
+        return read_text(config.root, config.root / doc, errors="replace")
+    folder = memory_dir(config)
+    return read_text(folder, folder / doc.removeprefix(MEMORY_PREFIX), errors="replace")
 
 
 def _context(line: str) -> str:
@@ -343,6 +400,7 @@ class Resolver:
         self._added_by_name: Mapping[str, list[str]] | None = None
         self._spent = 0.0
         self.budget_spent = 0
+        self._parents: Mapping[str, tuple[str, ...]] | None = None
 
     # ----------------------------------------------------------------- shared
     def _exists(self, rel: str) -> bool:
@@ -378,6 +436,8 @@ class Resolver:
         return self._added if isinstance(self._added, frozenset) else None
 
     def doc_rev(self, doc: str) -> tuple[str, str] | None:
+        if not in_repo(doc):
+            return None  # host memory has no git history
         if doc not in self._doc_revs:
             budget = self._git_budget()
             started = time.monotonic()
@@ -390,7 +450,7 @@ class Resolver:
 
     # ----------------------------------------------------------------- paths
     def path(self, ref: str, doc: str) -> Verdict:
-        here = posixpath.dirname(doc)
+        here = posixpath.dirname(doc) if in_repo(doc) else ""
         tries = list(dict.fromkeys(
             p for p in (posixpath.normpath(ref.rstrip("/")),
                         posixpath.normpath(posixpath.join(here, ref.rstrip("/"))))
@@ -456,7 +516,8 @@ class Resolver:
         dirs = self._dir_index(history, added)
         gone = history.deleted.get(successor) or dirs.deleted.get(rel)
         if gone is not None:
-            return Verdict(GONE, "deleted", {"last_seen_rev": gone[0][:12], "last_seen": gone[1]})
+            return Verdict(GONE, "deleted", {"last_seen_rev": gone[0][:12], "last_seen": gone[1],
+                                             "nearest_existing": self._nearest(rel)})
         if hops:
             sha, day = history.renamed_at.get(rel, ("", ""))
             return Verdict(GONE, "renamed_then_removed", {"last_seen_rev": sha[:12] or None,
@@ -464,6 +525,10 @@ class Resolver:
         if rel in added or rel in dirs.added:
             return Verdict(UNKNOWN, "only_on_another_branch")
         return None
+
+    def _nearest(self, rel: str) -> str | None:
+        """The deepest folder of a removed path that still exists: where its replacement may sit."""
+        return next((parent for parent in _parents(rel) if self._exists(parent)), None)
 
     def _dir_index(self, history: gitutil.PathHistory, added: frozenset[str]) -> _DirIndex:
         if self._dirs is None:
@@ -520,11 +585,7 @@ class Resolver:
                 container
             ) else []
             if owners:
-                detail: dict[str, object] = {"container": str(owners[0]["qualified_name"])}
-                seen = self._last_change(last, path=str(owners[0]["file_path"]))
-                found = seen if isinstance(seen, tuple) else (None, None)
-                detail.update(last_seen_rev=found[0][:12] if found[0] else None, last_seen=found[1])
-                return Verdict(GONE, "missing_on_live_container", detail)
+                return self._member(bare, last, kind, doc, owners[0])
             if self._external(bare):
                 self.skipped_external += 1  # `os.path`: counted, so a vanished package is seen
                 return None
@@ -548,6 +609,33 @@ class Resolver:
         if seen is False:
             return Verdict(NEVER_EXISTED, "no_commit_ever_named_it")
         return Verdict(GONE, "removed", {"last_seen_rev": seen[0][:12], "last_seen": seen[1]})
+
+    def _member(self, bare: str, last: str, kind: str, doc: str, owner: Row) -> Verdict:
+        """A member its live container does not declare: inherited is ok, a body found elsewhere
+        is moved, and gone needs git to show it left the container's file (443)."""
+        container = str(owner["qualified_name"])
+        for ancestor in self._ancestry(container)[1:]:
+            spelling = ancestor + MEMBER_SEPARATOR + last
+            for row in self.store.nodes_by_qname_endswith(last, spelling, limit=5):
+                if str(row["qualified_name"]) in {spelling, "\\" + spelling.lstrip("\\")}:
+                    return Verdict(OK, "inherited", {"site": _site(row)})
+        moved = self._moved_by_body(bare, last, kind, doc)
+        if moved is not None and moved.state == MOVED:
+            return moved
+        detail: dict[str, object] = {"container": container}
+        seen = self._last_change(last, path=str(owner["file_path"]))
+        if seen is None:
+            return Verdict(UNKNOWN, "history_budget_spent", detail)
+        if seen is False:
+            # Never in its file: magic, an unindexed parent, or a typo — not a removal.
+            return Verdict(UNKNOWN, "not_declared_on_container", detail)
+        detail.update(last_seen_rev=seen[0][:12], last_seen=seen[1])
+        return Verdict(GONE, "missing_on_live_container", detail)
+
+    def _ancestry(self, container: str) -> list[str]:
+        if self._parents is None:
+            self._parents = self.store.hierarchy_parents()
+        return ancestry(container, self._parents)
 
     def _is_code(self, path: str) -> bool:
         """A file the index reads as code — a doc naming a symbol is not the symbol."""
@@ -669,8 +757,6 @@ def _site(row: Mapping[str, object] | Row) -> dict[str, object]:
 
 
 def _body_hash(row: Row) -> str | None:
-    import json
-
     raw = row.get("extra")
     try:
         extra = json.loads(raw) if isinstance(raw, str) and raw else {}
@@ -684,9 +770,12 @@ def _rows(
     config: Config, store: GraphStore, corpus: Corpus, resolver: Resolver
 ) -> Iterator[dict[str, object]]:
     seen: dict[tuple[str, str, str], tuple[str, Verdict | None]] = {}
-    for doc, doc_class in corpus.files.items():
+    rank = {name: n for n, name in enumerate(CLASSES)}
+    # Instruction files first: the shared git budget is spent where a stale line costs most (443).
+    ordered = sorted(corpus.files.items(), key=lambda item: (rank[item[1]], item[0]))
+    for doc, doc_class in ordered:
         try:
-            text = read_text(config.root, config.root / doc, errors="replace")
+            text = _doc_text(config, doc)
         except (OSError, ValueError):
             yield {"file": doc, "line": 0, "class": doc_class, "context": "file",
                    "ref": doc, "ref_kind": PATH, "state": UNKNOWN, "reason": "unreadable_doc"}
@@ -761,8 +850,44 @@ def scan(
     rank = {name: n for n, name in enumerate(STATES)}
     rows.sort(key=lambda r: (order[str(r["class"])], rank[str(r["state"])], r["file"], r["line"]))
     for row in rows:
+        row["strength"] = strength(row)
+        row["actionable"] = is_actionable(row)
         _annotate(row)
     return Scan(corpus, matched, resolver, rows)
+
+
+def strength(row: Mapping[str, object]) -> str:
+    """`strong`: a path git or the tree knows, a path with a folder and a suffix written as code, or
+    an adapter-shaped symbol written as code. Everything else — bare names, prose — is `weak`."""
+    kind, origin, ref = row.get("ref_kind"), row.get("origin"), str(row.get("ref", ""))
+    if kind == PATH:
+        if row.get("reason") in _PATH_FOUND:
+            return STRONG
+        last = ref.rstrip("/").rsplit("/", 1)[-1]
+        anchored = "/" in ref.rstrip("/") and "." in last.strip(".")
+        return STRONG if anchored and origin in (CODE_SPAN, FENCE, LINK) else WEAK
+    return STRONG if kind == SYMBOL and origin in (CODE_SPAN, FENCE) else WEAK
+
+
+UNCHECKED_STATES: tuple[str, ...] = (UNKNOWN, AMBIGUOUS, NEVER_EXISTED)
+
+
+def is_unchecked(row: Mapping[str, object]) -> bool:
+    """A strong row the scan could not settle: never `ok`, never actionable, always counted."""
+    return (
+        row.get("state") in UNCHECKED_STATES
+        and row.get("strength") == STRONG
+        and row.get("class") != ARCHIVE
+    )
+
+
+def is_actionable(row: Mapping[str, object]) -> bool:
+    """Moved or gone, strong, not archive: what a surface counts and a fix rate divides by."""
+    return (
+        row.get("state") in ACTIONABLE_STATES
+        and row.get("strength") == STRONG
+        and row.get("class") != ARCHIVE
+    )
 
 
 def verify_refs(
@@ -775,29 +900,66 @@ def verify_refs(
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, object]:
     """Every reference the corpus makes, one state each; summaries count every row."""
-    if not 1 <= limit <= MAX_LIMIT:
-        raise ValueError(f"limit must be 1..{MAX_LIMIT}, got {limit}")
-    unknown = [s for s in states if s not in STATES]
-    if unknown:
-        raise ValueError(f"unknown state {unknown[0]!r}; one of {', '.join(STATES)}")
+    check_limit(limit)
+    check_filters(states, ())
     return summarize(scan(config, store, globs=globs, classes=classes), states=states, limit=limit)
 
 
+def check_limit(limit: int) -> None:
+    if not 1 <= limit <= MAX_LIMIT:
+        raise ValueError(f"limit must be 1..{MAX_LIMIT}, got {limit}")
+
+
+def check_filters(states: Sequence[str], strengths: Sequence[str]) -> None:
+    for given, known, name in ((states, STATES, "state"), (strengths, STRENGTHS, "strength")):
+        unknown = [s for s in given if s not in known]
+        if unknown:
+            raise ValueError(f"unknown {name} {unknown[0]!r}; one of {', '.join(known)}")
+
+
+def counted(row: Mapping[str, object], strengths: Sequence[str]) -> bool:
+    """A reference doc's weak rows stay out of every summary unless a strength filter asks."""
+    if strengths:
+        return row.get("strength") in strengths
+    return row.get("class") != REFERENCE or row.get("strength") == STRONG
+
+
 def summarize(
-    found: Scan, *, states: Sequence[str] = (), limit: int = DEFAULT_LIMIT
+    found: Scan,
+    *,
+    states: Sequence[str] = (),
+    strengths: Sequence[str] = (),
+    limit: int = DEFAULT_LIMIT,
+    actionable: bool = False,
 ) -> dict[str, object]:
-    """The payload: counts over every row, then the rows a state filter keeps, capped."""
+    """The payload: counts over every counted row, then the rows the filters keep, capped.
+
+    ``actionable`` answers only moved/gone strong rows, instruction class first (the default)."""
     corpus, rows = found.corpus, found.rows
     by_class: dict[str, dict[str, int]] = {}
-    by_file: dict[str, dict[str, int]] = {}
+    acted: dict[str, dict[str, int]] = {}
+    files: dict[str, int] = {}
     ready: dict[str, int] = {}
+    unchecked: dict[str, int] = {}
+    weak_hidden = 0
     for row in rows:
-        for bucket, key in ((by_class, str(row["class"])), (by_file, str(row["file"]))):
-            counts = bucket.setdefault(key, {state: 0 for state in STATES})
-            counts[str(row["state"])] += 1
+        name = str(row["class"])
+        if not counted(row, strengths):
+            weak_hidden += 1
+            continue
+        by_class.setdefault(name, {state: 0 for state in STATES})[str(row["state"])] += 1
+        if is_unchecked(row):
+            unchecked[name] = unchecked.get(name, 0) + 1
+        if row.get("actionable"):
+            bucket = acted.setdefault(name, {state: 0 for state in ACTIONABLE_STATES})
+            bucket[str(row["state"])] += 1
+            files[str(row["file"])] = files.get(str(row["file"]), 0) + 1
         if row.get("patch_ready"):
-            ready[str(row["class"])] = ready.get(str(row["class"]), 0) + 1
-    kept = [row for row in rows if not states or row["state"] in states]
+            ready[name] = ready.get(name, 0) + 1
+    if actionable:
+        kept = [row for row in rows if row.get("actionable")]
+    else:
+        kept = [r for r in rows if counted(r, strengths) and (not states or r["state"] in states)]
     if not corpus.files:
         reason = "class_filter_left_no_file" if found.matched else "no_file_matched"
     elif not found.resolver.shapes.qualified:
@@ -806,9 +968,13 @@ def summarize(
     elif not rows:
         reason = "no_references"
     elif not kept:
-        reason = "state_filter_left_no_row"
+        if not actionable:
+            reason = "state_filter_left_no_row"
+        else:
+            reason = "nothing_actionable_but_unchecked" if unchecked else "nothing_actionable"
     else:
         reason = "ok"
+    ranked = sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))
     return {
         "reason": reason,
         "files_read": len(corpus.files),
@@ -817,19 +983,64 @@ def summarize(
         "truncated": len(kept) > limit,
         "limit": limit,
         "states": list(states),
+        "strengths": list(strengths),
+        "actionable": {name: acted[name] for name in CLASSES if name in acted},
+        "actionable_total": sum(sum(c.values()) for c in acted.values()),
         "by_class": by_class,
+        "unchecked": {name: unchecked[name] for name in CLASSES if name in unchecked},
+        "weak_rows_not_counted": weak_hidden,
         "patch_ready": ready,
         "commands": corpus.commands,
-        "files": [
-            {"file": path, "class": corpus.files[path], **counts}
-            for path, counts in sorted(by_file.items())
-        ],
+        "files": [{"file": path, "actionable": n} for path, n in ranked[:limit]],
+        "files_total": len(ranked),
         "history_budget_spent": found.resolver.budget_spent,
         "skipped_as_external": found.resolver.skipped_external,
         "rows": kept[:limit],
         "corpus_globs": {name: list(globs) for name, globs in corpus.globs.items()},
         "untrusted_fields": list(UNTRUSTED),
     }
+
+
+# ----------------------------------------------------------------- export and diff (443)
+EXPORT_KEYS: tuple[str, ...] = ("class", "file", "line", "ref", "ref_kind", "origin", "state",
+                                "reason", "strength", "actionable")
+
+
+def export_rows(found: Scan) -> Iterator[dict[str, object]]:
+    """Every row, uncapped, with its diff key first — the private baseline R4 diffs against."""
+    for row in found.rows:
+        yield {"key": [row["class"], row["file"], row["ref"]],
+               **{k: row.get(k) for k in EXPORT_KEYS},
+               **{k: v for k, v in row.items() if k not in EXPORT_KEYS}}
+
+
+def diff_exports(
+    old: Iterable[Mapping[str, object]], new: Iterable[Mapping[str, object]]
+) -> dict[str, object]:
+    """Fixed / new / unchanged actionable rows per class between two exports, keyed by
+    (class, file, ref) and counted with multiplicity, so a moved line is never a fix."""
+    def bag(rows: Iterable[Mapping[str, object]]) -> dict[tuple[str, ...], int]:
+        out: dict[tuple[str, ...], int] = {}
+        for row in rows:
+            if row.get("actionable"):
+                key = tuple(str(part) for part in _listed(row.get("key")))
+                out[key] = out.get(key, 0) + 1
+        return out
+
+    before, after = bag(old), bag(new)
+    by_class: dict[str, dict[str, int]] = {}
+    for key in set(before) | set(after):
+        counts = by_class.setdefault(key[0], {"baseline": 0, "fixed": 0, "new": 0, "unchanged": 0})
+        was, now = before.get(key, 0), after.get(key, 0)
+        counts["baseline"] += was
+        counts["fixed"] += max(0, was - now)
+        counts["new"] += max(0, now - was)
+        counts["unchanged"] += min(was, now)
+    keys = ("baseline", "fixed", "new", "unchanged")
+    total = {k: sum(c[k] for c in by_class.values()) for k in keys}
+    return {"by_class": {name: by_class[name] for name in CLASSES if name in by_class},
+            "total": total,
+            "fix_rate": round(total["fixed"] / total["baseline"], 4) if total["baseline"] else None}
 
 
 # The cheapest correction a row that is not ok carries when no patch can (439).
@@ -842,10 +1053,10 @@ HINTS: Mapping[str, str] = {
 
 
 def _annotate(row: dict[str, object]) -> None:
-    """``patch_ready`` on a moved row with one successor and an in-place form; a hint otherwise.
-    An archive row is never patched: it records what was true then."""
+    """``patch_ready`` on an actionable moved row with one successor and an in-place form; a hint
+    otherwise. An archive row is never patched: it records what was true then."""
     state = row["state"]
-    if state == MOVED and "replacement" in row and row["class"] != ARCHIVE:
+    if state == MOVED and "replacement" in row and row.get("actionable"):
         row["patch_ready"] = True
     elif state in HINTS and not (state == MOVED and "replacement" in row):
         row["hint"] = (
@@ -919,7 +1130,7 @@ def patches(config: Config, rows: Sequence[Mapping[str, object]]) -> tuple[list[
     successor and change nothing else; and how many rows no longer stand on their line."""
     by_file: dict[str, list[Mapping[str, object]]] = {}
     for row in rows:
-        if row.get("patch_ready"):
+        if row.get("patch_ready") and in_repo(str(row["file"])):  # host memory: an edit, no diff
             by_file.setdefault(str(row["file"]), []).append(row)
     order = {name: n for n, name in enumerate(CLASSES)}
     out: list[Patch] = []
@@ -981,36 +1192,101 @@ def _diff_line(mark: str, line: str) -> str:
     return f"{mark}{line}\n\\ No newline at end of file\n"
 
 
-# ----------------------------------------------------------------- session line (439)
-# A session start cannot wait on the run's full history budget: past this, rows are unknown.
-SESSION_BUDGET_S = 3.0
-STALE: tuple[str, ...] = (MOVED, GONE, NEVER_EXISTED, AMBIGUOUS)
+# ----------------------------------------------------------------- session line (439, 443)
+# The actionable summary a build stores, so a session start reads counts and never scans docs.
+SUMMARY_KEY = "refs_summary"
 
 
-def session_line(config: Config, store: GraphStore) -> str | None:
-    """One count-only line, the instruction class first; ``None`` when every reference resolves.
-    Archive files are not read — they never count."""
-    found = scan(config, store, classes=COUNTED_CLASSES, budget_s=SESSION_BUDGET_S)
-    stale = {name: 0 for name in COUNTED_CLASSES}
-    unknown = ready = 0
+def docs_fingerprint(config: Config) -> str:
+    """Which corpus files exist and how big and how new each is: a stat per file, never a read."""
+    digest = hashlib.sha256()
+    folder = memory_dir(config)
+    for doc in sorted(collect(config).files):
+        path = config.root / doc if in_repo(doc) else folder / doc.removeprefix(MEMORY_PREFIX)
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        digest.update(f"{doc}\0{stat.st_size}\0{stat.st_mtime_ns}\n".encode())
+    return digest.hexdigest()[:16]
+
+
+def index_generation(store: GraphStore) -> str:
+    """HEAD the index was built at, and its files' count and newest write: a refresh moves it."""
+    return f"{store.get_meta(LAST_COMMIT_KEY) or ''}@{store.files_stamp()}"
+
+
+def store_summary(
+    config: Config, store: GraphStore, *, budget_s: float = SUMMARY_BUDGET_S
+) -> dict[str, object]:
+    """Scan once and store the actionable counts with the index generation and the docs' stamp."""
+    generation = index_generation(store)
+    stamp = docs_fingerprint(config)
+    held = stored_summary(store)
+    if held is not None and held.get("generation") == generation and held.get("docs") == stamp:
+        return held  # nothing moved: the stored counts still answer
+    found = scan(config, store, classes=COUNTED_CLASSES, budget_s=budget_s)
+    acted = {name: {state: 0 for state in ACTIONABLE_STATES} for name in COUNTED_CLASSES}
+    ready = {name: 0 for name in COUNTED_CLASSES}
+    unknown = 0
     for row in found.rows:
         name = str(row["class"])
-        if row["state"] in STALE:
-            stale[name] += 1
-        elif row["state"] == UNKNOWN:
+        if row.get("actionable"):
+            acted[name][str(row["state"])] += 1
+        ready[name] += 1 if row.get("patch_ready") else 0
+        if row["state"] == UNKNOWN and row.get("strength") == STRONG and name != REFERENCE:
             unknown += 1
-        if name == INSTRUCTION and row.get("patch_ready"):
-            ready += 1
-    others = stale[MEMORY] + stale[REFERENCE]
-    if not (stale[INSTRUCTION] or others or unknown):
+    summary: dict[str, object] = {"generation": generation, "docs": stamp, "actionable": acted,
+                                  "patch_ready": ready, "unknown": unknown}
+    store.set_meta(SUMMARY_KEY, json.dumps(summary, sort_keys=True))
+    return summary
+
+
+def stored_summary(store: GraphStore) -> dict[str, object] | None:
+    raw = store.get_meta(SUMMARY_KEY)
+    try:
+        held = json.loads(raw) if raw else None
+    except ValueError:
         return None
-    line = f"code-atlas: {stale[INSTRUCTION]} refs in instruction files no longer resolve"
-    if ready:
-        line += f" ({ready} moved — patch ready)"
-    line += f"; {others} in other docs"
-    if unknown:
-        line += f"; {unknown} unchecked (unknown, not ok)"
-    return line + " — `code-atlas query --verify-refs --format md`."
+    return held if isinstance(held, dict) else None
+
+
+def session_line(config: Config, store: GraphStore, *, generation: str | None = None) -> str | None:
+    """One count-only line from the stored summary, instruction class first; ``None`` when nothing
+    is actionable. It never reads or resolves a doc — a stat per file stamps them (443)."""
+    generation = index_generation(store) if generation is None else generation
+    held = stored_summary(store)
+    if held is None:
+        return "code-atlas: doc references not scanned for this index yet — the next refresh scans."
+    acted = held.get("actionable")
+    ready = held.get("patch_ready")
+    if not isinstance(acted, dict) or not isinstance(ready, dict):
+        return None
+
+    def total(name: str) -> int:
+        counts = acted.get(name)
+        return sum(int(v) for v in counts.values()) if isinstance(counts, dict) else 0
+    first, others = total(INSTRUCTION), total(MEMORY) + total(REFERENCE)
+    held_unknown = held.get("unknown")
+    unknown = held_unknown if isinstance(held_unknown, int) else 0
+    if not (first or others or unknown):
+        line = None
+    else:
+        line = f"code-atlas: {first} refs in instruction files moved or gone"
+        if ready.get(INSTRUCTION):
+            line += f" ({ready[INSTRUCTION]} patch ready)"
+        line += f"; {others} in other docs"
+        if unknown:
+            line += f"; {unknown} unchecked (unknown, not ok)"
+    stale = []
+    if held.get("generation") != generation:
+        stale.append("index moved")
+    if held.get("docs") != docs_fingerprint(config):
+        stale.append("docs changed")
+    if stale:
+        line = (line or "code-atlas: no actionable doc reference") + (
+            f" ({' and '.join(stale)} since last scan)")
+    return None if line is None else line + " — `code-atlas query --verify-refs --format md`."
 
 
 # Doc-derived and repo-derived text in the payload: data, never instructions (429).
@@ -1025,6 +1301,7 @@ UNTRUSTED: tuple[str, ...] = (
     "rows[].site.*",
     "rows[].candidate_paths",
     "rows[].candidates[].*",
+    "rows[].nearest_existing",
     "files[].file",
 )
 

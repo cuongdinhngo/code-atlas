@@ -505,6 +505,10 @@ def schema_direction(found: str, expected: str) -> str:
         return SCHEMA_UNRECOGNISED
 
 
+# What a caller outside the store catches without importing sqlite3 itself (R1.4).
+StoreError = sqlite3.Error
+
+
 class BatchLostError(RuntimeError):
     """SQLite rolled the batch's transaction back itself (a full disk, an I/O error), so the writes
     after it would land one by one — the build stops rather than publish half a graph (400)."""
@@ -1418,6 +1422,11 @@ class GraphStore:
     def get_meta(self, key: str) -> str | None:
         row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return None if row is None else str(row[0])
+
+    def files_stamp(self) -> str:
+        """How many files the index holds and when the newest was written: moves on any refresh."""
+        count, newest = self._conn.execute("SELECT COUNT(*), MAX(updated_at) FROM files").fetchone()
+        return f"{count}:{newest or ''}"
 
     def has_meta(self, key: str) -> bool:
         """True when the key exists — distinguishes absent (pre-077) from a stamped null-clear."""
@@ -5149,14 +5158,16 @@ COMPUTE_QUERIES: Mapping[str, str] = {
         "COALESCE(SUM(tier = 'DYNAMIC'), 0), COALESCE(SUM(target IS NULL), 0) FROM v_edge "
         "WHERE kind = 'INCLUDES' AND " + _PREFIX.format(col="file") + " GROUP BY 1 ORDER BY 1"
     ),
+    # One object is one (kind, qname); a spanning kind every file may re-declare is no object (443).
     "multi_defined": (
-        "SELECT qname, COUNT(*) FROM v_symbol WHERE is_test = 0 "
-        "AND (:kind IS NULL OR kind = :kind) AND " + _PREFIX.format(col="file") + " "
-        "GROUP BY qname HAVING COUNT(*) > 1 ORDER BY qname"
+        "SELECT qname, kind, COUNT(*) FROM v_symbol WHERE is_test = 0 "
+        "AND (:kind IS NULL OR kind = :kind) AND (:kind IS NOT NULL OR kind != :spanning) "
+        "AND (:language IS NULL OR language = :language) AND " + _PREFIX.format(col="file") + " "
+        "GROUP BY qname, kind HAVING COUNT(*) > 1 ORDER BY qname, kind"
     ),
     "multi_defined.sites": (
         "SELECT qname, file, line, is_test FROM v_symbol WHERE qname = :qname "
-        "ORDER BY file, line"
+        "AND kind = :site_kind AND is_test = 0 ORDER BY file, line"
     ),
     "meta.value": "SELECT value FROM main.meta WHERE key = :key",
     # Same container, names `lp*ls` and `rp*rs` sharing the stem; exactly one side referenced.

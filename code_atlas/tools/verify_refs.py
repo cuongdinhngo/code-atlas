@@ -20,10 +20,14 @@ from code_atlas.tools.nav_result import attach_limit_capped
 NAME = "verify_refs"
 DocClass = Literal["instruction", "memory", "reference", "archive"]
 State = Literal["moved", "gone", "never_existed", "ambiguous", "unknown", "ok"]
+Strength = Literal["strong", "weak"]
 Format = Literal["json", "md", "patch"]
 DetailLevel = Literal["minimal", "standard"]
 # What `minimal` leaves out: the per-file table and how the corpus was chosen.
 _STANDARD_ONLY = ("files", "corpus_globs", "commands", "history_budget_spent")
+# A default row: where, what, and the fix — the rest is in the full rows a filter asks for (443).
+_COMPACT = ("class", "file", "line", "ref", "state", "reason", "replacement", "successor",
+            "last_seen", "nearest_existing")
 APPLY_WITH = "code-atlas query --verify-refs --format patch | git apply"
 
 
@@ -43,23 +47,33 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         globs: list[str] | None = None,
         doc_class: list[DocClass] | None = None,
         state: list[State] | None = None,
+        strength: list[Strength] | None = None,
         format: Format = "json",
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Which paths and symbols named in CLAUDE.md, skills and docs still resolve: ok,
-        moved (with its successor), gone, never_existed, ambiguous, or unknown (never ok).
-        Instruction files first. `format: patch` lists in-place edits for moved references and
-        the shell command that prints the diff; nothing is applied. Summaries count every row;
-        read `total_count`, `truncated`.
+        """Which paths and symbols in CLAUDE.md, skills, memory and docs moved or are gone:
+        counts and up to 20 rows, instruction files first. `format: patch` lists edits.
         """
+        explicit = bool(globs or doc_class or state or strength)
         cap, clamped = clamp_limit(limit, min(config.page_limit, doc_refs.MAX_LIMIT))
+        if not explicit and limit is None:
+            cap, clamped = doc_refs.DEFAULT_ROWS, False
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
+        doc_refs.check_filters(state or (), strength or ())
         with GraphStore(config.db_path) as store:
             found = doc_refs.scan(config, store, globs=globs or (), classes=doc_class or ())
-        answer = doc_refs.summarize(found, states=state or (), limit=cap)
+        answer = doc_refs.summarize(
+            found, states=state or (), strengths=strength or (), limit=cap, actionable=not explicit
+        )
         answer["index_root"] = config.index_root
+        if not explicit:
+            rows = answer["rows"]
+            assert isinstance(rows, list)
+            answer["rows"] = [_compact(row) for row in rows]
+            for key in ("by_class", "corpus_globs", "files"):
+                answer.pop(key)
         if format == "md":
             answer["markdown"] = doc_refs.markdown(answer)
             answer.pop("rows")
@@ -75,3 +89,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         return attach_limit_capped(answer, cap=cap, clamped=clamped)
 
     return verify_refs
+
+
+def _compact(row: object) -> dict[str, object]:
+    assert isinstance(row, dict)
+    return {key: row[key] for key in _COMPACT if row.get(key) is not None}

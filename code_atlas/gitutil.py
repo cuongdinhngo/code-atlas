@@ -185,13 +185,19 @@ def config_value(root: Path, key: str) -> str | None:
 
 
 def word_sites(
-    root: Path, words: Sequence[str], *, timeout: float
+    root: Path,
+    words: Sequence[str],
+    *,
+    timeout: float,
+    whole_word: bool = True,
+    suffixes: Sequence[str] = (),
 ) -> dict[str, list[tuple[str, int]]] | None:
     """Every whole-word occurrence of each word, tracked or untracked but not ignored:
     ``{word: [(path, line), …]}``, one entry per occurrence (440).
 
-    One time-capped ``git grep -F -w`` fencing each word with ``-e``; None when git cannot answer
-    in ``timeout``. A word holding a line break is never searched (grep would split it).
+    One time-capped ``git grep -F -w`` fencing each word with ``-e`` (``whole_word=False`` drops
+    ``-w``: inside a longer name counts too; ``suffixes`` keeps it to files ending so); None when
+    git cannot answer in ``timeout``. A word holding a line break is never searched.
     """
     searchable = [w for w in words if w and "\n" not in w and "\0" not in w]
     if not searchable:
@@ -199,8 +205,9 @@ def word_sites(
     patterns = [part for word in searchable for part in ("-e", word)]
     # The user's color/column config would reshape each record; -i over-reports, never under.
     found = _run(
-        root, "grep", "--untracked", "--no-color", "--no-column", "-n", "-o", "-w", "-F", "-i",
-        "-I", "-z", *patterns, "--", timeout=timeout, empty_exit=1,
+        root, "grep", "--untracked", "--no-color", "--no-column", "-n", "-o",
+        *(["-w"] if whole_word else []), "-F", "-i", "-I", "-z", *patterns, "--",
+        *(f"*{suffix}" for suffix in suffixes), timeout=timeout, empty_exit=1,
     )
     if found is None:
         return None

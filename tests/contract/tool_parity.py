@@ -155,7 +155,9 @@ INVOKERS: dict[str, Invoker] = {
     reachable_from.NAME: Invoker(lambda c, s, n: reachable_from.create(c)(), "results"),
     find_orphans.NAME: Invoker(lambda c, s, n: find_orphans.create(c)(), "results"),
     compute.NAME: Invoker(lambda c, s, n: compute.create(c)(template="tier_mix"), "rows"),
-    verify_refs.NAME: Invoker(lambda c, s, n: verify_refs.create(c)(), "rows"),
+    verify_refs.NAME: Invoker(
+        lambda c, s, n: verify_refs.create(c)(strength=["strong", "weak"]), "rows"
+    ),
     explain_path.NAME: Invoker(
         lambda c, s, n: explain_path.create(c)(from_qname=s["caller"], to_qname=s["callee"]),
         "path",
