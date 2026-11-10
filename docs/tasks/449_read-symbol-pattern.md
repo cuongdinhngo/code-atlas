@@ -106,10 +106,10 @@ $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q <tool_manifest, tool_surface_bud
   `test_the_whole_surface_with_schemas_stays_under_its_cap` (26,304 of 25,805); both folded into the change list (W6).
   The same guards on the reviewed tree:
 
-Ran at c3736304
+Ran at 7479bae5
 ```
 $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_tool_manifest.py tests/test_tool_surface_budget.py tests/test_tool_descriptions.py tests/test_agent_brief_usage_completeness.py tests/test_limit_clamp_visible.py tests/test_tool_surface.py
-126 passed in 13.70s
+126 passed in 10.36s
 ```
 - `redos-is-overlap-not-nesting` — does not apply because the change reuses `checked_pattern` as it stands and adds no
   rule of its own.
@@ -168,14 +168,24 @@ At `6c0e899e` the same run read 268 passed; the reviewed tree's is in Phase 4.
 
 `CHALLENGER VERDICT: 15 requirement(s) rebuilt | 15 met | 0 not met | 0 can't tell | 0 not-met covered by a recorded exclusion`
 
-Reviewed at c3736304 — files: `code_atlas/tools/read_symbol.py`, `tests/fixtures/tool_manifest.json`,
+- **Round 3 — verify-only, main loop** (the change stays inside `read_symbol.py`, behaviour unchanged):
+  `test_contract_sole_source.py` refused the `{"line_start": …, "line_end": …}` literals as a re-declared field list;
+  the hunk and span payloads are built by keyword now (`7479bae5`). The regression scan, on that tree:
+
+Ran at 7479bae5
+```
+$ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_contract_sole_source.py tests/test_core_is_language_agnostic.py tests/test_read_symbol_pattern.py <the baseline's suites>
+652 passed in 20.52s
+```
+
+Reviewed at 7479bae5 — files: `code_atlas/tools/read_symbol.py`, `tests/fixtures/tool_manifest.json`,
 `tests/test_tool_surface_budget.py`, `tests/test_read_symbol_pattern.py`, `docs/TOOLS.md`, `CHANGELOG.md`; working doc
 `docs/tasks/449_read-symbol-pattern.md`.
 
-Ran at c3736304
+Ran at 7479bae5
 ```
 $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_read_symbol_pattern.py <the baseline's suites>
-269 passed in 39.61s
+269 passed in 19.83s
 ```
 
 `Ph3/4 proven by`: AC1–AC2, R1–R4 → `tests/test_read_symbol_pattern.py` (14) + the manifest and budget tests.
