@@ -500,9 +500,14 @@ final class Visitor extends NodeVisitorAbstract
         foreach ($node->props as $property) {
             $name = '$' . $property->name->toString();
             $qname = $this->member($name);
+            $own = $extra;
+            // Untyped, but a `@var` or every `new X` it is assigned names one class (447).
+            if (!isset($own['type']) && ($inferred = $this->members->propertyClass($qname)) !== null) {
+                $own['doc_type'] = $inferred;
+            }
             $this->declare($property, 'Property', $name, $qname, [
                 'modifiers' => $this->propertyModifiers($node),
-            ] + $this->extraFields($extra));
+            ] + $this->extraFields($own));
             $this->emitTypeReferences($qname, $node->type, $property->getStartLine());
             $this->emitAttributeReferences($qname, $node->attrGroups, $property->getStartLine());
         }
