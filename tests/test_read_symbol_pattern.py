@@ -109,9 +109,11 @@ def test_scope2_context_and_the_cap(config: Config) -> None:
     many = tool("\\App\\Big::many", pattern="needle")
     assert many["pattern_matches"] == 60
     assert many["pattern_truncated"] is True
-    shown = [line for hunk in many["pattern_hunks"] for line in hunk["lines"] if ">" in line[:5]]
-    assert len(shown) == 50
+    # The signature line, 50 matches shown, and the next two matches as their context.
+    assert [len(hunk["lines"]) for hunk in many["pattern_hunks"]] == [53]
     assert "pattern_truncated" not in tool("\\App\\Big::long", pattern="needle")
+    # Challenger F4: past the cap a match inside a shown window still reads as a match.
+    assert all(">" in line[:5] for line in many["pattern_hunks"][0]["lines"][1:])
 
 
 def test_scope3_no_match_says_the_body_was_searched(config: Config) -> None:
@@ -136,6 +138,7 @@ def test_a_line_range_narrows_the_search(config: Config) -> None:
         ({"pattern": "x", "full_body": True}, "drop full_body"),
         ({"pattern": "x", "max_lines": 5}, "drop full_body"),
         ({"pattern": "x", "context": 11}, "context must be 0–10"),
+        ({"pattern": "x", "context": True}, "context must be 0–10"),
         ({"context": 1}, "need a pattern"),
         ({"pattern_regex": True}, "need a pattern"),
     ],

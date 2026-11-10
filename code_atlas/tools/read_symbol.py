@@ -531,7 +531,8 @@ def _require_pattern(
         return None
     if not pattern:
         raise ValueError("pattern must not be empty")
-    if context is not None and not 0 <= context <= PATTERN_CONTEXT_MAX:
+    bad = isinstance(context, bool) or not 0 <= (context or 0) <= PATTERN_CONTEXT_MAX
+    if context is not None and bad:
         raise ValueError(f"context must be 0–{PATTERN_CONTEXT_MAX}, got {context}")
     if not regex:
         return re.compile(re.escape(pattern), re.IGNORECASE)
@@ -557,7 +558,7 @@ def _pattern_payload(
             windows[-1][1] = max(windows[-1][1], hi)
         else:
             windows.append([lo, hi])
-    matched = set(shown)
+    matched = set(hits)  # a match past the cap inside a shown window still reads as one
     payload["pattern_matches"] = len(hits)
     payload["pattern_hunks"] = [
         {
