@@ -71,11 +71,13 @@ def _callers(config: Config, subject: str) -> dict[str, object]:
 
 
 def _rows(payload: dict[str, object]) -> list[tuple[str, str]]:
-    """Linked callers only: a `candidate_of` row is an unlinked same-name call shown for proximity."""
+    """Linked callers only: a `candidate_of` row is an unlinked same-name call, shown as nearby."""
     rows = payload["results"]
     assert isinstance(rows, list)
     return [
-        (str(row["qname"]), str(row["confidence_tier"])) for row in rows if "candidate_of" not in row
+        (str(row["qname"]), str(row["confidence_tier"]))
+        for row in rows
+        if "candidate_of" not in row
     ]
 
 
@@ -185,7 +187,7 @@ def test_w2_a_var_docblock_wins_over_the_assignments(tmp_path: Path) -> None:
 
 @needs_php
 def test_scope3_a_child_assigning_its_parents_property_leaves_it_untyped(tmp_path: Path) -> None:
-    """The parent declares `$model` in another file; the child's write is not the declarer's (W4)."""
+    """The parent declares `$model` in another file; a child's write is not the declarer's (W4)."""
     files = {
         **FILES,
         "src/Base.php": "<?php\nnamespace App;\nclass Base {\n    protected $model;\n}\n",
@@ -243,7 +245,8 @@ MISSED_WRITES = {
         "    public function run() { $this->p->m(); }\n}\n"
     ),
     "src/UsesTr.php": (
-        "<?php\nnamespace App;\ntrait Tr {\n    public function w() { $this->p = new Other(); }\n}\n"
+        "<?php\nnamespace App;\ntrait Tr {\n"
+        "    public function w() { $this->p = new Other(); }\n}\n"
         "class UsesTr {\n    use Tr;\n    private $p;\n"
         "    public function a() { $this->p = new Model(); }\n"
         "    public function run() { $this->p->m(); }\n}\n"
@@ -258,7 +261,9 @@ MISSED_WRITES = {
 
 
 @needs_php
-def test_challenger_a_destructure_foreach_trait_or_subclass_write_untypes_it(tmp_path: Path) -> None:
+def test_challenger_a_destructure_foreach_trait_or_subclass_write_untypes_it(
+    tmp_path: Path,
+) -> None:
     config = _built(tmp_path, {**FILES, **MISSED_WRITES})
     for source in ("Destr", "Each", "UsesTr", "Kid"):
         assert _target(config, f"\\App\\{source}::run") is None, source
