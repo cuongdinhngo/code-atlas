@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 450-C1 — an inheritance walk answers in the language's precedence, never the store's edge order
+
+- type: 2 (code) · handle: `inheritance-walk-needs-the-languages-precedence`
+- status: proposed · seen: 450
+- evidence: 450's first walk took supertypes breadth-first in edge order, so `class X extends P { use T; }` answered
+  `P::__construct` though a used trait's member is the class's own and wins; the challenger built it. The precedence
+  lives in what an edge kind means (`USES_TRAIT` before `EXTENDS`), so the walk reads it from the kind, not a language.
+- destination: first sighting.
+
 ### 426-C1 — a sandbox claim holds only for the writers it was run against
 
 - type: 2 (code) · handle: `a-sandbox-claim-calls-every-writer`
