@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `read_symbol(pattern="needle")` returns only the matching lines of a long body, numbered, with
+  `context` lines around each (default 2, max 10) and overlaps merged; `pattern_matches` counts them
+  all, 50 are shown (`pattern_truncated`). A literal is case-insensitive; `pattern_regex=true` takes a
+  regex under the rules file's safety check. Three parameters on the tool surface (449).
+
 ## 0.11.0 — 2026-11-08 · contract 21 · schema 9
 
 Verify & Compute: which references an agent was told still hold, and exact answers over the graph.
