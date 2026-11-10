@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `$this->model->m()` links when `$model` is untyped but its class assigns it `new Model()` in every
+  write, or documents `/** @var Model */` (PHP, `HEURISTIC`); two different classes, any other write or
+  a non-`null` default leave it untyped and counted in `unresolved_receivers` (447). No rebuild is
+  forced: a file reads its properties when it next re-parses; `code-atlas-build --full` reads them all now.
 - `exec insert_order` — from T-SQL or a PHP string — links to `dbo.Insert_Order`: a routine call that
   misses exactly links by casefold to one routine of a language whose adapter announces the new
   `case_insensitive_routines` capability (SQL); one name in two schemas stays unlinked. The build

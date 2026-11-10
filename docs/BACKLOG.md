@@ -41,7 +41,6 @@ the consuming repo's own config.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 447 | [PHP: an untyped property assigned `new X` types its receiver](tasks/447_php-property-type-from-assignment.md) | Coverage | todo | 393 |
 | 449 | [`read_symbol` takes a `pattern`](tasks/449_read-symbol-pattern.md) | Retrieval | todo | — |
 | 450 | [PHP: inherited constructor resolves; `new Child` reaches it](tasks/450_inherited-constructor.md) | Coverage | todo | 362 |
 
