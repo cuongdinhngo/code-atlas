@@ -53,7 +53,7 @@ from code_atlas.enrichment import (
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
 from code_atlas.limits import DEFAULT_MAX_FILE_BYTES
-from code_atlas.resolver import delta_scope, resolve_edges
+from code_atlas.resolver import delta_scope, resolve_edges, routine_casefold_languages
 from code_atlas.store import (
     BUILD_COMPLETE,
     BUILD_COMPLETE_KEY,
@@ -67,6 +67,7 @@ from code_atlas.store import (
     COVERED_SUFFIXES_KEY,
     EDGE_HEALTH_BY_LANGUAGE_KEY,
     EMITTED_KINDS_BY_LANGUAGE_KEY,
+    EXEC_UNRESOLVED_KEY,
     IGNORE_SOURCES_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
@@ -210,6 +211,8 @@ class BuildReport:
     rule_keys_unresolved: int = 0
     # Declared route rows whose target names no indexed symbol or file (task 385).
     routes_unresolved: int = 0
+    # Routine calls (EXEC) left unlinked, index-wide, when a language's routines fold (448).
+    exec_unresolved: int = 0
     # An incremental re-applied the rules because their digest moved since the last build (396).
     rules_reapplied: bool = False
     # Per keyed_calls rule: sites with a string literal at the key, yet no key read (398).
@@ -318,7 +321,14 @@ def _fill(
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     # The late writers link every bare edge, so the graph is not finished until they return.
     # Stamping before them advertised completion for the whole link phase (task 178).
-    _count_late_writes(counts, config, store, rules, progress=report)
+    _count_late_writes(
+        counts,
+        config,
+        store,
+        rules,
+        progress=report,
+        casefold_languages=routine_casefold_languages(capabilities_by_language),
+    )
     report.phase("meta")
     _record_meta(
         config,
@@ -339,6 +349,7 @@ def _fill(
         rules_unresolved=counts.pop("rules_unresolved", 0),
         rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
         routes_unresolved=counts.pop("routes_unresolved", 0),
+        exec_unresolved=counts.pop("exec_unresolved", 0),
         rules_reapplied=False,
         keys_unread=keys_unread(store),
         **counts,
@@ -658,6 +669,7 @@ def _incremental_update(
             parsed=tuple(to_parse),
             aliases_before=aliases_before,
             progress=report,
+            casefold_languages=routine_casefold_languages(capabilities_by_language),
         )
     else:
         # Record the skipped phases as ~0 so the profile shows the cut, not a missing phase (052).
@@ -688,10 +700,24 @@ def _incremental_update(
         rules_unresolved=counts.pop("rules_unresolved", 0),
         rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
         routes_unresolved=counts.pop("routes_unresolved", 0),
+        exec_unresolved=counts.pop("exec_unresolved", 0),
         rules_reapplied=reapply,
         keys_unread=keys_unread(store) if ran or reapply else (),
         **counts,
     )
+
+
+def publish_exec_unresolved(store: GraphStore, languages: tuple[str, ...]) -> int:
+    """Count the routine calls still unlinked index-wide and stamp it for status (448).
+
+    No language folds → the key is dropped, so an index with no such adapter reads unchanged.
+    """
+    if not languages:
+        store.delete_meta(EXEC_UNRESOLVED_KEY)
+        return 0
+    count = store.count_unlinked_routine_calls(languages)
+    store.set_meta(EXEC_UNRESOLVED_KEY, str(count))
+    return count
 
 
 def keys_unread(store: GraphStore) -> tuple[dict[str, object], ...]:
@@ -729,6 +755,7 @@ def _count_late_writes(
     parsed: tuple[str, ...] | None = None,
     aliases_before: dict[str, str] | None = None,
     progress: "_Progress | None" = None,
+    casefold_languages: tuple[str, ...] = (),
 ) -> None:
     """Run the two writers that come after the parse tally, and fold what they wrote into it (051).
 
@@ -758,6 +785,7 @@ def _count_late_writes(
         max_candidates=config.max_candidates,
         delta=delta,
         on_batch=progress.tick if progress is not None else None,
+        casefold_languages=casefold_languages,
     )
     _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
@@ -769,6 +797,7 @@ def _count_late_writes(
         store, enriched.keyed_call_sites
     )
     counts["routes_unresolved"] = publish_routes(store, rules)
+    counts["exec_unresolved"] = publish_exec_unresolved(store, casefold_languages)
     publish_records(store, rules)
     publish_definitions(store, rules)
     store.set_meta(RULES_DIGEST_KEY, rules_digest(rules))

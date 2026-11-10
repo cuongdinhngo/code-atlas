@@ -80,6 +80,8 @@ EMITTED_KINDS_BY_LANGUAGE_KEY = "emitted_kinds_by_language"
 # Resolution strategies File.extra named as unmodelled, unioned per language (JSON, task 279).
 UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY = "unmodelled_resolution_by_language"
 CAPABILITIES_BY_LANGUAGE_KEY = "capabilities_by_language"
+# Routine calls left unlinked after the last link phase, when a language's routines fold (448).
+EXEC_UNRESOLVED_KEY = "exec_unresolved"
 # Each adapter's suffixes and grep shapes from the last build, for the grep-time nudge (345).
 SYMBOL_SHAPES_BY_LANGUAGE_KEY = "symbol_shapes_by_language"
 # Local fit counters (task 260): one meta row per (tool, reason, authoritative, truncated).
@@ -752,6 +754,12 @@ def _chunks(values: Sequence[str], size: int) -> Iterator[Sequence[str]]:
     """Yield successive slices of ``values`` so ``IN (...)`` lists stay under the host max."""
     for start in range(0, len(values), size):
         yield values[start : start + size]
+
+
+def _container_of(name: str) -> str:
+    """What a name is qualified by — up to its last container separator — or ``""`` when bare."""
+    cut = max(name.rfind(separator) for separator in contract.CONTAINER_SEPARATORS)
+    return name[:cut] if cut > 0 else ""
 
 
 def _rank_window(partition: str, qname: str, distinct_qnames: bool) -> tuple[str, str]:
@@ -2822,6 +2830,37 @@ class GraphStore:
                 count += 1
         return count
 
+    def count_unlinked_routine_calls(self, languages: Sequence[str]) -> int:
+        """Routine calls left unlinked index-wide (448): every non-dynamic ``CALLS`` a site of
+        ``languages`` makes, plus another site's naming ``<container>.<name>`` where a routine of
+        ``languages`` lives in that container under casefold — a host string's EXEC.
+        """
+        if not languages:
+            return 0
+        marks = ", ".join("?" for _ in languages)
+        containers = {
+            _container_of(str(qname)).casefold()
+            for (qname,) in self._conn.execute(
+                "SELECT DISTINCT nodes.qualified_name FROM nodes "
+                "JOIN files ON files.path = nodes.file_path "
+                f"WHERE nodes.kind = ? AND {_NODE_LANGUAGE} IN ({marks})",
+                ("Function", *languages),
+            )
+        }
+        containers.discard("")
+        rows = self._conn.execute(
+            f"SELECT edges.target_raw, COALESCE(edges.{ROW_LANGUAGE}, files.language) FROM edges "
+            "JOIN files ON files.path = edges.file_path "
+            "WHERE edges.target_qname IS NULL AND edges.kind = ? AND edges.confidence_tier != ?",
+            ("CALLS", "DYNAMIC"),
+        )
+        folded = set(languages)
+        return sum(
+            1
+            for raw, language in rows
+            if language in folded or _container_of(str(raw)).casefold() in containers
+        )
+
     def count_unlinked_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]
     ) -> int:
@@ -2947,6 +2986,7 @@ class GraphStore:
         kind: str | None = None,
         limit: int,
         distinct_qnames: bool = False,
+        language: str | None = None,
     ) -> dict[str, list[Row]]:
         """Per-qname top-``limit`` nodes matched case-insensitively (task 215 WRITES).
 
@@ -2962,21 +3002,26 @@ class GraphStore:
         by_fold: dict[str, list[str]] = {}
         for key in ordered:
             by_fold.setdefault(key.casefold(), []).append(key)
-        kind_sql = " AND kind = ?" if kind is not None else ""
+        kind_sql = " AND nodes.kind = ?" if kind is not None else ""
+        # The language predicate rides the statement that ranks, never a post-filter (204, 448).
+        source = "nodes JOIN files ON files.path = nodes.file_path" if language else "nodes"
+        language_sql = f" AND {_NODE_LANGUAGE} = ?" if language else ""
         rank, keep = _rank_window("LOWER(qualified_name)", "qualified_name", distinct_qnames)
         for chunk in _chunks(list(by_fold), _IN_CHUNK):
             placeholders = ", ".join("?" for _ in chunk)
             sql = (
                 f"SELECT id, {_NODE_COLUMNS} FROM ("
-                f"  SELECT id, {_NODE_COLUMNS}, {rank} "
-                f"  FROM nodes WHERE LOWER(qualified_name) IN ({placeholders})"
-                f"{kind_sql}"
+                f"  SELECT nodes.id, {_NODE_COLUMNS_JOINED}, {rank} "
+                f"  FROM {source} WHERE LOWER(nodes.qualified_name) IN ({placeholders})"
+                f"{kind_sql}{language_sql}"
                 f") WHERE {keep}rn <= ? "
                 f"ORDER BY {_NODE_ORDER}"
             )
             params: list[object] = [*chunk]
             if kind is not None:
                 params.append(kind)
+            if language:
+                params.append(language)
             params.append(limit)
             for row in self._rows(NODE_ROW_KEYS, sql, params):
                 fold = str(row["qualified_name"]).casefold()
@@ -2991,6 +3036,7 @@ class GraphStore:
         kind: str | None = None,
         limit: int,
         distinct_qnames: bool = False,
+        language: str | None = None,
     ) -> dict[str, list[Row]]:
         """Per-name top-``limit`` nodes matched case-insensitively (task 215 WRITES)."""
         if limit < 1:
@@ -3002,21 +3048,26 @@ class GraphStore:
         by_fold: dict[str, list[str]] = {}
         for key in ordered:
             by_fold.setdefault(key.casefold(), []).append(key)
-        kind_sql = " AND kind = ?" if kind is not None else ""
+        kind_sql = " AND nodes.kind = ?" if kind is not None else ""
+        # The language predicate rides the statement that ranks, never a post-filter (204, 448).
+        source = "nodes JOIN files ON files.path = nodes.file_path" if language else "nodes"
+        language_sql = f" AND {_NODE_LANGUAGE} = ?" if language else ""
         rank, keep = _rank_window("LOWER(name)", "qualified_name", distinct_qnames)
         for chunk in _chunks(list(by_fold), _IN_CHUNK):
             placeholders = ", ".join("?" for _ in chunk)
             sql = (
                 f"SELECT id, {_NODE_COLUMNS} FROM ("
-                f"  SELECT id, {_NODE_COLUMNS}, {rank} "
-                f"  FROM nodes WHERE LOWER(name) IN ({placeholders})"
-                f"{kind_sql}"
+                f"  SELECT nodes.id, {_NODE_COLUMNS_JOINED}, {rank} "
+                f"  FROM {source} WHERE LOWER(nodes.name) IN ({placeholders})"
+                f"{kind_sql}{language_sql}"
                 f") WHERE {keep}rn <= ? "
                 f"ORDER BY {_NODE_ORDER}"
             )
             params: list[object] = [*chunk]
             if kind is not None:
                 params.append(kind)
+            if language:
+                params.append(language)
             params.append(limit)
             for row in self._rows(NODE_ROW_KEYS, sql, params):
                 fold = str(row["name"]).casefold()
