@@ -123,7 +123,9 @@ separator; this adapter adds it.
 An instance method call whose receiver the local type table (137, `semantic_types`) can name is
 emitted `Class::method`; otherwise it is the bare name at `HEURISTIC`, never dressed up as
 `RESOLVED` (R5.2). A method with no native return type whose `@return` docblock names one class
-carries it as `extra.doc_type`; a receiver typed only through it links at `HEURISTIC` (393).
+carries it as `extra.doc_type`; a receiver typed only through it links at `HEURISTIC` (393). So does
+an untyped property whose `@var` names one class, or which every `$this->p = new X` (or `??=`) in its
+declaring class assigns the same `X`; any other write, or a non-`null` default, leaves it untyped (447).
 
 ## Scope
 

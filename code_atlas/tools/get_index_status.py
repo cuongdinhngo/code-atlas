@@ -53,6 +53,7 @@ from code_atlas.indexer import (
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
+    EXEC_UNRESOLVED_KEY,
     SCHEMA_OLDER,
     SCHEMA_VERSION_KEY,
     GraphStore,
@@ -148,6 +149,8 @@ RULES_ERROR_FIELD = "rules_error"
 RULES_STALE_LEAD = "rules changed since this build"
 # Per keyed_calls rule, the sites whose string key was not read (398).
 KEYS_UNREAD_FIELD = "keys_unread"
+# Routine calls (EXEC) the last link phase left unlinked, where a language's routines fold (448).
+EXEC_UNRESOLVED_FIELD = "exec_unresolved"
 # The last hook refresh that did not run, with its fix, until a build succeeds (401).
 REFRESH_REFUSED = "refresh_refused"
 REFRESH_REFUSED_LEAD = "last refresh refused"
@@ -705,6 +708,10 @@ def _status(
     if unread:
         # Rule coverage the line read could not see, per keyed_calls rule (398).
         enriched[KEYS_UNREAD_FIELD] = list(unread)
+    exec_unresolved = store.get_meta(EXEC_UNRESOLVED_KEY)
+    if exec_unresolved is not None:
+        # Absent on an index built before 448, or with no folding adapter: unknown, so unsaid.
+        enriched[EXEC_UNRESOLVED_FIELD] = int(exec_unresolved)
     _attach_unconfigured_adapters(enriched, config)
     attach_config_provenance(enriched, config, store)
     hint = store.count_source_root_hint_imports()

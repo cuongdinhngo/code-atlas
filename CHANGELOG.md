@@ -17,6 +17,19 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `$this->model->m()` links when `$model` is untyped but its class assigns it `new Model()` in every
+  write, or documents `/** @var Model */` (PHP, `HEURISTIC`); two different classes, any other write or
+  a non-`null` default leave it untyped and counted in `unresolved_receivers` (447). No rebuild is
+  forced: a file reads its properties when it next re-parses; `code-atlas-build --full` reads them all now.
+- `exec insert_order` — from T-SQL or a PHP string — links to `dbo.Insert_Order`: a routine call that
+  misses exactly links by casefold to one routine of a language whose adapter announces the new
+  `case_insensitive_routines` capability (SQL); one name in two schemas stays unlinked. The build
+  report and `get_index_status` count what stays unlinked in `exec_unresolved` (448). Contract
+  unchanged and no rebuild forced: the next full build links them; update the SQL adapter checkout.
+- `read_symbol(pattern="needle")` returns only the matching lines of a long body, numbered, with
+  `context` lines around each (default 2, max 10) and overlaps merged; `pattern_matches` counts them
+  all, 50 are shown (`pattern_truncated`). A literal is case-insensitive; `pattern_regex=true` takes a
+  regex under the rules file's safety check. Three parameters on the tool surface (449).
 - `read_symbol Child::__construct`, for a class that declares no constructor, reads its nearest
   ancestor's (`inherited_from`, `asked`); behind an unindexed ancestor it says `ancestry_unresolved`.
   `find_callers Base::__construct` lists `new Child(...)` for every heir with no constructor of its

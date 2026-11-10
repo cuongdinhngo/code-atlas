@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import functools
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract, records
 from code_atlas.build_info import maybe_server_provenance
-from code_atlas.config import Config, clamp_limit
+from code_atlas.config import Config, ConfigError, clamp_limit
 from code_atlas.containment import resolves_inside
 from code_atlas.indexer import parse_file
+from code_atlas.limits import checked_pattern
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.overlay import active_overlay
 from code_atlas.ref_check import require_caller_root
@@ -88,6 +90,10 @@ def _body_elided_hint(decl_start: int, decl_end: int, *, max_lines: int | None) 
     )
 
 
+# 449: a `pattern` answers its matching lines with this much context, merged; past the cap it cuts.
+PATTERN_CONTEXT_DEFAULT = 2
+PATTERN_CONTEXT_MAX = 10
+PATTERN_MATCH_CAP = 50
 # How many direct supertypes one class's constructor walk reads (450) — real code has a handful.
 _ANCESTRY_FANOUT = 64
 
@@ -106,6 +112,8 @@ class _BodyOpts(NamedTuple):
     max_lines: int | None = None
     range_start: int | None = None
     range_end: int | None = None
+    pattern: re.Pattern[str] | None = None
+    context: int = PATTERN_CONTEXT_DEFAULT
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -126,15 +134,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         path_prefix: str | None = None,
         caller_root: str | None = None,
         records_filter: dict[str, object] | None = None,
+        pattern: str | None = None,
+        pattern_regex: bool = False,
+        context: int | None = None,
     ) -> dict[str, object]:
-        """Read just one symbol's source and its doc comment, without opening the whole file.
+        """Read one symbol's source and doc comment without opening the file.
 
-        Bodies over 600 lines elide to the signature (``body_elided: true``): pass
-        ``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and
-        ``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.
-        ``subject_ambiguous`` returns no body (narrow with ``path_prefix``); an ``ambiguity`` field
-        means other definitions exist (test copies, migrations): read the list before trusting the
-        body. ``stale: true``: file drifted. ``path_outside_root`` returns no source.
+        Bodies over 600 lines elide to the signature (``body_elided``): pass ``full_body=true``,
+        ``line_start``/``line_end``, or ``pattern`` (case-insensitive; ``pattern_regex=true``) for
+        numbered ``pattern_hunks`` with ``context`` lines, ``pattern_matches`` counting all, 50
+        shown. ``standard`` adds ``params``/``supertypes``; ``*_not_captured_by_adapter`` means
+        unknown. ``subject_ambiguous`` returns no body (``path_prefix`` narrows); read an
+        ``ambiguity`` list before trusting the body. ``stale``: file drifted.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -154,7 +165,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             max_lines=max_lines,
             range_start=line_start,
             range_end=line_end,
+            pattern=_require_pattern(pattern, regex=pattern_regex, context=context),
+            context=PATTERN_CONTEXT_DEFAULT if context is None else context,
         )
+        if body_opts.pattern is not None and (full_body or max_lines is not None):
+            raise ValueError("pattern searches the whole declaration: drop full_body / max_lines")
         if not config.db_path.is_file():
             return empty_fn(
                 qname,
@@ -580,6 +595,64 @@ def _outside_root_refusal(
     )
 
 
+def _require_pattern(
+    pattern: str | None, *, regex: bool, context: int | None
+) -> re.Pattern[str] | None:
+    """The compiled, case-insensitive search a ``pattern`` asks for, refused at the entry (R5.11).
+
+    A literal is escaped; a regex passes the rules file's safety check first (430), whose refusal
+    names the rule it broke; ``pattern_regex`` or ``context`` alone is refused, never ignored.
+    """
+    if pattern is None:
+        if regex or context is not None:
+            raise ValueError("pattern_regex and context need a pattern")
+        return None
+    if not pattern:
+        raise ValueError("pattern must not be empty")
+    bad = isinstance(context, bool) or not 0 <= (context or 0) <= PATTERN_CONTEXT_MAX
+    if context is not None and bad:
+        raise ValueError(f"context must be 0–{PATTERN_CONTEXT_MAX}, got {context}")
+    if not regex:
+        return re.compile(re.escape(pattern), re.IGNORECASE)
+    try:
+        checked = checked_pattern(pattern, "read_symbol pattern")
+    except (ConfigError, re.error) as refused:
+        raise ValueError(str(refused)) from refused
+    return re.compile(checked.pattern, re.IGNORECASE)
+
+
+def _pattern_payload(
+    payload: dict[str, object], lines: list[str], first: int, opts: _BodyOpts
+) -> dict[str, object]:
+    """Each matching line of ``lines`` (``first`` is the first one's number) with its context,
+    overlapping windows merged, every line numbered; the first ``PATTERN_MATCH_CAP`` matches."""
+    assert opts.pattern is not None
+    hits = [index for index, text in enumerate(lines) if opts.pattern.search(text)]
+    shown = hits[:PATTERN_MATCH_CAP]
+    windows: list[list[int]] = []
+    for index in shown:
+        lo, hi = max(0, index - opts.context), min(len(lines) - 1, index + opts.context)
+        if windows and lo <= windows[-1][1] + 1:
+            windows[-1][1] = max(windows[-1][1], hi)
+        else:
+            windows.append([lo, hi])
+    matched = set(hits)  # a match past the cap inside a shown window still reads as one
+    payload["pattern_matches"] = len(hits)
+    payload["pattern_hunks"] = [
+        dict(
+            line_start=first + lo,
+            line_end=first + hi,
+            lines=[
+                f"{first + i}{'>' if i in matched else ':'} {lines[i]}" for i in range(lo, hi + 1)
+            ],
+        )
+        for lo, hi in windows
+    ]
+    if len(hits) > len(shown):
+        payload["pattern_truncated"] = True
+    return payload
+
+
 def _effective_body_cap(opts: _BodyOpts) -> int | None:
     """None = unlimited; otherwise the inclusive line ceiling before elision."""
     if opts.full_body:
@@ -620,6 +693,31 @@ def _found_body_payload(
             stub=stub,
         )
     span = declaration_line_count(decl_start, decl_end)
+    if body_opts.pattern is not None:
+        lo, hi = decl_start, decl_end
+        if body_opts.range_start is not None and body_opts.range_end is not None:
+            lo, hi = clamp_line_range(
+                decl_start, decl_end, from_line=body_opts.range_start, to_line=body_opts.range_end
+            )
+        searched = declaration_slice(path, lo, hi, root=root, include_comments=False)
+        # The header is the signature line; the span searched rides beside it (449 scope 3).
+        payload = _result(
+            qname,
+            declaration_slice(path, decl_start, decl_start, root=root, include_comments=False),
+            detail_level=detail_level,
+            db_path=db_path,
+            index_root=index_root,
+            found=True,
+            stale=False,
+            reason=reason,
+            file=rel,
+            line_start=decl_start,
+            line_end=decl_start,
+            stub=stub,
+        )
+        payload["line_count"] = span
+        payload["pattern_span"] = dict(line_start=lo, line_end=hi)
+        return _pattern_payload(payload, searched.splitlines(), lo, body_opts)
     if body_opts.range_start is not None and body_opts.range_end is not None:
         start, end = clamp_line_range(
             decl_start,

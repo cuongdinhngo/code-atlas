@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 447-C1 — "every write to X" is every write form the grammar has, not every `=`
+
+- type: 2 (code) · handle: `every-write-form-the-grammar-has`
+- status: proposed · seen: 447
+- evidence: 447's first cut typed an untyped property when every `Assign` / `AssignRef` / `AssignOp` to `$this->p` named
+  one class; the challenger wrote `[$this->p] = $xs`, `foreach ($xs as $this->p)` and a trait's write, and each linked
+  a wrong class at `HEURISTIC`. A destructure item and a `foreach` target are writes with no `Assign` node; the write
+  set is the parser's target positions, enumerated from its node types (`MemberTypes::observeTarget`).
+
 ### 450-C1 — an inheritance walk answers in the language's precedence, never the store's edge order
 
 - type: 2 (code) · handle: `inheritance-walk-needs-the-languages-precedence`
@@ -163,11 +172,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 412-C1 — a new tool parameter is read by the surface guards before any reviewer
 
 - type: 2 (code) · handle: `a-new-parameter-meets-the-surface-guards`
-- status: proposed · seen: 412
+- status: proposed · seen: 412, 449
 - evidence: `records` and `records_limit` on `impact` failed `test_agent_brief_usage_completeness.py` (taught or
   waived) and `test_limit_clamp_visible.py` (a `limit` clamps at the page); the change list named neither. Grep the
   tests for `_tool_params` / `limit: int | None` before closing a change list that adds a parameter.
-- destination: first sighting.
+  449: `pattern`, `pattern_regex`, `context` on `read_symbol` failed `test_tool_surface_budget.py` twice (the
+  description at 849 of 600 characters, the surface 26,304 of 25,805) before any review; both folded into the list.
+- destination: proposed — widen AGENT_BRIEF P5 (a size budget over the surface is a pin like `len(...) == N`), not a
+  new rule (P2) — awaiting the maintainer's ratify.
 
 ### 411-C1 — a baseline run in the checkout being edited measures no tree
 
@@ -301,11 +313,13 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 386-C1 — a hook that compacts `git diff` output makes a saved patch unusable
 
 - type: 1 (tool) · handle: `symbol:rtk git diff`
-- status: proposed · seen: 386
+- status: proposed · seen: 386, 448
 - evidence: `git diff -- adapters > patch` ran through the RTK rewrite hook and wrote its compact
   summary, not a patch; the `git checkout -- adapters` after it discarded the ticket's edits, which were
   re-applied from the edit script. Save a patch with `rtk proxy git diff`, or set work aside in a WIP commit.
-- destination: first sighting.
+  448 repeated it exactly (`git diff > patch; git checkout -- code_atlas`), the record notwithstanding.
+- destination: proposed `AGENT_BRIEF.md` (a P-rule: set work aside in a WIP commit, never a saved diff) —
+  awaiting the maintainer's ratify.
 
 ### 377-C1 — a subagent's hook payload carries its parent's `session_id`, plus `agent_id`
 

@@ -1322,7 +1322,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read just one symbol's source and its doc comment, without opening the whole file.\n\nBodies over 600 lines elide to the signature (``body_elided: true``): pass\n``full_body=true`` or ``line_start``/``line_end``. ``standard`` adds ``params`` and\n``supertypes``; ``*_not_captured_by_adapter`` means unknown, not empty.\n``subject_ambiguous`` returns no body (narrow with ``path_prefix``); an ``ambiguity`` field\nmeans other definitions exist (test copies, migrations): read the list before trusting the\nbody. ``stale: true``: file drifted. ``path_outside_root`` returns no source.",
+      "description": "Read one symbol's source and doc comment without opening the file.\n\nBodies over 600 lines elide to the signature (``body_elided``): pass ``full_body=true``,\n``line_start``/``line_end``, or ``pattern`` (case-insensitive; ``pattern_regex=true``) for\nnumbered ``pattern_hunks`` with ``context`` lines, ``pattern_matches`` counting all, 50\nshown. ``standard`` adds ``params``/``supertypes``; ``*_not_captured_by_adapter`` means\nunknown. ``subject_ambiguous`` returns no body (``path_prefix`` narrows); read an\n``ambiguity`` list before trusting the body. ``stale``: file drifted.",
       "input_schema": {
         "additionalProperties": false,
         "properties": {
@@ -1331,6 +1331,17 @@
               {
                 "maxLength": 4096,
                 "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -1409,6 +1420,22 @@
               }
             ],
             "default": null
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "pattern_regex": {
+            "default": false,
+            "type": "boolean"
           },
           "qname": {
             "maxLength": 4096,
