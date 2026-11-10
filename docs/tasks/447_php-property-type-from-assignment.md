@@ -230,6 +230,17 @@ Reviewed at 8398aa08 — files: `adapters/php/src/{MemberTypes,TypeTable,Visitor
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+Gate at `8344fd63` (the tip but this record; after review only bookkeeping and the test file's line wraps moved):
+
+```text
+scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
+The first gate run, at `6029e736`, was red on `ruff` (five E501 lines in the test) and on
+`test_backlog_bookkeeping.py` (the ledger row named no PR); both fixed in `8344fd63`.
+
 ### Outward actions
 
 Under the handover: push `feat/447-php-property-type-from-assignment`; open its PR against `main`. Deferred: ratify
