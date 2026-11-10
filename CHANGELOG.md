@@ -21,7 +21,7 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   misses exactly links by casefold to one routine of a language whose adapter announces the new
   `case_insensitive_routines` capability (SQL); one name in two schemas stays unlinked. The build
   report and `get_index_status` count what stays unlinked in `exec_unresolved` (448). Contract
-  unchanged and no rebuild forced: the next build links them; update the SQL adapter checkout.
+  unchanged and no rebuild forced: the next full build links them; update the SQL adapter checkout.
 
 ## 0.11.0 — 2026-11-08 · contract 21 · schema 9
 
