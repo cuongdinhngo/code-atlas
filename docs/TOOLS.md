@@ -315,6 +315,13 @@ default: ``source`` is the signature line only, with ``body_elided: true``, ``li
 and a route to ``file_outline`` or a line range — never a silent mid-body cut (288). Pass
 ``full_body=true`` (or a ``max_lines`` at/above the span) for the whole declaration;
 ``line_start``/``line_end`` return exactly that clamped range inside the symbol.
+``pattern`` searches the declaration (or that range) instead: a case-insensitive substring, or a
+regex under ``pattern_regex=true`` that passes the rules file's safety check, whose refusal names
+the rule it broke (430). The answer keeps the signature as ``source`` and returns
+``pattern_hunks`` — each matching line (``N>``) with ``context`` lines (``N:``, default 2, max 10),
+overlaps merged — plus ``pattern_matches`` (the true total), ``pattern_span`` (what was searched)
+and ``pattern_truncated`` past 50 matches; no match is ``pattern_matches: 0``. ``full_body`` and
+``max_lines`` are refused beside it (449).
 With a ``records`` rule the subject's declared records ride in ``records``, each with
 its declared ``attributes``; ``records_filter`` (``{"tier": ["A"]}``) keeps those whose
 attribute equals a value, and a name no block declares raises ``ValueError`` (407, 413).

@@ -164,11 +164,14 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 412-C1 — a new tool parameter is read by the surface guards before any reviewer
 
 - type: 2 (code) · handle: `a-new-parameter-meets-the-surface-guards`
-- status: proposed · seen: 412
+- status: proposed · seen: 412, 449
 - evidence: `records` and `records_limit` on `impact` failed `test_agent_brief_usage_completeness.py` (taught or
   waived) and `test_limit_clamp_visible.py` (a `limit` clamps at the page); the change list named neither. Grep the
   tests for `_tool_params` / `limit: int | None` before closing a change list that adds a parameter.
-- destination: first sighting.
+  449: `pattern`, `pattern_regex`, `context` on `read_symbol` failed `test_tool_surface_budget.py` twice (the
+  description at 849 of 600 characters, the surface 26,304 of 25,805) before any review; both folded into the list.
+- destination: proposed — widen AGENT_BRIEF P5 (a size budget over the surface is a pin like `len(...) == N`), not a
+  new rule (P2) — awaiting the maintainer's ratify.
 
 ### 411-C1 — a baseline run in the checkout being edited measures no tree
 
