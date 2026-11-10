@@ -2851,8 +2851,8 @@ class GraphStore:
         rows = self._conn.execute(
             f"SELECT edges.target_raw, COALESCE(edges.{ROW_LANGUAGE}, files.language) FROM edges "
             "JOIN files ON files.path = edges.file_path "
-            "WHERE edges.target_qname IS NULL AND edges.kind = ? AND edges.confidence_tier != ?",
-            ("CALLS", "DYNAMIC"),
+            "WHERE edges.target_qname IS NULL AND edges.kind = 'CALLS' "
+            "AND edges.confidence_tier != 'DYNAMIC'"
         )
         folded = set(languages)
         return sum(
