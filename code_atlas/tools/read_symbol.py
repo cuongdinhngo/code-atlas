@@ -432,41 +432,58 @@ def inherited_constructor(
     store: GraphStore, qname: str
 ) -> tuple[str | None, str | None, list[str]]:
     """``(ancestor, its constructor, unresolved)`` for ``Class::member`` when ``Class`` declares no
-    constructor and its nearest ancestor's is named ``member`` (450).
+    constructor and the nearest one it inherits is named ``member`` (450).
 
-    Breadth-first over what hands down a body (``BODY_INHERIT_KINDS``), nearest first; an ancestor
-    the graph never linked is collected in ``unresolved``, so a miss behind it is never confident.
+    Nearest first, level by level: a class's used traits are its own members, so they win over its
+    parents (``USES_TRAIT``); two traits with one, or a supertype the graph never linked at that
+    level, is no confident answer — ``unresolved`` names the unlinked ones.
     """
     container, member = contract.split_qname(qname)
     if container is None or store.flagged_members([container], contract.CONSTRUCTOR_FLAG):
         return None, None, []
     if not store.nodes_by_qualified_name(container, limit=1):
         return None, None, []
-    unresolved: list[str] = []
     seen = {container}
-    frontier = [container]
-    while frontier:
-        parents: list[str] = []
-        for child in frontier:
-            for edge in store.edges_by_source(
-                child, kinds=contract.BODY_INHERIT_KINDS, limit=_ANCESTRY_FANOUT
+    level = [container]
+    while level:
+        upper: list[str] = []
+        for current in level:
+            traits, parents, unresolved = _supertypes(store, current)
+            if unresolved:
+                return None, None, unresolved
+            from_traits = store.flagged_members(traits, contract.CONSTRUCTOR_FLAG)
+            if len(from_traits) > 1:
+                return None, None, []  # two traits both supply one: a conflict, no single answer
+            for owners, found in (
+                (traits, from_traits),
+                (parents, store.flagged_members(parents, contract.CONSTRUCTOR_FLAG)),
             ):
-                linked = edge.get("target_qname")
-                if not linked:
-                    unresolved.append(str(edge["target_raw"]))
-                elif str(linked) not in seen:
-                    seen.add(str(linked))
-                    parents.append(str(linked))
-        own = store.flagged_members(parents, contract.CONSTRUCTOR_FLAG)
-        for parent in parents:
-            found = own.get(parent)
-            if found is not None and unresolved:
-                break  # an unlinked ancestor as near may declare its own: no confident answer
-            if found is not None:
-                named = contract.split_qname(found)[1]
-                return (parent, found, []) if named == member else (None, None, [])
-        frontier = [] if unresolved else parents
-    return None, None, sorted(set(unresolved))
+                for owner in owners:
+                    if owner in found:
+                        named = contract.split_qname(found[owner])[1]
+                        return (owner, found[owner], []) if named == member else (None, None, [])
+            upper.extend(parent for parent in parents if parent not in seen)
+            seen.update(upper)
+        level = upper
+    return None, None, []
+
+
+def _supertypes(store: GraphStore, qname: str) -> tuple[list[str], list[str], list[str]]:
+    """``(used traits, parents, unlinked)`` for a class, in the store's edge order (450)."""
+    traits: list[str] = []
+    parents: list[str] = []
+    unresolved: list[str] = []
+    for edge in store.edges_by_source(
+        qname, kinds=contract.BODY_INHERIT_KINDS, limit=_ANCESTRY_FANOUT
+    ):
+        linked = edge.get("target_qname")
+        if not linked:
+            unresolved.append(str(edge["target_raw"]))
+        elif edge["kind"] == contract.USES_TRAIT:
+            traits.append(str(linked))
+        else:
+            parents.append(str(linked))
+    return traits, parents, sorted(set(unresolved))
 
 
 def _attach_records(

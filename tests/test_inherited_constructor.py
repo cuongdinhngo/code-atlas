@@ -109,3 +109,45 @@ def test_a_member_that_is_not_the_constructor_is_not_inherited_here(config: Conf
     payload = read_symbol.create(config)("\\App\\Child::other")
     assert payload["reason"] == "no_such_symbol"
     assert "inherited_from" not in payload and "ancestry_unresolved" not in payload
+
+
+# Challenger F1: a used trait's constructor is the class's own, so it beats the parent's.
+TRAITS = {
+    **FILES,
+    "src/T.php": "<?php\nnamespace App;\ntrait T {\n    public function __construct() {}\n}\n",
+    "src/U.php": "<?php\nnamespace App;\ntrait U {\n    public function __construct() {}\n}\n",
+    "src/X.php": "<?php\nnamespace App;\nclass X extends Base {\n    use T;\n}\n",
+    "src/Y.php": "<?php\nnamespace App;\nclass Y extends Base {\n    use T, U;\n}\n",
+    "src/MakeX.php": (
+        "<?php\nnamespace App;\nclass MakeX {\n"
+        "    public function x() { return new X(); }\n}\n"
+    ),
+}
+
+
+def test_challenger_a_used_traits_constructor_wins_over_the_parents(tmp_path: Path) -> None:
+    for rel, body in TRAITS.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(body, encoding="utf-8")
+    for args in (("init", "-q"), ("add", "-A"), ("commit", "-qm", "init")):
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+    built = load_config(
+        tmp_path,
+        {"CA_WORKERS": "1", "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"])},
+    )
+    with GraphStore(built.db_path) as store:
+        assert full_build(built, store).failed == 0
+    tool = read_symbol.create(built)
+    assert tool("\\App\\X::__construct")["inherited_from"] == "\\App\\T"
+    # Two traits that both supply one: no single answer, and no guess at the parent's.
+    assert "inherited_from" not in tool("\\App\\Y::__construct")
+    base = find_callers.create(built)("\\App\\Base::__construct", detail_level="minimal")
+    assert "\\App\\MakeX::x" not in {str(row["qname"]) for row in base["results"]}
+    trait = find_callers.create(built)("\\App\\T::__construct", detail_level="minimal")
+    rows = {str(row["qname"]): row for row in trait["results"]}
+    assert rows["\\App\\MakeX::x"]["via_subclass"] == "\\App\\X"

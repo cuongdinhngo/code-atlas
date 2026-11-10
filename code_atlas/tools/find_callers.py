@@ -17,6 +17,7 @@ from code_atlas.contract import (
     CONFIDENCE_TIERS,
     CONSTRUCTOR_FLAG,
     MEMBER_SEPARATOR,
+    USES_TRAIT,
     ConfidenceTier,
     inbound_kinds_for,
     split_qname,
@@ -729,6 +730,17 @@ def _via_subclass(
     return hit
 
 
+def _trait_constructor(store: GraphStore, qname: str, owner: str) -> bool:
+    """Whether a trait ``qname`` uses, other than ``owner``, supplies a constructor: a used trait's
+    members are the class's own, so that one runs instead (450)."""
+    traits = [
+        str(edge["target_qname"])
+        for edge in store.edges_by_source(qname, kinds=(USES_TRAIT,), limit=_HEIR_CAP)
+        if edge.get("target_qname") and edge["target_qname"] != owner
+    ]
+    return bool(traits) and bool(store.flagged_members(traits, CONSTRUCTOR_FLAG))
+
+
 def _constructor_heirs(store: GraphStore, owner: str) -> tuple[str, ...]:
     """Every class below ``owner`` that inherits its constructor: the walk stops at a class
     declaring its own, which is that subtree's constructor instead (450)."""
@@ -746,7 +758,11 @@ def _constructor_heirs(store: GraphStore, owner: str) -> tuple[str, ...]:
                     seen.add(child)
                     children.append(child)
         own = store.flagged_members(children, CONSTRUCTOR_FLAG)
-        frontier = [child for child in children if child not in own]
+        frontier = [
+            child
+            for child in children
+            if child not in own and not _trait_constructor(store, child, owner)
+        ]
         heirs.extend(frontier)
     return tuple(sorted(heirs[:_HEIR_CAP]))
 

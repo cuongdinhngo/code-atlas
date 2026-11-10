@@ -309,8 +309,9 @@ An indexed file that now resolves outside the repo (swapped for a symlink since 
 answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
 
 ``Child::__construct`` on a class declaring no constructor reads its nearest ancestor's, with
-``inherited_from`` and ``asked``; behind an ancestor the index never linked it answers
-``no_such_symbol`` with ``ancestry_unresolved`` — never a confident absence (450).
+``inherited_from`` and ``asked`` — a used trait's before a parent's; any ``Class::member`` miss
+behind a supertype the index never linked answers ``no_such_symbol`` with
+``ancestry_unresolved`` — never a confident absence (450).
 
 Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
 default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
