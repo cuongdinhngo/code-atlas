@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import PurePosixPath
 from typing import Literal, NamedTuple
 
@@ -11,6 +11,7 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
     ARG_SELECTORS,
     BARE_SUBJECT_KINDS,
+    BODY_INHERIT_KINDS,
     CALLABLE_KINDS,
     CALLER_KINDS,
     CONFIDENCE_TIERS,
@@ -113,6 +114,8 @@ CLAIM_CARRY = (
 _RESOLVED = CONFIDENCE_TIERS[0]
 # Cap BFS counting so total_count stays honest-as-a-floor without walking the whole graph.
 _COUNT_BUDGET_FACTOR = 10
+# How many classes inheriting one constructor the answer folds in (450); a cut is a floor.
+_HEIR_CAP = 500
 
 
 class _CallersOutcome(NamedTuple):
@@ -702,7 +705,8 @@ def _args_at(
 
 
 def _constructed_class(store: GraphStore, qname: str) -> tuple[str, ...]:
-    """``(class,)`` for a flagged constructor: a ``new`` of its class calls it (362)."""
+    """``(class, *heirs)`` for a flagged constructor: a ``new`` of its class calls it (362), and so
+    does a ``new`` of a class inheriting it that declares no constructor of its own (450)."""
     if MEMBER_SEPARATOR not in qname:
         return ()
     rows = store.nodes_by_qualified_name(qname, limit=1)
@@ -711,7 +715,40 @@ def _constructed_class(store: GraphStore, qname: str) -> tuple[str, ...]:
     extra = parse_json_field(rows[0].get("extra"), {})
     if not isinstance(extra, dict) or extra.get(CONSTRUCTOR_FLAG) is not True:
         return ()
-    return (qname.rsplit(MEMBER_SEPARATOR, 1)[0],)
+    owner = qname.rsplit(MEMBER_SEPARATOR, 1)[0]
+    return (owner, *_constructor_heirs(store, owner))
+
+
+def _via_subclass(
+    hit: dict[str, object], edge: Mapping[str, object], heirs: frozenset[str]
+) -> dict[str, object]:
+    """Mark a ``new`` of a class that inherits the constructor rather than declaring it (450)."""
+    target = edge.get("target_qname")
+    if target in heirs:
+        hit["via_subclass"] = target
+    return hit
+
+
+def _constructor_heirs(store: GraphStore, owner: str) -> tuple[str, ...]:
+    """Every class below ``owner`` that inherits its constructor: the walk stops at a class
+    declaring its own, which is that subtree's constructor instead (450)."""
+    heirs: list[str] = []
+    seen = {owner}
+    frontier = [owner]
+    while frontier and len(heirs) < _HEIR_CAP:
+        children: list[str] = []
+        for parent in frontier:
+            for edge in store.edges_by_target(
+                parent, kinds=BODY_INHERIT_KINDS, limit=_HEIR_CAP
+            ):
+                child = str(edge["source_qname"])
+                if child not in seen:
+                    seen.add(child)
+                    children.append(child)
+        own = store.flagged_members(children, CONSTRUCTOR_FLAG)
+        frontier = [child for child in children if child not in own]
+        heirs.extend(frontier)
+    return tuple(sorted(heirs[:_HEIR_CAP]))
 
 
 def _test_census(
@@ -917,8 +954,10 @@ def _callers(
 ) -> _CallersOutcome:
     """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5).
 
-    ``also_targets`` count as ``qname`` itself: a constructor's class, whose ``new`` sites call it.
+    ``also_targets`` count as ``qname`` itself: a constructor's class, whose ``new`` sites call it,
+    then the classes inheriting it — a hit onto one of those says so in ``via_subclass`` (450).
     """
+    heirs = frozenset(also_targets[1:])
     if hops == 1:
         total = store.count_edges_by_target(
             qname,
@@ -940,7 +979,7 @@ def _callers(
             exclude_test_sources=exclude_test_sources,
             distinct_sources=True,
         )
-        hits = [edge_hit(edge, depth=1) for edge in edges]
+        hits = [_via_subclass(edge_hit(edge, depth=1), edge, heirs) for edge in edges]
         _attach_call_lines(
             store,
             qname,
@@ -986,7 +1025,7 @@ def _callers(
             if skipped < offset:
                 skipped += 1
             elif len(results) < limit:
-                results.append(edge_hit(edge, depth=hop + 1))
+                results.append(_via_subclass(edge_hit(edge, depth=hop + 1), edge, heirs))
             tier = str(edge.get("confidence_tier") or _RESOLVED)
             source = str(edge["source_qname"])
             if hop + 1 >= hops or source in visited_targets:

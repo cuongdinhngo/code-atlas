@@ -2822,6 +2822,32 @@ class GraphStore:
                 count += 1
         return count
 
+    def flagged_members(self, containers: Sequence[str], flag: str) -> dict[str, str]:
+        """Container → its member whose ``extra`` carries ``flag: true`` — a constructor (450).
+
+        One range seek per container on the qname key; the store owns the JSON (R1.4). The first
+        in qname order wins, so the answer is deterministic (R4.2).
+        """
+        found: dict[str, str] = {}
+        for container in dict.fromkeys(containers):
+            prefix = f"{container}{contract.MEMBER_SEPARATOR}"
+            upper = prefix[:-1] + chr(ord(prefix[-1]) + 1)
+            rows = self._conn.execute(
+                "SELECT qualified_name, extra FROM nodes "
+                "WHERE qualified_name >= ? AND qualified_name < ? AND extra IS NOT NULL "
+                "ORDER BY qualified_name",
+                (prefix, upper),
+            )
+            for qname, extra in rows:
+                try:
+                    decoded = json.loads(extra) if isinstance(extra, str) and extra else {}
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(decoded, dict) and decoded.get(flag) is True:
+                    found[container] = str(qname)
+                    break
+        return found
+
     def count_unlinked_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]
     ) -> int:

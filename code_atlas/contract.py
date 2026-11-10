@@ -141,6 +141,8 @@ CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
 IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
 # Class-diagram ancestry (144) — inheritance FQN edges only; not CALLS/NEW/ALIASES.
 INHERIT_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS", "USES_TRAIT")
+# What hands down a body: an interface declares a member, never the code a `new` runs (450).
+BODY_INHERIT_KINDS: tuple[str, ...] = tuple(k for k in INHERIT_KINDS if k != "IMPLEMENTS")
 # Contained members a class box lists (144).
 CLASS_MEMBER_KINDS: tuple[str, ...] = ("Method", "Property", "ClassConst")
 # Class / Interface — subjects that emit EXTENDS/IMPLEMENTS (285 / IMPL_KINDS).

@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `read_symbol Child::__construct`, for a class that declares no constructor, reads its nearest
+  ancestor's (`inherited_from`, `asked`); behind an unindexed ancestor it says `ancestry_unresolved`.
+  `find_callers Base::__construct` lists `new Child(...)` for every heir with no constructor of its
+  own, marked `via_subclass` (450). Nothing to rebuild.
+
 ## 0.11.0 — 2026-11-08 · contract 21 · schema 9
 
 Verify & Compute: which references an agent was told still hold, and exact answers over the graph.

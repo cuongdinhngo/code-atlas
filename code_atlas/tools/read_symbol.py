@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import functools
 import json
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Literal, NamedTuple
+from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract, records
 from code_atlas.build_info import maybe_server_provenance
@@ -86,6 +87,9 @@ def _body_elided_hint(decl_start: int, decl_end: int, *, max_lines: int | None) 
         "declaration, or line_start/line_end for a range within the symbol"
     )
 
+
+# How many direct supertypes one class's constructor walk reads (450) — real code has a handful.
+_ANCESTRY_FANOUT = 64
 
 # One page of CONTAINS edges for a Table — not the answer page; paging is separate (248).
 _CONTAINS_WALK = 10_000
@@ -404,7 +408,65 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 overlay.label(payload)
             return attach_next_tools(payload, str(node["kind"]))
 
-    return read_symbol
+    @functools.wraps(read_symbol)
+    def read_symbol_inheriting(qname: str, *args: Any, **kwargs: Any) -> dict[str, object]:
+        payload = read_symbol(qname, *args, **kwargs)
+        if payload.get("reason") != REASON_NO_SUCH_SYMBOL or not config.db_path.is_file():
+            return payload
+        with GraphStore(config.db_path) as store:
+            ancestor, constructor, unresolved = inherited_constructor(store, qname)
+        if constructor is not None:
+            # A class with no constructor runs its nearest ancestor's (450): read that one.
+            inherited = read_symbol(constructor, *args, **kwargs)
+            inherited["inherited_from"] = ancestor
+            inherited["asked"] = qname
+            return inherited
+        if unresolved:
+            payload["ancestry_unresolved"] = unresolved  # an ancestor never indexed: not an absence
+        return payload
+
+    return read_symbol_inheriting
+
+
+def inherited_constructor(
+    store: GraphStore, qname: str
+) -> tuple[str | None, str | None, list[str]]:
+    """``(ancestor, its constructor, unresolved)`` for ``Class::member`` when ``Class`` declares no
+    constructor and its nearest ancestor's is named ``member`` (450).
+
+    Breadth-first over what hands down a body (``BODY_INHERIT_KINDS``), nearest first; an ancestor
+    the graph never linked is collected in ``unresolved``, so a miss behind it is never confident.
+    """
+    container, member = contract.split_qname(qname)
+    if container is None or store.flagged_members([container], contract.CONSTRUCTOR_FLAG):
+        return None, None, []
+    if not store.nodes_by_qualified_name(container, limit=1):
+        return None, None, []
+    unresolved: list[str] = []
+    seen = {container}
+    frontier = [container]
+    while frontier:
+        parents: list[str] = []
+        for child in frontier:
+            for edge in store.edges_by_source(
+                child, kinds=contract.BODY_INHERIT_KINDS, limit=_ANCESTRY_FANOUT
+            ):
+                linked = edge.get("target_qname")
+                if not linked:
+                    unresolved.append(str(edge["target_raw"]))
+                elif str(linked) not in seen:
+                    seen.add(str(linked))
+                    parents.append(str(linked))
+        own = store.flagged_members(parents, contract.CONSTRUCTOR_FLAG)
+        for parent in parents:
+            found = own.get(parent)
+            if found is not None and unresolved:
+                break  # an unlinked ancestor as near may declare its own: no confident answer
+            if found is not None:
+                named = contract.split_qname(found)[1]
+                return (parent, found, []) if named == member else (None, None, [])
+        frontier = [] if unresolved else parents
+    return None, None, sorted(set(unresolved))
 
 
 def _attach_records(
