@@ -305,6 +305,9 @@ REQUIRED_META_FIELDS: tuple[str, ...] = ("name", "extensions", "contract_version
 
 # Advertised, never required: an absent flag is legal and the core degrades without it (R1.6).
 Capabilities = dict[str, bool]
+# The language resolves a routine's name case-insensitively (T-SQL under its default collation),
+# so a call that misses exactly may link by casefold to one routine of that language (448).
+CASE_INSENSITIVE_ROUTINES = "case_insensitive_routines"
 # semantic_types (task 311): a file-at-a-time local type table backs member-call receivers
 # (annotations / `new X` / assignments — not an external checker). Adapters that ship that table
 # declare it; adapters that do not must not.
@@ -318,6 +321,7 @@ KNOWN_CAPABILITIES: tuple[str, ...] = (
     # v18 (399): the adapter reads a request's `spans` of a file as its `suffix`, every other byte
     # blank and every line the file's own. Only an adapter announcing it is sent one.
     "spans",
+    CASE_INSENSITIVE_ROUTINES,
 )
 
 # ``extra`` / tool-payload key for declarations-only stub nodes (task 039). Not a contract bump.
@@ -408,7 +412,7 @@ def join_qname(container: str, member: str) -> str:
 
 # Single-character separators containers use natively (CONVENTION §3). The member join is always
 # MEMBER_SEPARATOR; agents often guess the last join as one of these instead (249).
-_CONTAINER_SEPARATORS = frozenset({".", "\\", "/"})
+CONTAINER_SEPARATORS = frozenset({".", "\\", "/"})
 
 
 def member_separator_variant(query: str) -> str | None:
@@ -420,7 +424,7 @@ def member_separator_variant(query: str) -> str | None:
     i = len(query) - 1
     while i >= 0:
         ch = query[i]
-        if ch in _CONTAINER_SEPARATORS:
+        if ch in CONTAINER_SEPARATORS:
             variant = f"{query[:i]}{MEMBER_SEPARATOR}{query[i + 1 :]}"
             return variant if variant != query else None
         if ch == ":" and i > 0 and query[i - 1] == ":":

@@ -302,11 +302,13 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 386-C1 — a hook that compacts `git diff` output makes a saved patch unusable
 
 - type: 1 (tool) · handle: `symbol:rtk git diff`
-- status: proposed · seen: 386
+- status: proposed · seen: 386, 448
 - evidence: `git diff -- adapters > patch` ran through the RTK rewrite hook and wrote its compact
   summary, not a patch; the `git checkout -- adapters` after it discarded the ticket's edits, which were
   re-applied from the edit script. Save a patch with `rtk proxy git diff`, or set work aside in a WIP commit.
-- destination: first sighting.
+  448 repeated it exactly (`git diff > patch; git checkout -- code_atlas`), the record notwithstanding.
+- destination: proposed `AGENT_BRIEF.md` (a P-rule: set work aside in a WIP commit, never a saved diff) —
+  awaiting the maintainer's ratify.
 
 ### 377-C1 — a subagent's hook payload carries its parent's `session_id`, plus `agent_id`
 

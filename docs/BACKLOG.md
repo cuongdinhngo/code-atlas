@@ -41,7 +41,6 @@ the consuming repo's own config.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 448 | [An `EXEC` target links case-insensitively, misses counted](tasks/448_exec-target-casefold.md) | Coverage | todo | 386 |
 | 449 | [`read_symbol` takes a `pattern`](tasks/449_read-symbol-pattern.md) | Retrieval | todo | — |
 | 450 | [PHP: inherited constructor resolves; `new Child` reaches it](tasks/450_inherited-constructor.md) | Coverage | todo | 362 |
 

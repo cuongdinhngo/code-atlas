@@ -75,7 +75,10 @@ link to a procedure declared in another. Delimiters are dropped, so `[dbo].[My P
 and `dbo.[My Proc]` are one name. An unqualified `EXEC Foo` stays `Foo`: the default schema is a server
 setting, not a fact in the file. A procedure created with no schema keeps the qname `Foo` too, plus a
 `HEURISTIC` alias `dbo.Foo`, T-SQL's default when the server leaves it unchanged, so a host string's
-unqualified `EXEC Foo`, read as `dbo.Foo`, reaches it (386).
+unqualified `EXEC Foo`, read as `dbo.Foo`, reaches it (386). The adapter announces
+`case_insensitive_routines`, T-SQL's rule under its default collation: a call that misses exactly links
+by casefold to one routine — `exec insert_order` reaches `dbo.Insert_Order`, `exec SALES.p` only within
+`sales` — two or more stay unlinked, and every unlinked call is counted in `exec_unresolved` (448).
 
 ## Static analysis (R6.6)
 

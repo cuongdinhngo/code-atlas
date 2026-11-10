@@ -132,7 +132,9 @@ build-stamped crossing census without ``pairs`` (243); omitted under two languag
 and on a pre-204 stamp (R5.6 / 061). ``standard``/``verbose`` also carry
 ``capabilities_by_language`` — the build-stamped R1.6 flags, for the languages this
 index holds files of (231/244/173); omitted when the stamp is absent or empty
-(R5.6 / 061). ``standard``/``verbose`` also carry ``edge_health_by_language`` on a
+(R5.6 / 061). ``standard``/``verbose`` also carry ``exec_unresolved`` — routine calls (an ``EXEC``,
+a host string's too) left unlinked index-wide, when an adapter announces
+``case_insensitive_routines`` (448); omitted on an older index or with no such adapter. ``standard``/``verbose`` also carry ``edge_health_by_language`` on a
 multi-language index (261): ``standard`` is the verdict only (``unlinked`` /
 ``by_tier`` per language); ``verbose`` nests the full census including ``pairs``.
 ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
