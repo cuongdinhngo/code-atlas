@@ -4,7 +4,7 @@ slug: read-symbol-pattern
 title: "`read_symbol` takes a `pattern` and returns only the matching lines of a long body"
 phase: 2
 milestone: "Round-3 field gaps"
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -37,7 +37,7 @@ inside a method"). `read_symbol` today takes `line_start` / `line_end` / `max_li
 
 ## Session status
 
-- **KEY:** 449 · **work_doc_mode:** embed · **Current phase:** review
+- **KEY:** 449 · **work_doc_mode:** embed · **Current phase:** finalise
 - `TRACK: backend` · Run mode: `autorun 447 - 448 - 449 - 450`, third — `REVIEWER: OFF` (waived: "with skipped
   reviewer") · `CHALLENGER: ON` · `cost_tier: standard`. The handover delegates decisions, so a want-decision is
   `ASSUMED`, never silent.
@@ -104,12 +104,12 @@ $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q <tool_manifest, tool_surface_bud
 - `a-new-parameter-meets-the-surface-guards` — traced: run on the first cut, before its commit, two guards were red —
   `test_the_descriptions_fit_the_budget_and_carry_no_references` (the description at 849 of 600 characters) and
   `test_the_whole_surface_with_schemas_stays_under_its_cap` (26,304 of 25,805); both folded into the change list (W6).
-  The same guards on the committed tree:
+  The same guards on the reviewed tree:
 
-Ran at 6c0e899e
+Ran at c3736304
 ```
 $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_tool_manifest.py tests/test_tool_surface_budget.py tests/test_tool_descriptions.py tests/test_agent_brief_usage_completeness.py tests/test_limit_clamp_visible.py tests/test_tool_surface.py
-126 passed in 16.56s
+126 passed in 13.70s
 ```
 - `redos-is-overlap-not-nesting` — does not apply because the change reuses `checked_pattern` as it stands and adds no
   rule of its own.
@@ -152,8 +152,58 @@ $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_read_symbol_pattern.p
 13 failed in 1.15s
 ```
 
-Ran at 6c0e899e
+At `6c0e899e` the same run read 268 passed; the reviewed tree's is in Phase 4.
+
+## Phase 4 — review
+
+`REVIEWER: OFF` (waived by the run's args — no rule-book seat looked) · `CHALLENGER: ON`. Review step: the ticket-blind
+`challenger` alone, at `6c0e899e`; payload = the raw ticket (`git show 89ecb16d:<this file>`) + the branch diff.
+
+- **`challenger` round 1** (71,311 tokens): 15 rebuilt · 14 met · 1 can't tell (row 15, the ticket's "one parameter
+  added" beside three named ones — W1). **Taken:** F2 (a `bool` `context` was accepted — refused now), F4 (a match past
+  the cap inside a shown window read as context — `N>` now), `c3736304`, both with a test. **Recorded:** F1 (a range
+  outside the declaration clamps to the signature; `pattern_span` says so), F3 (the token report is the AC test's, W5),
+  F6 (`splitlines` numbering, pre-existing).
+- **`challenger` round 2** (verify-only, resumed, at `c3736304`): its final line, transcribed:
+
+`CHALLENGER VERDICT: 15 requirement(s) rebuilt | 15 met | 0 not met | 0 can't tell | 0 not-met covered by a recorded exclusion`
+
+Reviewed at c3736304 — files: `code_atlas/tools/read_symbol.py`, `tests/fixtures/tool_manifest.json`,
+`tests/test_tool_surface_budget.py`, `tests/test_read_symbol_pattern.py`, `docs/TOOLS.md`, `CHANGELOG.md`; working doc
+`docs/tasks/449_read-symbol-pattern.md`.
+
+Ran at c3736304
 ```
 $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_read_symbol_pattern.py <the baseline's suites>
-268 passed in 33.35s
+269 passed in 39.61s
 ```
+
+`Ph3/4 proven by`: AC1–AC2, R1–R4 → `tests/test_read_symbol_pattern.py` (14) + the manifest and budget tests.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 412-C1 `a-new-parameter-meets-the-surface-guards` traced again (P1: `seen: 412, 449`).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md | mango files written: 0`
+
+FALSIFY's check: the two `test_tool_surface_budget.py` tests read the live surface; reverting `SURFACE_CAP` turns one red.
+Cross-ticket: the claim's `seen:` holds 2 keys — `/mango:promote` is the pass the maintainer runs between tickets.
+
+### Outward actions
+
+Under the handover: push `feat/449-read-symbol-pattern`; open its PR against `main`. Deferred: ratify W1–W6 and the P5
+widening; merge.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 48,433 |
+| 4 review | ticket-blind `challenger` | 1 | 71,311 |
+| 4 review | ticket-blind `challenger` | 2 | 2,780 (resumed: 74,091 cumulative − 71,311) |
+
+`LEDGER TOTAL: 122,524 · top cost driver: 4 review / challenger` — main loop unmeasured.
