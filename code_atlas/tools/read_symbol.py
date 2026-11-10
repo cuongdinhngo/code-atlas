@@ -561,13 +561,13 @@ def _pattern_payload(
     matched = set(hits)  # a match past the cap inside a shown window still reads as one
     payload["pattern_matches"] = len(hits)
     payload["pattern_hunks"] = [
-        {
-            "line_start": first + lo,
-            "line_end": first + hi,
-            "lines": [
+        dict(
+            line_start=first + lo,
+            line_end=first + hi,
+            lines=[
                 f"{first + i}{'>' if i in matched else ':'} {lines[i]}" for i in range(lo, hi + 1)
             ],
-        }
+        )
         for lo, hi in windows
     ]
     if len(hits) > len(shown):
@@ -638,7 +638,7 @@ def _found_body_payload(
             stub=stub,
         )
         payload["line_count"] = span
-        payload["pattern_span"] = {"line_start": lo, "line_end": hi}
+        payload["pattern_span"] = dict(line_start=lo, line_end=hi)
         return _pattern_payload(payload, searched.splitlines(), lo, body_opts)
     if body_opts.range_start is not None and body_opts.range_end is not None:
         start, end = clamp_line_range(
