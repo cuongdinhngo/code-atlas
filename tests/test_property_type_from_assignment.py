@@ -226,3 +226,39 @@ def test_the_property_node_carries_the_inferred_type(tmp_path: Path) -> None:
     assert ctl["doc_type"] == "\\App\\Model"
     assert "type" not in ctl
     assert "doc_type" not in str(found["\\App\\Twice::$p"][0].get("extra") or "")
+
+
+# Challenger round 1 (F1–F3): writes the first cut did not see, so a wrong class was claimed.
+MISSED_WRITES = {
+    "src/Destr.php": (
+        "<?php\nnamespace App;\nclass Destr {\n    private $p;\n"
+        "    public function a() { $this->p = new Model(); }\n"
+        "    public function b($xs) { [$this->p] = $xs; }\n"
+        "    public function run() { $this->p->m(); }\n}\n"
+    ),
+    "src/Each.php": (
+        "<?php\nnamespace App;\nclass Each {\n    private $p;\n"
+        "    public function a() { $this->p = new Model(); }\n"
+        "    public function b($xs) { foreach ($xs as $this->p) {} }\n"
+        "    public function run() { $this->p->m(); }\n}\n"
+    ),
+    "src/UsesTr.php": (
+        "<?php\nnamespace App;\ntrait Tr {\n    public function w() { $this->p = new Other(); }\n}\n"
+        "class UsesTr {\n    use Tr;\n    private $p;\n"
+        "    public function a() { $this->p = new Model(); }\n"
+        "    public function run() { $this->p->m(); }\n}\n"
+    ),
+    "src/Kin.php": (
+        "<?php\nnamespace App;\nclass Kin {\n    protected $p;\n"
+        "    public function __construct() { $this->p = new Model(); }\n}\n"
+        "class Kid extends Kin {\n    public function w() { $this->p = new Other(); }\n"
+        "    public function run() { $this->p->m(); }\n}\n"
+    ),
+}
+
+
+@needs_php
+def test_challenger_a_destructure_foreach_trait_or_subclass_write_untypes_it(tmp_path: Path) -> None:
+    config = _built(tmp_path, {**FILES, **MISSED_WRITES})
+    for source in ("Destr", "Each", "UsesTr", "Kid"):
+        assert _target(config, f"\\App\\{source}::run") is None, source

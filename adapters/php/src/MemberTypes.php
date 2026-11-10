@@ -50,6 +50,9 @@ final class MemberTypes extends NodeVisitorAbstract
     /** @var array<string, string|false> `\Class::$p` → what `$this->p = new X` assigns; false: any other write */
     private array $assigned = [];
 
+    /** @var array<string, array<string, true>> `$p` → every class-like here that writes `$this->p` */
+    private array $writers = [];
+
     /** Names a docblock type never resolves to a class: PHP's own types and pseudo-types. */
     private const NOT_A_CLASS = [
         'array', 'bool', 'callable', 'false', 'float', 'int', 'iterable', 'mixed', 'never',
@@ -86,6 +89,9 @@ final class MemberTypes extends NodeVisitorAbstract
             || $node instanceof Node\Expr\AssignRef
         ) {
             $this->observeWrite($node);
+        } elseif ($node instanceof Node\Stmt\Foreach_) {
+            $this->observeTarget($node->keyVar, null);
+            $this->observeTarget($node->valueVar, null);
         }
         if ($node instanceof Node\Stmt\ClassLike && $this->open !== []) {
             array_pop($this->open);
@@ -197,12 +203,34 @@ final class MemberTypes extends NodeVisitorAbstract
     }
 
     /**
-     * `$this->p = new X(...)` (or `??=`) in the declaring class's own code types `$p` as X; any
-     * other write to `$this->p` — another class, a value, a reference — leaves it untyped (447).
+     * `$this->p = new X(...)` (or `??=`) records X against the writing class-like; any other write
+     * to `$this->p` — another class, a value, a reference, a destructure, a `foreach` — records false.
      */
     private function observeWrite(Node\Expr\Assign|Node\Expr\AssignOp|Node\Expr\AssignRef $node): void
     {
-        $target = $node->var;
+        if ($node instanceof Node\Expr\Assign
+            && ($node->var instanceof Node\Expr\List_ || $node->var instanceof Node\Expr\Array_)
+        ) {
+            $this->observeTarget($node->var, null);
+
+            return;
+        }
+        $typed = $node instanceof Node\Expr\Assign || $node instanceof Node\Expr\AssignOp\Coalesce;
+        $current = $this->current();
+        $class = $typed && $current !== null ? $this->newClass($node->expr, $current) : null;
+        $this->observeTarget($node->var, $class);
+    }
+
+    /** One write target: a `$this->p` records ``$class`` (null: untyped); a destructure recurses. */
+    private function observeTarget(?Node\Expr $target, ?string $class): void
+    {
+        if ($target instanceof Node\Expr\List_ || $target instanceof Node\Expr\Array_) {
+            foreach ($target->items as $item) {
+                $this->observeTarget($item?->value, null);
+            }
+
+            return;
+        }
         $current = $this->current();
         if ($current === null
             || !$target instanceof Node\Expr\PropertyFetch
@@ -212,9 +240,9 @@ final class MemberTypes extends NodeVisitorAbstract
         ) {
             return;
         }
-        $qname = Qname::member($current, '$' . $target->name->toString());
-        $typed = $node instanceof Node\Expr\Assign || $node instanceof Node\Expr\AssignOp\Coalesce;
-        $class = $typed ? $this->newClass($node->expr, $current) : null;
+        $name = '$' . $target->name->toString();
+        $qname = Qname::member($current, $name);
+        $this->writers[$name][$current] = true;
         $previous = $this->assigned[$qname] ?? null;
         $this->assigned[$qname] = $class !== null && ($previous === null || $previous === $class) ? $class : false;
     }
@@ -234,8 +262,8 @@ final class MemberTypes extends NodeVisitorAbstract
     }
 
     /**
-     * The class an untyped property holds: its `@var` docblock, else the one class every
-     * `$this->p = new X` in the declaring class assigns. A claim about one file — HEURISTIC (447).
+     * The class an untyped property holds: its `@var` docblock, else the one class the declaring
+     * class's writes assign — unless a trait or class it is related to here writes otherwise (447).
      */
     public function propertyClass(string $property): ?string
     {
@@ -243,8 +271,34 @@ final class MemberTypes extends NodeVisitorAbstract
             return $this->docVars[$property];
         }
         $assigned = $this->assigned[$property] ?? null;
+        if (!is_string($assigned)) {
+            return null;
+        }
+        [$declarer, $name] = explode(Qname::MEMBER, $property, 2);
+        foreach (array_keys($this->writers[$name] ?? []) as $writer) {
+            $related = in_array($declarer, $this->ancestry($writer), true)
+                || in_array($writer, $this->ancestry($declarer), true);
+            if ($related && ($this->assigned[Qname::member($writer, $name)] ?? null) !== $assigned) {
+                return null;
+            }
+        }
 
-        return is_string($assigned) ? $assigned : null;
+        return $assigned;
+    }
+
+    /** @return list<string> the class-likes ``$class`` inherits from or uses, as far as this file says */
+    private function ancestry(string $class): array
+    {
+        $queue = [$class];
+        for ($index = 0; $index < count($queue) && $index < self::MAX_DEPTH; $index++) {
+            foreach ($this->classes[$queue[$index]]['parents'] ?? [] as $parent) {
+                if (!in_array($parent, $queue, true)) {
+                    $queue[] = $parent;
+                }
+            }
+        }
+
+        return $queue;
     }
 
     private function current(): ?string
