@@ -112,7 +112,8 @@ def test_ac2_one_name_in_two_schemas_stays_unlinked_and_counted(tmp_path: Path) 
 def test_scope3_a_linked_index_counts_zero_and_status_says_so(tmp_path: Path) -> None:
     config, report = _built(tmp_path, {**PROCS, **HOST})
     assert report.exec_unresolved == 0
-    assert get_index_status.create(config, (get_index_status.NAME,))(detail_level="standard")["exec_unresolved"] == 0
+    status = get_index_status.create(config, (get_index_status.NAME,))(detail_level="standard")
+    assert status["exec_unresolved"] == 0
 
 
 @needs_php
