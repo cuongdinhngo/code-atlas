@@ -212,6 +212,17 @@ and a checkout discarded the change — the record did not prevent it.
 
 FALSIFY's check: the patch file this run saved (`448.patch`) opens with `rtk`'s stat table, not a `diff --git` header.
 
+Gate at `51fa5efc` (the tip but this record; after review only bookkeeping and the CHANGELOG wording moved):
+
+```text
+scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
+**P8.** `scripts/cross_repo_validate.py --public-only --skip-clone` on this branch's code: `public_ok: 11,
+public_failed: 0` — no floor moved, so none re-floored.
+
 ### Outward actions
 
 Under the handover: push `feat/448-exec-target-casefold`; open its PR against `main`. Deferred: ratify W1–W5 and the
