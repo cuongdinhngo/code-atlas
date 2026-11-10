@@ -28,7 +28,11 @@ MANIFEST = REPO / "tests" / "fixtures" / "tool_manifest.json"
 
 # Line 4 opens `long()`; its body is 400 statements, so lines 5..404, closing at 405.
 BODY = [f"        $v{i} = {i};" for i in range(400)]
-NEEDLES = {100: "        $x = $this->needle();", 103: "        $y = 'NEEDLE';", 300: "        needle();"}
+NEEDLES = {
+    100: "        $x = $this->needle();",
+    103: "        $y = 'NEEDLE';",
+    300: "        needle();",
+}
 for at, text in NEEDLES.items():
     BODY[at - 5] = text
 SOURCE = (
