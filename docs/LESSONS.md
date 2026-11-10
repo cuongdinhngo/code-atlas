@@ -58,6 +58,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 447-C1 — "every write to X" is every write form the grammar has, not every `=`
+
+- type: 2 (code) · handle: `every-write-form-the-grammar-has`
+- status: proposed · seen: 447
+- evidence: 447's first cut typed an untyped property when every `Assign` / `AssignRef` / `AssignOp` to `$this->p` named
+  one class; the challenger wrote `[$this->p] = $xs`, `foreach ($xs as $this->p)` and a trait's write, and each linked
+  a wrong class at `HEURISTIC`. A destructure item and a `foreach` target are writes with no `Assign` node; the write
+  set is the parser's target positions, enumerated from its node types (`MemberTypes::observeTarget`).
+- destination: first sighting.
+
 ### 426-C1 — a sandbox claim holds only for the writers it was run against
 
 - type: 2 (code) · handle: `a-sandbox-claim-calls-every-writer`
