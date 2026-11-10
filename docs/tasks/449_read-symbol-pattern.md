@@ -203,6 +203,16 @@ $ PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_read_symbol_pattern.p
 FALSIFY's check: the two `test_tool_surface_budget.py` tests read the live surface; reverting `SURFACE_CAP` turns one red.
 Cross-ticket: the claim's `seen:` holds 2 keys — `/mango:promote` is the pass the maintainer runs between tickets.
 
+Gate at `81b31034` (the tip but this record; after review only bookkeeping moved):
+
+```text
+scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
+P8 does not apply: the change moves no graph count (a tool-side answer only).
+
 ### Outward actions
 
 Under the handover: push `feat/449-read-symbol-pattern`; open its PR against `main`. Deferred: ratify W1–W6 and the P5
