@@ -30,6 +30,10 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
   `context` lines around each (default 2, max 10) and overlaps merged; `pattern_matches` counts them
   all, 50 are shown (`pattern_truncated`). A literal is case-insensitive; `pattern_regex=true` takes a
   regex under the rules file's safety check. Three parameters on the tool surface (449).
+- `read_symbol Child::__construct`, for a class that declares no constructor, reads its nearest
+  ancestor's (`inherited_from`, `asked`); behind an unindexed ancestor it says `ancestry_unresolved`.
+  `find_callers Base::__construct` lists `new Child(...)` for every heir with no constructor of its
+  own, marked `via_subclass` (450). Nothing to rebuild.
 
 ## 0.11.0 — 2026-11-08 · contract 21 · schema 9
 

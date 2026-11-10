@@ -41,7 +41,6 @@ the consuming repo's own config.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 450 | [PHP: inherited constructor resolves; `new Child` reaches it](tasks/450_inherited-constructor.md) | Coverage | todo | 362 |
 
 ## Open work — Trust (security)
 

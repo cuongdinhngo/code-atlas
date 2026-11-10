@@ -310,6 +310,11 @@ ahead of the roots and ``CA_CALLER_ROOT``; any other value is refused as an erro
 An indexed file that now resolves outside the repo (swapped for a symlink since the build)
 answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
 
+``Child::__construct`` on a class declaring no constructor reads its nearest ancestor's, with
+``inherited_from`` and ``asked`` — a used trait's before a parent's; any ``Class::member`` miss
+behind a supertype the index never linked answers ``no_such_symbol`` with
+``ancestry_unresolved`` — never a confident absence (450).
+
 Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
 default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
 and a route to ``file_outline`` or a line range — never a silent mid-body cut (288). Pass
@@ -333,6 +338,9 @@ The full description before the tool surface was shortened, verbatim:
 
 ```text
 Who calls this function or method? Every call site, with confidence and optional depth.
+
+A constructor's callers include every ``new`` of its class and of each class inheriting it
+that declares none of its own, each such row marked ``via_subclass`` (362, 450).
 
 ``depth`` defaults to 1 (direct). Deeper values BFS over CALLS/NEW, but only
 ``RESOLVED`` edges expand the frontier — HEURISTIC/DYNAMIC hits are returned and counted
