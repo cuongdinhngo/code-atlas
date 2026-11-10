@@ -209,6 +209,16 @@ Reviewed at 8c77fe14 — files: `code_atlas/contract.py`, `code_atlas/store.py`,
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 
+Gate at `8c720c2e` (the tip but this record; after review only bookkeeping moved):
+
+```text
+scripts/gate.sh
+26 passed · 0 failed · 0 skipped
+GATE GREEN — all 26 checks passed
+```
+
+P8 does not apply: the change moves no graph count (two tools' answers only; nothing is stored).
+
 ### Outward actions
 
 Under the handover: push `feat/450-inherited-constructor`; open its PR against `main`. Deferred: ratify W1–W4; merge;
