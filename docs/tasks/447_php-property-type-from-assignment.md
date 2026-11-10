@@ -241,6 +241,9 @@ GATE GREEN — all 26 checks passed
 The first gate run, at `6029e736`, was red on `ruff` (five E501 lines in the test) and on
 `test_backlog_bookkeeping.py` (the ledger row named no PR); both fixed in `8344fd63`.
 
+**P8.** `scripts/cross_repo_validate.py --public-only --skip-clone` on this branch's code: `public_ok: 11,
+public_failed: 0` — no floor moved, so none re-floored.
+
 ### Outward actions
 
 Under the handover: push `feat/447-php-property-type-from-assignment`; open its PR against `main`. Deferred: ratify
