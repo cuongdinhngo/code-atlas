@@ -18,6 +18,8 @@ const META = {
     // so there is no modifier to capture — claiming capture would be a claim about the language.
     modifiers: false,
     declared_types: true,
+    // T-SQL resolves a routine name case-insensitively under the default collation (448).
+    case_insensitive_routines: true,
   },
   contract_version: 21,
   // What a grep for a T-SQL object looks like (345). A bare name reads as a symbol only when the grep

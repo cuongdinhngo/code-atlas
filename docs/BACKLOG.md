@@ -41,8 +41,6 @@ the consuming repo's own config.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 447 | [PHP: an untyped property assigned `new X` types its receiver](tasks/447_php-property-type-from-assignment.md) | Coverage | todo | 393 |
-| 448 | [An `EXEC` target links case-insensitively, misses counted](tasks/448_exec-target-casefold.md) | Coverage | todo | 386 |
 | 450 | [PHP: inherited constructor resolves; `new Child` reaches it](tasks/450_inherited-constructor.md) | Coverage | todo | 362 |
 
 ## Open work — Trust (security)

@@ -1,6 +1,6 @@
 """Generic cross-file edge linking — FQN / name / path → node, no language branches (§8.2)."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from pathlib import PurePosixPath
 
 from code_atlas import contract
@@ -97,6 +97,7 @@ def resolve_edges(
     file_path: str | None = None,
     delta: DeltaScope | None = None,
     on_batch: Callable[[], None] | None = None,
+    casefold_languages: Collection[str] | None = None,
 ) -> int:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC.
 
@@ -110,6 +111,9 @@ def resolve_edges(
     ``on_batch`` fires once per streamed batch after it is applied (290). Coarse throttle is the
     batch itself (``_RESOLVE_BATCH``); the sink does not time-throttle when ``total`` is unset.
 
+    ``casefold_languages`` are the languages whose adapters announce
+    ``case_insensitive_routines`` (448); ``None`` reads them from the last build's stamp.
+
     Returns the number of **sibling rows inserted**. They are rows this run wrote, and the build
     report has to count them or it reports a graph smaller than the one it just made (task 051).
     """
@@ -121,6 +125,13 @@ def resolve_edges(
     parent_map = store.hierarchy_parents()
     # The call site's language, for the bare-name fallback below (204). Same one-map-per-run shape.
     file_languages = store.file_languages()
+    folding = tuple(
+        sorted(
+            routine_casefold_languages(store.stamped_capabilities_by_language())
+            if casefold_languages is None
+            else casefold_languages
+        )
+    )
     for batch in store.iter_unresolved_edges(
         batch_size=_RESOLVE_BATCH, skip_dynamic=True, file_path=file_path, delta=delta
     ):
@@ -201,8 +212,13 @@ def resolve_edges(
         by_name.extend(
             _resolve_subtypes(store, unlinked, parent_map, max_candidates, links, siblings)
         )
-        for edge, name, incoming in _link_by_unique_function(
-            store, bare_calls, file_languages, links, siblings
+        for edge, name, incoming in _link_routines_casefold(
+            store,
+            _link_by_unique_function(store, bare_calls, file_languages, links, siblings),
+            folding,
+            file_languages,
+            links,
+            siblings,
         ):
             if incoming == "HEURISTIC":
                 by_name.append((edge, name))
@@ -375,6 +391,81 @@ def _link_by_unique_function(
         else:
             leftovers.append((edge, name, incoming))
     return leftovers
+
+
+def routine_casefold_languages(
+    capabilities: Mapping[str, Mapping[str, bool]] | None,
+) -> tuple[str, ...]:
+    """The languages whose adapter announced ``case_insensitive_routines`` (448), sorted."""
+    return tuple(
+        sorted(
+            language
+            for language, flags in (capabilities or {}).items()
+            if flags.get(contract.CASE_INSENSITIVE_ROUTINES)
+        )
+    )
+
+
+def _link_routines_casefold(
+    store: GraphStore,
+    calls: Sequence[tuple[dict[str, object], str, str]],
+    languages: Sequence[str],
+    file_languages: Mapping[str, str],
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> list[tuple[dict[str, object], str, str]]:
+    """A routine call that missed exactly links by casefold to ONE routine of a language whose
+    names fold (448) — ``exec insert_order`` reaches ``dbo.Insert_Order``, at the incoming tier.
+
+    A bare name folds only from a site of such a language, against its own routines; a qualified
+    ``schema.name`` — a host string's EXEC too — folds against those languages' routines alone, so
+    another language's same-named function is never a candidate (386). Two or more stay unlinked.
+    """
+    if not languages:
+        return list(calls)
+    bare: dict[str, list[str]] = {}
+    qualified: list[str] = []
+    for edge, name, incoming in calls:
+        if _qualified(name):
+            qualified.append(name)
+        elif incoming != "HEURISTIC":
+            site = _site_language(edge, file_languages)
+            if site is not None and site in languages:
+                bare.setdefault(site, []).append(name)
+    if not bare and not qualified:
+        return list(calls)
+    by_name = {
+        site: store.nodes_by_names_casefold(
+            names, kind=_UNIQUE_FUNCTION_KIND, limit=2, distinct_qnames=True, language=site
+        )
+        for site, names in bare.items()
+    }
+    by_qname: dict[str, list[dict[str, object]]] = {}
+    for language in languages if qualified else ():
+        hits = store.nodes_by_qualified_names_casefold(
+            qualified, kind=_UNIQUE_FUNCTION_KIND, limit=2, distinct_qnames=True, language=language
+        )
+        for qname, rows in hits.items():
+            by_qname.setdefault(qname, []).extend(rows)
+    leftovers: list[tuple[dict[str, object], str, str]] = []
+    for edge, name, incoming in calls:
+        if _qualified(name):
+            candidates = by_qname.get(name, [])
+        elif incoming != "HEURISTIC":
+            site = _site_language(edge, file_languages)
+            candidates = by_name.get(site, {}).get(name, []) if site else []
+        else:
+            candidates = []
+        if candidates and len(_distinct_qnames(candidates)) == 1:
+            _queue_candidates(edge, candidates, _weaker_tier(incoming, "RESOLVED"), links, siblings)
+        else:
+            leftovers.append((edge, name, incoming))
+    return leftovers
+
+
+def _qualified(name: str) -> bool:
+    """A target spelled with a container (``sales.p``), as against a bare name (``p``)."""
+    return any(separator in name for separator in contract.CONTAINER_SEPARATORS)
 
 
 def _link_by_bare_name(
