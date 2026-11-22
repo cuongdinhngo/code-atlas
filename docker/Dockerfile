@@ -2,7 +2,7 @@
 # present. Mirrors CI's "lint · type · test" job: ruff · mypy · pytest, plus the adapter's composer
 # deps so the `needs_php` integration tests run instead of skipping.
 # python:3.12-slim-bookworm, by digest (Dependabot moves it)
-FROM python:3.12-slim-bookworm@sha256:e697c81897302a4c4333bade000d98038fbb21eb064f8ee1fd42d02ebcd9d337
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
 
 # PHP CLI + the extensions nikic/php-parser and composer need; git/unzip for composer itself.
 # Debian bookworm ships PHP 8.2 (composer.json requires >=8.1); CI uses 8.3 — the pinned parser
