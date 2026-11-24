@@ -4,7 +4,7 @@ slug: freshness-by-setup
 title: "Epic: installing code-atlas sets up the hooks that keep the index fresh, or says it did not"
 phase: 2
 milestone: Freshness
-status: todo
+status: in-progress
 depends_on: [452, 453, 454, 455]
 ---
 
@@ -53,3 +53,10 @@ them reports itself as unguarded instead of looking like a working one.
 
 All four tickets are done, and on both anchors one session start plus one `git pull` leaves
 `get_index_status` `current` with no human command, measured on each anchor.
+
+## Progress — 2026-11-24
+
+All four tickets are built and in review: #183 (452) → #184 (453) → #185 (454) → #186 (455), stacked. The epic's
+"done when" needs a release carrying them installed on both anchors, then one session start and one `git pull`
+measured on each; until then it stays `in-progress`. Anchor field notes so far: the PHP anchor's own `post-commit`
+went `coverage_loss` → `refreshed` with 452 (452 Phase 3), and a refused symbol grep costs 23 ms there with 454.

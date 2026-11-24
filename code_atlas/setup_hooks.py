@@ -56,13 +56,18 @@ class Part:
 
 def refresh_command() -> str | None:
     """The absolute path of ``code-atlas-refresh`` for this install: a hook needs no PATH (452)."""
-    found = shutil.which("code-atlas-refresh")
+    return script_path("code-atlas-refresh")
+
+
+def script_path(name: str) -> str | None:
+    """One of this install's console scripts by absolute path, or None when it is not installed."""
+    found = shutil.which(name)
     if found:
         return str(Path(found).resolve())
     beside = Path(sys.executable).parent
-    for name in ("code-atlas-refresh", "code-atlas-refresh.exe"):
-        if (beside / name).is_file():
-            return str((beside / name).resolve())
+    for candidate in (name, f"{name}.exe"):
+        if (beside / candidate).is_file():
+            return str((beside / candidate).resolve())
     return None
 
 
@@ -254,7 +259,12 @@ def record_path(root: Path) -> Path:
 
 
 def write_record(
-    root: Path, parts: list[Part], *, declined: bool, guard: str | None = None
+    root: Path,
+    parts: list[Part],
+    *,
+    declined: bool,
+    guard: str | None = None,
+    rebuild: str | None = None,
 ) -> None:
     """What setup did, beside the index; read back as untrusted data by ``guard_gaps``."""
     hooks = sorted(
@@ -265,9 +275,21 @@ def write_record(
     from code_atlas.hooks.guard import mode_of
 
     mode = guard or mode_of(root)  # a re-run keeps the mode already chosen (454)
-    body = {"version": package_version(), "declined": declined, "hooks": hooks, "guard": mode}
+    consent = rebuild or rebuild_consent(root)  # and the rebuild consent (455)
+    body = {
+        "version": package_version(),
+        "declined": declined,
+        "hooks": hooks,
+        "guard": mode,
+        "rebuild": consent,
+    }
     make_private_dir(record_path(root).parent)
     safe_write(record_path(root), json.dumps(body, indent=2) + "\n", root=root)
+
+
+def rebuild_consent(root: Path) -> str:
+    """``auto`` only when setup recorded `--auto-rebuild` (455); read as data: one value counts."""
+    return "auto" if _json(record_path(root)).get("rebuild") == "auto" else "ask"
 
 
 def guard_gaps(root: Path) -> list[str] | None:
@@ -301,6 +323,7 @@ def run(
     dry_run: bool = False,
     remove: bool = False,
     guard: str | None = None,
+    rebuild: str | None = None,
 ) -> list[Part]:
     """Every part, in order; records the result unless this is a dry run or a removal."""
     home = Path(env["HOME"]) if env.get("HOME") else None
@@ -311,7 +334,7 @@ def run(
     if remove and not dry_run:
         record_path(root).unlink(missing_ok=True)
     elif not dry_run:
-        write_record(root, parts, declined=False, guard=guard)
+        write_record(root, parts, declined=False, guard=guard, rebuild=rebuild)
     return parts
 
 
@@ -339,6 +362,18 @@ def main(argv: list[str] | None = None) -> int:
         choices=("off", "nudge", "refuse"),
         help="what a symbol-shaped grep meets: nothing, a nudge (default), or a refusal (454)",
     )
+    consent = parser.add_mutually_exclusive_group()
+    consent.add_argument(
+        "--auto-rebuild",
+        action="store_const",
+        const="auto",
+        dest="rebuild",
+        help="let a session start a background full rebuild when the contract moves or the index "
+        "is incomplete — minutes of CPU on a large repo, the old index answering meanwhile (455)",
+    )
+    consent.add_argument(
+        "--no-auto-rebuild", action="store_const", const="ask", dest="rebuild", help="the default"
+    )
     args = parser.parse_args(argv)
     root = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()).resolve()
     if args.no_hooks:
@@ -352,7 +387,14 @@ def main(argv: list[str] | None = None) -> int:
             print(part.line())
         print("code-atlas setup: " + (f"unguarded — {', '.join(gaps)}" if gaps else "guarded"))
         return MISSING if gaps or any(p.state in (WOULD_WRITE, "missing") for p in parts) else OK
-    parts = run(root, os.environ, dry_run=args.dry_run, remove=args.remove, guard=args.guard)
+    parts = run(
+        root,
+        os.environ,
+        dry_run=args.dry_run,
+        remove=args.remove,
+        guard=args.guard,
+        rebuild=args.rebuild,
+    )
     for part in parts:
         print(part.line())
     return FAILED if any(p.state == "missing" for p in parts) else OK

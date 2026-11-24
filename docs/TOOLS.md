@@ -1200,7 +1200,9 @@ kind per session, and per subagent inside it (keyed `session/agent_id`, 377); fi
 `.code-atlas/nudge.log`. Silent unless the index is settled — `current`, no build running, nothing
 pending, the state hook's own judgement (377); never blocks; always exits 0. At `SessionStart` the
 state hook adds a one-line routing reminder when the index is settled, and starts a detached
-`code-atlas-refresh` when it is `behind` (454).
+`code-atlas-refresh` when it is `behind` (454) — or, where `code-atlas-setup --auto-rebuild` recorded
+consent, a detached `code-atlas-build --full` when a rebuild is required or the index is `incomplete`,
+at most once per six hours, the line naming when it started (455).
 
 ## Configuration reference
 

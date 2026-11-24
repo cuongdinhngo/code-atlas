@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `code-atlas-setup --auto-rebuild` lets a session start a detached `code-atlas-build --full` when the
+  contract moved or the index is `incomplete` — the old index answers until it publishes (356); one start
+  per six hours, a failed one named in the state line rather than retried. Off by default (455).
 - `code-atlas-guard` replaces the grep nudge's hook: at `PreToolUse`, before a symbol-shaped grep
   answers, it nudges (default) or, with `code-atlas-setup --guard refuse`, denies it until code-atlas
   was asked about that name. `code-atlas-state` restates a routing reminder at every session start and

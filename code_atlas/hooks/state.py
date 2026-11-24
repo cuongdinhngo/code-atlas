@@ -43,6 +43,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -62,6 +63,11 @@ REMINDER = (
     "answer."
 )
 BACKGROUND_REFRESH = " · refreshing in the background (code-atlas-build --status)"
+BACKGROUND_REBUILD = " · rebuilding in the background; the old index answers until it lands"
+REFRESH_LOG = ".code-atlas/refresh.log"
+REBUILD_MARKER = "rebuild.started"
+# One automatic full rebuild per six hours: a failing one is reported, never retried in a loop.
+REBUILD_BACKOFF = 6 * 3600
 EXPECT_FLAG = "--expect-version"
 EXPECT_CONTRACT_FLAG = "--expect-contract"
 PLUGIN_REMOVE = "`claude plugin marketplace remove code-atlas`"
@@ -372,19 +378,47 @@ def index_answers(root: Path) -> bool:
 
 def start_refresh(root: Path) -> bool:
     """A detached incremental refresh, so the session never waits on it (454); False if none ran."""
-    import subprocess
-
     from code_atlas.setup_hooks import refresh_command
 
     command = refresh_command()
+    return command is not None and _detach(root, [command, "--trigger", "session-start"])
+
+
+def start_rebuild(root: Path) -> str | None:
+    """A detached full rebuild where setup recorded consent (455): what the line says, or None.
+
+    One start per ``REBUILD_BACKOFF``; a marker holds when, so a failure is named, not looped.
+    """
+    from code_atlas.containment import safe_write
+    from code_atlas.setup_hooks import rebuild_consent, script_path
+
+    if rebuild_consent(root) != "auto":
+        return None
+    marker = root / ".code-atlas" / REBUILD_MARKER
+    try:
+        started = float(marker.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        started = 0.0
+    if time.time() - started < REBUILD_BACKOFF:
+        when = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started))
+        return f" · a background rebuild started at {when}; if it did not finish, see {REFRESH_LOG}"
+    command = script_path("code-atlas-build")
     if command is None:
-        return False
+        return None
+    _detach(root, [command, "--full"])  # raises if it cannot start: no marker, so a retry
+    safe_write(marker, f"{time.time():.0f}\n", root=root)
+    return BACKGROUND_REBUILD
+
+
+def _detach(root: Path, argv: list[str]) -> bool:
+    """Run ``argv`` in its own session, stderr to the refresh log: a killed hook cannot stop it."""
+    import subprocess
+
     from code_atlas.containment import safe_open
 
-    log = root / ".code-atlas" / "refresh.log"
+    log = root / REFRESH_LOG
     flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
     with os.fdopen(safe_open(log, flags, root=root), "a", encoding="utf-8") as sink:
-        argv = [command, "--trigger", "session-start"]
         quiet = {"cwd": root, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
         if os.name == "nt":
             flag = getattr(subprocess, "DETACHED_PROCESS", 0)
@@ -404,8 +438,8 @@ def state_line(
     from code_atlas.config import load_config
     from code_atlas.index_lock import build_in_progress, read_build_progress
     from code_atlas.tools import get_index_status
-    from code_atlas.tools.get_index_status import BUILD_IN_PROGRESS
-    from code_atlas.tools.staleness import BEHIND
+    from code_atlas.tools.get_index_status import BUILD_IN_PROGRESS, FULL_REBUILD_REQUIRED
+    from code_atlas.tools.staleness import BEHIND, INCOMPLETE
 
     config = load_config(root)
     db = config.db_path
@@ -419,6 +453,9 @@ def state_line(
         return REMINDER if remind else None
     summary = str(payload["summary"])
     if not (bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db)):
+        # A full rebuild outranks a refresh: an incremental refuses across a contract change (455).
+        if FULL_REBUILD_REQUIRED in payload or payload.get("staleness") == INCOMPLETE:
+            return PREFIX + summary + ((start_rebuild(root) if refresh else None) or "")
         if refresh and payload.get("staleness") == BEHIND and start_refresh(root):
             return PREFIX + summary + BACKGROUND_REFRESH
         return PREFIX + summary
