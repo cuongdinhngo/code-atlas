@@ -236,7 +236,10 @@ def render_plugin_hooks() -> str:
     the release check (405): a background tag fetch, and a cache read that speaks when one is newer.
     """
     hooks = _claude_code_hooks(plugin_command)
-    refresh = {"type": "command", "command": plugin_command("code-atlas-refresh")}
+    refresh = {
+        "type": "command",
+        "command": plugin_command("code-atlas-refresh --trigger session-start"),
+    }
     hooks["SessionStart"].append({"hooks": [{**refresh, "async": True, "timeout": 600}]})
     check = plugin_command(f"{RELEASE_CHECK} {EXPECT_FLAG} {_package()['version']}")
     fetch = plugin_command(f"{RELEASE_CHECK} {FETCH_FLAG} {REPOSITORY_URL}")

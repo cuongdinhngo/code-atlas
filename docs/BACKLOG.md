@@ -42,6 +42,17 @@ the consuming repo's own config.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 
+## Open work — Freshness by setup (epic 451)
+
+Both anchors: the index lags HEAD and agents fall back to grep. Install sets up the hooks, or says it did not.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 451 | [Epic: install sets up the freshness hooks, or reports `unguarded`](tasks/451_freshness-by-setup.md) | Freshness | todo | 452–455 |
+| 453 | [`code-atlas-setup` installs the hooks; missing ones report `unguarded`](tasks/453_code-atlas-setup.md) | Freshness | todo | 452 |
+| 454 | [Session refresh and symbol guard become product scripts](tasks/454_session-refresh-and-guard-in-product.md) | Freshness | todo | 453, 377 |
+| 455 | [Opt-in background full rebuild on a contract change](tasks/455_opt-in-background-full-rebuild.md) | Freshness | todo | 453, 356 |
+
 ## Open work — Trust (security)
 
 Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have

@@ -5,6 +5,6 @@
 # Keep stderr so missing PATH / ConfigError stay visible (R5.3).
 [ "$1" = "rebase" ] || exit 0
 (
-  code-atlas-refresh >/dev/null
+  code-atlas-refresh --trigger post-rewrite >/dev/null
 ) &
 exit 0

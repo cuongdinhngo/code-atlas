@@ -26,6 +26,8 @@ from code_atlas.limits import CONFIG_CEILINGS, DEFAULT_MAX_FILE_BYTES
 from code_atlas.onboarding.audience import DEFAULT_AUDIENCE, resolve_audience
 
 PROJECT_FILE = ".code-atlas.toml"
+# Under the user's config dir; every process of one user reads it, whatever its environment (452).
+USER_FILE_NAME = "config.toml"
 ADAPTER_CMD_TABLE = "adapter_cmd"
 ADAPTER_CMD_ENV = re.compile(r"^CA_([A-Z0-9_]+)_CMD$")
 # The indexed repo is untrusted: its file may name an argv only once the user opts in, from a place
@@ -142,6 +144,8 @@ class Config:
     # Defaulted so every `replace(...)` and hand-built Config keeps working; load_config sets both.
     identity: str = ""
     config_env: tuple[tuple[str, str], ...] = ()
+    # The user-level file this Config read adapter commands from, if any (452).
+    user_file: Path | None = None
     # The caller's checkout when a client reports no roots: its worktree overlays the graph (389).
     caller_root: Path | None = None
     # A source file above this is skipped and counted, never sent to an adapter (430).
@@ -219,7 +223,9 @@ def _config_env_slice(env: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
     )
 
 
-def config_identity(root: Path, env: Mapping[str, str] | None = None) -> str:
+def config_identity(
+    root: Path, env: Mapping[str, str] | None = None, *, user_file: Path | None = None
+) -> str:
     """A short hash of the config this call would resolve: the project file's bytes plus its env.
 
     164 stamped *which code answered*; nothing stamped *which config answered* — and config decides
@@ -234,6 +240,12 @@ def config_identity(root: Path, env: Mapping[str, str] | None = None) -> str:
     except OSError:
         # Naming the config must never raise, exactly as naming the build must not (cf. build_info).
         digest.update(_NO_PROJECT_FILE)
+    # Hashed only when present, so an install without one keeps the id it had (452, R4.2).
+    if user_file is not None and user_file.is_file():
+        try:
+            digest.update(b"\0user\0" + user_file.read_bytes())
+        except OSError:
+            pass
     for name, value in _config_env_slice(environ):
         digest.update(b"\0")
         digest.update(name.encode())
@@ -250,13 +262,16 @@ def config_stale(config: Config) -> bool:
     axis that can move. A live re-read, not a memo — the defect is that it was never compared again.
     One small file read plus a hash, at build time and on status; never per nav payload.
     """
-    return config_identity(config.root, dict(config.config_env)) != config.identity
+    current = config_identity(config.root, dict(config.config_env), user_file=config.user_file)
+    return current != config.identity
 
 
 def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
     """Resolve every knob for ``root``: environment, then the project file, then the default."""
     environ = os.environ if env is None else env
     file_values = _read_project_file(root)
+    user_file = user_config_path(environ)
+    user_cmds = _read_user_file(user_file)
     host_root = _resolve_mapping_root("host_root", environ, file_values)
     container_root = _resolve_mapping_root("container_root", environ, file_values)
     _validate_root_pair(host_root, container_root)
@@ -308,9 +323,10 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         tools=_resolve("tools", _as_tools, None, environ, file_values),
         host_root=host_root,
         container_root=container_root,
-        adapter_cmds=_adapter_cmds(environ, file_values),
-        identity=config_identity(root, environ),
+        adapter_cmds=_adapter_cmds(environ, file_values, user_cmds),
+        identity=config_identity(root, environ, user_file=user_file),
         config_env=_config_env_slice(environ),
+        user_file=user_file,
         caller_root=_resolve_optional_path("caller_root", environ, file_values),
         max_file_bytes=_resolve(
             "max_file_bytes", _as_int, DEFAULT_MAX_FILE_BYTES, environ, file_values
@@ -453,10 +469,39 @@ def _resolve_db_path(env: Mapping[str, str], file_values: Mapping[str, object]) 
     return Path(raw)
 
 
+def user_config_path(env: Mapping[str, str]) -> Path | None:
+    """The user-level file, from the given mapping only: a test never reads the real home (452)."""
+    base = env.get("XDG_CONFIG_HOME") or (env.get("APPDATA") if os.name == "nt" else None)
+    if not base and env.get("HOME"):
+        base = str(Path(env["HOME"]) / ".config")
+    return Path(base) / "code-atlas" / USER_FILE_NAME if base else None
+
+
+def _read_user_file(path: Path | None) -> Mapping[str, tuple[str, ...]]:
+    """Adapter commands the user recorded: outside every repo, so trusted unflagged (R9.1)."""
+    if path is None or not path.is_file():
+        return {}
+    try:
+        values = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as error:
+        raise ConfigError(f"{path}: cannot be read as TOML ({error})") from error
+    table = values.get(ADAPTER_CMD_TABLE, {})
+    if set(values) - {ADAPTER_CMD_TABLE} or not isinstance(table, dict):
+        raise ConfigError(
+            f"{path}: expected only a [{ADAPTER_CMD_TABLE}] table of <lang> = <command>"
+        )
+    return {
+        key.lower(): _as_command(f"{path}:{ADAPTER_CMD_TABLE}.{key}", table[key])
+        for key in sorted(table)
+    }
+
+
 def _adapter_cmds(
-    env: Mapping[str, str], file_values: Mapping[str, object]
+    env: Mapping[str, str],
+    file_values: Mapping[str, object],
+    user_cmds: Mapping[str, tuple[str, ...]] | None = None,
 ) -> Mapping[str, tuple[str, ...]]:
-    """Adapter launch commands from the project file, overridden by any ``CA_<LANG>_CMD``."""
+    """User file, then the trusted project file, then any ``CA_<LANG>_CMD`` — the env wins."""
     table = file_values.get(ADAPTER_CMD_TABLE, {})
     if not isinstance(table, dict):
         raise ConfigError(
@@ -470,7 +515,7 @@ def _adapter_cmds(
             f"client or shell instead, or {TRUST_PROJECT_FILE_ENV}=1 if you trust this repo"
         )
 
-    cmds: dict[str, tuple[str, ...]] = {}
+    cmds: dict[str, tuple[str, ...]] = dict(user_cmds or {})
     for key in sorted(table):
         label = f"{PROJECT_FILE}:{ADAPTER_CMD_TABLE}.{key}"
         cmds[key.lower()] = _as_command(label, table[key])

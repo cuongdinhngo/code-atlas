@@ -1232,7 +1232,7 @@ a silent fallback.
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
 | `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |
 | `CA_CALLER_ROOT` | `caller_root` | unset | the caller's worktree when the client reports no MCP `roots` — reads overlay it (389); ignored when roots arrive, and by a call that passes `caller_root` (408) |
-| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode . The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` (341) |
+| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode . The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` (341); `[adapter_cmd]` in `~/.config/code-atlas/config.toml` (or `$XDG_CONFIG_HOME`, `%APPDATA%`) needs no flag and reaches every hook (452) |
 | `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]` choose the argv. Unset, a table there is a loud error: a repo you index must not pick the command code-atlas runs (341) |
 
 ```toml

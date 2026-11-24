@@ -420,10 +420,10 @@ defaults. A field present as `None` is stored as an explicit NULL.
 
 ## 11. Config & ignore
 
-**Resolution order: env `CA_*` → project file `.code-atlas.toml` → default.** The file lives at the
-repo root, is meant to be committed, and is read with stdlib `tomllib`; its keys are the env names
+**Resolution order: env `CA_*` → project file `.code-atlas.toml` → default.** The committed file sits
+at the repo root; its keys are the env names
 lower-cased without the prefix, plus an `[adapter_cmd]` table holding one complete argv per language
-(§9). A malformed value or an unknown key **fails loud** (R5.3) — it never falls back. Naming rules
+(§9). A malformed value or an unknown key **fails loud** (R5.3). Naming rules
 are in [`CONVENTION.md`](CONVENTION.md) §2, and **every knob, its default and what it governs is in
 [`TOOLS.md`](TOOLS.md) *Configuration reference*** — not kept twice (R6.7).
 
@@ -705,7 +705,8 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
 - **Onboarding** (§14) is **Phase 3**, a graph *consumer*; the core stays deterministic and the LLM
   prose seams live outside it (R4.1). Shipped M10–M12.
 - **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
-  needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
+  needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity;
+  `~/.config/code-atlas/config.toml`, outside every repo, needs none (452).
 - **Releases are versioned; the plugin checks the tags — 2026-09-30 (348), re-decided 2026-10-09
   (374) and 2026-10-10 (381), re-opened 2026-10-18 (405).**
   - **How a release is defined.** A release is the package version plus the contract and schema it

@@ -4,6 +4,6 @@
 # Always exit 0; run out of band so an incremental never blocks the commit.
 # Keep stderr so missing PATH / ConfigError stay visible (R5.3).
 (
-  code-atlas-refresh >/dev/null
+  code-atlas-refresh --trigger post-commit >/dev/null
 ) &
 exit 0

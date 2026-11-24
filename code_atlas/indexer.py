@@ -374,8 +374,8 @@ COVERAGE_LOSS = "coverage_loss"
 # No route. No registered tool can configure an adapter, and naming one that cannot answer the
 # question is worse than naming none (R5.4c) — so this carries a hint and no route (203).
 COVERAGE_LOSS_HINT = (
-    "configure the missing adapter before rebuilding: set `adapter_cmd.<language>` in "
-    ".code-atlas.toml, or export CA_<LANGUAGE>_CMD"
+    "configure the missing adapter first: set `adapter_cmd.<language>` in "
+    "~/.config/code-atlas/config.toml, or export CA_<LANGUAGE>_CMD"
 )
 COVERAGE_LOSS_IN_BAND = "allow_coverage_loss=true"
 
@@ -1255,7 +1255,8 @@ def _require_configured_adapters(config: Config) -> None:
     if config.adapter_cmds:
         return
     raise AdapterError(
-        "no adapters configured — set CA_<LANG>_CMD or .code-atlas.toml [adapter_cmd].<lang>"
+        "no adapters configured — set CA_<LANG>_CMD or [adapter_cmd].<lang> in "
+        "~/.config/code-atlas/config.toml"
     )
 
 

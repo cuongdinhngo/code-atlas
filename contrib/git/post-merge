@@ -4,6 +4,6 @@
 # Always exit 0; run out of band so a ~minute incremental never blocks git.
 # Keep stderr so missing PATH / ConfigError stay visible (R5.3).
 (
-  code-atlas-refresh >/dev/null
+  code-atlas-refresh --trigger post-merge >/dev/null
 ) &
 exit 0
