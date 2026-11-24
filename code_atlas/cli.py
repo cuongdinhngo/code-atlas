@@ -138,10 +138,37 @@ def main(argv: list[str] | None = None) -> int:
         help="always run a full build (default: incremental, falling back to full when the "
         "index is absent or git cannot supply a diff)",
     )
+    parser.add_argument(
+        "--no-hooks",
+        action="store_true",
+        help="on a first build, skip `code-atlas-setup` and record that choice (453)",
+    )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     if args.status:
         return status(_project_root())
+    first_setup(_project_root(), declined=args.no_hooks)
     return build(_project_root(), full=args.full)
+
+
+def first_setup(root: Path, *, declined: bool) -> None:
+    """A repo's first build installs the freshness hooks, or records `--no-hooks` (453)."""
+    from code_atlas.setup_hooks import decline, record_path, run
+
+    try:
+        from code_atlas.config import load_config
+
+        if record_path(root).is_file():
+            return
+        if declined:  # recorded on any build, so `unguarded` stops for a choice already made
+            decline(root)
+            return
+        if load_config(root).db_path.is_file():
+            return
+        _say("first build: installing the hooks that keep the index fresh (code-atlas-setup)")
+        for part in run(root, os.environ):
+            _say(part.line())
+    except Exception as error:  # noqa: BLE001 — setup never stands between a user and a build
+        _say(f"setup skipped: {type(error).__name__}: {error} — run code-atlas-setup")
 
 
 if __name__ == "__main__":

@@ -336,6 +336,7 @@ def index_settled(payload: Mapping[str, object], db: Path) -> bool:
         CURRENT,
         FULL_REBUILD_REQUIRED,
         REFRESH_REFUSED,
+        UNGUARDED,
     )
 
     if bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db):
@@ -343,7 +344,7 @@ def index_settled(payload: Mapping[str, object], db: Path) -> bool:
     # An older-era index at an unmoved HEAD still reads `current` — that one must speak (347),
     # and so must one whose refresh refuses for a missing adapter (355) or a broken one (401).
     pending = any(key in payload for key in (FULL_REBUILD_REQUIRED, COVERAGE_LOSS_PENDING))
-    pending = pending or REFRESH_REFUSED in payload
+    pending = pending or REFRESH_REFUSED in payload or UNGUARDED in payload
     return payload.get("staleness") == CURRENT and not pending
 
 

@@ -142,9 +142,10 @@ def test_post_checkout_snippet_guards_third_arg() -> None:
     assert "exit 0" in text
 
 
-def test_contrib_readme_says_manual_install() -> None:
+def test_contrib_readme_names_the_installer() -> None:
+    """053 said "not installed automatically"; 453 made `code-atlas-setup` the one installer."""
     text = (REPO / "contrib" / "git" / "README.md").read_text(encoding="utf-8")
-    assert "not installed automatically" in text.lower()
+    assert "`code-atlas-setup` installs them" in text
     assert "code-atlas-refresh" in text
 
 

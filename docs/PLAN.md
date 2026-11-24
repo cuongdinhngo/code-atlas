@@ -732,8 +732,9 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   reason code and `total_count`, and a subject the index has no exact node for is **classified before
   it is answered** rather than returned as a confident zero (the vocabulary and the full payload
   contract live in [`CONVENTION.md`](CONVENTION.md) §6). Freshness is **enforced, not surfaced**:
-  inline reparse on hash drift with a per-call cap, zero-hit miss-repair, and opt-in host hooks for
-  edit, checkout, read and grep — one install as the Claude Code plugin (344), or merged by hand.
+  inline reparse on hash drift with a per-call cap, zero-hit miss-repair, and host hooks for edit,
+  checkout, read and grep, installed by `code-atlas-setup` (453) or the plugin
+  (344); without them, `unguarded`.
 - **Fewer round-trips beats fewer rows.** `include_source` rides each call site's own line (−28 % for
   the identical answer). **Consolidating the relation tools was measured and rejected** — one
   `find_relations` wins below ≈36 relation calls per session and loses above, a spread too small to

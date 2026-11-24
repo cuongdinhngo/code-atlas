@@ -7,8 +7,9 @@ already exists. Complements the Claude Code Edit/Write poke
 (task 035): changes that never pass through the agent's editor still reach the
 index without waiting for someone to call the MCP build tool.
 
-These hooks are **not installed automatically**. `.git/hooks` is not
-version-controlled, and this project never writes into a user's `.git` for them.
+**`code-atlas-setup` installs them for you** (453): a marked block in each hook under `.git/hooks` (or `core.hooksPath`), calling
+`code-atlas-refresh` by its absolute path, appended to a hook you already have. Nothing else in
+code-atlas writes into `.git`; the steps below are the hand route.
 
 ## Install
 

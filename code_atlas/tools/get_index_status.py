@@ -153,6 +153,8 @@ KEYS_UNREAD_FIELD = "keys_unread"
 EXEC_UNRESOLVED_FIELD = "exec_unresolved"
 # The last hook refresh that did not run, with its fix, until a build succeeds (401).
 REFRESH_REFUSED = "refresh_refused"
+# 453: the hooks that keep this index fresh are missing; `code-atlas-setup` installs them.
+UNGUARDED = "unguarded"
 REFRESH_REFUSED_LEAD = "last refresh refused"
 # The hook's own reason for an exception it swallowed, so the record has one shape (401).
 REFRESH_ERROR = "refresh_error"
@@ -307,6 +309,15 @@ def _attach_rules_stale(status: dict[str, object], config: Config, store: GraphS
     status[RULES_DIGEST_FIELD] = {"built": drift.built, "current": drift.current}
     if drift.error is not None:
         status[RULES_ERROR_FIELD] = drift.error
+
+
+def _attach_unguarded(status: dict[str, object], config: Config, *, in_git: bool) -> None:
+    """Name what setup has not installed in a git checkout (453); a declined repo says nothing."""
+    from code_atlas.setup_hooks import SETUP_ROUTE, guard_gaps
+
+    gaps = guard_gaps(config.root) if in_git and status.get("indexed") else None
+    if gaps:
+        status[UNGUARDED] = {"gaps": gaps, "route": SETUP_ROUTE}
 
 
 def _attach_refresh_refused(status: dict[str, object], config: Config) -> None:
@@ -519,6 +530,11 @@ def _compose_summary(payload: dict[str, object]) -> str:
         sentence += f" — {COVERAGE_LOSS}: {', '.join(lost)} — {COVERAGE_LOSS_HINT}"
     if payload.get("indexed"):
         sentence += _refresh_refused_clause(payload)
+    guard = payload.get(UNGUARDED)
+    # One fix per sentence: a pending loss or rebuild blocks every refresh first (453).
+    blocked = COVERAGE_LOSS_PENDING in payload or FULL_REBUILD_REQUIRED in payload
+    if isinstance(guard, dict) and not blocked:
+        sentence += f" — {UNGUARDED}: run `{guard.get('route')}`"
     # The last line of defence: one line, no control/bidi/ANSI character, bounded (421 AC4).
     return scrubbed(sentence, SUMMARY_CAP)
 
@@ -671,6 +687,7 @@ def _status(
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     _attach_rules_stale(status, config, store)
     _attach_refresh_refused(status, config)
+    _attach_unguarded(status, config, in_git=revision.get("head_commit") is not None)
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal", index_held=held)
         _attach_rebuild_pending(status, store)
