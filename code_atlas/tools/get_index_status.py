@@ -691,7 +691,9 @@ def _status(
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal", index_held=held)
         _attach_rebuild_pending(status, store)
-        return signed(_with_summary(status))
+        minimal = _with_summary(status)
+        minimal.pop(UNGUARDED, None)  # the summary names it; the field would break the budget (453)
+        return signed(minimal)
     _attach_behind_routes(
         status,
         staleness=staleness,
