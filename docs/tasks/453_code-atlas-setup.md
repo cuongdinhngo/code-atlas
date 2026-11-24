@@ -211,6 +211,12 @@ Reviewed at 0a8cbf58 — files: `code_atlas/gitutil.py`, `code_atlas/setup_hooks
 `Ph3/4 proven by`: R1–R4, AC1–AC4 → `tests/test_code_atlas_setup.py` (14); AC5 → `tests/test_server_instructions.py`;
 scope 1's `.claude/settings.json` → exclusion (W3), expiry this PR's merge.
 
+- **Round 4** (resumed, 3,501 tokens; 85,189 cumulative − 81,688): after review the full gate found three things
+  the worktree's suites skipped or did not run — the grep nudge went silent in every repo without setup
+  (`index_answers` read `unguarded` as unsettled), the `minimal` payload broke §12's budget, and two fixtures assert a
+  settled index. Fixed in `c2013d93`, `2fe743fb` and a module-count pin (`tests/test_sql_confinement.py`); the
+  challenger re-reviewed that delta: 16 met · 1 not met covered by the exclusion, unchanged.
+
 ## Phase 5 — finalise
 
 Stale-review guard: only bookkeeping after the review (this file, `docs/LESSONS.md`, `docs/BACKLOG.md`,
@@ -240,5 +246,6 @@ Next: 454. Revert: `code-atlas-setup --remove` in each repo it ran in, then reve
 | 4 review | ticket-blind `challenger` | 1 | 73,921 |
 | 4 review | ticket-blind `challenger` | 2 | 7,404 (resumed: 81,325 cumulative − 73,921) |
 | 4 review | ticket-blind `challenger` | 3 | 363 (resumed: 81,688 − 81,325; the verdict line re-emitted) |
+| 4 review | ticket-blind `challenger` | 4 | 3,501 (resumed: 85,189 − 81,688; the post-gate delta) |
 
-`LEDGER TOTAL: 131,120 · top cost driver: 4 review / challenger` — main loop unmeasured.
+`LEDGER TOTAL: 134,621 · top cost driver: 4 review / challenger` — main loop unmeasured.
