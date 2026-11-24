@@ -208,6 +208,11 @@ Reviewed at 89e775fb — files: `code_atlas/hooks/guard.py`, `code_atlas/hooks/s
 `Ph3/4 proven by`: R1–R4, AC1–AC3 → `tests/test_grep_guard.py` (8) and the state suites; AC4 → exclusion (expiry: the
 first release shipping 454), with the anchor probe in Phase 3.
 
+- **Round 2** (resumed, 4,857 tokens; 78,079 cumulative − 73,222): after publishing on 453's tip, the full gate made
+  two guards name this change — SEC-IN-14's spawn allow-list gains `hooks/state.py` (its own scripts, asserted
+  never git) and SEC-PL-02 names the renamed plugin test. Re-reviewed: no guard weakened; verdict unchanged.
+  Gate: GATE GREEN at `80d44f7a` (26 passed).
+
 ## Phase 5 — finalise
 
 Stale-review guard: only bookkeeping after the review — not stale.
@@ -234,5 +239,6 @@ Next: 455. Revert: revert the commit and re-run `code-atlas-setup` to restore th
 |---|---|---|---|
 | 0 refine | exposure-checker (`challenger`) | 1 | 49,638 |
 | 4 review | ticket-blind `challenger` | 1 | 73,222 |
+| 4 review | ticket-blind `challenger` | 2 | 4,857 (resumed: 78,079 − 73,222; the post-gate delta) |
 
-`LEDGER TOTAL: 122,860 · top cost driver: 4 review / challenger` — main loop unmeasured.
+`LEDGER TOTAL: 127,717 · top cost driver: 4 review / challenger` — main loop unmeasured.
