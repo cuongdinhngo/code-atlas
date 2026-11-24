@@ -357,7 +357,10 @@ def index_answers(root: Path) -> bool:
     db = config.db_path
     if not db.is_file() or db.stat().st_size == 0:
         return False
-    return index_settled(get_index_status.create(config, ())(), db)
+    payload = get_index_status.create(config, ())()
+    # Missing hooks (453) leave today's answers right; only the state line speaks about them.
+    payload.pop(get_index_status.UNGUARDED, None)
+    return index_settled(payload, db)
 
 
 def state_line(root: Path, *, verbose: bool = False) -> str | None:
