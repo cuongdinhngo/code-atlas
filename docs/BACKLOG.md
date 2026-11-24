@@ -49,7 +49,6 @@ Both anchors: the index lags HEAD and agents fall back to grep. Install sets up 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 451 | [Epic: install sets up the freshness hooks, or reports `unguarded`](tasks/451_freshness-by-setup.md) | Freshness | todo | 452–455 |
-| 454 | [Session refresh and symbol guard become product scripts](tasks/454_session-refresh-and-guard-in-product.md) | Freshness | todo | 453, 377 |
 | 455 | [Opt-in background full rebuild on a contract change](tasks/455_opt-in-background-full-rebuild.md) | Freshness | todo | 453, 356 |
 
 ## Open work — Trust (security)

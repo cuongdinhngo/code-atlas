@@ -24,10 +24,10 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 import gen_skill  # noqa: E402
 
-REFRESH = "code-atlas-refresh"
-# The hooks a plugin carries and a hand snippet never does: one async refresh (344), and the release
-# check's async fetch and sync speaker (405) — a network call no committed project file may make.
-PLUGIN_ONLY = (REFRESH, gen_skill.RELEASE_CHECK)
+# The hooks a plugin carries and a hand snippet never does: the release check's async fetch and sync
+# speaker (405) — a network call no committed project file may make. The state hook now starts the
+# refresh when behind (454), so the plugin no longer runs one unconditionally.
+PLUGIN_ONLY = (gen_skill.RELEASE_CHECK,)
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -64,7 +64,7 @@ def test_a_drifted_hook_list_is_caught() -> None:
     assert _ungated(plugin) != _ungated(_load(gen_skill.CLAUDE_CODE_SNIPPET_PATH))
 
 
-def test_the_plugin_adds_only_the_refresh_and_the_release_check() -> None:
+def test_the_plugin_adds_only_the_release_check() -> None:
     """344 Scope 2 · 405: plugin-only hooks run at SessionStart, and only the cache read blocks."""
     plugin = _load(gen_skill.PLUGIN_HOOKS_PATH)["hooks"]
     extra = {
@@ -75,7 +75,7 @@ def test_the_plugin_adds_only_the_refresh_and_the_release_check() -> None:
     version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
     check = f"{gen_skill.RELEASE_CHECK} {gen_skill.EXPECT_FLAG} {version}"
     fetch = f"{gen_skill.RELEASE_CHECK} {gen_skill.FETCH_FLAG} {gen_skill.REPOSITORY_URL}"
-    assert extra == {f"{REFRESH} --trigger session-start": True, fetch: True, check: False}
+    assert extra == {fetch: True, check: False}
     every = [gen_skill.ungate(c).split()[0] for c in _commands(plugin)]
     assert sum(c in PLUGIN_ONLY for c in every) == len(extra)
 
@@ -89,7 +89,7 @@ def test_every_plugin_hook_is_gated_and_names_a_declared_script() -> None:
     scripts = set(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
     called = {gen_skill.ungate(c).split()[0] for c in _gated_commands()}
     assert all(c.startswith(gen_skill.PLUGIN_GATE) for c in _gated_commands())
-    assert called <= scripts and {"code-atlas-state", "code-atlas-refresh"} <= called, called
+    assert called <= scripts and {"code-atlas-state", "code-atlas-guard"} <= called, called
 
 
 def _fake_scripts(tmp_path: Path) -> dict[str, str]:

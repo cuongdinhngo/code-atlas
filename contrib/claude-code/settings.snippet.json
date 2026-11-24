@@ -350,49 +350,6 @@
             "if": "Read(*.cjs)"
           }
         ]
-      },
-      {
-        "matcher": "Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
-            "timeout": 10,
-            "if": "Bash(grep *)"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
-            "timeout": 10,
-            "if": "Bash(rg *)"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
-            "timeout": 10,
-            "if": "Bash(git grep *)"
-          }
-        ]
       }
     ],
     "PreToolUse": [
@@ -503,6 +460,49 @@
             "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.cjs)"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-guard >/dev/null 2>&1 || exit 0; exec code-atlas-guard",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-guard >/dev/null 2>&1 || exit 0; exec code-atlas-guard",
+            "timeout": 10,
+            "if": "Bash(grep *)"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-guard >/dev/null 2>&1 || exit 0; exec code-atlas-guard",
+            "timeout": 10,
+            "if": "Bash(rg *)"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-guard >/dev/null 2>&1 || exit 0; exec code-atlas-guard",
+            "timeout": 10,
+            "if": "Bash(git grep *)"
           }
         ]
       }

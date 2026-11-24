@@ -36,7 +36,7 @@ def test_the_skew_line_reaches_the_screen_and_the_agent(
     assert skew.startswith(state.PREFIX + "hooks expect code-atlas 0.0.1")
     assert sent["hookSpecificOutput"] == {
         "hookEventName": "SessionStart",
-        "additionalContext": skew,
+        "additionalContext": skew + "\n" + state.REMINDER,  # 454: the agent also gets the reminder
     }
 
 
@@ -55,4 +55,4 @@ def test_a_current_install_stays_silent(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert _run(monkeypatch, capsys, "SessionStart") == ""
+    assert _run(monkeypatch, capsys, "SessionStart") == state.REMINDER + "\n"  # 454, no skew

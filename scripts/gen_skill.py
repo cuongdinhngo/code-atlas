@@ -222,7 +222,7 @@ def _claude_code_hooks(command: Callable[[str, bool], str]) -> dict[str, Any]:
         "timeout": 60,
     }
     signal = {"type": "command", "command": command("code-atlas-signal", False), "timeout": 10}
-    nudge = {"type": "command", "command": command("code-atlas-nudge", False), "timeout": 10}
+    guard = {"type": "command", "command": command("code-atlas-guard", False), "timeout": 10}
     # 348/374: the release and contract this table came from, so the hook can order every half.
     expect = (
         f"code-atlas-state --expect-contract {CONTRACT_VERSION}"
@@ -230,31 +230,24 @@ def _claude_code_hooks(command: Callable[[str, bool], str]) -> dict[str, Any]:
     )
     state = {"type": "command", "command": command(expect, False), "timeout": 10}
     start = {**state, "command": command(expect, True)}
-    # 345: the grep-time nudge — the Grep tool, and a Bash call that starts with a search command.
-    searches = [{"matcher": "Grep", "hooks": [nudge]}] + [
-        {"matcher": "Bash", "hooks": [{**nudge, "if": f"Bash({cmd} *)"}]}
+    # 454: the grep-time guard (345's nudge, or a refusal) — before the search answers.
+    searches = [{"matcher": "Grep", "hooks": [guard]}] + [
+        {"matcher": "Bash", "hooks": [{**guard, "if": f"Bash({cmd} *)"}]}
         for cmd in ("grep", "rg", "git grep")
     ]
     return {
-        "PostToolUse": _per_suffix(("Edit", "Write"), poke)
-        + _per_suffix(("Read",), signal)
-        + searches,
-        "PreToolUse": _per_suffix(("Write",), signal),
+        "PostToolUse": _per_suffix(("Edit", "Write"), poke) + _per_suffix(("Read",), signal),
+        "PreToolUse": _per_suffix(("Write",), signal) + searches,
         "SessionStart": [{"hooks": [start]}],
         "PreCompact": [{"hooks": [state]}],
     }
 
 
 def render_plugin_hooks() -> str:
-    """The snippet's hooks, each gated on the index, plus a background refresh at start (344) and
+    """The snippet's hooks, each gated on the index, plus
     the release check (405): a background tag fetch, and a cache read that speaks when one is newer.
     """
     hooks = _claude_code_hooks(plugin_command)
-    refresh = {
-        "type": "command",
-        "command": plugin_command("code-atlas-refresh --trigger session-start"),
-    }
-    hooks["SessionStart"].append({"hooks": [{**refresh, "async": True, "timeout": 600}]})
     check = plugin_command(f"{RELEASE_CHECK} {EXPECT_FLAG} {_package()['version']}")
     fetch = plugin_command(f"{RELEASE_CHECK} {FETCH_FLAG} {REPOSITORY_URL}")
     hooks["SessionStart"].append({"hooks": [{"type": "command", "command": check, "timeout": 10}]})

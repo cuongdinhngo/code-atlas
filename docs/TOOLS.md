@@ -1185,16 +1185,22 @@ doc references — instruction files first, strong `unknown` counted apart from 
 inside the read signal's 150 tokens (439). It reads the counts a build or refresh stored, never the
 docs; an index or docs that moved since say so in the line (443).
 
-### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)
+### The grep-time guard — a nudge or a refusal before a grep for a symbol (opt-in, 345, 454)
 
-`code-atlas-nudge` runs at `PostToolUse` on `Grep` and on a `Bash` call that starts with `grep`, `rg`
-or `git grep`. When the pattern matches a shape an adapter declared in its v13 handshake
+`code-atlas-guard` runs at `PreToolUse` on `Grep` and on a `Bash` call that starts with `grep`, `rg`
+or `git grep`, in the mode `code-atlas-setup --guard` records: `off`; `nudge` (default) — the line
+below; `refuse` — the grep is denied until the session transcript holds a code-atlas query naming one
+of its identifiers, or a code-atlas call failed for a reason other than a bad argument (the server
+cannot answer). Unsure allows. `code-atlas-nudge`, the same line at `PostToolUse`, stays for older
+installs. When the pattern matches a shape an adapter declared in its v13 handshake
 (`symbol_shapes`, stamped into the index at build time), it injects one line through
 `additionalContext` — *ask the index first, keep Grep as the cross-check*. A shape fires when the grep
 is unscoped or scoped to that adapter's suffixes, and a `scoped` shape only in the latter. Once per
 kind per session, and per subagent inside it (keyed `session/agent_id`, 377); firings append to
 `.code-atlas/nudge.log`. Silent unless the index is settled — `current`, no build running, nothing
-pending, the state hook's own judgement (377); never blocks; always exits 0.
+pending, the state hook's own judgement (377); never blocks; always exits 0. At `SessionStart` the
+state hook adds a one-line routing reminder when the index is settled, and starts a detached
+`code-atlas-refresh` when it is `behind` (454).
 
 ## Configuration reference
 

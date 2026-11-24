@@ -55,6 +55,13 @@ TOKEN_BUDGET = 90
 
 OCCASIONS = frozenset({"SessionStart", "PreCompact", "PostCompact"})
 PREFIX = "code-atlas: "
+# 454: the anchors' session reminder, restated at every start and after compaction.
+REMINDER = (
+    "code-atlas: ask the index first for a symbol question — search_symbol, then read_symbol / "
+    "find_callers / find_references / impact; keep Grep for literal text and to verify an empty "
+    "answer."
+)
+BACKGROUND_REFRESH = " · refreshing in the background (code-atlas-build --status)"
 EXPECT_FLAG = "--expect-version"
 EXPECT_CONTRACT_FLAG = "--expect-contract"
 PLUGIN_REMOVE = "`claude plugin marketplace remove code-atlas`"
@@ -363,12 +370,42 @@ def index_answers(root: Path) -> bool:
     return index_settled(payload, db)
 
 
-def state_line(root: Path, *, verbose: bool = False) -> str | None:
-    """The state line for this project, or ``None`` when silence is right."""
+def start_refresh(root: Path) -> bool:
+    """A detached incremental refresh, so the session never waits on it (454); False if none ran."""
+    import subprocess
+
+    from code_atlas.setup_hooks import refresh_command
+
+    command = refresh_command()
+    if command is None:
+        return False
+    from code_atlas.containment import safe_open
+
+    log = root / ".code-atlas" / "refresh.log"
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    with os.fdopen(safe_open(log, flags, root=root), "a", encoding="utf-8") as sink:
+        argv = [command, "--trigger", "session-start"]
+        quiet = {"cwd": root, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
+        if os.name == "nt":
+            flag = getattr(subprocess, "DETACHED_PROCESS", 0)
+            subprocess.Popen(argv, stderr=sink, creationflags=flag, **quiet)  # type: ignore[call-overload]
+        else:
+            subprocess.Popen(argv, stderr=sink, start_new_session=True, **quiet)  # type: ignore[call-overload]
+    return True
+
+
+def state_line(
+    root: Path, *, verbose: bool = False, remind: bool = False, refresh: bool = False
+) -> str | None:
+    """The state line for this project, or ``None`` when silence is right.
+
+    The hook asks for the reminder when settled and a background refresh when behind (454).
+    """
     from code_atlas.config import load_config
     from code_atlas.index_lock import build_in_progress, read_build_progress
     from code_atlas.tools import get_index_status
     from code_atlas.tools.get_index_status import BUILD_IN_PROGRESS
+    from code_atlas.tools.staleness import BEHIND
 
     config = load_config(root)
     db = config.db_path
@@ -378,10 +415,12 @@ def state_line(root: Path, *, verbose: bool = False) -> str | None:
         return None
     payload = get_index_status.create(config, ())()
     if index_settled(payload, db):
-        _note("silent: index current, no build running", verbose=verbose)
-        return None
+        _note("settled: index current, no build running", verbose=verbose)
+        return REMINDER if remind else None
     summary = str(payload["summary"])
     if not (bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db)):
+        if refresh and payload.get("staleness") == BEHIND and start_refresh(root):
+            return PREFIX + summary + BACKGROUND_REFRESH
         return PREFIX + summary
     return _fit(summary, checked_progress(read_build_progress(db)))
 
@@ -426,7 +465,7 @@ def main(argv: list[str] | None = None) -> int:
         root = _project_root()
         if _indexed(root):
             skew = _install_skew(root, expected, _expected_contract(args))
-        line = state_line(root, verbose=verbose)
+        line = state_line(root, verbose=verbose, remind=True, refresh=event == SCREEN_EVENT)
     except Exception as error:
         # A broken state line must never break the session boundary it rides on.
         print(f"code-atlas state skipped: {type(error).__name__}: {error}", file=sys.stderr)

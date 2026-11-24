@@ -169,8 +169,10 @@ def _object(path: Path) -> dict[str, object] | None:
 
 def _ours(entry: object) -> bool:
     hooks = entry.get("hooks") if isinstance(entry, dict) else None
-    return isinstance(hooks, list) and bool(hooks) and all(
-        isinstance(h, dict) and str(h.get("command", "")).startswith(GATE) for h in hooks
+    return (
+        isinstance(hooks, list)
+        and bool(hooks)
+        and all(isinstance(h, dict) and str(h.get("command", "")).startswith(GATE) for h in hooks)
     )
 
 
@@ -251,14 +253,19 @@ def record_path(root: Path) -> Path:
     return root / ".code-atlas" / RECORD_NAME
 
 
-def write_record(root: Path, parts: list[Part], *, declined: bool) -> None:
+def write_record(
+    root: Path, parts: list[Part], *, declined: bool, guard: str | None = None
+) -> None:
     """What setup did, beside the index; read back as untrusted data by ``guard_gaps``."""
     hooks = sorted(
         p.name.removeprefix("git hook ")
         for p in parts
         if p.name.startswith("git hook ") and p.state in ("ok", "wrote")
     )
-    body = {"version": package_version(), "declined": declined, "hooks": hooks}
+    from code_atlas.hooks.guard import mode_of
+
+    mode = guard or mode_of(root)  # a re-run keeps the mode already chosen (454)
+    body = {"version": package_version(), "declined": declined, "hooks": hooks, "guard": mode}
     make_private_dir(record_path(root).parent)
     safe_write(record_path(root), json.dumps(body, indent=2) + "\n", root=root)
 
@@ -288,7 +295,12 @@ def guard_gaps(root: Path) -> list[str] | None:
 
 
 def run(
-    root: Path, env: Mapping[str, str], *, dry_run: bool = False, remove: bool = False
+    root: Path,
+    env: Mapping[str, str],
+    *,
+    dry_run: bool = False,
+    remove: bool = False,
+    guard: str | None = None,
 ) -> list[Part]:
     """Every part, in order; records the result unless this is a dry run or a removal."""
     home = Path(env["HOME"]) if env.get("HOME") else None
@@ -299,7 +311,7 @@ def run(
     if remove and not dry_run:
         record_path(root).unlink(missing_ok=True)
     elif not dry_run:
-        write_record(root, parts, declined=False)
+        write_record(root, parts, declined=False, guard=guard)
     return parts
 
 
@@ -322,6 +334,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-hooks", action="store_true", help="record that this repo goes without"
     )
+    parser.add_argument(
+        "--guard",
+        choices=("off", "nudge", "refuse"),
+        help="what a symbol-shaped grep meets: nothing, a nudge (default), or a refusal (454)",
+    )
     args = parser.parse_args(argv)
     root = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()).resolve()
     if args.no_hooks:
@@ -335,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
             print(part.line())
         print("code-atlas setup: " + (f"unguarded — {', '.join(gaps)}" if gaps else "guarded"))
         return MISSING if gaps or any(p.state in (WOULD_WRITE, "missing") for p in parts) else OK
-    parts = run(root, os.environ, dry_run=args.dry_run, remove=args.remove)
+    parts = run(root, os.environ, dry_run=args.dry_run, remove=args.remove, guard=args.guard)
     for part in parts:
         print(part.line())
     return FAILED if any(p.state == "missing" for p in parts) else OK
