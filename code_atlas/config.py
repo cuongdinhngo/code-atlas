@@ -471,8 +471,10 @@ def _resolve_db_path(env: Mapping[str, str], file_values: Mapping[str, object]) 
 
 def user_config_path(env: Mapping[str, str]) -> Path | None:
     """The user-level file, from the given mapping only: a test never reads the real home (452)."""
-    base = env.get("XDG_CONFIG_HOME") or (env.get("APPDATA") if os.name == "nt" else None)
-    if not base and env.get("HOME"):
+    # A relative base would resolve inside the repo and be trusted unflagged; XDG says ignore it.
+    bases = (env.get("XDG_CONFIG_HOME"), env.get("APPDATA") if os.name == "nt" else None)
+    base = next((b for b in bases if b and Path(b).is_absolute()), None)
+    if base is None and env.get("HOME") and Path(env["HOME"]).is_absolute():
         base = str(Path(env["HOME"]) / ".config")
     return Path(base) / "code-atlas" / USER_FILE_NAME if base else None
 
