@@ -6,6 +6,6 @@
 # Keep stderr so missing PATH / ConfigError stay visible (R5.3).
 [ "$3" = "1" ] || exit 0
 (
-  code-atlas-refresh >/dev/null
+  code-atlas-refresh --trigger post-checkout >/dev/null
 ) &
 exit 0

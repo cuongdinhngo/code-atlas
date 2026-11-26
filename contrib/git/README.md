@@ -13,7 +13,8 @@ version-controlled, and this project never writes into a user's `.git` for them.
 ## Install
 
 1. Install code-atlas so **`code-atlas-refresh`** is on `PATH` (same interpreter as
-   the MCP server — see the [README](../../README.md)).
+   the MCP server — see the [README](../../README.md)). A hook does not inherit your shell's
+   `CA_*`: put the adapter commands in the user-level config file (README *Configuration*, 452).
 2. Copy the hook scripts into the repo's `.git/hooks/` (names must match exactly):
 
    ```bash
@@ -36,7 +37,7 @@ version-controlled, and this project never writes into a user's `.git` for them.
 | `post-checkout` with git's 3rd arg ≠ `1` (file checkout) | Hook exits 0 immediately; no refresh |
 | `git commit` / `git commit --amend` | `post-commit` refreshes once; `post-rewrite` skips `amend` so an amend is not counted twice |
 | `git rebase` | `post-commit` fires per pick and `post-rewrite rebase` once more at the end; the picks that find a refresh running leave one pending request, which that refresh serves before it exits, so the index ends at the rebase's HEAD |
-| Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` (hooks keep stderr) |
+| Install/config error | Exit 0; **always** one dated stderr line `<UTC> code-atlas refresh skipped (<hook>): <reason> — <adapter>` (hooks keep stderr; each hook passes `--trigger <its name>`) |
 | Build refused (a full rebuild is required, or coverage would be lost) | Exit 0; **always** one stderr line with the reason and the route to run |
 
 **Why background?** A no-op / small incremental on a large index can cost on the

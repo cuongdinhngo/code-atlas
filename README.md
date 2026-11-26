@@ -422,7 +422,7 @@ never a silent fallback.
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** |
 | `CA_TOOLS` | `tools` | all 24 | comma-separated tool allow-list — see the six-tool preset below |
-| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode. The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` |
+| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode. The file table is honoured only with `CA_TRUST_PROJECT_FILE=1`; `[adapter_cmd]` in `~/.config/code-atlas/config.toml` (or `$XDG_CONFIG_HOME`, `%APPDATA%`) needs no flag and reaches every hook (452) |
 | `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]`, `host_root` and `container_root` choose the argv and the path mapping. Unset, any of them there is a loud error: a repo you index must not pick the command code-atlas runs |
 
 ```toml

@@ -103,7 +103,7 @@ def test_refresh_install_error_still_exits_zero(
     monkeypatch.setattr(config_mod, "load_config", bad_load)
     assert refresh_mod.refresh(tmp_path) == 0
     err = capsys.readouterr().err
-    assert "code-atlas refresh skipped:" in err
+    assert "code-atlas refresh skipped (manual): ConfigError — no adapters" in err
 
 
 def test_build_tool_returns_busy_when_lock_held(tmp_path: Path) -> None:

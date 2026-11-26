@@ -58,6 +58,24 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 452-C1 — a process a hook starts inherits no shell profile; what it needs comes from a file the user owns
+
+- type: 2 (code) · handle: `a-hook-inherits-no-shell-profile`
+- status: proposed · seen: 452
+- evidence: the PHP anchor's git hooks skipped 40 of 40 refreshes: the adapter commands lived in `~/.profile`, which a hook
+  started by an IDE or a non-login shell never reads. Reproduced with `env -i HOME PATH`; a user-level
+  `~/.config/code-atlas/config.toml` read by `load_config` closed it. Test a hook under `env -i`, not your shell.
+- destination: first sighting.
+
+### 452-C2 — mango's counted-line checker reads `<word>` as a placeholder and stops at an inner backtick
+
+- type: 1 (tool) · handle: `symbol:check_lines.py`
+- status: proposed · seen: 452
+- evidence: 452's `RULE SECTIONS` line failed twice — inner backticks truncated the enumerated list (count
+  mismatch), then `<lang>` read as an "unfilled template placeholder". Write counted lines with no inner backticks
+  and no `<…>` text.
+- destination: first sighting.
+
 ### 447-C1 — "every write to X" is every write form the grammar has, not every `=`
 
 - type: 2 (code) · handle: `every-write-form-the-grammar-has`

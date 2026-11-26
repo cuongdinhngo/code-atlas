@@ -521,7 +521,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-refresh >/dev/null 2>&1 || exit 0; exec code-atlas-refresh",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas/graph.db\" ] || exit 0; command -v code-atlas-refresh >/dev/null 2>&1 || exit 0; exec code-atlas-refresh --trigger session-start",
             "async": true,
             "timeout": 600
           }

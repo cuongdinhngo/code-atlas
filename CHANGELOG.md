@@ -17,6 +17,12 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- Adapter commands can live in `~/.config/code-atlas/config.toml` (`[adapter_cmd]`; `$XDG_CONFIG_HOME`,
+  `%APPDATA%` on Windows), read by the server, `code-atlas-refresh` and every hook, so a git hook run
+  without the shell's `CA_<LANG>_CMD` still refreshes. The environment still wins; a repo's own file
+  stays gated (452). A skipped refresh prints one dated line naming the hook (`--trigger`) and the
+  adapter: `<UTC> code-atlas refresh skipped (post-commit): coverage_loss — lost: php`.
+
 - `$this->model->m()` links when `$model` is untyped but its class assigns it `new Model()` in every
   write, or documents `/** @var Model */` (PHP, `HEURISTIC`); two different classes, any other write or
   a non-`null` default leave it untyped and counted in `unresolved_receivers` (447). No rebuild is

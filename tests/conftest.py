@@ -20,6 +20,8 @@ _INDEX = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
 os.environ["GIT_CONFIG_COUNT"] = str(_INDEX + 1)
 os.environ[f"GIT_CONFIG_KEY_{_INDEX}"] = "core.excludesFile"
 os.environ[f"GIT_CONFIG_VALUE_{_INDEX}"] = str(_IGNORE)
+# The developer's own ~/.config/code-atlas/config.toml must not reach a test (452).
+os.environ["XDG_CONFIG_HOME"] = str(Path(_HOME) / "xdg")
 
 
 @pytest.fixture(autouse=True)
