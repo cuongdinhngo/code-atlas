@@ -121,8 +121,11 @@ def git_parts(root: Path, refresh: str | None, *, dry_run: bool, remove: bool) -
     parts: list[Part] = []
     for hook in GIT_HOOKS:
         path = directory / hook
-        text = path.read_text(encoding="utf-8") if path.is_file() else ""
-        if text and not _is_shell(text):
+        if path.is_symlink():
+            parts.append(Part(f"git hook {hook}", "skipped", "symlinked; add the block by hand"))
+            continue
+        text = _hook_text(path)
+        if text is None or (text and not _is_shell(text)):
             parts.append(
                 Part(f"git hook {hook}", "skipped", "not a shell script; add the block by hand")
             )
@@ -142,6 +145,14 @@ def git_parts(root: Path, refresh: str | None, *, dry_run: bool, remove: bool) -
         path.chmod(0o755)
         parts.append(Part(f"git hook {hook}", "wrote", str(path)))
     return parts
+
+
+def _hook_text(path: Path) -> str | None:
+    """The hook's text, ``""`` when absent; None when it cannot be read as UTF-8 (a binary hook)."""
+    try:
+        return path.read_text(encoding="utf-8") if path.is_file() else ""
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def plugin_enabled(root: Path, home: Path | None) -> bool:
@@ -243,10 +254,19 @@ def adapter_part(env: Mapping[str, str], *, dry_run: bool) -> Part:
     if not new:
         return Part(name, "ok" if known else "skipped", "" if known else f"none set; see {path}")
     lines = [
-        f"{lang} = {json.dumps(shlex.split(cmd, posix=os.name != 'nt'))}"
+        f"{lang} = {json.dumps(shlex.split(cmd, posix=os.name != 'nt'), ensure_ascii=False)}"
         for lang, cmd in new.items()
     ]
-    head = text.rstrip("\n") + "\n" if text else f"[{ADAPTER_CMD_TABLE}]\n"
+    head = text.rstrip("\n") + "\n" if text else ""
+    if ADAPTER_CMD_TABLE not in (tomllib.loads(text) if text else {}):
+        head += f"\n[{ADAPTER_CMD_TABLE}]\n" if text else f"[{ADAPTER_CMD_TABLE}]\n"
+    # Appending is right only when the file ends inside the table; prove it before writing.
+    try:
+        written = tomllib.loads(head + "\n".join(lines) + "\n").get(ADAPTER_CMD_TABLE)
+    except ValueError:
+        written = None
+    if not isinstance(written, dict) or not set(new) | known <= set(written):
+        return Part(name, "skipped", f"{path}: add [{ADAPTER_CMD_TABLE}] {', '.join(new)} by hand")
     if dry_run:
         return Part(name, WOULD_WRITE, f"{', '.join(new)} → {path} — run {SETUP_ROUTE}")
     make_private_dir(path.parent)
@@ -307,11 +327,16 @@ def guard_gaps(root: Path) -> list[str] | None:
         return ["setup from another release"]
     listed = record.get("hooks")
     hooks = [h for h in listed if h in GIT_HOOKS] if isinstance(listed, list) else []
-    found = gitutil.hooks_dir(root) if hooks else None
+    found = gitutil.hooks_dir(root)
+    if not hooks:
+        # Setup wrote none (no refresh script, global hooksPath): only a hand-added block guards.
+        texts = [_hook_text(found[0] / h) or "" for h in GIT_HOOKS] if found else []
+        added = any(BEGIN in text for text in texts)
+        return None if added else ["no git hook installed"]
     gaps = []
     for hook in hooks:
         path = found[0] / hook if found else None
-        if path is None or not path.is_file() or BEGIN not in path.read_text(encoding="utf-8"):
+        if path is None or BEGIN not in (_hook_text(path) or ""):
             gaps.append(hook)
     return gaps or None
 

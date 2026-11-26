@@ -142,8 +142,7 @@ def test_a_failed_start_leaves_no_marker(
         raise OSError("cannot start")
 
     monkeypatch.setattr(state, "_detach", refuse)
-    with pytest.raises(OSError):
-        state.start_rebuild(project)
+    assert state.start_rebuild(project) is None  # the plain line stays; the next session retries
     assert not (project / ".code-atlas" / state.REBUILD_MARKER).exists()
 
 

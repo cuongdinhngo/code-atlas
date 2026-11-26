@@ -213,3 +213,21 @@ def test_the_command_is_shipped_and_offered_opt_in() -> None:
         ]
         # 348: the command carries the release it was generated from, for the skew line.
         assert [c.split()[0] for c in commands] == ["code-atlas-state"], event
+
+
+def test_a_refresh_that_cannot_start_keeps_the_behind_line(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of 454: a refused log or a failed spawn must not cost the warning itself."""
+    import subprocess
+
+    from code_atlas import setup_hooks
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise OSError("cannot start")
+
+    _behind(project)
+    monkeypatch.setattr(setup_hooks, "refresh_command", lambda: "code-atlas-refresh")
+    monkeypatch.setattr(subprocess, "Popen", refuse)
+    line = state.state_line(project, refresh=True)
+    assert line == state.PREFIX + _summary(project)

@@ -197,3 +197,54 @@ def test_a_global_hooks_path_is_never_written(repo: Path, tmp_path: Path) -> Non
     parts = {p.name: p for p in setup_hooks.run(repo, os.environ)}
     assert parts["git hooks"].state == "skipped"
     assert not (tmp_path / "global").exists()
+
+
+def test_a_run_that_installs_no_git_hook_still_reads_unguarded(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of 453: no refresh script means no hook, so the record must not read as guarded."""
+    monkeypatch.setattr(setup_hooks, "refresh_command", lambda: None)
+    parts = setup_hooks.run(repo, os.environ)
+    assert any(p.state == "missing" for p in parts)
+    status = get_index_status.create(load_config(repo), ())()
+    assert status[get_index_status.UNGUARDED]["gaps"] == ["no git hook installed"]
+
+
+@pytest.mark.parametrize("existing", ["# mine\n", "adapter_cmd = {}\n"])
+def test_a_user_file_without_the_table_header_stays_valid(
+    tmp_path: Path, existing: str
+) -> None:
+    """Review of 453: bare keys appended to a header-less file would break every adapter."""
+    from code_atlas.config import user_config_path
+
+    env = {"XDG_CONFIG_HOME": str(tmp_path), "CA_FAKE_CMD": "fake --x"}
+    path = user_config_path(env)
+    assert path is not None
+    path.parent.mkdir(parents=True)
+    path.write_text(existing, encoding="utf-8")
+    part = setup_hooks.adapter_part(env, dry_run=False)
+    import tomllib
+
+    parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+    if part.state == "wrote":
+        assert parsed["adapter_cmd"]["fake"] == ["fake", "--x"]
+    else:
+        assert part.state == "skipped" and path.read_text(encoding="utf-8") == existing
+    assert setup_hooks.adapter_part(env, dry_run=False).state in ("ok", "skipped")
+    assert tomllib.loads(path.read_text(encoding="utf-8")) == parsed
+
+
+def test_a_symlinked_or_binary_hook_is_skipped_untouched(repo: Path) -> None:
+    hooks = repo / ".git" / "hooks"
+    (hooks / "post-merge").write_bytes(b"\x7fELF\xff\xfe")
+    target = repo / "shared-hook"
+    target.write_text("#!/bin/sh\necho shared\n", encoding="utf-8")
+    try:
+        (hooks / "post-commit").symlink_to(target)
+    except OSError:
+        pytest.skip("symlinks unavailable")
+    parts = {p.name: p for p in setup_hooks.run(repo, os.environ)}
+    assert parts["git hook post-merge"].state == "skipped"
+    assert parts["git hook post-commit"].state == "skipped"
+    assert (hooks / "post-commit").is_symlink()
+    assert target.read_text(encoding="utf-8") == "#!/bin/sh\necho shared\n"

@@ -375,7 +375,8 @@ COVERAGE_LOSS = "coverage_loss"
 # question is worse than naming none (R5.4c) — so this carries a hint and no route (203).
 COVERAGE_LOSS_HINT = (
     "configure the missing adapter first: set `adapter_cmd.<language>` in "
-    "~/.config/code-atlas/config.toml, or export CA_<LANGUAGE>_CMD"
+    "code-atlas/config.toml under your user config dir ($XDG_CONFIG_HOME or ~/.config; "
+    "%APPDATA% on Windows), or export CA_<LANGUAGE>_CMD"
 )
 COVERAGE_LOSS_IN_BAND = "allow_coverage_loss=true"
 
@@ -1256,7 +1257,8 @@ def _require_configured_adapters(config: Config) -> None:
         return
     raise AdapterError(
         "no adapters configured — set CA_<LANG>_CMD or [adapter_cmd].<lang> in "
-        "~/.config/code-atlas/config.toml"
+        "code-atlas/config.toml under your user config dir ($XDG_CONFIG_HOME or ~/.config; "
+        "%APPDATA% on Windows)"
     )
 
 

@@ -381,7 +381,11 @@ def start_refresh(root: Path) -> bool:
     from code_atlas.setup_hooks import refresh_command
 
     command = refresh_command()
-    return command is not None and _detach(root, [command, "--trigger", "session-start"])
+    # Best effort: a refused log or a failed spawn keeps the plain "behind" line, never loses it.
+    try:
+        return command is not None and _detach(root, [command, "--trigger", "session-start"])
+    except (OSError, ValueError):
+        return False
 
 
 def start_rebuild(root: Path) -> str | None:
@@ -411,13 +415,16 @@ def start_rebuild(root: Path) -> str | None:
     command = script_path("code-atlas-build")
     if command is None:
         return None
-    # Claim the window first, so a failed marker write can never loop full builds.
-    safe_write(marker, f"{time.time():.0f} {CONTRACT_VERSION}\n", root=root)
+    # Claim the window first, so a failed marker write can never loop full builds; best effort.
+    try:
+        safe_write(marker, f"{time.time():.0f} {CONTRACT_VERSION}\n", root=root)
+    except (OSError, ValueError):
+        return None
     try:
         _detach(root, [command, "--full"])
-    except BaseException:
+    except (OSError, ValueError):
         marker.unlink(missing_ok=True)
-        raise
+        return None
     return BACKGROUND_REBUILD
 
 

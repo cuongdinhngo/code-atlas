@@ -27,6 +27,7 @@ EVENT = "PreToolUse"
 TRANSCRIPT_CAP = 32 * 1024 * 1024
 # Identifiers in a grep pattern; a word after a backslash is a regex escape, not a name.
 _NAME = re.compile(r"(?<![\\A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]+")
+_ESCAPE = re.compile(r"\\[A-Za-z]")  # `\bclass` holds the keyword `class`, not `bclass`
 # Not "required": a server refusing with "rebuild required" cannot answer, so it must lift.
 _ARGUMENT_ERROR = re.compile(r"argument|validation|invalid", re.IGNORECASE)
 _TOOL_PREFIX = re.compile(r"^mcp__(plugin_)?code[-_]atlas")
@@ -45,7 +46,8 @@ def mode_of(root: Path) -> str:
 
 def names_in(pattern: str, shape_patterns: list[str]) -> set[str]:
     """The identifiers a symbol grep asks about: its words, less the shapes' own keywords."""
-    keywords = {w.lower() for text in shape_patterns for w in re.findall(r"[A-Za-z_]{2,}", text)}
+    words = (re.findall(r"[A-Za-z_]{2,}", _ESCAPE.sub(" ", t)) for t in shape_patterns)
+    keywords = {w.lower() for found in words for w in found}
     return {name for name in _NAME.findall(pattern) if name.lower() not in keywords}
 
 
@@ -85,13 +87,18 @@ def asked(transcript: Path | None, names: set[str]) -> bool:
             if call is not None:
                 ident, tool, text = call
                 calls.add(ident)
-                if not tool.endswith(STATUS_TOOL) and any(name in text for name in names):
+                if not tool.endswith(STATUS_TOOL) and any(_named(n, text) for n in names):
                     return True
             elif isinstance(item, dict) and item.get("type") == "tool_result":
                 failed = item.get("is_error") is True and item.get("tool_use_id") in calls
                 if failed and not _ARGUMENT_ERROR.search(json.dumps(item.get("content", ""))):
                     return True
     return False
+
+
+def _named(name: str, text: str) -> bool:
+    """``name`` as a whole word of ``text``: asking about ``classify`` is not asking ``class``."""
+    return re.search(rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", text) is not None
 
 
 def _answers(root: Path, db: Path, built: str | None) -> bool:
@@ -120,7 +127,8 @@ def guard(root: Path, payload: dict[str, object]) -> str | None:
     if mode == "off" or not (root / nudge.INDEX_DIR / "graph.db").is_file():
         return None
     session, agent = str(payload.get("session_id") or ""), str(payload.get("agent_id") or "")
-    if mode == "nudge":
+    # A subagent's own queries may not be in the transcript it is handed: refuse on the main thread.
+    if mode == "nudge" or agent:
         line = nudge.nudge(root, tool, tool_input, session, agent)
         return None if line is None else nudge.additional_context(EVENT, line)
     return _refusal(root, tool, tool_input, payload.get("transcript_path"))
@@ -139,15 +147,17 @@ def _refusal(root: Path, tool: str, tool_input: dict[str, object], path: object)
     with GraphStore(db) as store:
         shapes = store.stamped_symbol_shapes()
         built = store.get_meta(LAST_COMMIT_KEY)
-    if not nudge.matched_kinds(call, shapes):
-        return None
-    patterns = [
-        str(shape.get("pattern", ""))
-        for entry in shapes.values()
-        for shape in nudge._items(entry.get("shapes"))
-        if isinstance(shape, dict)
-    ]
-    names = names_in(call.pattern, patterns)
+        if not nudge.matched_kinds(call, shapes):
+            return None
+        patterns = [
+            str(shape.get("pattern", ""))
+            for entry in shapes.values()
+            for shape in nudge._items(entry.get("shapes"))
+            if isinstance(shape, dict)
+        ]
+        # Only names the index holds: `api.example.com` is shaped like a symbol but is literal text.
+        found = store.nodes_by_names(sorted(names_in(call.pattern, patterns)), limit=1)
+        names = {name for name, rows in found.items() if rows}
     transcript = Path(path) if isinstance(path, str) and path else None
     if not names or asked(transcript, names) or not _answers(root, db, built):
         return None
