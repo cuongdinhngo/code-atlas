@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -164,7 +165,8 @@ def test_the_path_comes_only_from_the_mapping_it_is_given(tmp_path: Path) -> Non
 
 def test_appdata_counts_on_windows_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     appdata = {"APPDATA": str(tmp_path / "roaming")}
-    monkeypatch.setattr("code_atlas.config.os.name", "posix")
+    # Patch the module's `os` only: a global os.name would make Path() itself a WindowsPath.
+    monkeypatch.setattr("code_atlas.config.os", SimpleNamespace(name="posix"))
     assert user_config_path(appdata) is None
-    monkeypatch.setattr("code_atlas.config.os.name", "nt")
+    monkeypatch.setattr("code_atlas.config.os", SimpleNamespace(name="nt"))
     assert user_config_path(appdata) == tmp_path / "roaming" / "code-atlas" / "config.toml"
