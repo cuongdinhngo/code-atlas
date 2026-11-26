@@ -390,23 +390,34 @@ def start_rebuild(root: Path) -> str | None:
     One start per ``REBUILD_BACKOFF``; a marker holds when, so a failure is named, not looped.
     """
     from code_atlas.containment import safe_write
+    from code_atlas.contract import CONTRACT_VERSION
     from code_atlas.setup_hooks import rebuild_consent, script_path
 
     if rebuild_consent(root) != "auto":
         return None
     marker = root / ".code-atlas" / REBUILD_MARKER
     try:
-        started = float(marker.read_text(encoding="utf-8").strip())
+        stamp, contract = marker.read_text(encoding="utf-8").split()
+        started = float(stamp) if contract == str(CONTRACT_VERSION) else 0.0
     except (OSError, ValueError):
         started = 0.0
-    if time.time() - started < REBUILD_BACKOFF:
+    # A future stamp (clock step, copied marker) or another contract never holds the window.
+    if 0 <= time.time() - started < REBUILD_BACKOFF:
         when = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started))
-        return f" · a background rebuild started at {when}; if it did not finish, see {REFRESH_LOG}"
+        return (
+            f" · the last automatic rebuild started at {when}; if the index is still behind,"
+            f" see {REFRESH_LOG} or run code-atlas-build --full"
+        )
     command = script_path("code-atlas-build")
     if command is None:
         return None
-    _detach(root, [command, "--full"])  # raises if it cannot start: no marker, so a retry
-    safe_write(marker, f"{time.time():.0f}\n", root=root)
+    # Claim the window first, so a failed marker write can never loop full builds.
+    safe_write(marker, f"{time.time():.0f} {CONTRACT_VERSION}\n", root=root)
+    try:
+        _detach(root, [command, "--full"])
+    except BaseException:
+        marker.unlink(missing_ok=True)
+        raise
     return BACKGROUND_REBUILD
 
 

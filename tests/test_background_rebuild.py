@@ -98,9 +98,53 @@ def test_ac3_two_session_starts_start_one_build(
     first = state.state_line(project, refresh=True)
     second = state.state_line(project, refresh=True)
     assert first is not None and first.endswith(state.BACKGROUND_REBUILD)
-    assert second is not None and "a background rebuild started at" in second
+    assert second is not None and "the last automatic rebuild started at" in second
     time.sleep(0.5)
     assert _wait_for(marker).split() == ["--full"]
+
+
+def _held(root: Path, stamp: float, contract_version: int) -> None:
+    (root / ".code-atlas" / state.REBUILD_MARKER).write_text(
+        f"{stamp:.0f} {contract_version}\n", encoding="utf-8"
+    )
+
+
+@pytest.mark.parametrize(
+    "stamp_offset, contract_offset",
+    [(-state.REBUILD_BACKOFF - 60, 0), (3600, 0), (-60, -1)],
+    ids=["window-expired", "future-stamp", "another-contract"],
+)
+def test_a_marker_that_no_longer_holds_starts_a_build(
+    project: Path,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    stamp_offset: float,
+    contract_offset: int,
+) -> None:
+    """Review of 455: only a past stamp under this contract holds the six-hour window."""
+    _older_contract(project)
+    _consent(project)
+    marker = _stand_in(project, monkeypatch)
+    _held(project, time.time() + stamp_offset, contract.CONTRACT_VERSION + contract_offset)
+    line = state.state_line(project, refresh=True)
+    assert line is not None and line.endswith(state.BACKGROUND_REBUILD)
+    assert _wait_for(marker).split() == ["--full"]
+
+
+def test_a_failed_start_leaves_no_marker(
+    project: Path,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _older_contract(project)
+    _consent(project)
+    _stand_in(project, monkeypatch)
+
+    def refuse(root: Path, argv: list[str]) -> bool:
+        raise OSError("cannot start")
+
+    monkeypatch.setattr(state, "_detach", refuse)
+    with pytest.raises(OSError):
+        state.start_rebuild(project)
+    assert not (project / ".code-atlas" / state.REBUILD_MARKER).exists()
 
 
 def test_ac4_killing_the_hook_does_not_kill_the_build(
