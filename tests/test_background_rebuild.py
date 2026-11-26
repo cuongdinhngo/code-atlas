@@ -103,6 +103,20 @@ def test_ac3_two_session_starts_start_one_build(
     assert _wait_for(marker).split() == ["--full"]
 
 
+def test_a_start_late_in_a_second_still_holds_the_window(
+    project: Path,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CI flake on #186: a stamp rounded up read as "future" and started a second build."""
+    _older_contract(project)
+    _consent(project)
+    _stand_in(project, monkeypatch)
+    monkeypatch.setattr(state.time, "time", lambda: 1_000_000.9)
+    assert state.start_rebuild(project) == state.BACKGROUND_REBUILD
+    held = state.start_rebuild(project)
+    assert held is not None and "the last automatic rebuild started at" in held
+
+
 def _held(root: Path, stamp: float, contract_version: int) -> None:
     (root / ".code-atlas" / state.REBUILD_MARKER).write_text(
         f"{stamp:.0f} {contract_version}\n", encoding="utf-8"

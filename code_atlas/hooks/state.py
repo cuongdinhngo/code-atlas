@@ -417,7 +417,8 @@ def start_rebuild(root: Path) -> str | None:
         return None
     # Claim the window first, so a failed marker write can never loop full builds; best effort.
     try:
-        safe_write(marker, f"{time.time():.0f} {CONTRACT_VERSION}\n", root=root)
+        # Floor, never round: a stamp rounded up reads as "future" and would start a second build.
+        safe_write(marker, f"{int(time.time())} {CONTRACT_VERSION}\n", root=root)
     except (OSError, ValueError):
         return None
     try:
