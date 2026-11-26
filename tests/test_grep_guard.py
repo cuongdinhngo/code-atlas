@@ -40,6 +40,14 @@ def root(tmp_path: Path) -> Path:
     with GraphStore(load_config(tmp_path).db_path) as store:
         store.set_meta(SYMBOL_SHAPES_BY_LANGUAGE_KEY, json.dumps(shapes, sort_keys=True))
         store.set_meta(LAST_COMMIT_KEY, _git(tmp_path, "rev-parse", "HEAD"))
+        # The guard refuses only for names the index holds (review of 454).
+        store.upsert_file("a.py", "h", "python")
+        nodes = [
+            {"kind": "Function", "name": n, "qualified_name": f"a.{n}", "file_path": "a.py"}
+            | {"line_start": 1}
+            for n in ("foo", "Foo")
+        ]
+        store.replace_file_rows("a.py", nodes, [])
     decline(tmp_path)
     return tmp_path
 
@@ -174,3 +182,23 @@ def test_start_refresh_spawns_the_script_detached(
     while "to-log" not in log.read_text(encoding="utf-8") and time.monotonic() < deadline:
         time.sleep(0.1)
     assert "to-log" in log.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("command", ['grep -rn "api.example.com" .', "rg config.yaml"])
+def test_a_dotted_literal_not_in_the_index_is_never_refused(root: Path, command: str) -> None:
+    """Review of 454: shaped like a qualified name, but no indexed symbol: literal text."""
+    _mode(root, "refuse")
+    assert guard.guard(root, _payload(command, _transcript(root))) is None
+
+
+def test_asking_about_a_longer_name_does_not_lift_the_refusal(root: Path) -> None:
+    _mode(root, "refuse")
+    path = _transcript(root, (TOOL, {"query": "foobar"}, False))
+    assert _decision(guard.guard(root, _payload('grep -rn "class Foo" .', path))) == "deny"
+
+
+def test_a_subagent_is_nudged_not_refused(root: Path) -> None:
+    """Its own queries may not be in the transcript it is handed."""
+    _mode(root, "refuse")
+    payload = {**_payload('grep -rn "def foo" .', _transcript(root)), "agent_id": "sub"}
+    assert _decision(guard.guard(root, payload)) in (None, "context")

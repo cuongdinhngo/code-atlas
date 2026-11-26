@@ -383,14 +383,18 @@ def start_refresh(root: Path) -> bool:
 
     log = root / ".code-atlas" / "refresh.log"
     flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
-    with os.fdopen(safe_open(log, flags, root=root), "a", encoding="utf-8") as sink:
-        argv = [command, "--trigger", "session-start"]
-        quiet = {"cwd": root, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
-        if os.name == "nt":
-            flag = getattr(subprocess, "DETACHED_PROCESS", 0)
-            subprocess.Popen(argv, stderr=sink, creationflags=flag, **quiet)  # type: ignore[call-overload]
-        else:
-            subprocess.Popen(argv, stderr=sink, start_new_session=True, **quiet)  # type: ignore[call-overload]
+    # Best effort: a refused log or a failed spawn keeps the plain "behind" line, never loses it.
+    try:
+        with os.fdopen(safe_open(log, flags, root=root), "a", encoding="utf-8") as sink:
+            argv = [command, "--trigger", "session-start"]
+            quiet = {"cwd": root, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
+            if os.name == "nt":
+                flag = getattr(subprocess, "DETACHED_PROCESS", 0)
+                subprocess.Popen(argv, stderr=sink, creationflags=flag, **quiet)  # type: ignore[call-overload]
+            else:
+                subprocess.Popen(argv, stderr=sink, start_new_session=True, **quiet)  # type: ignore[call-overload]
+    except (OSError, ValueError):
+        return False
     return True
 
 
