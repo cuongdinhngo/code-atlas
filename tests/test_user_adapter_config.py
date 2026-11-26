@@ -158,3 +158,13 @@ def test_the_path_comes_only_from_the_mapping_it_is_given(tmp_path: Path) -> Non
     assert user_config_path(home) == tmp_path / ".config" / "code-atlas" / "config.toml"
     xdg = {**home, "XDG_CONFIG_HOME": str(tmp_path / "x")}
     assert user_config_path(xdg) == tmp_path / "x" / "code-atlas" / "config.toml"
+    relative = {**home, "XDG_CONFIG_HOME": "rel"}
+    assert user_config_path(relative) == tmp_path / ".config" / "code-atlas" / "config.toml"
+
+
+def test_appdata_counts_on_windows_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    appdata = {"APPDATA": str(tmp_path / "roaming")}
+    monkeypatch.setattr("code_atlas.config.os.name", "posix")
+    assert user_config_path(appdata) is None
+    monkeypatch.setattr("code_atlas.config.os.name", "nt")
+    assert user_config_path(appdata) == tmp_path / "roaming" / "code-atlas" / "config.toml"
