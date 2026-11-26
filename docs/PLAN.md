@@ -568,8 +568,8 @@ under `instructions.CLIENT_CAP`.
 **Delivery and hooks (344–347).** The Claude Code plugin (`contrib/claude-code/plugin/`, marketplace
 `cuongdinhngo/code-atlas`) installs the server, the hooks and the skill in one step. A tool-event
 hook speaks through `hookSpecificOutput.additionalContext`, the one stdout shape Claude Code shows
-the model (346); the grep-time nudge fires on a `Grep`/`Bash` grep for an adapter-declared symbol
-shape (345). An index from an older contract says `rebuild required` on every channel (347).
+the model (346); the grep guard meets a grep for an adapter-declared symbol
+shape before it runs (345, 454). An index from an older contract says `rebuild required` on every channel (347).
 
 
 ### Impact engine

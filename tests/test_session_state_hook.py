@@ -106,9 +106,9 @@ def test_without_a_build_the_line_never_mentions_one(project: Path) -> None:
 def test_a_current_index_with_no_build_is_silent(
     project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """AC2 red arm — current and idle prints nothing; the same hook fires once HEAD moves."""
+    """AC2 red arm — current and idle has no state line; the hook says only 454's reminder."""
     assert state.state_line(project) is None
-    assert _run(monkeypatch, capsys, _event("SessionStart")) == (0, "")
+    assert _run(monkeypatch, capsys, _event("SessionStart")) == (0, state.REMINDER + "\n")
     _behind(project)
     code, out = _run(monkeypatch, capsys, _event("SessionStart"))
     assert code == 0 and out.startswith(state.PREFIX), "the silence must not be vacuous"
@@ -132,8 +132,10 @@ def test_each_named_occasion_fires(
 ) -> None:
     """Scope 4 — the three occasions the ticket names, and only those (next test)."""
     _behind(project)
+    monkeypatch.setattr(state, "start_refresh", lambda root: True)  # 454: no real spawn here
     code, out = _run(monkeypatch, capsys, _event(event))
-    assert code == 0 and out.strip() == state.PREFIX + _summary(project)
+    tail = state.BACKGROUND_REFRESH if event == "SessionStart" else ""
+    assert code == 0 and out.strip() == state.PREFIX + _summary(project) + tail
 
 
 @pytest.mark.parametrize("event", ["UserPromptSubmit", "PostToolUse", "SubagentStart", None])
@@ -211,3 +213,21 @@ def test_the_command_is_shipped_and_offered_opt_in() -> None:
         ]
         # 348: the command carries the release it was generated from, for the skew line.
         assert [c.split()[0] for c in commands] == ["code-atlas-state"], event
+
+
+def test_a_refresh_that_cannot_start_keeps_the_behind_line(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of 454: a refused log or a failed spawn must not cost the warning itself."""
+    import subprocess
+
+    from code_atlas import setup_hooks
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise OSError("cannot start")
+
+    _behind(project)
+    monkeypatch.setattr(setup_hooks, "refresh_command", lambda: "code-atlas-refresh")
+    monkeypatch.setattr(subprocess, "Popen", refuse)
+    line = state.state_line(project, refresh=True)
+    assert line == state.PREFIX + _summary(project)

@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `code-atlas-guard` replaces the grep nudge's hook: at `PreToolUse`, before a symbol-shaped grep
+  answers, it nudges (default) or, with `code-atlas-setup --guard refuse`, denies it until code-atlas
+  was asked about that name. `code-atlas-state` restates a routing reminder at every session start and
+  after compaction, and starts the background refresh itself when the index is behind — the plugin no
+  longer refreshes on every start (454).
 - `code-atlas-setup` installs the hooks that keep the index fresh: a marked block in each git hook
   (absolute path, `core.hooksPath` honoured, never a non-shell or global hook), the Claude Code hooks in
   `.claude/settings.local.json` unless the plugin has them, and your shell's adapter commands in the user

@@ -151,8 +151,9 @@ def test_an_old_git_fails_loud(
     assert "2.24" in capsys.readouterr().err
 
 
-# adapter.py launches CA_<LANG>_CMD, never git; gitutil.py is the one home of git (AC5).
-SPAWNERS = {"gitutil.py", "adapter.py"}
+# adapter.py launches CA_<LANG>_CMD and hooks/state.py its own console scripts (454), never git;
+# gitutil.py is the one home of git (AC5).
+SPAWNERS = {"gitutil.py", "adapter.py", "state.py"}
 _OS_SPAWNS = ("system", "popen", "exec", "spawn", "posix_spawn", "fork")
 
 
@@ -188,5 +189,6 @@ def test_only_gitutil_runs_git() -> None:
         and (lines := _spawn_sites(ast.parse(path.read_text(encoding="utf-8"))))
     }
     assert found == {}, json.dumps(found)
-    adapter = (core / "adapter.py").read_text(encoding="utf-8")
-    assert '"git"' not in adapter and "'git'" not in adapter
+    for spawner in (core / "adapter.py", core / "hooks" / "state.py"):
+        text = spawner.read_text(encoding="utf-8")
+        assert '"git"' not in text and "'git'" not in text, spawner

@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 454-C1 — a hook on every tool call reads the cheapest freshness signal, never the status payload
+
+- type: 2 (code) · handle: `per-call-hook-reads-the-cheapest-signal`
+- status: proposed · seen: 454
+- evidence: the grep guard first asked `index_answers`, which builds the whole `get_index_status` payload: 23 ms on a
+  fixture, 3,028 ms on the 22k-file PHP anchor. Stored last commit against HEAD plus the build lock answers the same
+  question in 23 ms there. A fixture timing proves nothing about a per-call hook; probe it on the anchor.
+- destination: first sighting.
+
 ### 453-C1 — a block added to someone's hook runs only if it sits before their `exit` or `exec`
 
 - type: 2 (code) · handle: `an-appended-hook-block-must-be-reached`
