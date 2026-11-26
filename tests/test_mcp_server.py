@@ -512,8 +512,11 @@ def test_the_detail_level_choices_are_published_in_the_input_schema(repo: Path) 
 
 def test_the_minimal_status_payload_stays_inside_its_budget(repo: Path) -> None:
     """§12 calls this the cheap tool; a payload past its budget breaks that promise."""
+    from code_atlas.setup_hooks import decline
+
     config = served_config(repo)
     call(build_server(config), BUILD, {})
+    decline(repo)  # a settled repo; an unguarded one adds its clause (453)
 
     payload = json.dumps(call(build_server(config), STATUS, {"detail_level": "minimal"}))
 

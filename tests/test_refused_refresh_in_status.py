@@ -20,6 +20,7 @@ from code_atlas.hooks import state
 from code_atlas.hooks.refresh import refresh
 from code_atlas.index_lock import read_refresh_refused, refresh_refused_path_for
 from code_atlas.indexer import full_build
+from code_atlas.setup_hooks import decline
 from code_atlas.store import GraphStore
 from code_atlas.tools import get_index_status
 from code_atlas.tools.build_or_update_index import NO_USABLE_ADAPTER
@@ -49,6 +50,7 @@ def built(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     config = load_config(tmp_path)
     with GraphStore(config.db_path) as store:
         full_build(config, store)
+    decline(tmp_path)  # a setup choice on record, so `unguarded` (453) stays out of these lines
     return tmp_path
 
 

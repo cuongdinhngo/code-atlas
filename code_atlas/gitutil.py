@@ -174,6 +174,22 @@ def checkout_identity(root: Path) -> tuple[Path, Path] | None:
     return Path(lines[0]).resolve(), (root / lines[1]).resolve()
 
 
+def hooks_dir(root: Path) -> tuple[Path, str] | None:
+    """Where git runs this checkout's hooks, and which config said so (453), or None outside a repo.
+
+    Every call here pins ``core.hooksPath=/dev/null``; ``--local``/``--global`` read past that pin.
+    """
+    identity = checkout_identity(root)
+    if identity is None:
+        return None
+    top, common = identity
+    for scope in ("--local", "--global"):
+        found = _run(root, "config", scope, "--get", "core.hooksPath")
+        if found and found.strip():
+            return (top / Path(found.strip()).expanduser()).resolve(), scope.lstrip("-")
+    return common / "hooks", "default"
+
+
 def config_value(root: Path, key: str) -> str | None:
     """One config value as git resolves it for ``root``, or None when unset or git cannot answer.
 

@@ -19,6 +19,7 @@ import pytest
 from code_atlas.hooks import state
 from code_atlas.index_lock import publish_build_progress, try_index_write_lock
 from code_atlas.indexer import full_build
+from code_atlas.setup_hooks import decline
 from code_atlas.store import GraphStore
 from code_atlas.tokens import estimate_tokens
 from code_atlas.tools import get_index_status
@@ -39,6 +40,7 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     config = config_for(tmp_path)
     with GraphStore(config.db_path) as store:
         full_build(config, store)
+    decline(tmp_path)  # a setup choice on record, so `unguarded` (453) does not speak here
     return tmp_path
 
 

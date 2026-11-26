@@ -134,7 +134,7 @@ def test_state_single_sources_on_the_index_status_summary(tmp_path, monkeypatch)
 
 
 def _render_on_every_state(tmp_path: Path, monkeypatch) -> dict[str, str]:
-    """AC2's N = 7: one render per branch of `_compose_summary` (347, 355 added one each)."""
+    """AC2's N = 8: one render per branch of `_compose_summary` (347, 355, 453 added one each)."""
     config = config_for(tmp_path)
     SERVES = get_index_status.BEHIND_SERVES_FIELD
     rendered = {"unindexed": instructions.render(config, ALL_TOOLS, FIELD18_TOOLS)}
@@ -162,6 +162,14 @@ def _render_on_every_state(tmp_path: Path, monkeypatch) -> dict[str, str]:
                 "hint": get_index_status.COVERAGE_LOSS_HINT,
             },
         },
+        # 453: hooks missing on a current index; beside a pending loss it adds nothing.
+        "unguarded": {
+            **base,
+            "indexed": True,
+            "staleness": "current",
+            "edge_health": {"unlinked": 0},
+            get_index_status.UNGUARDED: {"gaps": ["no setup"], "route": "code-atlas-setup"},
+        },
         "rebuild_required": {
             **base,
             "indexed": True,
@@ -186,7 +194,7 @@ def test_instructions_fit_under_the_client_cap_on_every_state(tmp_path: Path, mo
     """343/AC2: Claude Code keeps a 2,048-char prefix; KEEP_GOING and LIMITS sat past it."""
     budget = instructions.CLIENT_CAP - instructions.CAP_MARGIN
     rendered = _render_on_every_state(tmp_path, monkeypatch)
-    assert len(rendered) == 7 and len(set(rendered.values())) == 7
+    assert len(rendered) == 8 and len(set(rendered.values())) == 8
     for state, text in rendered.items():
         assert len(text) <= budget, f"{state}: {len(text)} > {budget}"
 

@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 453-C1 — a block added to someone's hook runs only if it sits before their `exit` or `exec`
+
+- type: 2 (code) · handle: `an-appended-hook-block-must-be-reached`
+- status: proposed · seen: 453
+- evidence: 453's first cut appended its block to an existing hook; a hook ending `exit 0` never reached it, while
+  `guard_gaps` saw the marker and said guarded. The ticket-blind challenger ran such a hook. The block now goes right
+  after the shebang; checking a marker's presence proves nothing about whether it runs.
+- destination: first sighting.
+
 ### 452-C1 — a process a hook starts inherits no shell profile; what it needs comes from a file the user owns
 
 - type: 2 (code) · handle: `a-hook-inherits-no-shell-profile`

@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `code-atlas-setup` installs the hooks that keep the index fresh: a marked block in each git hook
+  (absolute path, `core.hooksPath` honoured, never a non-shell or global hook), the Claude Code hooks in
+  `.claude/settings.local.json` unless the plugin has them, and your shell's adapter commands in the user
+  file. `get_index_status` ends with `unguarded: run code-atlas-setup` until it has run; a first
+  `code-atlas-build` runs it, `--no-hooks` declines (453).
 - Adapter commands can live in `~/.config/code-atlas/config.toml` (`[adapter_cmd]`; `$XDG_CONFIG_HOME`,
   `%APPDATA%` on Windows), read by the server, `code-atlas-refresh` and every hook, so a git hook run
   without the shell's `CA_<LANG>_CMD` still refreshes. The environment still wins; a repo's own file

@@ -138,6 +138,12 @@ and T-SQL via npm, Python needs nothing), and writes `<your-project>/.mcp.json` 
 interpreter, each `CA_<LANG>_CMD` and the working directory filled in — the three things that are easy
 to get wrong by hand. Run it with no path to print the snippet instead of writing it.
 
+**Then keep the index fresh: run `code-atlas-setup` in your project** (a first `code-atlas-build`
+runs it for you). It writes a marked block into each git hook, the Claude Code hooks into
+`.claude/settings.local.json` unless the plugin has them, and your shell's `CA_<LANG>_CMD` into the user
+config file. Until it has run, `get_index_status` ends with `unguarded`. `--check` · `--dry-run` ·
+`--remove` · `--no-hooks` (453).
+
 To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0
 code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0 code-atlas` —
 the adapters still need their own runtimes on `PATH`, and a checkout to launch them from.

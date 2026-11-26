@@ -1,4 +1,4 @@
-"""What `contrib/` offers is installable by hand, and code-atlas installs none of it (task 200).
+"""What `contrib/` offers is installable by hand; only `code-atlas-setup` installs it (200, 453).
 
 036 and 099 both settled the stance and `docs/TOOLS.md` states it: code-atlas emits a file, the host
 decides. AC3's four clauses and AC6 are one assertion each — a single aggregate row lets a clause
@@ -69,8 +69,11 @@ def test_no_code_atlas_command_writes_to_any_install_target() -> None:
     """AC3d — the never-installed stance, checked against the paths the READMEs actually name."""
     targets = {t for d in OFFERS for t in _targets(d)}
     assert targets, "no install targets were extracted — the check would be vacuous"
+    # 453 reversed the stance for one explicit command; no other module may write an install target.
     sources = "\n".join(
-        p.read_text(encoding="utf-8") for p in sorted((REPO / "code_atlas").rglob("*.py"))
+        p.read_text(encoding="utf-8")
+        for p in sorted((REPO / "code_atlas").rglob("*.py"))
+        if p.name != "setup_hooks.py"
     )
     named = sorted(t for t in targets if t in sources)
     assert not named, f"code_atlas/ names a host install target: {named}"

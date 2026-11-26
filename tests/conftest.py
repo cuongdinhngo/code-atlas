@@ -31,3 +31,11 @@ def _fake_adapter_switches(monkeypatch: pytest.MonkeyPatch) -> None:
 
     prefixes = (*adapter.ADAPTER_ENV_PREFIXES, "CA_FAKE_")
     monkeypatch.setattr(adapter, "ADAPTER_ENV_PREFIXES", prefixes)
+
+
+@pytest.fixture(autouse=True)
+def _own_user_config(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """Each test gets its own user config dir: `code-atlas-setup` writes there (453)."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path_factory.mktemp("xdg")))

@@ -143,7 +143,9 @@ index, saying ``fit_reset_skipped: true`` (400) — (documented reset; local cou
 telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
 ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
 Every level carries ``refresh_refused`` when the last hook refresh did not run: its
-``reason``, ``at`` (UTC) and a ``hint`` or ``route``, until a build succeeds (401).
+``reason``, ``at`` (UTC) and a ``hint`` or ``route``, until a build succeeds (401). In a git
+checkout it carries ``unguarded`` (``gaps`` and ``route: code-atlas-setup``) while the freshness hooks
+are not installed, unless ``code-atlas-setup --no-hooks`` recorded that choice (453).
 
 ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
 ``key=value`` line stating how many files this index covers and at which revision. An
