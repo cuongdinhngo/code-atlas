@@ -384,7 +384,7 @@ one line to add and never edits `CLAUDE.md`.
 
 **All 26 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
 
-**From a script, with no agent:** `code-atlas query <tool> --args '<json>'` prints the payload the
+**From a script, with no agent:** `code-atlas --help` lists what the shell can do. `code-atlas query <tool> --args '<json>'` prints the payload the
 MCP tool returns, as one JSON line; `code-atlas query --batch <file.jsonl>` (`-` for stdin) takes one
 `{"tool": …, "args": {…}}` per line (blank lines skipped) and answers in order from one process.
 Exit `0` for any answer, an empty one included; `2` for a usage error; `1` with no readable index.
