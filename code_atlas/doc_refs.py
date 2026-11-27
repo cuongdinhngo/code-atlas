@@ -31,6 +31,7 @@ from code_atlas.config import Config
 from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
 from code_atlas.contract import (
     CALLABLE_KINDS,
+    COLUMN_KIND,
     MEMBER_SEPARATOR,
     QUALIFIED_SHAPE,
     TYPE_KINDS,
@@ -115,7 +116,6 @@ _TYPED_KINDS = frozenset((*VALUE_KINDS, *CALLABLE_KINDS))
 _MAX_SEGMENTS = 8
 # A row whose container was matched only by a member's name (457).
 MEMBER_NAME = "member_name"
-COLUMN = "Column"
 
 
 @dataclass(frozen=True, slots=True)
@@ -592,7 +592,7 @@ class Resolver:
             rows = self._matches(bare, last)
         if rows:
             found = self._found(rows)
-            if found.state == OK and all(str(row["kind"]) == COLUMN for row in rows):
+            if found.state == OK and all(str(row["kind"]) == COLUMN_KIND for row in rows):
                 return dataclasses.replace(found, reason="table_column")  # `jobs.series_id` (457)
             return found
         if kind == NAME and not ref.endswith("()"):
