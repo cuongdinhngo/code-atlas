@@ -33,7 +33,7 @@ CODE = (
 )
 DOC = (
     "- `run.end` · `Pipeline.run.end` · `tts.batch` · `Pipeline.tts.batch`\n"
-    "- `Repo.vanished` · `Repo.gone` · `jobs.series_id`\n"
+    "- `Repo.vanished` · `Repo.gone` · `jobs.series_id` · `core.ir.Theme.old`\n"
 )
 
 
@@ -43,6 +43,8 @@ def found(tmp_path_factory: pytest.TempPathFactory) -> Iterator[doc_refs.Scan]:
     write(root, {
         "lib/pipe.py": CODE,
         "db/schema.sql": "CREATE TABLE jobs (\n    series_id INTEGER\n);\n",
+        "src/core/ir.py": "class Theme:\n    old: int = 0\n    kept: int = 0\n",
+        "src/core/__init__.py": "",  # a package: its folder is a `Namespace` named `core`
         "CLAUDE.md": DOC,
     })
     (root / ".gitignore").write_text(".code-atlas/\n", encoding="utf-8")
@@ -52,7 +54,7 @@ def found(tmp_path_factory: pytest.TempPathFactory) -> Iterator[doc_refs.Scan]:
     gone = CODE.replace("    batch: int = 0\n", "").replace(
         "\n\n    def vanished(self):\n        return 0\n", "\n"
     )
-    write(root, {"lib/pipe.py": gone})
+    write(root, {"lib/pipe.py": gone, "src/core/ir.py": "class Theme:\n    kept: int = 0\n"})
     git(root, "add", "-A")
     git(root, "commit", "-q", "-m", "drop Metrics.batch and Repo.vanished")
     with pytest.MonkeyPatch.context() as patch:
@@ -86,7 +88,9 @@ def row(found: doc_refs.Scan, ref: str) -> dict[str, Any]:
         ("Repo.vanished", "gone", "missing_on_live_container", "strong", True),
         ("Repo.gone", "unknown", "not_declared_on_container", "strong", False),
         # A SQL `table.column` an adapter indexes resolves as written (Scope 3).
-        ("jobs.series_id", "ok", "indexed", "strong", False),
+        ("jobs.series_id", "ok", "table_column", "strong", False),
+        # A lowercase package head is a path to a class, not a member word: it stays strong.
+        ("core.ir.Theme.old", "gone", "missing_on_live_container", "strong", True),
     ],
 )
 def test_a_callable_or_a_bare_member_word_is_never_an_actionable_member(

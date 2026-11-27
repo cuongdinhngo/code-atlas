@@ -115,6 +115,7 @@ _TYPED_KINDS = frozenset((*VALUE_KINDS, *CALLABLE_KINDS))
 _MAX_SEGMENTS = 8
 # A row whose container was matched only by a member's name (457).
 MEMBER_NAME = "member_name"
+COLUMN = "Column"
 
 
 @dataclass(frozen=True, slots=True)
@@ -415,6 +416,7 @@ class Resolver:
         self.budget_spent = 0
         self._parents: Mapping[str, tuple[str, ...]] | None = None
         self._types: dict[str, list[str]] = {}
+        self._member_heads: dict[str, bool] = {}
 
     # ----------------------------------------------------------------- shared
     def _exists(self, rel: str) -> bool:
@@ -589,7 +591,10 @@ class Resolver:
         else:
             rows = self._matches(bare, last)
         if rows:
-            return self._found(rows)
+            found = self._found(rows)
+            if found.state == OK and all(str(row["kind"]) == COLUMN for row in rows):
+                return dataclasses.replace(found, reason="table_column")  # `jobs.series_id` (457)
+            return found
         if kind == NAME and not ref.endswith("()"):
             return None  # a word in backticks that names nothing indexed is not a reference
         if kind == SYMBOL:
@@ -704,15 +709,18 @@ class Resolver:
         return rows[0] if rows else Verdict(UNKNOWN, "untyped_container", detail)
 
     def _by_head(self, bare: str, verdict: Verdict) -> Verdict:
-        """Marked when the doc's first word is lowercase and names no class, only members by their
-        last segment — `run`, `jobs` in prose: a weak row whatever its state (457)."""
+        """Marked when the doc's first word is lowercase and matches only values or callables by
+        their last segment — `run`, `jobs` in prose: a weak row whatever its state (457)."""
         head = (_WORD_RUN.findall(bare) or [""])[0]
         if not head[:1].islower():
             return verdict
-        rows = self._matches(head, head)
-        if rows and all(
-            str(r["kind"]) not in TYPE_KINDS and str(r["qualified_name"]) != head for r in rows
-        ):
+        if head not in self._member_heads:
+            rows = self._matches(head, head)
+            # A package or class match keeps the row strong: only values and callables mark it.
+            self._member_heads[head] = bool(rows) and all(
+                str(r["kind"]) in _TYPED_KINDS for r in rows
+            )
+        if self._member_heads[head]:
             marked = {**verdict.detail, "matched_by": MEMBER_NAME}
             return dataclasses.replace(verdict, detail=marked)
         return verdict
