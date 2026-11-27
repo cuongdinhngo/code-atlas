@@ -86,6 +86,7 @@ Call `get_index_status` first whenever you are unsure the index is current.
 - **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:** `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and answer `holds`, `changed` or `unverifiable`.
 - **"Has this method changed since revision X?"** `--snapshot-symbols <out>` at X, then `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`, `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.
 - **"Is what `CLAUDE.md` and the docs say still true?"** `--verify-refs [globs]` states each path and symbol they name `ok`, `moved` (with its successor), `gone`, `never_existed`, `ambiguous` or `unknown`; by default only the actionable ones (moved or gone, strong); `--class instruction`, `--state moved`, `--strength weak`, `--format md`, `--limit N`, and `--fail-on actionable` to fail a pre-commit hook. `--format patch | git apply` corrects each one-successor move in place; `--format jsonl` exports every row (`--history-budget S`) and `--refs-diff OLD NEW` counts what two exports fixed.
+- **"Which shared helpers does no doc name?"** `--undocumented <path globs>` `--docs <doc globs>` lists the top-level exports there that no doc names (`!glob` leaves files out; an allowlist file in `refs_undocumented_allow`); `--fail-on any` makes it a CI gate. The `verify_refs` tool's `undocumented` answers the same.
 
 ## What this skill is not
 

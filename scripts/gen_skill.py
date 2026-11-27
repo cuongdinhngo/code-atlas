@@ -385,6 +385,10 @@ SHELL_ROUTE: tuple[str, ...] = (
     " and `--fail-on actionable` to fail a pre-commit hook. `--format patch | git apply` corrects"
     " each one-successor move in place; `--format jsonl` exports every row (`--history-budget S`)"
     " and `--refs-diff OLD NEW` counts what two exports fixed.",
+    "- **\"Which shared helpers does no doc name?\"** `--undocumented <path globs>`"
+    " `--docs <doc globs>` lists the top-level exports there that no doc names (`!glob` leaves"
+    " files out; an allowlist file in `refs_undocumented_allow`); `--fail-on any` makes it a CI"
+    " gate. The `verify_refs` tool's `undocumented` answers the same.",
 )
 
 # A subagent's worktree shares its parent's server and roots (408); only the call can name it.
