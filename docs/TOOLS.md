@@ -924,7 +924,8 @@ Its description is one line (443); the rest is here. Each row is one reference w
 a `reason` — `ok`, `moved` (one `successor`, or `successors` on a split), `gone` (`last_seen`, and
 `nearest_existing` for a path), `never_existed`, `ambiguous`, `unknown` (never `ok`) — plus
 `strength`: `strong` for a path git or the tree knows, a path with a folder and a suffix, or an
-adapter-shaped symbol written as code; `weak` otherwise. **Actionable** = `moved`/`gone`, strong, not
+adapter-shaped symbol written as code; `weak` otherwise, and when the doc's first word is lowercase and
+matched only a member's name (`matched_by: member_name`). **Actionable** = `moved`/`gone`, strong, not
 archive. With no `globs`, `doc_class`, `state` or `strength` the answer is `actionable` (counts per
 class and state), `actionable_total`, `unchecked` (strong rows left `unknown`, `ambiguous` or
 `never_existed` — never ok; `reason` `nothing_actionable_but_unchecked` when only those remain) and
@@ -934,7 +935,8 @@ reference doc's weak rows leave every summary unless `strength` names them (`wea
 A member its class does not declare is `ok` (`inherited`) when an ancestor declares it, `gone` only
 when git shows it left the class's file, else `unknown` (`not_declared_on_container`). After a field,
 property or method the member is read on its declared type (`via_declared_type`, with `type`); no
-type, or two, is `unknown` (`untyped_container` / `several_container_types`), never `gone`. A `moved` row
+type, or two, is `unknown` (`untyped_container`, `container_is_callable` for a function, or
+`several_container_types`), never `gone`. A `moved` row
 with one successor and an in-place form is `patch_ready`; `format: patch` answers `edits` and
 `apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git. The shell adds
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.

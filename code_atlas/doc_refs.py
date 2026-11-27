@@ -113,6 +113,8 @@ _TRIM = "`'\".,;:!?()[]{}*_"
 # A container of these kinds holds a value, so a member written after it is a member of its type.
 _TYPED_KINDS = frozenset((*VALUE_KINDS, *CALLABLE_KINDS))
 _MAX_SEGMENTS = 8
+# A row whose container was matched only by a member's name (457).
+MEMBER_NAME = "member_name"
 
 
 @dataclass(frozen=True, slots=True)
@@ -602,9 +604,9 @@ class Resolver:
             elif container:
                 walked = self._walk(container)
             if isinstance(walked, Verdict):
-                return walked
+                return self._by_head(bare, walked)
             if walked is not None:
-                return self._member(bare, last, kind, doc, walked)
+                return self._by_head(bare, self._member(bare, last, kind, doc, walked))
             if self._external(bare):
                 self.skipped_external += 1  # `os.path`: counted, so a vanished package is seen
                 return None
@@ -691,12 +693,29 @@ class Resolver:
         if len(types) != 1:
             if types:
                 return Verdict(UNKNOWN, "several_container_types", {**detail, "types": types})
-            return Verdict(UNKNOWN, "untyped_container", detail)
+            # A function has no members: the word after it names something else (457).
+            callable_ = str(owner["kind"]) in CALLABLE_KINDS
+            return Verdict(UNKNOWN, "container_is_callable" if callable_ else "untyped_container",
+                           detail)
         found = self._declared_on(types[0], last, own=True)
         if found is not None:
             return Verdict(OK, "via_declared_type", {"site": _site(found), "type": types[0]})
         rows = self.store.nodes_by_qualified_names(types, limit=1).get(types[0], [])
         return rows[0] if rows else Verdict(UNKNOWN, "untyped_container", detail)
+
+    def _by_head(self, bare: str, verdict: Verdict) -> Verdict:
+        """Marked when the doc's first word is lowercase and names no class, only members by their
+        last segment — `run`, `jobs` in prose: a weak row whatever its state (457)."""
+        head = (_WORD_RUN.findall(bare) or [""])[0]
+        if not head[:1].islower():
+            return verdict
+        rows = self._matches(head, head)
+        if rows and all(
+            str(r["kind"]) not in TYPE_KINDS and str(r["qualified_name"]) != head for r in rows
+        ):
+            marked = {**verdict.detail, "matched_by": MEMBER_NAME}
+            return dataclasses.replace(verdict, detail=marked)
+        return verdict
 
     def _one_owner(self, rows: Sequence[Row]) -> Row | Verdict:
         """The first match, unless the typed matches hold different types: no answer (R5.6)."""
@@ -986,6 +1005,8 @@ def strength(row: Mapping[str, object]) -> str:
         last = ref.rstrip("/").rsplit("/", 1)[-1]
         anchored = "/" in ref.rstrip("/") and "." in last.strip(".")
         return STRONG if anchored and origin in (CODE_SPAN, FENCE, LINK) else WEAK
+    if row.get("matched_by") == MEMBER_NAME:
+        return WEAK
     return STRONG if kind == SYMBOL and origin in (CODE_SPAN, FENCE) else WEAK
 
 
