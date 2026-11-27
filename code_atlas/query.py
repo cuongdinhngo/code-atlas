@@ -276,6 +276,30 @@ def _verify_refs(config: Config, args: argparse.Namespace) -> int:
 
 
 ACTIONABLE = "actionable"
+# `--fail-on any` with `--undocumented`: any undocumented export fails the run (461).
+ANY = "any"
+
+
+def _undocumented(config: Config, args: argparse.Namespace) -> int:
+    """Exports no doc names (461): every row as JSONL, or the capped answer as JSON or a table."""
+    from code_atlas.store import GraphStore
+
+    with GraphStore(config.db_path) as store:
+        answer = doc_refs.undocumented(
+            config, store, args.undocumented, docs=args.docs,
+            limit=args.limit or doc_refs.DEFAULT_LIMIT, every=args.format == "jsonl",
+        )
+    if args.format == "jsonl":
+        rows = answer["rows"]
+        assert isinstance(rows, list)
+        for row in rows:
+            sys.stdout.write(json.dumps(row, ensure_ascii=False) + "\n")
+        _say(f"{answer['total_count']} undocumented of {answer['candidates']} exports")
+    elif args.format == "md":
+        sys.stdout.write(doc_refs.undocumented_markdown(answer))
+    else:
+        sys.stdout.write(json.dumps(answer, ensure_ascii=False, indent=2) + "\n")
+    return NOT_HELD if ANY in args.fail_on.split(",") and answer["total_count"] else OK
 
 
 def _fail_on(rows: list[dict[str, object]], spec: str) -> int:
@@ -391,6 +415,14 @@ def main(argv: list[str] | None = None) -> int:
         help="which references in agent docs still resolve; GLOBs narrow the corpus",
     )
     parser.add_argument(
+        "--undocumented", nargs="+", metavar="GLOB",
+        help="top-level symbols under these path GLOBs that no doc names (the other direction)",
+    )
+    parser.add_argument(
+        "--docs", nargs="+", default=[], metavar="GLOB",
+        help="--undocumented: the docs to read (default: the --verify-refs corpus)",
+    )
+    parser.add_argument(
         "--class", dest="doc_class", action="append", default=[], choices=doc_refs.CLASSES,
         help="--verify-refs: only these priority classes",
     )
@@ -432,17 +464,21 @@ def main(argv: list[str] | None = None) -> int:
     modes = (
         args.tool, args.batch, args.verify_claim, args.verify_claims,
         args.snapshot_symbols, args.changed_since, args.verify_refs, args.refs_diff,
+        args.undocumented,
     )
     if sum(mode is not None for mode in modes) != 1:
         parser.error(
             "name exactly one of a tool, --batch, --verify-claim, --verify-claims, "
-            "--snapshot-symbols, --changed-since, --verify-refs or --refs-diff"
+            "--snapshot-symbols, --changed-since, --verify-refs, --undocumented or --refs-diff"
         )
     if args.limit is not None and not 1 <= args.limit <= doc_refs.MAX_LIMIT:
         parser.error(f"--limit: 1..{doc_refs.MAX_LIMIT}")
     fail_on = {state for state in args.fail_on.split(",") if state}
-    if fail_on - {*doc_refs.ACTIONABLE_STATES, ACTIONABLE, doc_refs.UNKNOWN,
-                  doc_refs.PLANNED_BUT_EXISTS}:
+    if args.undocumented is not None and fail_on - {ANY}:
+        parser.error(f"--fail-on with --undocumented: {ANY}")
+    refs_fail_on = {*doc_refs.ACTIONABLE_STATES, ACTIONABLE, doc_refs.UNKNOWN,
+                    doc_refs.PLANNED_BUT_EXISTS}
+    if args.undocumented is None and fail_on - refs_fail_on:
         parser.error(f"--fail-on: {', '.join(doc_refs.ACTIONABLE_STATES)}, unknown, "
                      f"{doc_refs.PLANNED_BUT_EXISTS} or {ACTIONABLE}")
     if args.refs_diff is not None:
@@ -472,7 +508,10 @@ def main(argv: list[str] | None = None) -> int:
                     base = symbol_changes.read_snapshot(json.load(handle))
             except (json.JSONDecodeError, ValueError) as error:
                 raise UsageError(f"--changed-since: {error}") from None
-        elif args.snapshot_symbols is not None or args.verify_refs is not None:
+        elif (
+            args.snapshot_symbols is not None or args.verify_refs is not None
+            or args.undocumented is not None
+        ):
             pass
         elif args.verify_claim is not None:
             claims = _claims_in(args.verify_claim, None)
@@ -531,6 +570,8 @@ def _run(
         return _snapshot_symbols(config, args.snapshot_symbols)
     if args.verify_refs is not None:
         return _verify_refs(config, args)
+    if args.undocumented is not None:
+        return _undocumented(config, args)
     if base is not None:
         return _changed_since(config, base, args.qname, args.path)
     server = build_server(config, count=False)

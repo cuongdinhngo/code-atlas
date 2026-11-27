@@ -51,10 +51,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         format: Format = "json",
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
+        undocumented: list[str] | None = None,
     ) -> dict[str, object]:
         """Which paths and symbols in CLAUDE.md, skills, memory and docs moved or are gone:
         counts and up to 20 rows, instruction files first. `format: patch` lists edits.
         """
+        if undocumented:
+            return _undocumented(config, undocumented, globs or [], format, limit)
         explicit = bool(globs or doc_class or state or strength)
         cap, clamped = clamp_limit(limit, min(config.page_limit, doc_refs.MAX_LIMIT))
         if not explicit and limit is None:
@@ -89,6 +92,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         return attach_limit_capped(answer, cap=cap, clamped=clamped)
 
     return verify_refs
+
+
+def _undocumented(
+    config: Config, paths: list[str], docs: list[str], format: Format, limit: int | None
+) -> dict[str, object]:
+    cap, clamped = clamp_limit(limit, min(config.page_limit, doc_refs.MAX_LIMIT))
+    with GraphStore(config.db_path) as store:
+        answer = doc_refs.undocumented(config, store, paths, docs=docs, limit=cap)
+    answer["index_root"] = config.index_root
+    if format == "md":
+        answer["markdown"] = doc_refs.undocumented_markdown(answer)
+        answer.pop("rows")
+    return attach_limit_capped(answer, cap=cap, clamped=clamped)
 
 
 def _compact(row: object) -> dict[str, object]:
