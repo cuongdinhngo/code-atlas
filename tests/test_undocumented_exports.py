@@ -75,6 +75,7 @@ def test_only_the_export_no_doc_names_is_a_row(repo: Config) -> None:
         ("lib.errors.retry", "Function", "lib/errors.py")
     ]
     assert (got["candidates"], got["allowlisted"], got["total_count"]) == (4, 1, 1)
+    assert got["documented_by_file"] == 1  # Button: unnamed itself, its file is named
     assert got["coverage"] == {"visibility_not_emitted": ["python", "typescript"]}
     assert "rows[].symbol" in got["untrusted_fields"]  # type: ignore[operator]
 
@@ -98,6 +99,19 @@ def test_an_exclusion_glob_leaves_its_files_out(repo: Config) -> None:
     assert "web/src/ui/Button.test.ts::setup" in [r["symbol"] for r in got["rows"]]  # type: ignore[union-attr]
     with GraphStore(repo.db_path) as store, pytest.raises(ValueError, match="not an exclusion"):
         doc_refs.undocumented(repo, store, ["!**/*.ts"])
+
+
+def test_no_doc_read_is_its_own_reason(repo: Config) -> None:
+    with GraphStore(repo.db_path) as store:
+        got = doc_refs.undocumented(repo, store, PATHS, docs=["nowhere/**"])
+    assert (got["reason"], got["docs_read"]) == ("no_docs_read", 0)
+
+
+def test_a_caller_glob_is_bounded(repo: Config) -> None:
+    with GraphStore(repo.db_path) as store, pytest.raises(ValueError, match="at most"):
+        doc_refs.undocumented(repo, store, ["**/" + "*a" * 20 + "*b"])
+    with pytest.raises(ValueError, match="patch"):
+        verify_refs.create(repo)(undocumented=PATHS, format="patch")
 
 
 def test_an_allowlist_that_cannot_be_read_is_a_config_error(repo: Config) -> None:

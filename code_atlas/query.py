@@ -476,6 +476,8 @@ def main(argv: list[str] | None = None) -> int:
     fail_on = {state for state in args.fail_on.split(",") if state}
     if args.undocumented is not None and fail_on - {ANY}:
         parser.error(f"--fail-on with --undocumented: {ANY}")
+    if args.undocumented is not None and args.format == "patch":
+        parser.error("--undocumented: --format json, md or jsonl")
     refs_fail_on = {*doc_refs.ACTIONABLE_STATES, ACTIONABLE, doc_refs.UNKNOWN,
                     doc_refs.PLANNED_BUT_EXISTS}
     if args.undocumented is None and fail_on - refs_fail_on:

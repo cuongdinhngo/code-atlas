@@ -97,7 +97,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 def _undocumented(
     config: Config, paths: list[str], docs: list[str], format: Format, limit: int | None
 ) -> dict[str, object]:
+    if format == "patch":
+        raise ValueError("format patch has no meaning with undocumented: json or md")
     cap, clamped = clamp_limit(limit, min(config.page_limit, doc_refs.MAX_LIMIT))
+    if limit is None:
+        cap, clamped = doc_refs.DEFAULT_ROWS, False
     with GraphStore(config.db_path) as store:
         answer = doc_refs.undocumented(config, store, paths, docs=docs, limit=cap)
     answer["index_root"] = config.index_root

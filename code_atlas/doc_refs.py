@@ -33,10 +33,13 @@ from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_
 from code_atlas.contract import (
     CALLABLE_KINDS,
     COLUMN_KIND,
+    HIDDEN_MODIFIERS,
     MEMBER_SEPARATOR,
     QUALIFIED_SHAPE,
+    TOP_LEVEL_KINDS,
     TYPE_KINDS,
     VALUE_KINDS,
+    VISIBILITY_MODIFIERS,
     join_qname,
     split_qname,
 )
@@ -192,6 +195,7 @@ def collect(config: Config, only: Sequence[str] = ()) -> Corpus:
 
     ``only`` (CLI globs) narrows the files; a file no class names is then `reference`.
     """
+    check_globs(only, "globs")
     globs = class_globs(config)
     listed = gitutil.ls_files(config.root)
     paths = list(listed or ()) + list(gitutil.ls_untracked(config.root) or ())
@@ -1239,10 +1243,20 @@ def summarize(
 
 
 # ----------------------------------------------------------------- undocumented exports (461)
-EXPORT_KINDS: tuple[str, ...] = (*TYPE_KINDS, *CALLABLE_KINDS, *VALUE_KINDS)
-# The UML visibility words an adapter may emit; one carrying neither reads public (461).
-HIDDEN_MODIFIERS = frozenset({"private", "protected"})
-VISIBILITY_MODIFIERS = HIDDEN_MODIFIERS | {"public"}
+# A caller's globs reach a regex: bounded in count, length and wildcards, so none can hang (461).
+MAX_GLOBS, MAX_GLOB_CHARS, MAX_GLOB_STARS = 20, 200, 8
+
+
+def check_globs(globs: Sequence[str], name: str) -> None:
+    """Refuse a glob list a caller could make expensive; the toml's go through the config."""
+    if len(globs) > MAX_GLOBS:
+        raise ValueError(f"{name}: at most {MAX_GLOBS} globs, got {len(globs)}")
+    for glob in globs:
+        if len(glob) > MAX_GLOB_CHARS or glob.count("*") > MAX_GLOB_STARS:
+            raise ValueError(
+                f"{name}: a glob is at most {MAX_GLOB_CHARS} characters and {MAX_GLOB_STARS} '*'"
+            )
+
 UNDOCUMENTED_UNTRUSTED: tuple[str, ...] = ("rows[].symbol", "rows[].file", "paths[]", "docs[]")
 
 
@@ -1260,6 +1274,8 @@ def undocumented(
     check_limit(limit)
     if not paths:
         raise ValueError("undocumented needs at least one path glob")
+    check_globs(paths, "undocumented")
+    check_globs(docs, "docs")
     found = scan(config, store, globs=docs)
     named: set[str] = set()
     files: set[str] = set()
@@ -1276,16 +1292,18 @@ def undocumented(
         languages.get(str(r["file_path"]), "") for r in candidates
         if VISIBILITY_MODIFIERS & set(_modifiers(r))
     }
+    public = [r for r in candidates if not HIDDEN_MODIFIERS & set(_modifiers(r))]
+    unnamed = [r for r in public if str(r["qualified_name"]) not in named | allowed]
     rows = [
         {"symbol": str(r["qualified_name"]), "file": r["file_path"], "line": r["line_start"],
          "kind": r["kind"]}
-        for r in candidates
-        if str(r["qualified_name"]) not in named | allowed
-        and str(r["file_path"]) not in files
-        and not HIDDEN_MODIFIERS & set(_modifiers(r))
+        for r in unnamed
+        if str(r["file_path"]) not in files
     ]
     if not candidates:
         reason = "no_symbol_under_paths"
+    elif not found.corpus.files:
+        reason = "no_docs_read"  # every export reads undocumented because no doc was read
     elif not rows:
         reason = "every_export_documented"
     else:
@@ -1298,6 +1316,8 @@ def undocumented(
         "docs_read": len(found.corpus.files),
         "candidates": len(candidates),
         "allowlisted": len({str(r["qualified_name"]) for r in candidates} & allowed),
+        # Unnamed themselves, documented only because a doc names their file.
+        "documented_by_file": len(unnamed) - len(rows),
         "total_count": len(rows),
         "returned": len(rows) if every else min(limit, len(rows)),
         "truncated": not every and len(rows) > limit,
@@ -1318,16 +1338,22 @@ def _top_level(store: GraphStore, paths: Sequence[str]) -> list[Row]:
         raise ValueError("undocumented needs a path glob that is not an exclusion")
     regexes = [glob_regex(glob) for glob in keep]
     found: dict[object, Row] = {}
+    matched: dict[str, bool] = {}
     for glob in keep:
         prefix = re.split(r"[*?\[]", glob, maxsplit=1)[0]
-        for row in store.nodes_of_kinds_under(EXPORT_KINDS, prefix):
+        for row in store.nodes_of_kinds_under(TOP_LEVEL_KINDS, prefix):
             path = str(row["file_path"])
-            if any(r.match(path) for r in regexes) and not any(r.match(path) for r in drop):
+            if path not in matched:  # each file matched once, not once per symbol
+                matched[path] = any(r.match(path) for r in regexes) and not any(
+                    r.match(path) for r in drop
+                )
+            if matched[path]:
                 found.setdefault(row["id"], row)
-    rows = [r for r in found.values() if not r.get("is_test")]
+    rows = list(found.values())
     containers = {c for r in rows if (c := split_qname(str(r["qualified_name"]))[0]) is not None}
     held = store.nodes_by_qualified_names(sorted(containers), limit=1)
-    nested = {c for c, hits in held.items() if any(str(h["kind"]) in EXPORT_KINDS for h in hits)}
+    holders = {*TOP_LEVEL_KINDS, *CALLABLE_KINDS, *VALUE_KINDS}
+    nested = {c for c, hits in held.items() if any(str(h["kind"]) in holders for h in hits)}
     return sorted(
         (r for r in rows if split_qname(str(r["qualified_name"]))[0] not in nested),
         key=lambda r: (str(r["file_path"]), int(str(r["line_start"])), str(r["qualified_name"])),

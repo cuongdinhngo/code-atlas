@@ -3201,11 +3201,12 @@ class GraphStore:
         return self._rows(EDGE_ROW_KEYS, sql, params)
 
     def nodes_of_kinds_under(self, kinds: Sequence[str], prefix: str) -> list[Row]:
-        """Every node of ``kinds`` in a file whose path starts with ``prefix``, by file and line."""
+        """Every non-test node of ``kinds`` in files whose path starts with ``prefix``, in order."""
         placeholders = ", ".join("?" for _ in kinds)
         sql = (
             f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE kind IN ({placeholders}) "
-            "AND file_path LIKE ? ESCAPE '!' ORDER BY file_path, line_start, qualified_name"
+            "AND COALESCE(is_test, 0) = 0 AND file_path LIKE ? ESCAPE '!' "
+            "ORDER BY file_path, line_start, qualified_name"
         )
         return self._rows(NODE_ROW_KEYS, sql, (*kinds, _like_literal(prefix) + "%"))
 

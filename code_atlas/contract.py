@@ -86,6 +86,11 @@ CALLABLE_KINDS: tuple[str, ...] = ("Function", "Method")
 # A node holding a value a declaration may type; with CALLABLE_KINDS, what verify_refs reads a
 # member through (456).
 VALUE_KINDS: tuple[str, ...] = ("Property", "ClassConst", "Const")
+# The UML visibility words an adapter's `modifiers` may carry; one with none of them reads public.
+VISIBILITY_MODIFIERS: frozenset[str] = frozenset({"public", "private", "protected"})
+HIDDEN_MODIFIERS: frozenset[str] = frozenset({"private", "protected"})
+# What can stand at a module's top level: a member kind (Method, Property) never does (461).
+TOP_LEVEL_KINDS: tuple[str, ...] = (*TYPE_KINDS, "Function", "Const")
 
 EDGE_KINDS: tuple[str, ...] = (
     "CONTAINS",
