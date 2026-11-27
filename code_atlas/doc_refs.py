@@ -21,6 +21,7 @@ import posixpath
 import re
 import tempfile
 import time
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -506,7 +507,12 @@ class Resolver:
         if "/" in ref or not dot or not name or not suffix:
             return False
         if self._suffixes is None:
-            tracked = {n.rpartition(".")[2] for n in self._tracked_index() if "." in n.strip(".")}
+            # A suffix only the tree knows counts once two files carry it: `Dockerfile.dev` alone
+            # must not turn `Settings.dev` into a path.
+            seen = Counter(
+                n.rpartition(".")[2] for n in self._tracked_index() if "." in n.strip(".")
+            )
+            tracked = {suffix for suffix, files in seen.items() if files > 1 and len(suffix) > 1}
             self._suffixes = frozenset(self.shapes.suffixes | _DOC_FILE_SUFFIXES | tracked)
         return suffix in self._suffixes
 
@@ -969,9 +975,9 @@ def _rows(
 
 
 def _resolve(resolver: Resolver, ref: str, kind: str, doc: str) -> tuple[str, Verdict | None]:
-    """One reference's kind and verdict. `threading.Lock` reads like a file and never was one:
-    a slash-less path no branch held, in a symbol's shape, is asked again as a symbol. A name ending
-    in a file suffix (`atoms.json`) stays a path unless the symbol is `ok` or external (458)."""
+    """One reference's kind and verdict: a slash-less path no branch held, in a symbol's shape, is
+    asked again as a symbol (`threading.Lock`); one ending in a file suffix (`atoms.json`) stays a
+    path unless that symbol is `ok` or external (458)."""
     file_name = resolver.names_a_file(ref)
     if kind != PATH and not file_name:
         return kind, resolver.symbol(ref, kind, doc)
