@@ -252,12 +252,13 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 430-C1 — a ReDoS guard keyed on nested quantifiers misses alternation repeated inside one
 
 - type: 2 (code) · handle: `redos-is-overlap-not-nesting`
-- status: proposed · seen: 430
+- status: proposed · seen: 430, 461
 - evidence: 430's first `checked_pattern` refused a repeat inside a repeat and allowed `(a|aa)+$`, which took
   10.6 s on 41 characters — the blow-up is ambiguity (two ways to match the same text under one repeat), and
   nesting is only one source of it. The challenger probed it; the limit now refuses any branch or optional
-  inside a repeat that can run twice.
-- destination: first sighting.
+  inside a repeat that can run twice. 461: a caller's glob compiled by `glob_regex` (`**/` + 20 × `*a` + `*b`) ran
+  past 120 s — `*` runs are the same ambiguity; the caller's globs are now bounded before they compile.
+- destination: `ENGINEERING_RULES.md` §9 (proposed, awaiting ratification — recurrence 2).
 
 ### 421-C1 — a value from a closed vocabulary is checked by membership, not by its shape
 

@@ -40,7 +40,6 @@ A second consumer's `verify_refs` export (2026-11-27): all 70 actionable symbol 
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 461 | [Undocumented exports](tasks/461_undocumented-exports.md) | Verify | todo | 443 |
 | 462 | [`--help` prints usage](tasks/462_help-prints-usage.md) | CLI | todo | — |
 | 463 | [Near-duplicate bodies — evidence-gated](tasks/463_near-duplicate-bodies.md) | Coverage | deferred | 098 |
 
