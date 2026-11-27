@@ -138,12 +138,49 @@ and T-SQL via npm, Python needs nothing), and writes `<your-project>/.mcp.json` 
 interpreter, each `CA_<LANG>_CMD` and the working directory filled in — the three things that are easy
 to get wrong by hand. Run it with no path to print the snippet instead of writing it.
 
-**Then keep the index fresh: run `code-atlas-setup` in your project** (a first `code-atlas-build`
-runs it for you). It writes a marked block into each git hook, the Claude Code hooks into
-`.claude/settings.local.json` unless the plugin has them, and your shell's `CA_<LANG>_CMD` into the user
-config file. Until it has run, `get_index_status` ends with `unguarded`. `--check` · `--dry-run` ·
-`--remove` · `--no-hooks` (453) · `--guard off|nudge|refuse` (454) · `--auto-rebuild`: a session starts
-the full rebuild an upgrade needs, in the background (455).
+### Keep the index fresh — set up the hooks
+
+An index goes stale on every pull, checkout, commit and rebase unless something refreshes it.
+**`code-atlas-setup` installs what does**; a first `code-atlas-build` runs it for you.
+
+1. Install code-atlas so `code-atlas-refresh` is on `PATH`, and export your `CA_<LANG>_CMD`.
+2. In the project, preview, then install:
+
+   ```bash
+   cd /abs/path/to/your-project
+   code-atlas-setup --dry-run   # what would change; changes nothing
+   code-atlas-setup             # safe to re-run: a second run changes no byte
+   ```
+
+   It installs three parts:
+   - **Git hooks:** a marked block in `post-merge`, `post-checkout`, `post-commit` and
+     `post-rewrite`, under `.git/hooks` or a local `core.hooksPath`. Your own hook lines stay.
+   - **Claude Code hooks:** written to `.claude/settings.local.json`, unless the plugin or a
+     committed `.claude/settings.json` already has them.
+   - **Adapter commands:** your shell's `CA_<LANG>_CMD`, copied into the user config file. A git
+     hook never sees your shell's variables (see *Configuration*).
+3. Check it:
+
+   ```bash
+   code-atlas-setup --check     # ✅ per part; ❌ plus the fix; exit 1 if anything is missing
+   ```
+
+   - **In the MCP client:** the `get_index_status` summary must not say `unguarded`. If it does,
+     it names the fix: run `code-atlas-setup`.
+   - **End to end:** commit something, then run `tail .code-atlas/refresh.log`. A refresh that was
+     skipped writes one dated line there, naming the hook and the reason.
+
+> **Not written for you:** a global `core.hooksPath`, a symlinked hook, and a hook that is not a
+> shell script. Setup reports each one; add the block by hand ([`contrib/git/`](contrib/git/)).
+
+Options:
+
+| Option | What it does |
+|---|---|
+| `--remove` | Takes out every block and hook entry setup wrote. |
+| `--no-hooks` | Records that this repo goes without hooks, so `unguarded` stops. |
+| `--guard off\|nudge\|refuse` | What a symbol-shaped grep meets: nothing, a nudge (default), or a refusal until code-atlas was asked about that name. |
+| `--auto-rebuild` | At most once per six hours per contract, a session start launches the full rebuild an upgrade needs, in the background. Off by default; `--no-auto-rebuild` turns it off again. |
 
 To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0
 code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0 code-atlas` —

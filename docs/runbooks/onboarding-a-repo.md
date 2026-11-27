@@ -305,9 +305,10 @@ What each does **not** cover: read-through stops after one file and returns `ind
 the poke never sees a pull/checkout/IDE edit; the MCP incremental only runs when an agent
 (or operator) invokes it; a full rebuild is never a hook's job.
 
-**Opt-in git hooks (053, 355)** close the pull, checkout, commit and rebase holes: copy
-[`contrib/git/`](../../contrib/git/) into `.git/hooks/` (manual — never auto-installed). They
-spawn `code-atlas-refresh` in the background so a large-index incremental cannot block `git`.
+**Git hooks (053, 355) close the pull, checkout, commit and rebase holes; `code-atlas-setup`
+installs them** (453) with the Claude Code hooks, and `code-atlas-setup --check` verifies them —
+steps in the README, *Keep the index fresh*. They spawn `code-atlas-refresh` in the background so a
+large-index incremental cannot block `git`; [`contrib/git/`](../../contrib/git/) is the hand route.
 
 Read-through freshness (task 035) already reparses a drifted file at query time, so the poke hook is
 an optimisation, not a requirement. To add it, merge
@@ -418,6 +419,7 @@ Read the **Zero-inbound modules, by population** block first, and read it agains
 - [ ] `entry_points` set, or reachability tools knowingly left off
 - [ ] Tracked-vs-indexed file counts diffed; `.gitignore` negations checked
 - [ ] MCP server registered at local scope with a `cd` wrapper; shared `.mcp.json` untouched
+- [ ] `code-atlas-setup` run, `code-atlas-setup --check` exits 0, `get_index_status` has no `unguarded`
 - [ ] Every tool called once; latencies and empty-result reasons understood
 - [ ] `generate_onboarding` run once; the map opened and read as a newcomer would
 - [ ] Every `entry_points` glob checked against the deployment, not the tree
