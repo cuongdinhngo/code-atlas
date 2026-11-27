@@ -10,7 +10,7 @@ depends_on: [437, 438, 439, 440, 441, 456, 457, 458, 464]
 
 > **Restart (2026-11-27).** The first run never started: the anchor's `CA_TOOLS` hid both tools
 > for 3 weeks (464). Those weeks count as control only. Day 0 is re-dated after:
-> 1. 456–458 ship. tiny-studio's 70/70 false symbol rows would fail the Day-4 precision check.
+> 1. 456–458 ship. the Python/TS consumer's 70/70 false symbol rows would fail the Day-4 precision check.
 > 2. 464 ships, and status shows both tools served on the anchor.
 > 3. The per-PR lines become `unprompted · prompted · not used · not available`, filled from the
 >    tool list the session has. The stale line becomes `yes/no (dangling-ref | wrong-fact | own-plan

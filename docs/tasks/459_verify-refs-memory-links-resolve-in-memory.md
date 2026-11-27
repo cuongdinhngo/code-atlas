@@ -3,7 +3,7 @@ id: 459
 slug: verify-refs-memory-links-resolve-in-memory
 title: "Links inside host memory resolve against the memory folder first"
 phase: 2
-milestone: "Field gaps — tiny-studio"
+milestone: "Field gaps — Python/TS consumer"
 status: todo
 depends_on: [443]
 ---
@@ -11,7 +11,7 @@ depends_on: [443]
 ## Why this exists
 
 Same field report as 456. Claude Code's memory index `<agent-memory>/MEMORY.md` links to its sibling
-files: `[Title](language-en-work-vn-chat.md)`. All 6 links in tiny-studio's index come back
+files: `[Title](user-language-preference.md)`. All 6 links in the Python/TS consumer's index come back
 `never_existed` / `no_branch_ever_held_it`, but each file exists in the memory folder next to the
 index. The link is checked against the repo tree only.
 
@@ -32,4 +32,4 @@ and a present one get the same answer, so the class cannot report the one stale 
 
 1. Fixture memory dir: an index linking one present and one missing sibling → `ok` and actionable
    `gone`.
-2. tiny-studio: the 6 index links are `ok`.
+2. The Python/TS consumer: the 6 index links are `ok`.
