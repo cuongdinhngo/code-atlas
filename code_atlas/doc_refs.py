@@ -1207,7 +1207,9 @@ def summarize(
         # Their own field: the page below holds only actionable rows by default (460).
         drops = [r for r in rows if r.get("reason") == PLANNED_BUT_EXISTS and counted(r, strengths)]
         extra["markers_to_drop"] = len(drops)
-        extra["markers_to_drop_rows"] = [{k: r[k] for k in ("file", "line", "ref")} for r in drops]
+        extra["markers_to_drop_rows"] = [
+            {k: r[k] for k in ("file", "line", "ref")} for r in drops[:limit]
+        ]
         untrusted += ["markers_to_drop_rows[].file", "markers_to_drop_rows[].ref"]
     return {
         **extra,
@@ -1573,7 +1575,8 @@ def markdown(answer: Mapping[str, object]) -> str:
         head.append("| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |")
     drop = answer.get("markers_to_drop_rows") or []
     if isinstance(drop, list) and drop:
-        head += ["", f"## markers to drop — {len(drop)} (planned_but_exists)", ""]
+        total = answer.get("markers_to_drop")
+        head += ["", f"## markers to drop — {total} (planned_but_exists)", ""]
         head += [f"- {r['file']}:{r['line']} `{r['ref']}`" for r in drop]
     if answer.get("truncated"):
         head += ["", f"_truncated at {answer['limit']} of {answer['total_count']} rows_"]

@@ -111,6 +111,8 @@ def test_the_default_answer_lists_the_markers_to_drop(configured: Config) -> Non
     assert summary["markers_to_drop_rows"] == drop
     assert "`lib/retry.py`" in doc_refs.markdown(summary)
     assert "markers_to_drop_rows[].ref" in summary["untrusted_fields"]
+    capped = doc_refs.summarize(found, actionable=True, limit=1)
+    assert capped["markers_to_drop"] == 1 and len(capped["markers_to_drop_rows"]) == 1
 
 
 def test_every_surface_names_the_same_states(
