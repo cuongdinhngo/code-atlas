@@ -405,7 +405,7 @@ def usage() -> str:
         "  --verify-refs [GLOB…]    which references in agent docs still resolve",
         "  --undocumented GLOB…     exports under the globs that no doc names (--docs GLOB…)",
         "  --format json|md|patch|jsonl",
-        "  --fail-on STATES         exit 3 on moved,gone · actionable · unknown · any",
+        "  --fail-on STATES         exit 3 on moved,gone|actionable|unknown (--undocumented: any)",
         "  --refs-diff OLD NEW      what changed between two --format jsonl exports",
         "  TOOL [--args JSON]       call one MCP tool and print its answer",
     ]
