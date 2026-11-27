@@ -58,6 +58,24 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 459-C1 — a fallback that may be discarded runs after the cheap answer, never before it
+
+- type: 2 (code) · handle: `ask-the-cheap-answer-before-the-costly-one`
+- status: proposed · seen: 459
+- evidence: the first `memory_link` asked the repo's `path` — git history included, on the run's shared budget —
+  before looking in the memory folder, then threw the answer away for every present note; it also read history the
+  ticket said a memory file has none of (the reviewer and the challenger, separately). The cheap check goes first.
+- destination: first sighting.
+
+### 459-C2 — a pasted result is copied from the run just made, never from the last similar one
+
+- type: 2 (process) · handle: `paste-the-run-you-made`
+- status: proposed · seen: 459
+- evidence: 459's baseline block was first written with the previous ticket's figure: the command had stopped at a
+  `ruff` error before `pytest` ran. Caught before the gate, re-run (`883 passed in 31.04s`) and replaced. A block is
+  written after its command's output is on screen, from that output.
+- destination: first sighting.
+
 ### 458-C1 — a vocabulary derived from the tree needs a floor before one file can join it
 
 - type: 2 (code) · handle: `a-derived-set-needs-a-floor`
