@@ -40,7 +40,6 @@ A second consumer's `verify_refs` export (2026-11-27): all 70 actionable symbol 
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 457 | [A method head is not a container](tasks/457_verify-refs-callable-container-not-gone.md) | Verify | todo | 443 |
 | 458 | [A file suffix is a path](tasks/458_verify-refs-file-suffix-is-a-path.md) | Verify | todo | 443 |
 | 459 | [Memory links resolve in memory](tasks/459_verify-refs-memory-links-resolve-in-memory.md) | Verify | todo | 443 |
 | 460 | [Planned-reference marker](tasks/460_verify-refs-planned-marker.md) | Verify | todo | 443 |
