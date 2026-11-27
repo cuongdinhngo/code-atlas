@@ -171,22 +171,25 @@ the anchor 28.5 s; Phase 4 holds the reviewed tree's runs.
 - **Reviewer round 2** (resumed, 6,652 tokens): LGTM; two minor items. **Taken** (`d13b5abf`): the TOOLS line and the
   `?`/`[` comment. **Challenger round 2** (resumed, 6,278 tokens): AC3 met on the ticket's wording; 9 met.
 - **Reviewer round 3** (verify-only, main loop, at `d13b5abf`): the comment and the TOOLS line as described.
+- **Gate finding** (`scripts/gate.sh` at `360f5880`, `test_the_brief_and_both_skills_teach_every_query_flag`): the agent
+  brief and both skills never named `--undocumented` / `--docs`. **Taken** (`543abfb9`): one occasion line in
+  `scripts/gen_skill.py`, the brief and skills regenerated. Main-loop round: docs only, the guard green.
 
 The round-1 rows (`no_docs_read`, the glob cap, the documented-by-file count) were seen red on the superseded tree
 `0e2666e6` (its code, this test file): three failures.
 
 `CHALLENGER VERDICT: 9 requirement(s) rebuilt | 9 met | 0 not met | 0 can't tell | 0 not-met covered by a recorded exclusion`
 
-Ran at d13b5abf
+Ran at 543abfb9
 ```
-$ env -u CA_… PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_undocumented_exports.py $(cat .mango/baseline-461.list)
-1092 passed in 43.30s
+$ env -u CA_… PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_undocumented_exports.py $(cat .mango/baseline-461.list) tests/test_agent_surface_names_shell_route.py tests/test_skill_drift.py
+1106 passed in 43.60s
 ```
 
 **AC2 — the consumer** (`--undocumented 'web/src/components/ui/**' 'web/src/lib/**' '!**/*.test.*' --docs
 docs/CONVENTIONS_FE.md`, backup index copy):
 
-Ran at d13b5abf
+At `d13b5abf` (the same code; `543abfb9` changed docs only):
 ```
 reason ok · candidates 130 · documented_by_file 87 · total_count 2 · docs_read 1 · visibility_not_emitted [typescript]
 lib/sceneSeconds.ts:5 Function words — a module-private const: false, the coverage line explains (no export visibility)
@@ -195,13 +198,14 @@ lib/sceneSeconds.ts:7 Interface SceneSeconds — exported; the catalogue names `
 
 **AC3 — the anchor**, its largest top-level folder as the one glob, its default doc corpus:
 
-Ran at d13b5abf
+At `d13b5abf` (the same code):
 ```
 real 0m26.426s · candidates 7707 · documented_by_file 2885 · total_count 2207 · docs_read 2025
 visibility_not_emitted [php, typescript]
 ```
 
-Reviewed at d13b5abf — files: `code_atlas/contract.py`, `code_atlas/store.py`, `code_atlas/doc_refs.py`,
+Reviewed at 543abfb9 — files: `scripts/gen_skill.py`, `contrib/agent-brief.md`, `contrib/skill/SKILL.md`,
+`contrib/claude-code/plugin/skills/code-atlas/SKILL.md`, `code_atlas/contract.py`, `code_atlas/store.py`, `code_atlas/doc_refs.py`,
 `code_atlas/tools/verify_refs.py`, `code_atlas/query.py`, `code_atlas/config.py`, `tests/test_undocumented_exports.py`,
 `tests/test_config.py`, `tests/test_tool_surface_budget.py`, `tests/fixtures/tool_manifest.json`, `docs/TOOLS.md`,
 `CHANGELOG.md`; working doc `docs/tasks/461_undocumented-exports.md`.
@@ -210,7 +214,7 @@ Reviewed at d13b5abf — files: `code_atlas/contract.py`, `code_atlas/store.py`,
 
 ## Phase 5 — finalise
 
-Stale-review guard: only bookkeeping after `d13b5abf` — not stale.
+Stale-review guard: only bookkeeping after `543abfb9` — not stale.
 
 **Durable lesson.** A second sighting of 430-C1 `redos-is-overlap-not-nesting`: a glob compiled to a regex is
 ambiguous under repetition the same way an alternation is, so a caller's glob needs a bound before it compiles. Now
