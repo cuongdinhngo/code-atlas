@@ -283,7 +283,10 @@ def _fail_on(rows: list[dict[str, object]], spec: str) -> int:
     failing = {state for state in spec.split(",") if state}
     if ACTIONABLE in failing:
         failing |= set(doc_refs.ACTIONABLE_STATES)
-    hit = any(row.get("actionable") and row["state"] in failing for row in rows)
+    hit = any(row.get("actionable") and row["state"] in failing for row in rows) or (
+        doc_refs.PLANNED_BUT_EXISTS in failing
+        and any(row.get("reason") == doc_refs.PLANNED_BUT_EXISTS for row in rows)
+    )
     unknown = doc_refs.UNKNOWN in failing and any(
         doc_refs.is_unchecked(row) and row["state"] == doc_refs.UNKNOWN for row in rows
     )
@@ -410,7 +413,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--fail-on", default="", metavar="STATES",
-        help=f"--verify-refs: exit {NOT_HELD} on an actionable row (moved,gone or actionable)",
+        help=f"--verify-refs: exit {NOT_HELD} on an actionable row (moved,gone or actionable), "
+        "an unchecked one (unknown) or a planned marker whose target exists (planned_but_exists)",
     )
     parser.add_argument("--limit", type=int, default=None, help="--verify-refs")
     parser.add_argument(
@@ -437,8 +441,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit is not None and not 1 <= args.limit <= doc_refs.MAX_LIMIT:
         parser.error(f"--limit: 1..{doc_refs.MAX_LIMIT}")
     fail_on = {state for state in args.fail_on.split(",") if state}
-    if fail_on - {*doc_refs.ACTIONABLE_STATES, ACTIONABLE, doc_refs.UNKNOWN}:
-        parser.error(f"--fail-on: {', '.join(doc_refs.ACTIONABLE_STATES)}, unknown or {ACTIONABLE}")
+    if fail_on - {*doc_refs.ACTIONABLE_STATES, ACTIONABLE, doc_refs.UNKNOWN,
+                  doc_refs.PLANNED_BUT_EXISTS}:
+        parser.error(f"--fail-on: {', '.join(doc_refs.ACTIONABLE_STATES)}, unknown, "
+                     f"{doc_refs.PLANNED_BUT_EXISTS} or {ACTIONABLE}")
     if args.refs_diff is not None:
         return _refs_diff(*args.refs_diff)
     if (args.qname or args.path) and args.changed_since is None:

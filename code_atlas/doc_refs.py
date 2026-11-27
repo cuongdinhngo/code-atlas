@@ -71,6 +71,10 @@ OK, MOVED, GONE, NEVER_EXISTED, AMBIGUOUS, UNKNOWN = (
     "ok", "moved", "gone", "never_existed", "ambiguous", "unknown"
 )
 STATES: tuple[str, ...] = (MOVED, GONE, NEVER_EXISTED, AMBIGUOUS, UNKNOWN, OK)
+# A marked reference whose target is absent; counted only where markers are configured (460).
+PLANNED = "planned"
+PLANNED_BUT_EXISTS = "planned_but_exists"
+ALL_STATES: tuple[str, ...] = (*STATES[:-1], PLANNED, OK)
 PATH, SYMBOL, NAME = "path", "symbol", "name"
 CODE_SPAN, FENCE, LINK, PROSE = "code_span", "fence", "link", "prose"
 
@@ -129,6 +133,7 @@ class Mention:
     context: str  # the line's shape: list_item · table_cell · heading · quote · prose · fence
     origin: str  # code_span · fence · link · prose
     ref: str
+    marked: bool = False  # the line carries a configured planned marker (460)
 
 
 @dataclass(slots=True)
@@ -252,9 +257,23 @@ def _context(line: str) -> str:
     return "prose"
 
 
-def extract(path: str, doc_class: str, text: str) -> tuple[list[Mention], int]:
+def extract(
+    path: str, doc_class: str, text: str, markers: Sequence[str] = ()
+) -> tuple[list[Mention], int]:
     """Every candidate reference in a markdown text, and how many command lines it holds."""
     mentions: list[Mention] = []
+    found = _extract(path, doc_class, text, mentions)
+    if markers:
+        lines = text.split("\n")
+        mentions = [
+            dataclasses.replace(m, marked=True) if any(k in lines[m.line - 1] for k in markers)
+            else m
+            for m in mentions
+        ]
+    return mentions, found
+
+
+def _extract(path: str, doc_class: str, text: str, mentions: list[Mention]) -> int:
     commands = 0
     fence: tuple[str, str] | None = None
     # Lines end at "\n" only, as git counts them: U+2028 or a form feed is not a line break.
@@ -289,7 +308,7 @@ def extract(path: str, doc_class: str, text: str) -> tuple[list[Mention], int]:
         rest = _LINK.sub(" ", rest)
         for word in rest.split():
             mentions.append(Mention(path, number, doc_class, context, PROSE, word))
-    return mentions, commands
+    return commands
 
 
 @dataclass(frozen=True, slots=True)
@@ -972,7 +991,7 @@ def _rows(
             yield {"file": doc, "line": 0, "class": doc_class, "context": "file",
                    "ref": doc, "ref_kind": PATH, "state": UNKNOWN, "reason": "unreadable_doc"}
             continue
-        mentions, commands = extract(doc, doc_class, text)
+        mentions, commands = extract(doc, doc_class, text, config.refs_planned_markers or ())
         corpus.commands[doc_class] = corpus.commands.get(doc_class, 0) + commands
         lines_seen: set[tuple[int, str]] = set()
         for mention in mentions:
@@ -999,11 +1018,20 @@ def _rows(
             if mention.origin == FENCE and kind == NAME:
                 continue
             lines_seen.add((mention.line, ref))
+            if mention.marked:
+                verdict = _planned(verdict)
             yield {
                 "file": doc, "line": mention.line, "class": doc_class, "context": mention.context,
                 "origin": mention.origin, "ref": ref, "ref_kind": kind,
                 "state": verdict.state, "reason": verdict.reason, **verdict.detail,
             }
+
+
+def _planned(verdict: Verdict) -> Verdict:
+    """A marked reference: absent is `planned`, present is a marker to drop (460)."""
+    if verdict.state == OK:
+        return dataclasses.replace(verdict, reason=PLANNED_BUT_EXISTS)
+    return dataclasses.replace(verdict, state=PLANNED)
 
 
 def _resolve(resolver: Resolver, ref: str, kind: str, doc: str) -> tuple[str, Verdict | None]:
@@ -1048,7 +1076,7 @@ def scan(
     resolver = Resolver(config, store, Shapes.from_store(store), budget_s)
     rows = list(_rows(config, store, corpus, resolver))
     order = {name: n for n, name in enumerate(CLASSES)}
-    rank = {name: n for n, name in enumerate(STATES)}
+    rank = {name: n for n, name in enumerate(ALL_STATES)}
     rows.sort(key=lambda r: (order[str(r["class"])], rank[str(r["state"])], r["file"], r["line"]))
     for row in rows:
         row["strength"] = strength(row)
@@ -1114,7 +1142,7 @@ def check_limit(limit: int) -> None:
 
 
 def check_filters(states: Sequence[str], strengths: Sequence[str]) -> None:
-    for given, known, name in ((states, STATES, "state"), (strengths, STRENGTHS, "strength")):
+    for given, known, name in ((states, ALL_STATES, "state"), (strengths, STRENGTHS, "strength")):
         unknown = [s for s in given if s not in known]
         if unknown:
             raise ValueError(f"unknown {name} {unknown[0]!r}; one of {', '.join(known)}")
@@ -1139,6 +1167,8 @@ def summarize(
 
     ``actionable`` answers only moved/gone strong rows, instruction class first (the default)."""
     corpus, rows = found.corpus, found.rows
+    marked = bool(found.resolver.config.refs_planned_markers)
+    counted_states = ALL_STATES if marked else STATES
     by_class: dict[str, dict[str, int]] = {}
     acted: dict[str, dict[str, int]] = {}
     files: dict[str, int] = {}
@@ -1150,7 +1180,7 @@ def summarize(
         if not counted(row, strengths):
             weak_hidden += 1
             continue
-        by_class.setdefault(name, {state: 0 for state in STATES})[str(row["state"])] += 1
+        by_class.setdefault(name, {state: 0 for state in counted_states})[str(row["state"])] += 1
         if is_unchecked(row):
             unchecked[name] = unchecked.get(name, 0) + 1
         if row.get("actionable"):
@@ -1178,7 +1208,10 @@ def summarize(
     else:
         reason = "ok"
     ranked = sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))
-    return {
+    extra: dict[str, object] = {}
+    if marked:
+        extra["markers_to_drop"] = sum(1 for r in rows if r.get("reason") == PLANNED_BUT_EXISTS)
+    return {**extra,
         "reason": reason,
         "files_read": len(corpus.files),
         "total_count": len(kept),
@@ -1513,17 +1546,18 @@ UNTRUSTED: tuple[str, ...] = (
 
 def markdown(answer: Mapping[str, object]) -> str:
     """The same answer as a table a human reads; reference strings only, never prose."""
+    columns = ALL_STATES if "markers_to_drop" in answer else STATES
     head = [
         f"# verify_refs — {answer['total_count']} references in {answer['files_read']} files",
         "",
-        "| class | " + " | ".join(STATES) + " |",
-        "|---|" + "---|" * len(STATES),
+        "| class | " + " | ".join(columns) + " |",
+        "|---|" + "---|" * len(columns),
     ]
     by_class = answer.get("by_class") or {}
     assert isinstance(by_class, dict)
     for name in CLASSES:
         if name in by_class:
-            head.append(f"| {name} | " + " | ".join(str(by_class[name][s]) for s in STATES) + " |")
+            head.append(f"| {name} | " + " | ".join(str(by_class[name][s]) for s in columns) + " |")
     head += ["", "| file:line | class | state | reference | successor / reason |"]
     head.append("|---|---|---|---|---|")
     rows = answer.get("rows") or []
@@ -1538,6 +1572,11 @@ def markdown(answer: Mapping[str, object]) -> str:
         cells = [f"{row['file']}:{row['line']}", row["class"], row["state"], f"`{row['ref']}`"]
         cells.append(hint)
         head.append("| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |")
+    drop = [r for r in rows if r.get("reason") == PLANNED_BUT_EXISTS]
+    if drop:
+        count = answer.get("markers_to_drop")
+        head += ["", f"## markers to drop — {count} (planned_but_exists)", ""]
+        head += [f"- {r['file']}:{r['line']} `{r['ref']}`" for r in drop]
     if answer.get("truncated"):
         head += ["", f"_truncated at {answer['limit']} of {answer['total_count']} rows_"]
     return "\n".join(head) + "\n"
