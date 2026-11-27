@@ -260,24 +260,14 @@ def _context(line: str) -> str:
 def extract(
     path: str, doc_class: str, text: str, markers: Sequence[str] = ()
 ) -> tuple[list[Mention], int]:
-    """Every candidate reference in a markdown text, and how many command lines it holds."""
+    """Every candidate reference in a markdown text, and how many command lines it holds; a mention
+    on a line carrying a configured planned marker is `marked` (460)."""
     mentions: list[Mention] = []
-    found = _extract(path, doc_class, text, mentions)
-    if markers:
-        lines = text.split("\n")
-        mentions = [
-            dataclasses.replace(m, marked=True) if any(k in lines[m.line - 1] for k in markers)
-            else m
-            for m in mentions
-        ]
-    return mentions, found
-
-
-def _extract(path: str, doc_class: str, text: str, mentions: list[Mention]) -> int:
     commands = 0
     fence: tuple[str, str] | None = None
     # Lines end at "\n" only, as git counts them: U+2028 or a form feed is not a line break.
     for number, line in enumerate(text.split("\n"), start=1):
+        marked = any(k in line for k in markers)
         opened = _FENCE.match(line)
         if fence is not None:
             if opened and opened.group(1).startswith(fence[0][0]) and len(opened.group(1)) >= len(
@@ -289,7 +279,7 @@ def _extract(path: str, doc_class: str, text: str, mentions: list[Mention]) -> i
             if shell and line.strip() and not line.lstrip().startswith("#"):
                 commands += 1
             for word in re.split(r"[\s()\[\]{},;=\"']+", line):
-                mentions.append(Mention(path, number, doc_class, "fence", FENCE, word))
+                mentions.append(Mention(path, number, doc_class, "fence", FENCE, word, marked))
             continue
         if opened:
             fence = (opened.group(1), opened.group(2))
@@ -301,14 +291,14 @@ def _extract(path: str, doc_class: str, text: str, mentions: list[Mention]) -> i
             if body.startswith("$ ") or " " in body:
                 commands += 1  # a span with a space is a command or a code fragment, never one ref
                 continue
-            mentions.append(Mention(path, number, doc_class, context, CODE_SPAN, body))
+            mentions.append(Mention(path, number, doc_class, context, CODE_SPAN, body, marked))
         rest = _SPAN.sub(" ", rest)
         for link in _LINK.finditer(rest):
-            mentions.append(Mention(path, number, doc_class, context, LINK, link.group(1)))
+            mentions.append(Mention(path, number, doc_class, context, LINK, link.group(1), marked))
         rest = _LINK.sub(" ", rest)
         for word in rest.split():
-            mentions.append(Mention(path, number, doc_class, context, PROSE, word))
-    return commands
+            mentions.append(Mention(path, number, doc_class, context, PROSE, word, marked))
+    return mentions, commands
 
 
 @dataclass(frozen=True, slots=True)
@@ -1028,10 +1018,13 @@ def _rows(
 
 
 def _planned(verdict: Verdict) -> Verdict:
-    """A marked reference: absent is `planned`, present is a marker to drop (460)."""
+    """A marked reference: absent is `planned`, present is a marker to drop, and an unsettled or
+    moved one keeps its own state (460)."""
     if verdict.state == OK:
         return dataclasses.replace(verdict, reason=PLANNED_BUT_EXISTS)
-    return dataclasses.replace(verdict, state=PLANNED)
+    if verdict.state in (NEVER_EXISTED, GONE):
+        return dataclasses.replace(verdict, state=PLANNED)
+    return verdict
 
 
 def _resolve(resolver: Resolver, ref: str, kind: str, doc: str) -> tuple[str, Verdict | None]:
@@ -1209,9 +1202,15 @@ def summarize(
         reason = "ok"
     ranked = sorted(files.items(), key=lambda kv: (-kv[1], kv[0]))
     extra: dict[str, object] = {}
+    untrusted = list(UNTRUSTED)
     if marked:
-        extra["markers_to_drop"] = sum(1 for r in rows if r.get("reason") == PLANNED_BUT_EXISTS)
-    return {**extra,
+        # Their own field: the page below holds only actionable rows by default (460).
+        drops = [r for r in rows if r.get("reason") == PLANNED_BUT_EXISTS and counted(r, strengths)]
+        extra["markers_to_drop"] = len(drops)
+        extra["markers_to_drop_rows"] = [{k: r[k] for k in ("file", "line", "ref")} for r in drops]
+        untrusted += ["markers_to_drop_rows[].file", "markers_to_drop_rows[].ref"]
+    return {
+        **extra,
         "reason": reason,
         "files_read": len(corpus.files),
         "total_count": len(kept),
@@ -1233,7 +1232,7 @@ def summarize(
         "skipped_as_external": found.resolver.skipped_external,
         "rows": kept[:limit],
         "corpus_globs": {name: list(globs) for name, globs in corpus.globs.items()},
-        "untrusted_fields": list(UNTRUSTED),
+        "untrusted_fields": untrusted,
     }
 
 
@@ -1572,10 +1571,9 @@ def markdown(answer: Mapping[str, object]) -> str:
         cells = [f"{row['file']}:{row['line']}", row["class"], row["state"], f"`{row['ref']}`"]
         cells.append(hint)
         head.append("| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |")
-    drop = [r for r in rows if r.get("reason") == PLANNED_BUT_EXISTS]
-    if drop:
-        count = answer.get("markers_to_drop")
-        head += ["", f"## markers to drop — {count} (planned_but_exists)", ""]
+    drop = answer.get("markers_to_drop_rows") or []
+    if isinstance(drop, list) and drop:
+        head += ["", f"## markers to drop — {len(drop)} (planned_but_exists)", ""]
         head += [f"- {r['file']}:{r['line']} `{r['ref']}`" for r in drop]
     if answer.get("truncated"):
         head += ["", f"_truncated at {answer['limit']} of {answer['total_count']} rows_"]

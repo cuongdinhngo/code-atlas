@@ -398,7 +398,7 @@ def main(argv: list[str] | None = None) -> int:
         "--state",
         action="append",
         default=[],
-        choices=doc_refs.STATES,
+        choices=doc_refs.ALL_STATES,
         help="--verify-refs: only rows in these states (summaries still count every row)",
     )
     parser.add_argument(

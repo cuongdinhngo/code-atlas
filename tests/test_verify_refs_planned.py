@@ -12,6 +12,7 @@ import json
 import shlex
 import sys
 from pathlib import Path
+from typing import get_args
 
 import pytest
 
@@ -19,6 +20,7 @@ from code_atlas import doc_refs, query
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
+from code_atlas.tools import verify_refs
 from tests.python_adapter_cli import ENTRY as PY_ENTRY
 from tests.test_verify_refs import git, write
 
@@ -98,6 +100,26 @@ def test_a_marked_target_that_exists_is_a_marker_to_drop(configured: Config) -> 
     summary = doc_refs.summarize(found, states=list(doc_refs.STATES))
     assert summary["markers_to_drop"] == 1
     assert "planned_but_exists" in doc_refs.markdown(summary)
+
+
+def test_the_default_answer_lists_the_markers_to_drop(configured: Config) -> None:
+    with GraphStore(configured.db_path) as store:
+        found = doc_refs.scan(configured, store)
+    summary = doc_refs.summarize(found, actionable=True)  # unfiltered: the page is actionable rows
+    assert summary["markers_to_drop"] == 1
+    drop = [{"file": "CLAUDE.md", "line": 4, "ref": "lib/retry.py"}]
+    assert summary["markers_to_drop_rows"] == drop
+    assert "`lib/retry.py`" in doc_refs.markdown(summary)
+    assert "markers_to_drop_rows[].ref" in summary["untrusted_fields"]
+
+
+def test_every_surface_names_the_same_states(
+    configured: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert set(get_args(verify_refs.State)) == set(doc_refs.ALL_STATES)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(configured.root))
+    monkeypatch.setenv("CA_PYTHON_CMD", ENV["CA_PYTHON_CMD"])
+    assert query.main(["--verify-refs", "--state", "planned", "--format", "md"]) == query.OK
 
 
 def test_fail_on_names_a_marker_to_drop(

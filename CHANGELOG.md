@@ -19,8 +19,9 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 
 - `refs_planned_markers` (`.code-atlas.toml`, e.g. `["⏳", "(planned)"]`) marks a doc line's references as
   planned: an absent target is `planned`, never actionable; a present one is `ok` (`planned_but_exists`),
-  counted as `markers_to_drop`, listed by `--format md`, and `--fail-on planned_but_exists` fails on it. Unset,
-  the answer is unchanged byte for byte (460).
+  counted as `markers_to_drop` (rows in `markers_to_drop_rows`), listed by `--format md`, and
+  `--fail-on planned_but_exists` fails on it. The `verify_refs` tool's `state` and `--state` accept `planned`.
+  Unset, the answer is unchanged byte for byte (460).
 - A link in host memory (`[t](note.md)` in `MEMORY.md`) is looked for in the memory folder first: present is
   `ok` (`exists_in_memory`), missing there and in the repo is an actionable `gone` (`missing_from_memory`)
   in the memory class. A link leaving the folder keeps the repo's rules (459).

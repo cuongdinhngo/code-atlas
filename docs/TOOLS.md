@@ -941,7 +941,7 @@ in a file suffix the index, the doc set or a tracked file carries is a path unle
 with one successor and an in-place form is `patch_ready`; `format: patch` answers `edits` and
 `apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git; a link in one is
 looked for beside it first (`exists_in_memory`), and missing there and in the repo is `gone` (`missing_from_memory`). With `refs_planned_markers`, a marked
-line's absent target is `planned`, never actionable; `--fail-on planned_but_exists` fails on a marker to drop. The shell adds
+line's absent (`never_existed` or `gone`) target is `planned`, never actionable nor unchecked; `--fail-on planned_but_exists` fails on a marker to drop. The shell adds
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.
 
 ### `compute`

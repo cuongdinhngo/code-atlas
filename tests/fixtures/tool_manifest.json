@@ -1840,6 +1840,7 @@
                     "never_existed",
                     "ambiguous",
                     "unknown",
+                    "planned",
                     "ok"
                   ],
                   "type": "string"
