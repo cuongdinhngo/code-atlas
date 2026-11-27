@@ -1310,13 +1310,19 @@ def undocumented(
 
 
 def _top_level(store: GraphStore, paths: Sequence[str]) -> list[Row]:
-    """Non-test symbols of the export kinds in files the globs match, not inside another symbol."""
-    regexes = [glob_regex(glob) for glob in paths]
+    """Non-test symbols of the export kinds in files the globs match, not inside another symbol; a
+    glob starting `!` leaves its files out (`!**/*.test.ts`): the core names no test file itself."""
+    keep = [glob for glob in paths if not glob.startswith("!")]
+    drop = [glob_regex(glob[1:]) for glob in paths if glob.startswith("!")]
+    if not keep:
+        raise ValueError("undocumented needs a path glob that is not an exclusion")
+    regexes = [glob_regex(glob) for glob in keep]
     found: dict[object, Row] = {}
-    for glob in paths:
+    for glob in keep:
         prefix = re.split(r"[*?\[]", glob, maxsplit=1)[0]
         for row in store.nodes_of_kinds_under(EXPORT_KINDS, prefix):
-            if any(regex.match(str(row["file_path"])) for regex in regexes):
+            path = str(row["file_path"])
+            if any(r.match(path) for r in regexes) and not any(r.match(path) for r in drop):
                 found.setdefault(row["id"], row)
     rows = [r for r in found.values() if not r.get("is_test")]
     containers = {c for r in rows if (c := split_qname(str(r["qualified_name"]))[0]) is not None}

@@ -32,12 +32,13 @@ FILES = {
         "class Dialog:\n    def open(self):\n        return 1\n"
     ),
     "web/src/ui/Button.ts": "export function Button(): number {\n  return 1;\n}\n",
+    "web/src/ui/Button.test.ts": "export function setup(): number {\n  return 2;\n}\n",
     "tools/other.py": "def elsewhere():\n    return 1\n",
     "docs/CATALOGUE.md": "- `format_error` · `web/src/ui/Button.ts`\n",
     "allow.txt": "# internal helpers\nlib.errors.Dialog\n",
     ".code-atlas.toml": 'refs_undocumented_allow = "allow.txt"\n',
 }
-PATHS = ["lib/**", "web/src/**"]
+PATHS = ["lib/**", "web/src/**", "!**/*.test.ts"]  # a test file is the caller's to leave out
 ENV = {
     "CA_WORKERS": "1",
     "CA_PYTHON_CMD": shlex.join([sys.executable, str(PY_ENTRY), "--server"]),
@@ -89,6 +90,14 @@ def test_the_mcp_tool_and_the_shell_answer_it(
     argv = ["--undocumented", *PATHS, "--docs", "docs/**", "--format", "jsonl"]
     assert query.main([*argv, "--fail-on", "any"]) == query.NOT_HELD
     assert query.main(["--undocumented", "tools/nothing/**", "--fail-on", "any"]) == query.OK
+
+
+def test_an_exclusion_glob_leaves_its_files_out(repo: Config) -> None:
+    with GraphStore(repo.db_path) as store:
+        got = doc_refs.undocumented(repo, store, PATHS[:-1], docs=["docs/**"])
+    assert "web/src/ui/Button.test.ts::setup" in [r["symbol"] for r in got["rows"]]  # type: ignore[union-attr]
+    with GraphStore(repo.db_path) as store, pytest.raises(ValueError, match="not an exclusion"):
+        doc_refs.undocumented(repo, store, ["!**/*.ts"])
 
 
 def test_an_allowlist_that_cannot_be_read_is_a_config_error(repo: Config) -> None:
