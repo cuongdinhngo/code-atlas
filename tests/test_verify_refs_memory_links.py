@@ -24,6 +24,7 @@ INDEX = (
     "- [Present](present.md) — a note that is there\n"
     "- [Missing](missing.md) — a note that was deleted\n"
     "- [Nested](topics/deep.md) · [Escape](../../outside.md) · [Code](lib/a.py)\n"
+    "- [Old](old.md) was a repo file once · [Abs](/etc/hosts)\n"
     "- `missing.md` in a code span keeps the repo's rules\n"
 )
 
@@ -31,11 +32,13 @@ INDEX = (
 @pytest.fixture(scope="module")
 def found(tmp_path_factory: pytest.TempPathFactory) -> Iterator[doc_refs.Scan]:
     root = tmp_path_factory.mktemp("memory")
-    write(root, {"lib/a.py": "def keep():\n    return 1\n"})
+    write(root, {"lib/a.py": "def keep():\n    return 1\n", "old.md": "Once.\n"})
     (root / ".gitignore").write_text(".code-atlas/\n", encoding="utf-8")
     git(root, "init", "-q")
     git(root, "add", "-A")
     git(root, "commit", "-q", "-m", "first")
+    git(root, "rm", "-q", "old.md")
+    git(root, "commit", "-q", "-m", "drop old.md")
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path_factory.mktemp("home")))
         config: Config = load_config(root, {
@@ -65,6 +68,8 @@ def row(found: doc_refs.Scan, ref: str, origin: str = "link") -> dict[str, objec
         ("topics/deep.md", "ok", "exists_in_memory", False),
         # In neither the memory folder nor the repo: the stale link the memory class exists for.
         ("missing.md", "gone", "missing_from_memory", True),
+        # Git history is not asked: a repo file of that name, once deleted, is not this note.
+        ("old.md", "gone", "missing_from_memory", True),
         # A link that leaves the memory folder is never looked for there (SEC-IN-03).
         ("../../outside.md", "unknown", "outside_the_repo", False),
         # The memory folder lacks it, the repo holds it: the repo's answer stands.
@@ -77,6 +82,10 @@ def test_a_memory_link_resolves_in_the_memory_folder_first(
     got = row(found, ref)
     assert got["class"] == "memory"
     assert (got["state"], got["reason"], got["actionable"]) == (state, reason, actionable), got
+
+
+def test_an_absolute_link_never_reaches_the_host(found: doc_refs.Scan) -> None:
+    assert [r for r in found.rows if r["ref"] == "/etc/hosts"] == []
 
 
 def test_a_code_span_in_memory_keeps_the_repos_rules(found: doc_refs.Scan) -> None:

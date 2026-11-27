@@ -467,13 +467,17 @@ class Resolver:
         return self._doc_revs[doc]
 
     # ----------------------------------------------------------------- paths
-    def path(self, ref: str, doc: str) -> Verdict:
+    def _tries(self, ref: str, doc: str) -> list[str]:
         here = posixpath.dirname(doc) if in_repo(doc) else ""
-        tries = list(dict.fromkeys(
+        return list(dict.fromkeys(
             p for p in (posixpath.normpath(ref.rstrip("/")),
                         posixpath.normpath(posixpath.join(here, ref.rstrip("/"))))
             if p != "." and not p.startswith("../") and p != ".."
         ))
+
+    def _in_tree(self, ref: str, doc: str) -> Verdict | None:
+        """What the checkout alone answers — no git history; None when it does not hold the path."""
+        tries = self._tries(ref, doc)
         if not tries:
             return Verdict(UNKNOWN, "outside_the_repo")
         for rel in tries:
@@ -487,6 +491,14 @@ class Resolver:
             return Verdict(
                 AMBIGUOUS, "several_paths_end_so", {"candidate_paths": under[:CANDIDATE_CAP]}
             )
+        return None
+
+    def path(self, ref: str, doc: str) -> Verdict:
+        found = self._in_tree(ref, doc)
+        if found is not None:
+            return found
+        tries = self._tries(ref, doc)
+        here = posixpath.dirname(doc) if in_repo(doc) else ""
         history, added = self.history(), self.added()
         if history is None or added is None:
             return Verdict(UNKNOWN, "no_git_history")
@@ -522,15 +534,14 @@ class Resolver:
         folder = memory_dir(self.config)
         here = posixpath.dirname(doc.removeprefix(MEMORY_PREFIX))
         rel = posixpath.normpath(posixpath.join(here, ref.rstrip("/")))
-        verdict = self.path(ref, doc)
-        if rel in (".", "..") or rel.startswith("../"):
-            return verdict  # outside the memory folder (SEC-IN-03)
+        if posixpath.isabs(rel) or rel in (".", "..") or rel.startswith("../"):
+            return self.path(ref, doc)  # outside the memory folder (SEC-IN-03)
         target = folder / rel
-        if target.exists() and resolves_inside(folder, target):
+        if resolves_inside(folder, target) and target.exists():
             return Verdict(OK, "exists_in_memory", {"path": MEMORY_PREFIX + rel})
-        if verdict.state == NEVER_EXISTED:
-            return Verdict(GONE, "missing_from_memory", {"path": MEMORY_PREFIX + rel})
-        return verdict
+        # A memory file has no git history: the checkout answers, never a rename lookup.
+        found = self._in_tree(ref, doc)
+        return found or Verdict(GONE, "missing_from_memory", {"path": MEMORY_PREFIX + rel})
 
     def _tracked_index(self) -> Mapping[str, list[str]]:
         if self._tracked is None:
