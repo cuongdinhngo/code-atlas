@@ -49,14 +49,6 @@ A second consumer's `verify_refs` export (2026-11-27): all 70 actionable symbol 
 | 462 | [`--help` prints usage](tasks/462_help-prints-usage.md) | CLI | todo | — |
 | 463 | [Near-duplicate bodies — evidence-gated](tasks/463_near-duplicate-bodies.md) | Coverage | deferred | 098 |
 
-## Open work — Round-3 field gaps
-
-Code-side gaps the Round-3 field feedback still hits on 0.11; the rest of that roadmap is rollout or
-the consuming repo's own config.
-
-| # | Task | Theme | Status | Depends on |
-|---|---|---|---|---|
-
 ## Open work — Freshness by setup (epic 451)
 
 Both anchors: the index lags HEAD and agents fall back to grep. Install sets up the hooks, or says it did not.
@@ -67,8 +59,7 @@ Both anchors: the index lags HEAD and agents fall back to grep. Install sets up 
 
 ## Open work — Trust (security)
 
-Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
-landed, and 433 closed PyPI as refused; what is left is the maintainer's switches each task file names.
+None open: 419–431 landed against [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md); 433 refused PyPI.
 
 ## Open work — Pillar 2 · Onboarding
 
