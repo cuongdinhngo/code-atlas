@@ -1244,6 +1244,7 @@ def summarize(
 
 # ----------------------------------------------------------------- undocumented exports (461)
 # A caller's globs reach a regex: bounded in count, length and wildcards, so none can hang (461).
+# Only `*` backtracks; `?` and `[` compile to one character each, so they need no cap.
 MAX_GLOBS, MAX_GLOB_CHARS, MAX_GLOB_STARS = 20, 200, 8
 
 

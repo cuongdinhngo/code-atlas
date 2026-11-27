@@ -945,7 +945,9 @@ line's absent (`never_existed` or `gone`) target is `planned`, never actionable 
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.
 `undocumented` (path globs) answers the other direction: top-level symbols there that no doc in `globs` names —
 not by its qname, an ambiguous candidate, nor its file — less the allowlist; `coverage.visibility_not_emitted`
-names languages whose adapter marks no visibility, so every candidate there read public. The shell:
+names languages whose adapter marks no visibility, so every candidate there read public; `documented_by_file`
+counts the exports a doc covers only by naming their file, and `no_docs_read` says no doc was read. Caller
+globs are capped (20 globs, 200 characters, 8 `*` each). The shell:
 `code-atlas query --undocumented GLOB… [--docs GLOB…] [--format json|md|jsonl] [--fail-on any]`; a glob
 starting `!` leaves its files out (`'!**/*.test.ts'`) — the core names no test file by its name.
 
