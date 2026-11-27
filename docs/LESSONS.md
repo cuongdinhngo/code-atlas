@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 455-C1 — when two remedies share a trigger state, the stronger one is checked first
+
+- type: 2 (code) · handle: `the-stronger-remedy-is-checked-first`
+- status: proposed · seen: 455
+- evidence: 455's state hook tested `behind` (start a refresh) before `rebuild required` (start a full build). After an
+  upgrade and a pull both hold, so it started a refresh that refuses across the contract change and never the
+  rebuild, while saying "refreshing". The ticket-blind challenger probed upgrade-then-pull; the fixture had not.
+- destination: first sighting.
+
 ### 454-C1 — a hook on every tool call reads the cheapest freshness signal, never the status payload
 
 - type: 2 (code) · handle: `per-call-hook-reads-the-cheapest-signal`

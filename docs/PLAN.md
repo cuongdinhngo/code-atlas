@@ -323,8 +323,8 @@ always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges
 are usable; otherwise it escalates to a full build and reports the mode that actually ran — or,
 where that escalation is unbounded, answers with the route instead of starting it (201/202).
 Staleness is `current | behind | incomplete | unknown` (commit equality; `behind` when the worktree
-is dirty; `incomplete` outranks both after a build died mid-write, 202). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Profile phases with
-`scripts/profile_incremental.py --root …` (optional `phase_times`; not on the MCP payload).
+is dirty; `incomplete` outranks both after a build died mid-write, 202). Tests use hermetic throwaway repos. Profiling: the
+onboarding runbook.
 **No-op short-circuit (080):** an empty delta skips the late writers (`apply_indirection_rules` +
 full-graph `resolve_edges`), whose output is already stored and idempotent, and reports an honest
 `wrote:{files:0,…}`. A small non-empty delta still pays a full-graph resolve; fixing that needs
@@ -707,6 +707,7 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
 - **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
   needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity;
   `~/.config/code-atlas/config.toml`, outside every repo, needs none (452).
+- **A session starts a full rebuild only on consent (455):** `code-atlas-setup --auto-rebuild`.
 - **Releases are versioned; the plugin checks the tags — 2026-09-30 (348), re-decided 2026-10-09
   (374) and 2026-10-10 (381), re-opened 2026-10-18 (405).**
   - **How a release is defined.** A release is the package version plus the contract and schema it

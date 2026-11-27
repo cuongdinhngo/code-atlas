@@ -142,7 +142,8 @@ to get wrong by hand. Run it with no path to print the snippet instead of writin
 runs it for you). It writes a marked block into each git hook, the Claude Code hooks into
 `.claude/settings.local.json` unless the plugin has them, and your shell's `CA_<LANG>_CMD` into the user
 config file. Until it has run, `get_index_status` ends with `unguarded`. `--check` · `--dry-run` ·
-`--remove` · `--no-hooks` (453).
+`--remove` · `--no-hooks` (453) · `--guard off|nudge|refuse` (454) · `--auto-rebuild`: a session starts
+the full rebuild an upgrade needs, in the background (455).
 
 To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0
 code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git@v0.11.0 code-atlas` —
