@@ -282,7 +282,10 @@ BUDGETS = {
     # 2,000 -> 2,150 on 2026-10-17 (388-395): eight open rows from the anchor's second field retro.
     # R7.6 ran first: 361's route-shapes follow-up left (395 tickets it); titles, slugs and
     # depends_on cut to the shortest form. The rows leave as their tickets close.
-    "BACKLOG.md": 2_150,
+    # 2,150 -> 2,260 on 2026-11-27 (456-463): eight open rows from tiny-studio's verify_refs
+    # field report. R7.6 ran first: titles cut to a few words, the evidence lives in each task
+    # file. The rows leave as their tickets close.
+    "BACKLOG.md": 2_260,
     # 5,700 -> 5,880 on 2026-09-23 (325), argued rather than assumed. R2.4 is a new rule, and a
     # rule that is not written down is not binding on the next agent. R7.6 ran first and came back
     # empty: every rule here is one clause per falsifier, the sightings live in LESSONS.md by the

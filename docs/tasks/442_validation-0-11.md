@@ -5,8 +5,18 @@ title: "0.11 validation: a 7-day control-vs-treatment run on the anchor decides 
 phase: 2
 milestone: "0.11 Verify & Compute"
 status: todo
-depends_on: [437, 438, 439, 440, 441]
+depends_on: [437, 438, 439, 440, 441, 456, 457, 458, 464]
 ---
+
+> **Restart (2026-11-27).** The first run never started: the anchor's `CA_TOOLS` hid both tools
+> for 3 weeks (464). Those weeks count as control only. Day 0 is re-dated after:
+> 1. 456–458 ship. tiny-studio's 70/70 false symbol rows would fail the Day-4 precision check.
+> 2. 464 ships, and status shows both tools served on the anchor.
+> 3. The per-PR lines become `unprompted · prompted · not used · not available`, filled from the
+>    tool list the session has. The stale line becomes `yes/no (dangling-ref | wrong-fact | own-plan
+>    | env-diff)`. Round 4 showed agents logging wrong prose facts and local setup differences as
+>    "stale", which no existence check can catch.
+> 4. The per-PR "≤ half of control" signal is dropped: 15 hits in 128 PRs is noise at this size.
 
 ## Why this exists
 

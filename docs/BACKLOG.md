@@ -27,20 +27,27 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 ## Open work — 0.11 Verify & Compute
 
-Which of the things an agent was told are still true, and exact answers over the whole graph. 442's
-day-7 result decides what continues.
+Is what an agent was told still true; exact answers over the graph. 442's day-7 result decides.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446 |
+| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446, 464 |
+| 464 | [Tools `CA_TOOLS` hides](tasks/464_tools-hidden-by-allowlist.md) | Surface | todo | 268 |
 
-## Open work — Round-3 field gaps
+## Open work — Field gaps from tiny-studio
 
-Code-side gaps the Round-3 field feedback still hits on 0.11; the rest of that roadmap is rollout or
-the consuming repo's own config.
+A second consumer's `verify_refs` export (2026-11-27): all 70 actionable symbol rows were false.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
+| 456 | [Follow a field's declared type](tasks/456_verify-refs-follow-declared-type.md) | Verify | todo | 443 |
+| 457 | [A method head is not a container](tasks/457_verify-refs-callable-container-not-gone.md) | Verify | todo | 443 |
+| 458 | [A file suffix is a path](tasks/458_verify-refs-file-suffix-is-a-path.md) | Verify | todo | 443 |
+| 459 | [Memory links resolve in memory](tasks/459_verify-refs-memory-links-resolve-in-memory.md) | Verify | todo | 443 |
+| 460 | [Planned-reference marker](tasks/460_verify-refs-planned-marker.md) | Verify | todo | 443 |
+| 461 | [Undocumented exports](tasks/461_undocumented-exports.md) | Verify | todo | 443 |
+| 462 | [`--help` prints usage](tasks/462_help-prints-usage.md) | CLI | todo | — |
+| 463 | [Near-duplicate bodies — evidence-gated](tasks/463_near-duplicate-bodies.md) | Coverage | deferred | 098 |
 
 ## Open work — Freshness by setup (epic 451)
 
@@ -52,8 +59,7 @@ Both anchors: the index lags HEAD and agents fall back to grep. Install sets up 
 
 ## Open work — Trust (security)
 
-Each ticket closes rows of [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md). None is open: 419–431 have
-landed, and 433 closed PyPI as refused; what is left is the maintainer's switches each task file names.
+None open: 419–431 landed against [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md); 433 refused PyPI.
 
 ## Open work — Pillar 2 · Onboarding
 
