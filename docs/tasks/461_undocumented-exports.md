@@ -21,9 +21,10 @@ missing piece is the set difference.
 
 ## Scope
 
-1. A query over a path glob and a doc glob: public top-level symbols under the paths (exported in
-   TS, no leading `_` in Python) that no ref in the docs resolves to. Rows: `symbol`, `file:line`,
-   `kind`.
+1. A query over a path glob and a doc glob: public top-level symbols under the paths that no ref
+   in the docs resolves to. Rows: `symbol`, `file:line`, `kind`. "Public" comes from what the
+   adapter emits (`modifiers`), never from a core rule about `export` or a leading `_` (R1.1). An
+   adapter that emits no visibility counts as all public, and says so in coverage.
 2. Surface it as a `compute` template, or as `verify_refs` mode `undocumented`, whichever 443's export
    code already fits. One surface only. CLI too: `code-atlas query --undocumented <paths> --docs
    <globs> --format jsonl|md`, with `--fail-on any`.

@@ -27,12 +27,12 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 ## Open work — 0.11 Verify & Compute
 
-Which of the things an agent was told are still true, and exact answers over the whole graph. 442's
-day-7 result decides what continues.
+Is what an agent was told still true; exact answers over the graph. 442's day-7 result decides.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446 |
+| 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446, 464 |
+| 464 | [Tools `CA_TOOLS` hides](tasks/464_tools-hidden-by-allowlist.md) | Surface | todo | 268 |
 
 ## Open work — Field gaps from tiny-studio
 

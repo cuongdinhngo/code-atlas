@@ -31,9 +31,11 @@ and a user who sees the noise stops trusting the tool.
 ## Scope
 
 1. When the container is a field or attribute with a declared type annotation, or a property or
-   method with a return annotation, resolve the next segment on that type. Take `X | None`,
-   `Optional[X]` and a single-class union apart; resolve the type's name through the same matcher
-   the container used.
+   method with a return annotation, resolve the next segment on that type. Read the type from
+   `store.declared_types` (the adapter's `extra.type`) and reuse the resolver's chain walk
+   (`resolver.py`, the `declared` / `documented` loop). Do not build a second walk. The core never
+   parses `X | None` or `Optional[X]` (R1.1). If an adapter leaves a union unnormalised, fix that
+   adapter.
 2. Follow every segment the same way (`a.b.c.d`), and stop at the first one with no type.
 3. If the type resolves and declares the member → `ok` (reason `via_declared_type`, with the site).
    If the type resolves but does not declare it → apply the current `_member` rules to that type.
