@@ -936,7 +936,8 @@ A member its class does not declare is `ok` (`inherited`) when an ancestor decla
 when git shows it left the class's file, else `unknown` (`not_declared_on_container`). After a field,
 property or method the member is read on its declared type (`via_declared_type`, with `type`); no
 type, or two, is `unknown` (`untyped_container`, `container_is_callable` for a function, or
-`several_container_types`), never `gone`; an indexed `table.column` is `ok` (`table_column`). A `moved` row
+`several_container_types`), never `gone`; an indexed `table.column` is `ok` (`table_column`). A name ending
+in a file suffix the index, the doc set or a tracked file carries is a path unless it is an `ok` symbol. A `moved` row
 with one successor and an in-place form is `patch_ready`; `format: patch` answers `edits` and
 `apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git. The shell adds
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.
