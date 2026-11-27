@@ -38,7 +38,7 @@ from code_atlas.contract import (
     join_qname,
     split_qname,
 )
-from code_atlas.resolver import _declared_class, ancestry
+from code_atlas.resolver import ancestry, declared_class
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
     DEFINITION_LIVE,
@@ -596,9 +596,11 @@ class Resolver:
             owners = self._matches(container, (_WORD_RUN.findall(container) or [""])[-1]) if (
                 container
             ) else []
-            walked = self._one_owner(owners) if owners else self._walk(container) if (
-                container
-            ) else None
+            walked: Row | Verdict | None = None
+            if owners:
+                walked = self._one_owner(owners)
+            elif container:
+                walked = self._walk(container)
             if isinstance(walked, Verdict):
                 return walked
             if walked is not None:
@@ -672,11 +674,13 @@ class Resolver:
             if container is not None:
                 lineage = self._ancestry(container)
                 declared = self.store.declared_types([join_qname(a, member) for a in lineage])
-                named = _declared_class(container, member, lineage, declared)
+                named = declared_class(container, member, lineage, declared)
                 rows = self.store.nodes_by_qualified_names([named], limit=1) if named else {}
                 if named and any(str(r["kind"]) in TYPE_KINDS for r in rows.get(named, [])):
                     found = [named]
-            self._types[qname] = found or self.store.referenced_types(qname, TYPE_KINDS, limit=5)
+            if not found and _references_name_the_type(owner):
+                found = self.store.referenced_types(qname, TYPE_KINDS, limit=5)
+            self._types[qname] = found
         return self._types[qname]
 
     def _through_type(self, owner: Row, last: str) -> Verdict | Row:
@@ -722,7 +726,8 @@ class Resolver:
         typed = self._through_type(parent, word)
         if isinstance(typed, Verdict) and typed.state == OK:
             site = typed.detail["site"]
-            assert isinstance(site, dict)
+            if not isinstance(site, dict):
+                return None
             hit = self.store.nodes_by_qualified_names([str(site["qname"])], limit=1)
             return next(iter(hit.get(str(site["qname"]), [])), None)
         return typed if isinstance(typed, Verdict) else None
@@ -830,6 +835,26 @@ class Resolver:
                 if named and isinstance(hashed, str):
                     found.add(hashed)
         return found
+
+
+def _references_name_the_type(owner: Row) -> bool:
+    """A value's annotation edges name only its type; a callable's name its parameters' and
+    decorators' too, so they answer only for one that declares a return and takes nothing."""
+    if str(owner["kind"]) in VALUE_KINDS:
+        return True
+    return bool(_extra(owner).get("type")) and not _listed(_json(owner.get("params")))
+
+
+def _json(raw: object) -> object:
+    try:
+        return json.loads(raw) if isinstance(raw, str) and raw else raw
+    except ValueError:
+        return None
+
+
+def _extra(row: Mapping[str, object] | Row) -> dict[str, object]:
+    found = _json(row.get("extra"))
+    return found if isinstance(found, dict) else {}
 
 
 def _listed(value: object) -> list[object]:

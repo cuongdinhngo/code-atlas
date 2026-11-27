@@ -565,9 +565,9 @@ def _resolve_deferred(
         )
         for chain in walking:
             lineage = ancestries[chain.receiver]
-            found = _declared_class(str(chain.receiver), chain.steps[0], lineage, declared)
+            found = declared_class(str(chain.receiver), chain.steps[0], lineage, declared)
             if found is None:
-                found = _declared_class(str(chain.receiver), chain.steps[0], lineage, documented)
+                found = declared_class(str(chain.receiver), chain.steps[0], lineage, documented)
                 if found is not None:
                     chain.documented = True
             chain.receiver = found
@@ -682,7 +682,7 @@ def _descendants(container: str, children: Mapping[str, list[str]]) -> list[str]
     return order
 
 
-def _declared_class(
+def declared_class(
     receiver: str, member: str, ancestry: Sequence[str], declared: Mapping[str, str]
 ) -> str | None:
     """The type ``receiver::member`` was declared to hold, relative ones read against their site.

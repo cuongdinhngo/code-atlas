@@ -33,7 +33,11 @@ IR = (
     "class Timeline:\n    theme: Theme\n    diagram: Diagram | None = None\n    meta: dict = {}\n"
     "    either: Theme | Other\n\n"
     "    @property\n    def ctx(self) -> Theme:\n        return self.theme\n\n"
-    "    def run(self):\n        return 1\n\n\n"
+    "    def run(self):\n        return 1\n\n"
+    "    def build(self, t: Theme):\n        return t\n\n"
+    "    def make(self, t: Theme) -> Diagram:\n        return Diagram()\n\n"
+    "    @Register\n    def made(self):\n        return 1\n\n\n"
+    "class Register:\n    def __init__(self, f):\n        self.f = f\n\n\n"
     "class Shelf:\n    box: Theme\n\n\n"
     "class Crate:\n    box: Diagram\n"
 )
@@ -46,6 +50,7 @@ DOC = (
     "- `Timeline.theme.palette.name` · `Timeline.meta.keys` · `Timeline.either.vars`\n"
     "- `Timeline.theme.old` · `Timeline.theme.invented` · `Timeline.run.later`\n"
     "- `Shot.style.color` · `box.vars`\n"
+    "- `Timeline.build.vars` · `Timeline.make.nodes` · `Timeline.made.f`\n"
 )
 
 
@@ -105,6 +110,10 @@ def test_a_typed_container_resolves_the_member_on_its_type(
         ("Timeline.run.later", "unknown", "untyped_container", False),  # no return annotation
         ("Timeline.either.vars", "unknown", "several_container_types", False),
         ("box.vars", "unknown", "several_container_types", False),  # two `box`, two types
+        # A callable's annotation edges also name its parameters and decorators (R5.6).
+        ("Timeline.build.vars", "unknown", "untyped_container", False),  # a parameter type
+        ("Timeline.make.nodes", "unknown", "untyped_container", False),  # return + parameter
+        ("Timeline.made.f", "unknown", "untyped_container", False),  # a class decorator
         # A member the type does not declare keeps today's verdicts, read on the type's file.
         ("Timeline.theme.old", "gone", "missing_on_live_container", True),
         ("Timeline.theme.invented", "unknown", "not_declared_on_container", False),
