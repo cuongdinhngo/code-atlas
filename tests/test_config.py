@@ -282,6 +282,15 @@ KNOBS = (
         lambda root: None,
     ),
     Knob(
+        "CA_REFS_UNDOCUMENTED_ALLOW",
+        'refs_undocumented_allow = "docs/allow.txt"',
+        "env/allow.txt",
+        lambda config: config.refs_undocumented_allow,
+        lambda root: "env/allow.txt",
+        lambda root: "docs/allow.txt",
+        lambda root: None,
+    ),
+    Knob(
         "CA_VARIANT_PAIRS",
         'variant_pairs = [["*Async", "*"]]',
         "get*|set*",
@@ -379,7 +388,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 32  # + refs_session_line (439), variant_pairs (441), markers (460)
+    assert len(KNOB_KEYS) == 33  # + refs_session_line (439), variant_pairs (441), 460, 461
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -414,6 +423,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_REFS_REFERENCE",
         "CA_REFS_ARCHIVE",
         "CA_REFS_PLANNED_MARKERS",
+        "CA_REFS_UNDOCUMENTED_ALLOW",
         "CA_VARIANT_PAIRS",
         "CA_REFS_SESSION_LINE",
     ]

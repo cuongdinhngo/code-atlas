@@ -28,15 +28,18 @@ from pathlib import Path
 from typing import Literal
 
 from code_atlas import gitutil
-from code_atlas.config import Config
+from code_atlas.config import Config, ConfigError
 from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
 from code_atlas.contract import (
     CALLABLE_KINDS,
     COLUMN_KIND,
+    HIDDEN_MODIFIERS,
     MEMBER_SEPARATOR,
     QUALIFIED_SHAPE,
+    TOP_LEVEL_KINDS,
     TYPE_KINDS,
     VALUE_KINDS,
+    VISIBILITY_MODIFIERS,
     join_qname,
     split_qname,
 )
@@ -192,6 +195,7 @@ def collect(config: Config, only: Sequence[str] = ()) -> Corpus:
 
     ``only`` (CLI globs) narrows the files; a file no class names is then `reference`.
     """
+    check_globs(only, "globs")
     globs = class_globs(config)
     listed = gitutil.ls_files(config.root)
     paths = list(listed or ()) + list(gitutil.ls_untracked(config.root) or ())
@@ -1236,6 +1240,162 @@ def summarize(
         "corpus_globs": {name: list(globs) for name, globs in corpus.globs.items()},
         "untrusted_fields": untrusted,
     }
+
+
+# ----------------------------------------------------------------- undocumented exports (461)
+# A caller's globs reach a regex: bounded in count, length and wildcards, so none can hang (461).
+# Only `*` backtracks; `?` and `[` compile to one character each, so they need no cap.
+MAX_GLOBS, MAX_GLOB_CHARS, MAX_GLOB_STARS = 20, 200, 8
+
+
+def check_globs(globs: Sequence[str], name: str) -> None:
+    """Refuse a glob list a caller could make expensive; the toml's go through the config."""
+    if len(globs) > MAX_GLOBS:
+        raise ValueError(f"{name}: at most {MAX_GLOBS} globs, got {len(globs)}")
+    for glob in globs:
+        if len(glob) > MAX_GLOB_CHARS or glob.count("*") > MAX_GLOB_STARS:
+            raise ValueError(
+                f"{name}: a glob is at most {MAX_GLOB_CHARS} characters and {MAX_GLOB_STARS} '*'"
+            )
+
+
+UNDOCUMENTED_UNTRUSTED: tuple[str, ...] = ("rows[].symbol", "rows[].file", "paths[]", "docs[]")
+
+
+def undocumented(
+    config: Config,
+    store: GraphStore,
+    paths: Sequence[str],
+    *,
+    docs: Sequence[str] = (),
+    limit: int = DEFAULT_LIMIT,
+    every: bool = False,
+) -> dict[str, object]:
+    """Top-level symbols under ``paths`` that no doc reference resolves to (461): `verify_refs` the
+    other way. A doc naming the symbol, one of its candidates, or its file counts as naming it."""
+    check_limit(limit)
+    if not paths:
+        raise ValueError("undocumented needs at least one path glob")
+    check_globs(paths, "undocumented")
+    check_globs(docs, "docs")
+    found = scan(config, store, globs=docs)
+    named: set[str] = set()
+    files: set[str] = set()
+    for row in found.rows:
+        if row.get("ref_kind") == PATH and row["state"] == OK:
+            files.add(str(row.get("path")))
+        for site in [row.get("site"), *_listed(row.get("candidates"))]:
+            if isinstance(site, dict) and row["state"] in (OK, AMBIGUOUS):
+                named.add(str(site.get("qname")))
+    allowed = _allowlist(config)
+    candidates = _top_level(store, paths)
+    languages = store.file_languages()
+    seen_visibility = {
+        languages.get(str(r["file_path"]), "") for r in candidates
+        if VISIBILITY_MODIFIERS & set(_modifiers(r))
+    }
+    public = [r for r in candidates if not HIDDEN_MODIFIERS & set(_modifiers(r))]
+    unnamed = [r for r in public if str(r["qualified_name"]) not in named | allowed]
+    rows = [
+        {"symbol": str(r["qualified_name"]), "file": r["file_path"], "line": r["line_start"],
+         "kind": r["kind"]}
+        for r in unnamed
+        if str(r["file_path"]) not in files
+    ]
+    if not candidates:
+        reason = "no_symbol_under_paths"
+    elif not found.corpus.files:
+        reason = "no_docs_read"  # every export reads undocumented because no doc was read
+    elif not rows:
+        reason = "every_export_documented"
+    else:
+        reason = "ok"
+    unaware = sorted({languages.get(str(r["file_path"]), "") for r in candidates} - seen_visibility)
+    return {
+        "reason": reason,
+        "paths": list(paths),
+        "docs": list(docs),
+        "docs_read": len(found.corpus.files),
+        "candidates": len(candidates),
+        "allowlisted": len({str(r["qualified_name"]) for r in candidates} & allowed),
+        # Unnamed themselves, documented only because a doc names their file.
+        "documented_by_file": len(unnamed) - len(rows),
+        "total_count": len(rows),
+        "returned": len(rows) if every else min(limit, len(rows)),
+        "truncated": not every and len(rows) > limit,
+        "limit": limit,
+        "rows": rows if every else rows[:limit],  # `every`: the uncapped export a shell streams
+        # No visibility word on any candidate in these languages: every one read public.
+        "coverage": {"visibility_not_emitted": [lang for lang in unaware if lang]},
+        "untrusted_fields": list(UNDOCUMENTED_UNTRUSTED),
+    }
+
+
+def _top_level(store: GraphStore, paths: Sequence[str]) -> list[Row]:
+    """Non-test symbols of the export kinds in files the globs match, not inside another symbol; a
+    glob starting `!` leaves its files out (`!**/*.test.ts`): the core names no test file itself."""
+    keep = [glob for glob in paths if not glob.startswith("!")]
+    drop = [glob_regex(glob[1:]) for glob in paths if glob.startswith("!")]
+    if not keep:
+        raise ValueError("undocumented needs a path glob that is not an exclusion")
+    regexes = [glob_regex(glob) for glob in keep]
+    found: dict[object, Row] = {}
+    matched: dict[str, bool] = {}
+    for glob in keep:
+        prefix = re.split(r"[*?\[]", glob, maxsplit=1)[0]
+        for row in store.nodes_of_kinds_under(TOP_LEVEL_KINDS, prefix):
+            path = str(row["file_path"])
+            if path not in matched:  # each file matched once, not once per symbol
+                matched[path] = any(r.match(path) for r in regexes) and not any(
+                    r.match(path) for r in drop
+                )
+            if matched[path]:
+                found.setdefault(row["id"], row)
+    rows = list(found.values())
+    containers = {c for r in rows if (c := split_qname(str(r["qualified_name"]))[0]) is not None}
+    held = store.nodes_by_qualified_names(sorted(containers), limit=1)
+    holders = {*TOP_LEVEL_KINDS, *CALLABLE_KINDS, *VALUE_KINDS}
+    nested = {c for c, hits in held.items() if any(str(h["kind"]) in holders for h in hits)}
+    return sorted(
+        (r for r in rows if split_qname(str(r["qualified_name"]))[0] not in nested),
+        key=lambda r: (str(r["file_path"]), int(str(r["line_start"])), str(r["qualified_name"])),
+    )
+
+
+def _modifiers(row: Row) -> list[str]:
+    raw = row.get("modifiers")
+    try:
+        found = json.loads(raw) if isinstance(raw, str) and raw else raw
+    except ValueError:
+        return []
+    return [str(m) for m in found] if isinstance(found, list) else []
+
+
+def _allowlist(config: Config) -> set[str]:
+    """The qnames `refs_undocumented_allow` names; a named file that cannot be read is a config
+    error, never an empty list (R5.3)."""
+    if config.refs_undocumented_allow is None:
+        return set()
+    try:
+        text = read_text(config.root, config.root / config.refs_undocumented_allow)
+    except (OSError, ValueError) as error:
+        raise ConfigError(f"refs_undocumented_allow: cannot read it: {error}") from error
+    lines = (line.split("#", 1)[0].strip() for line in text.splitlines())
+    return {line for line in lines if line}
+
+
+def undocumented_markdown(answer: Mapping[str, object]) -> str:
+    """The same answer as a table a human reads."""
+    head = [
+        f"# undocumented — {answer['total_count']} of {answer['candidates']} exports no doc names",
+        "", "| file:line | kind | symbol |", "|---|---|---|",
+    ]
+    rows = answer.get("rows") or []
+    assert isinstance(rows, list)
+    head += [f"| {r['file']}:{r['line']} | {r['kind']} | `{r['symbol']}` |" for r in rows]
+    if answer.get("truncated"):
+        head += ["", f"_truncated at {answer['limit']} of {answer['total_count']} rows_"]
+    return "\n".join(head) + "\n"
 
 
 # ----------------------------------------------------------------- export and diff (443)

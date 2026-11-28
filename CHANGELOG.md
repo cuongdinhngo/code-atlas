@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- The `verify_refs` tool's new `undocumented` parameter (path globs), and `code-atlas query --undocumented GLOB…
+  --docs GLOB…`, list the top-level symbols there that no doc names — the other direction — less an allowlist
+  file (`refs_undocumented_allow`). Public is what an adapter's modifiers say; with none, every candidate is
+  public and `coverage.visibility_not_emitted` says so. `--fail-on any` makes it a CI gate (461).
 - `refs_planned_markers` (`.code-atlas.toml`, e.g. `["⏳", "(planned)"]`) marks a doc line's references as
   planned: an absent target is `planned`, never actionable; a present one is `ok` (`planned_but_exists`),
   counted as `markers_to_drop` (rows in `markers_to_drop_rows`), listed by `--format md`, and

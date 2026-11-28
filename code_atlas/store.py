@@ -3200,6 +3200,16 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, params)
 
+    def nodes_of_kinds_under(self, kinds: Sequence[str], prefix: str) -> list[Row]:
+        """Every non-test node of ``kinds`` in files whose path starts with ``prefix``, in order."""
+        placeholders = ", ".join("?" for _ in kinds)
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE kind IN ({placeholders}) "
+            "AND COALESCE(is_test, 0) = 0 AND file_path LIKE ? ESCAPE '!' "
+            "ORDER BY file_path, line_start, qualified_name"
+        )
+        return self._rows(NODE_ROW_KEYS, sql, (*kinds, _like_literal(prefix) + "%"))
+
     def referenced_types(self, qname: str, kinds: Sequence[str], *, limit: int) -> list[str]:
         """The distinct resolved ``REFERENCES`` targets of ``qname`` whose node is one of ``kinds``.
 

@@ -67,6 +67,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "refs_reference",
     "refs_archive",
     "refs_planned_markers",
+    "refs_undocumented_allow",
     "variant_pairs",
     "refs_session_line",
 )
@@ -160,6 +161,8 @@ class Config:
     refs_archive: tuple[str, ...] | None = None
     # Literal strings that mark a doc line's references as planned, not yet built (460).
     refs_planned_markers: tuple[str, ...] | None = None
+    # A repo file of qnames `--undocumented` never reports, one per line (461).
+    refs_undocumented_allow: str | None = None
     # Name-pattern pairs compute's `variant_pairs` reads when no params name one (441).
     variant_pairs: tuple[tuple[str, str], ...] | None = None
     # Opt-in: SessionStart adds one count-only line of stale doc references (439).
@@ -343,6 +346,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         refs_archive=_resolve("refs_archive", as_doc_globs, None, environ, file_values),
         refs_planned_markers=_resolve(
             "refs_planned_markers", as_markers, None, environ, file_values
+        ),
+        refs_undocumented_allow=_resolve(
+            "refs_undocumented_allow", _as_repo_file, None, environ, file_values
         ),
         variant_pairs=_resolve("variant_pairs", _as_variant_pairs, None, environ, file_values),
         refs_session_line=_resolve("refs_session_line", _as_bool, False, environ, file_values),
@@ -682,6 +688,17 @@ def as_doc_globs(label: str, raw: object) -> tuple[str, ...] | None:
             raise ConfigError(f"{label}: {name!r} must be a repo-relative glob (no '/', '.', '..')")
         kept.append(name.strip().replace("\\", "/").strip("/"))
     return tuple(dict.fromkeys(kept)) or None
+
+
+def _as_repo_file(label: str, raw: object) -> str | None:
+    """One repo-relative file path, read through containment, never run. Blank = off."""
+    if not isinstance(raw, str):
+        raise ConfigError(f"{label}: {raw!r} is not a file path")
+    if not raw.strip():
+        return None
+    if not _is_repo_relative(raw):
+        raise ConfigError(f"{label}: {raw!r} must be a repo-relative path (no '/', '.', '..')")
+    return raw.strip().replace("\\", "/")
 
 
 def as_markers(label: str, raw: object) -> tuple[str, ...] | None:
