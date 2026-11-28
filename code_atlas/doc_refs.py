@@ -1258,6 +1258,7 @@ def check_globs(globs: Sequence[str], name: str) -> None:
                 f"{name}: a glob is at most {MAX_GLOB_CHARS} characters and {MAX_GLOB_STARS} '*'"
             )
 
+
 UNDOCUMENTED_UNTRUSTED: tuple[str, ...] = ("rows[].symbol", "rows[].file", "paths[]", "docs[]")
 
 
