@@ -57,7 +57,7 @@ missing piece is the set difference.
 `REFINE: 12 unresolved surfaced | 3 want-decision asked | 9 how-decision resolved+cited | 3 ASSUMED | skip: no`
 
 `modifiers` (`NODE_FIELDS`), `verify_refs`, `compute` and `query --fail-on` resolve; `--undocumented` and the allowlist
-are to be created. Ambiguous: the consumer's paths (`src/…` in the ticket is `web/src/…` there). Recalled: 456-C1
+are to be created. Ambiguous: the consumer's paths (the ticket's `src/…` sits under one more folder there). Recalled: 456-C1
 `diff-every-row-not-the-target-rows` (handle), 398-C1 (area). Exposure-checker: 7 returned (H6–H9, W1–W3).
 
 | # | Decision | Class | Resolution |
@@ -186,14 +186,14 @@ $ env -u CA_… PYTHONPATH=$PWD .venv/bin/python -m pytest -q tests/test_undocum
 1106 passed in 43.60s
 ```
 
-**AC2 — the consumer** (`--undocumented 'web/src/components/ui/**' 'web/src/lib/**' '!**/*.test.*' --docs
+**AC2 — the consumer** (`--undocumented '…/src/components/ui/**' '…/src/lib/**' '!**/*.test.*' --docs
 docs/CONVENTIONS_FE.md`, backup index copy):
 
 At `d13b5abf` (the same code; `543abfb9` changed docs only):
 ```
 reason ok · candidates 130 · documented_by_file 87 · total_count 2 · docs_read 1 · visibility_not_emitted [typescript]
-lib/sceneSeconds.ts:5 Function words — a module-private const: false, the coverage line explains (no export visibility)
-lib/sceneSeconds.ts:7 Interface SceneSeconds — exported; the catalogue names `sceneSeconds`, not this type: true
+a `lib` module, line 5, Function — a module-private const: false, the coverage line explains (no export visibility)
+the same module, line 7, Interface — exported; the catalogue names its function, not this type: true
 ```
 
 **AC3 — the anchor**, its largest top-level folder as the one glob, its default doc corpus:
