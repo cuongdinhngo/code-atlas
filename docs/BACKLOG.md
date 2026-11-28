@@ -50,6 +50,14 @@ Both anchors: the index lags HEAD and agents fall back to grep. Install sets up 
 |---|---|---|---|---|
 | 451 | [Epic: install sets up the freshness hooks, or reports `unguarded`](tasks/451_freshness-by-setup.md) | Freshness | in-progress | 452–455 |
 
+## Open work — Domain wiki kit (epic 465)
+
+A repo with a ticket tracker grows a cited domain wiki on the graph, from config and skills alone.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 465 | [Epic: domain wiki kit — plan, steps K1–K13](tasks/465_domain-wiki-kit.md) | Wiki | todo | — |
+
 ## Open work — Trust (security)
 
 None open: 419–431 landed against [`SECURITY_STANDARD.md`](SECURITY_STANDARD.md); 433 refused PyPI.
