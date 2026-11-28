@@ -221,14 +221,14 @@ $ env -u CA_… PYTHONPATH=$PWD .venv/bin/python -m pytest -q $(cat .mango/basel
 869 passed in 32.98s
 ```
 
-**AC2 — the consumer**, base code and this branch run back to back on one backup copy of its index (its HEAD
-`503eeda`; the index is behind it, so both runs read the same stale facts):
+**AC2 — the consumer**, base code and this branch run back to back on one backup copy of its index (its index
+is behind its HEAD, so both runs read the same stale facts):
 
 Ran at a8daab22
 ```
 before (8f14cd50): 1936 rows, 77 actionable
 after  (a8daab22): 1942 rows, 14 actionable — the five refs' 9 rows ok via_declared_type, none actionable
-newly actionable: occlusion.json ×2, storyboard.json — file names read as `member.suffix`, 458's class
+newly actionable: three data-file names (`<name>.json`) — read as `member.suffix`, 458's class
 ```
 
 **AC3 — the anchor**, base code and this branch on one backup copy of its index:
