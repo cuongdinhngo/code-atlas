@@ -194,7 +194,7 @@ Ran at 004d4420
 ```
 before (6134b3e4): 14 actionable
 after  (004d4420): 1947 rows, 4 actionable — the ticket table's 47 rows: 0 actionable; no row newly actionable
-dropped: tts.batch ×3, tts.synth ×2, voice_pace.json ×2, occlusion.json ×2, storyboard.json (456's delta)
+dropped: tts.batch ×3, tts.synth ×2, voice_pace.json ×2, and 456's three data-file rows (its delta)
 ```
 
 **AC3 — the anchor**, 456 code and this branch on one backup index copy:
