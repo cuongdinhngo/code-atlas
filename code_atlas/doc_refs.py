@@ -29,8 +29,16 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.containment import read_bytes, read_text, resolves_inside, safe_write
-from code_atlas.contract import MEMBER_SEPARATOR, QUALIFIED_SHAPE
-from code_atlas.resolver import ancestry
+from code_atlas.contract import (
+    CALLABLE_KINDS,
+    MEMBER_SEPARATOR,
+    QUALIFIED_SHAPE,
+    TYPE_KINDS,
+    VALUE_KINDS,
+    join_qname,
+    split_qname,
+)
+from code_atlas.resolver import ancestry, declared_class
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore, Row
 from code_atlas.tools.symbol_pointers import (
     DEFINITION_LIVE,
@@ -102,6 +110,9 @@ _IDENTIFIER = re.compile(r"^[A-Za-z_][\w]*$")
 _WORD_RUN = re.compile(r"[\w$#@]+")
 _UNSAFE = re.compile(r"[\s*?{}<>|^~`'\"]|://")
 _TRIM = "`'\".,;:!?()[]{}*_"
+# A container of these kinds holds a value, so a member written after it is a member of its type.
+_TYPED_KINDS = frozenset((*VALUE_KINDS, *CALLABLE_KINDS))
+_MAX_SEGMENTS = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -401,6 +412,7 @@ class Resolver:
         self._spent = 0.0
         self.budget_spent = 0
         self._parents: Mapping[str, tuple[str, ...]] | None = None
+        self._types: dict[str, list[str]] = {}
 
     # ----------------------------------------------------------------- shared
     def _exists(self, rel: str) -> bool:
@@ -584,8 +596,15 @@ class Resolver:
             owners = self._matches(container, (_WORD_RUN.findall(container) or [""])[-1]) if (
                 container
             ) else []
+            walked: Row | Verdict | None = None
             if owners:
-                return self._member(bare, last, kind, doc, owners[0])
+                walked = self._one_owner(owners)
+            elif container:
+                walked = self._walk(container)
+            if isinstance(walked, Verdict):
+                return walked
+            if walked is not None:
+                return self._member(bare, last, kind, doc, walked)
             if self._external(bare):
                 self.skipped_external += 1  # `os.path`: counted, so a vanished package is seen
                 return None
@@ -612,13 +631,17 @@ class Resolver:
 
     def _member(self, bare: str, last: str, kind: str, doc: str, owner: Row) -> Verdict:
         """A member its live container does not declare: inherited is ok, a body found elsewhere
-        is moved, and gone needs git to show it left the container's file (443)."""
+        is moved, and gone needs git to show it left the container's file (443). A value or a
+        callable is first replaced by its declared type (456)."""
+        if str(owner["kind"]) in _TYPED_KINDS:
+            typed = self._through_type(owner, last)
+            if isinstance(typed, Verdict):
+                return typed
+            owner = typed
         container = str(owner["qualified_name"])
-        for ancestor in self._ancestry(container)[1:]:
-            spelling = ancestor + MEMBER_SEPARATOR + last
-            for row in self.store.nodes_by_qname_endswith(last, spelling, limit=5):
-                if str(row["qualified_name"]) in {spelling, "\\" + spelling.lstrip("\\")}:
-                    return Verdict(OK, "inherited", {"site": _site(row)})
+        found = self._declared_on(container, last, own=False)
+        if found is not None:
+            return Verdict(OK, "inherited", {"site": _site(found)})
         moved = self._moved_by_body(bare, last, kind, doc)
         if moved is not None and moved.state == MOVED:
             return moved
@@ -631,6 +654,83 @@ class Resolver:
             return Verdict(UNKNOWN, "not_declared_on_container", detail)
         detail.update(last_seen_rev=seen[0][:12], last_seen=seen[1])
         return Verdict(GONE, "missing_on_live_container", detail)
+
+    def _declared_on(self, container: str, last: str, *, own: bool) -> Row | None:
+        """``last`` declared on ``container`` (when ``own``) or the nearest ancestor."""
+        for ancestor in self._ancestry(container)[0 if own else 1:]:
+            spelling = ancestor + MEMBER_SEPARATOR + last
+            for row in self.store.nodes_by_qname_endswith(last, spelling, limit=5):
+                if str(row["qualified_name"]) in {spelling, "\\" + spelling.lstrip("\\")}:
+                    return row
+        return None
+
+    def _type_of(self, owner: Row) -> list[str]:
+        """The class-like types a value or callable is declared as: ``extra.type`` read as the
+        resolver reads it, else the types its annotation references. Two or more is no answer."""
+        qname = str(owner["qualified_name"])
+        if qname not in self._types:
+            found: list[str] = []
+            container, member = split_qname(qname)
+            if container is not None:
+                lineage = self._ancestry(container)
+                declared = self.store.declared_types([join_qname(a, member) for a in lineage])
+                named = declared_class(container, member, lineage, declared)
+                rows = self.store.nodes_by_qualified_names([named], limit=1) if named else {}
+                if named and any(str(r["kind"]) in TYPE_KINDS for r in rows.get(named, [])):
+                    found = [named]
+            if not found and _references_name_the_type(owner):
+                found = self.store.referenced_types(qname, TYPE_KINDS, limit=5)
+            self._types[qname] = found
+        return self._types[qname]
+
+    def _through_type(self, owner: Row, last: str) -> Verdict | Row:
+        """``last`` on the type ``owner`` holds: ok with the site, the type node to keep asking, or
+        unknown when the type is absent or not one class (R5.6) — never gone."""
+        detail: dict[str, object] = {"container": str(owner["qualified_name"])}
+        types = self._type_of(owner)
+        if len(types) != 1:
+            if types:
+                return Verdict(UNKNOWN, "several_container_types", {**detail, "types": types})
+            return Verdict(UNKNOWN, "untyped_container", detail)
+        found = self._declared_on(types[0], last, own=True)
+        if found is not None:
+            return Verdict(OK, "via_declared_type", {"site": _site(found), "type": types[0]})
+        rows = self.store.nodes_by_qualified_names(types, limit=1).get(types[0], [])
+        return rows[0] if rows else Verdict(UNKNOWN, "untyped_container", detail)
+
+    def _one_owner(self, rows: Sequence[Row]) -> Row | Verdict:
+        """The first match, unless the typed matches hold different types: no answer (R5.6)."""
+        typed = [row for row in rows if str(row["kind"]) in _TYPED_KINDS]
+        if typed and str(rows[0]["kind"]) in _TYPED_KINDS:
+            types = sorted({found for row in typed for found in self._type_of(row)})
+            if len(types) > 1:
+                return Verdict(UNKNOWN, "several_container_types",
+                               {"container": str(rows[0]["qualified_name"]), "types": types})
+        return rows[0]
+
+    def _walk(self, container: str, depth: int = 0) -> Row | Verdict | None:
+        """The node a dotted container no qname names (`a.b.c`): its head's member, read on the
+        head's type segment by segment; unknown at the first untyped one, None when it breaks."""
+        word = (_WORD_RUN.findall(container) or [""])[-1]
+        rows = self._matches(container, word) if depth else []
+        if rows:
+            return self._one_owner(rows)
+        head = container[: len(container) - len(word)].rstrip(":\\./->")
+        if not head or not word or depth >= _MAX_SEGMENTS:
+            return None
+        parent = self._walk(head, depth + 1)
+        if parent is None or isinstance(parent, Verdict):
+            return parent
+        if str(parent["kind"]) not in _TYPED_KINDS:
+            return self._declared_on(str(parent["qualified_name"]), word, own=True)
+        typed = self._through_type(parent, word)
+        if isinstance(typed, Verdict) and typed.state == OK:
+            site = typed.detail["site"]
+            if not isinstance(site, dict):
+                return None
+            hit = self.store.nodes_by_qualified_names([str(site["qname"])], limit=1)
+            return next(iter(hit.get(str(site["qname"]), [])), None)
+        return typed if isinstance(typed, Verdict) else None
 
     def _ancestry(self, container: str) -> list[str]:
         if self._parents is None:
@@ -735,6 +835,26 @@ class Resolver:
                 if named and isinstance(hashed, str):
                     found.add(hashed)
         return found
+
+
+def _references_name_the_type(owner: Row) -> bool:
+    """A value's annotation edges name only its type; a callable's name its parameters' and
+    decorators' too, so they answer only for one that declares a return and takes nothing."""
+    if str(owner["kind"]) in VALUE_KINDS:
+        return True
+    return bool(_extra(owner).get("type")) and not _listed(_json(owner.get("params")))
+
+
+def _json(raw: object) -> object:
+    try:
+        return json.loads(raw) if isinstance(raw, str) and raw else raw
+    except ValueError:
+        return None
+
+
+def _extra(row: Mapping[str, object] | Row) -> dict[str, object]:
+    found = _json(row.get("extra"))
+    return found if isinstance(found, dict) else {}
 
 
 def _listed(value: object) -> list[object]:
@@ -1298,6 +1418,8 @@ UNTRUSTED: tuple[str, ...] = (
     "rows[].successors",
     "rows[].replacement",
     "rows[].container",
+    "rows[].type",
+    "rows[].types",
     "rows[].site.*",
     "rows[].candidate_paths",
     "rows[].candidates[].*",

@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `verify_refs` follows a dotted reference through a field's, property's or method's declared type:
+  `Timeline.theme.vars` is `ok` (`via_declared_type`) when `theme`'s class declares `vars`. The type is
+  the class the annotation's `REFERENCES` edge reaches (PHP, Python, TypeScript; SQL types nothing), so
+  `X | None` works; a method only when it declares a return and takes no parameter, since its edges
+  also name its parameters' types. No type, or two, is `unknown` (456).
 - `code-atlas-setup --auto-rebuild` lets a session start a detached `code-atlas-build --full` when the
   contract moved or the index is `incomplete` — the old index answers until it publishes (356); one start
   per six hours and contract, a failed one named in the state line rather than retried. Off by default (455).

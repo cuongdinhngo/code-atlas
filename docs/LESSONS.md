@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 456-C1 — a new answer path is judged by every row it changes, not the rows it was built for
+
+- type: 2 (code) · handle: `diff-every-row-not-the-target-rows`
+- status: proposed · seen: 456
+- evidence: reading a member on its container's type fixed the nine target rows, and a diff of the whole real-corpus
+  export showed what fixtures could not: `x.json` and a same-named container now reached `gone` through text git
+  found in the type's file. Diff old and new exports by (file, line, ref) and read every newly actionable row.
+- destination: first sighting.
+
 ### 455-C1 — when two remedies share a trigger state, the stronger one is checked first
 
 - type: 2 (code) · handle: `the-stronger-remedy-is-checked-first`
@@ -229,11 +238,12 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 411-C1 — a baseline run in the checkout being edited measures no tree
 
 - type: 2 (process) · handle: `a-baseline-needs-a-frozen-tree`
-- status: proposed · seen: 411
+- status: proposed · seen: 411, 456
 - evidence: 411's `scripts/gate.sh` baseline ran in the background while the first edits landed in the same
   checkout, so its pytest read a mix of both trees; it was stopped and the base's CI run (same tree) taken
-  instead. Take the baseline before the first edit, or from CI on the base SHA.
-- destination: first sighting.
+  instead. Take the baseline before the first edit, or from CI on the base SHA. 456: a corpus measured before
+  and after the change an hour apart had moved its HEAD, and read as a regression; run the pair back to back.
+- destination: `AGENT_BRIEF.md` (proposed, awaiting ratification — recurrence 2).
 
 ### 399-C1 — a row that came from another language's region inherits its file's language wherever `files.language` is joined
 

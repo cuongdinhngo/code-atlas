@@ -932,7 +932,9 @@ up to 20 compact rows (`limit` widens the page, not the view), instruction files
 answers every state with `by_class`, `files` (per-file actionable counts) and full rows. A
 reference doc's weak rows leave every summary unless `strength` names them (`weak_rows_not_counted`).
 A member its class does not declare is `ok` (`inherited`) when an ancestor declares it, `gone` only
-when git shows it left the class's file, else `unknown` (`not_declared_on_container`). A `moved` row
+when git shows it left the class's file, else `unknown` (`not_declared_on_container`). After a field,
+property or method the member is read on its declared type (`via_declared_type`, with `type`); no
+type, or two, is `unknown` (`untyped_container` / `several_container_types`), never `gone`. A `moved` row
 with one successor and an in-place form is `patch_ready`; `format: patch` answers `edits` and
 `apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git. The shell adds
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.

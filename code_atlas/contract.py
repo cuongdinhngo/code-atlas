@@ -83,6 +83,9 @@ NODE_KINDS: tuple[str, ...] = get_args(NodeKind)
 # vocabulary is not a vocabulary change, so CONTRACT_VERSION is untouched (R3).
 TYPE_KINDS: tuple[str, ...] = ("Class", "Interface", "Trait", "Enum")
 CALLABLE_KINDS: tuple[str, ...] = ("Function", "Method")
+# A node holding a value a declaration may type; with CALLABLE_KINDS, what verify_refs reads a
+# member through (456).
+VALUE_KINDS: tuple[str, ...] = ("Property", "ClassConst", "Const")
 
 EDGE_KINDS: tuple[str, ...] = (
     "CONTAINS",

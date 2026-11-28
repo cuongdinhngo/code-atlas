@@ -3200,6 +3200,24 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, params)
 
+    def referenced_types(self, qname: str, kinds: Sequence[str], *, limit: int) -> list[str]:
+        """The distinct resolved ``REFERENCES`` targets of ``qname`` whose node is one of ``kinds``.
+
+        An adapter emits one from a declaration to each type its annotation names (task 232), so a
+        member's type is read here without the core reading type syntax (456).
+        """
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        placeholders = ", ".join("?" for _ in kinds)
+        rows = self._conn.execute(
+            "SELECT DISTINCT edges.target_qname FROM edges "
+            "JOIN nodes ON nodes.qualified_name = edges.target_qname "
+            f"WHERE edges.source_qname = ? AND edges.kind = 'REFERENCES' "
+            f"AND nodes.kind IN ({placeholders}) ORDER BY edges.target_qname LIMIT ?",
+            (qname, *kinds, limit),
+        ).fetchall()
+        return [str(target) for (target,) in rows]
+
     def file_languages(self) -> dict[str, str]:
         """Map indexed path → its language, for files that carry one (task 204).
 
