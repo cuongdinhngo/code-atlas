@@ -66,6 +66,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "refs_memory",
     "refs_reference",
     "refs_archive",
+    "refs_planned_markers",
     "variant_pairs",
     "refs_session_line",
 )
@@ -157,6 +158,8 @@ class Config:
     refs_memory: tuple[str, ...] | None = None
     refs_reference: tuple[str, ...] | None = None
     refs_archive: tuple[str, ...] | None = None
+    # Literal strings that mark a doc line's references as planned, not yet built (460).
+    refs_planned_markers: tuple[str, ...] | None = None
     # Name-pattern pairs compute's `variant_pairs` reads when no params name one (441).
     variant_pairs: tuple[tuple[str, str], ...] | None = None
     # Opt-in: SessionStart adds one count-only line of stale doc references (439).
@@ -338,6 +341,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         refs_memory=_resolve("refs_memory", as_doc_globs, None, environ, file_values),
         refs_reference=_resolve("refs_reference", as_doc_globs, None, environ, file_values),
         refs_archive=_resolve("refs_archive", as_doc_globs, None, environ, file_values),
+        refs_planned_markers=_resolve(
+            "refs_planned_markers", as_markers, None, environ, file_values
+        ),
         variant_pairs=_resolve("variant_pairs", _as_variant_pairs, None, environ, file_values),
         refs_session_line=_resolve("refs_session_line", _as_bool, False, environ, file_values),
     )
@@ -675,6 +681,20 @@ def as_doc_globs(label: str, raw: object) -> tuple[str, ...] | None:
         if not _is_repo_relative(name):
             raise ConfigError(f"{label}: {name!r} must be a repo-relative glob (no '/', '.', '..')")
         kept.append(name.strip().replace("\\", "/").strip("/"))
+    return tuple(dict.fromkeys(kept)) or None
+
+
+def as_markers(label: str, raw: object) -> tuple[str, ...] | None:
+    """Literal strings a doc line carries to mark its references planned (460), matched as is."""
+    names = raw.split(",") if isinstance(raw, str) and not label.startswith(PROJECT_FILE) else raw
+    if not isinstance(names, list):
+        raise ConfigError(f"{label}: {raw!r} is not a list of marker strings")
+    kept: list[str] = []
+    for name in names:
+        if not isinstance(name, str) or "\n" in name or len(name) > 32:
+            raise ConfigError(f"{label}: {name!r} must be one line of at most 32 characters")
+        if name.strip():
+            kept.append(name.strip())
     return tuple(dict.fromkeys(kept)) or None
 
 

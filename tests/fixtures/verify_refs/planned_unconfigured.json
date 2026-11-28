@@ -1,0 +1,149 @@
+{
+ "markdown": "# verify_refs — 5 references in 1 files\n\n| class | moved | gone | never_existed | ambiguous | unknown | ok |\n|---|---|---|---|---|---|---|\n| instruction | 0 | 0 | 3 | 0 | 0 | 2 |\n\n| file:line | class | state | reference | successor / reason |\n|---|---|---|---|---|\n| CLAUDE.md:3 | instruction | never_existed | `lib/errors.py` | no branch ever held it: correct the spelling or remove it |\n| CLAUDE.md:5 | instruction | never_existed | `lib/later.py` | no branch ever held it: correct the spelling or remove it |\n| CLAUDE.md:6 | instruction | never_existed | `lib/other.py` | no branch ever held it: correct the spelling or remove it |\n",
+ "summary": {
+  "actionable": {},
+  "actionable_total": 0,
+  "by_class": {
+   "instruction": {
+    "ambiguous": 0,
+    "gone": 0,
+    "moved": 0,
+    "never_existed": 3,
+    "ok": 2,
+    "unknown": 0
+   }
+  },
+  "commands": {
+   "instruction": 0
+  },
+  "corpus_globs": {
+   "archive": [],
+   "instruction": [
+    "**/CLAUDE.md",
+    "**/AGENTS.md",
+    ".claude/rules/**",
+    ".claude/skills/**",
+    ".cursor/rules/**",
+    ".github/copilot-instructions.md"
+   ],
+   "memory": [],
+   "reference": [
+    "docs/**",
+    "wiki/**",
+    "*.wiki/**"
+   ]
+  },
+  "files": [],
+  "files_read": 1,
+  "files_total": 0,
+  "history_budget_spent": 0,
+  "limit": 200,
+  "patch_ready": {},
+  "reason": "ok",
+  "returned": 5,
+  "rows": [
+   {
+    "actionable": false,
+    "class": "instruction",
+    "context": "table_cell",
+    "file": "CLAUDE.md",
+    "hint": "no branch ever held it: correct the spelling or remove it",
+    "line": 3,
+    "origin": "code_span",
+    "reason": "no_branch_ever_held_it",
+    "ref": "lib/errors.py",
+    "ref_kind": "path",
+    "state": "never_existed",
+    "strength": "strong"
+   },
+   {
+    "actionable": false,
+    "class": "instruction",
+    "context": "list_item",
+    "file": "CLAUDE.md",
+    "hint": "no branch ever held it: correct the spelling or remove it",
+    "line": 5,
+    "origin": "code_span",
+    "reason": "no_branch_ever_held_it",
+    "ref": "lib/later.py",
+    "ref_kind": "path",
+    "state": "never_existed",
+    "strength": "strong"
+   },
+   {
+    "actionable": false,
+    "class": "instruction",
+    "context": "list_item",
+    "file": "CLAUDE.md",
+    "hint": "no branch ever held it: correct the spelling or remove it",
+    "line": 6,
+    "origin": "code_span",
+    "reason": "no_branch_ever_held_it",
+    "ref": "lib/other.py",
+    "ref_kind": "path",
+    "state": "never_existed",
+    "strength": "strong"
+   },
+   {
+    "actionable": false,
+    "class": "instruction",
+    "context": "table_cell",
+    "file": "CLAUDE.md",
+    "line": 4,
+    "origin": "code_span",
+    "path": "lib/retry.py",
+    "reason": "exists",
+    "ref": "lib/retry.py",
+    "ref_kind": "path",
+    "state": "ok",
+    "strength": "strong"
+   },
+   {
+    "actionable": false,
+    "class": "instruction",
+    "context": "list_item",
+    "file": "CLAUDE.md",
+    "line": 7,
+    "origin": "code_span",
+    "path": "lib/retry.py",
+    "reason": "exists",
+    "ref": "lib/retry.py",
+    "ref_kind": "path",
+    "state": "ok",
+    "strength": "strong"
+   }
+  ],
+  "skipped_as_external": 0,
+  "states": [
+   "moved",
+   "gone",
+   "never_existed",
+   "ambiguous",
+   "unknown",
+   "ok"
+  ],
+  "strengths": [],
+  "total_count": 5,
+  "truncated": false,
+  "unchecked": {
+   "instruction": 3
+  },
+  "untrusted_fields": [
+   "rows[].ref",
+   "rows[].file",
+   "rows[].path",
+   "rows[].successor",
+   "rows[].successors",
+   "rows[].replacement",
+   "rows[].container",
+   "rows[].type",
+   "rows[].types",
+   "rows[].site.*",
+   "rows[].candidate_paths",
+   "rows[].candidates[].*",
+   "rows[].nearest_existing",
+   "files[].file"
+  ],
+  "weak_rows_not_counted": 0
+ }
+}

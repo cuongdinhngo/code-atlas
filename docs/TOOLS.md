@@ -940,7 +940,8 @@ type, or two, is `unknown` (`untyped_container`, `container_is_callable` for a f
 in a file suffix the index, the doc set or a tracked file carries is a path unless it is an `ok` symbol. A `moved` row
 with one successor and an in-place form is `patch_ready`; `format: patch` answers `edits` and
 `apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git; a link in one is
-looked for beside it first (`exists_in_memory`), and missing there and in the repo is `gone` (`missing_from_memory`). The shell adds
+looked for beside it first (`exists_in_memory`), and missing there and in the repo is `gone` (`missing_from_memory`). With `refs_planned_markers`, a marked
+line's absent (`never_existed` or `gone`) target is `planned`, never actionable nor unchecked; `--fail-on planned_but_exists` fails on a marker to drop. The shell adds
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.
 
 ### `compute`
@@ -1241,6 +1242,7 @@ a silent fallback.
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
 | `CA_DEFINITION_ORDER` | `definition_order` | unset | path globs, most authoritative first, naming the **live** definition of a qname defined more than once (437): one `<n>` in a glob reads a version from the path, highest wins (`["db/migrations/V<n>__*.sql", "db/snapshot/*.sql"]`). Read before a rules file's `definitions.precedence`, [same rules](#indirection-rule-files). In the toml anything but a list of globs fails loud |
 | `CA_REFS_INSTRUCTION` · `CA_REFS_MEMORY` · `CA_REFS_REFERENCE` · `CA_REFS_ARCHIVE` | `refs_instruction` · `refs_memory` · `refs_reference` · `refs_archive` | `CLAUDE.md`, `AGENTS.md`, `.claude/rules|skills/**`, `.cursor/rules/**`, `.github/copilot-instructions.md` · the host's project memory folder · `docs/**`, wiki folders · none | the doc corpus `code-atlas query --verify-refs` reads, per priority class (438): repo-relative globs of markdown files, matched, never run (430). `archive` is reported and never counted; a file two classes name takes the more authoritative. Unset `refs_memory` reads Claude Code's memory folder for this repo (`$CLAUDE_CONFIG_DIR` or `~/.claude`, `projects/<repo path, non-alphanumerics as ->/memory`), a host choice the repo cannot move (443) |
+| `CA_REFS_PLANNED_MARKERS` | `refs_planned_markers` | none | literal strings (≤ 32 characters) that mark a doc line's references planned (460): an absent target reads `planned`, a present one `ok` (`planned_but_exists`), counted as `markers_to_drop`. Unset, the answer is unchanged |
 | `CA_REFS_SESSION_LINE` | `refs_session_line` | `false` | `true` adds the stale-reference count line to `code-atlas-state` at `SessionStart` (439); off, nothing reads the corpus at session start |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 26. |
 | `CA_VARIANT_PAIRS` | `variant_pairs` | none | name-pattern pairs `compute`'s `variant_pairs` reads when no params name one (441): toml `[["*Async", "*"]]`, env `*Async|*,get*|set*`; each side a name with exactly one `*` and no other glob character, matched, never run. Region twins read the same way: `[["*<RegionA>", "*<RegionB>"]]` for `SaveOrder<RegionA>` / `SaveOrder<RegionB>` (443) |

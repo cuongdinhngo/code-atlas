@@ -19,7 +19,7 @@ from code_atlas.tools.nav_result import attach_limit_capped
 
 NAME = "verify_refs"
 DocClass = Literal["instruction", "memory", "reference", "archive"]
-State = Literal["moved", "gone", "never_existed", "ambiguous", "unknown", "ok"]
+State = Literal["moved", "gone", "never_existed", "ambiguous", "unknown", "planned", "ok"]
 Strength = Literal["strong", "weak"]
 Format = Literal["json", "md", "patch"]
 DetailLevel = Literal["minimal", "standard"]
