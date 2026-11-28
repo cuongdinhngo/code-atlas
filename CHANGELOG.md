@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A dotted word whose head is a function or method is `unknown` (`container_is_callable`), not `gone`:
+  `run.end` names a telemetry event, not a member of `Pipeline.run`. A lowercase first word matched only
+  by a value's or a function's name (`tts`, `jobs`) is `weak` (`matched_by: member_name`), so never
+  actionable; a package name keeps the row strong. An indexed `table.column` is `ok` (`table_column`) (457).
 - `verify_refs` follows a dotted reference through a field's, property's or method's declared type:
   `Timeline.theme.vars` is `ok` (`via_declared_type`) when `theme`'s class declares `vars`. The type is
   the class the annotation's `REFERENCES` edge reaches (PHP, Python, TypeScript; SQL types nothing), so

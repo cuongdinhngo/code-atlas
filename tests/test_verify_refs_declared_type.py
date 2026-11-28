@@ -107,13 +107,13 @@ def test_a_typed_container_resolves_the_member_on_its_type(
     ("ref", "state", "reason", "actionable"),
     [
         ("Timeline.meta.keys", "unknown", "untyped_container", False),  # `dict`: not indexed
-        ("Timeline.run.later", "unknown", "untyped_container", False),  # no return annotation
+        ("Timeline.run.later", "unknown", "container_is_callable", False),  # no return annotation
         ("Timeline.either.vars", "unknown", "several_container_types", False),
         ("box.vars", "unknown", "several_container_types", False),  # two `box`, two types
         # A callable's annotation edges also name its parameters and decorators (R5.6).
-        ("Timeline.build.vars", "unknown", "untyped_container", False),  # a parameter type
-        ("Timeline.make.nodes", "unknown", "untyped_container", False),  # return + parameter
-        ("Timeline.made.f", "unknown", "untyped_container", False),  # a class decorator
+        ("Timeline.build.vars", "unknown", "container_is_callable", False),  # a parameter type
+        ("Timeline.make.nodes", "unknown", "container_is_callable", False),  # return + parameter
+        ("Timeline.made.f", "unknown", "container_is_callable", False),  # a class decorator
         # A member the type does not declare keeps today's verdicts, read on the type's file.
         ("Timeline.theme.old", "gone", "missing_on_live_container", True),
         ("Timeline.theme.invented", "unknown", "not_declared_on_container", False),

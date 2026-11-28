@@ -58,6 +58,24 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 457-C1 — a classifier over node kinds names the kinds it accepts, never the ones it excludes
+
+- type: 2 (code) · handle: `accept-by-kind-not-reject-by-kind`
+- status: proposed · seen: 457
+- evidence: the weak-head rule first read "not a class" (`not in TYPE_KINDS`), and a package's `Namespace` node
+  slipped through it, so `core.ir.Theme.old` lost a true `gone` (the reviewer's probe). Listing the kinds that mean
+  "a value or a function" closed it: a kind added to the vocabulary later stays out until someone names it.
+- destination: first sighting.
+
+### 457-C2 — a value the ticket names is the acceptance bar, even when an equal one already exists
+
+- type: 2 (process) · handle: `a-named-value-in-the-ticket-is-the-bar`
+- status: proposed · seen: 457
+- evidence: Scope 3 named the reason `table_column`; the design reused the existing `indexed` as equivalent and the
+  ticket-blind challenger read it as not met. Naming it cost three lines. Raise the substitution at Gate 1, or ship
+  the named value.
+- destination: first sighting.
+
 ### 456-C1 — a new answer path is judged by every row it changes, not the rows it was built for
 
 - type: 2 (code) · handle: `diff-every-row-not-the-target-rows`
