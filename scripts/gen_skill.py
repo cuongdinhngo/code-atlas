@@ -144,6 +144,10 @@ def render_skill() -> str:
             "",
             *SHELL_ROUTE,
             "",
+            "## Acting on a `verify_refs` row",
+            "",
+            *VERIFY_REFS_ROWS,
+            "",
             "## What this skill is not",
             "",
             "It carries the map, never a second set of tool descriptions — the descriptions the",
@@ -339,6 +343,7 @@ OCCASIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("get_index_status", "trace_capability", "architecture_overview"),
     ),
     ("A bug report or test doc names a URL", ("search_symbol", "trace_capability", "impact")),
+    ("Editing CLAUDE.md, a skill, memory or a doc that names code", ("verify_refs",)),
 )
 
 BRIEF_BEGIN = "<!-- code-atlas:agent-brief -->"
@@ -371,7 +376,8 @@ SHELL_ROUTE: tuple[str, ...] = (
     "- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the"
     " payload the MCP tool returns; `--batch <file.jsonl>` answers one"
     " `{\"tool\": …, \"args\": {…}}` per line over one opened index."
-    " Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.",
+    " Use it for a script, a CI check or a lint; `code-atlas --help` lists every shell command,"
+    " `code-atlas query --help` the exit codes.",
     "- **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:**"
     " `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and"
     " answer `holds`, `changed` or `unverifiable`.",
@@ -384,11 +390,39 @@ SHELL_ROUTE: tuple[str, ...] = (
     " `--class instruction`, `--state moved`, `--strength weak`, `--format md`, `--limit N`,"
     " and `--fail-on actionable` to fail a pre-commit hook. `--format patch | git apply` corrects"
     " each one-successor move in place; `--format jsonl` exports every row (`--history-budget S`)"
-    " and `--refs-diff OLD NEW` counts what two exports fixed.",
+    " and `--refs-diff OLD NEW` counts what two exports fixed; `--fail-on planned_but_exists`"
+    " fails on a planned marker whose target now exists.",
     "- **\"Which shared helpers does no doc name?\"** `--undocumented <path globs>`"
     " `--docs <doc globs>` lists the top-level exports there that no doc names (`!glob` leaves"
     " files out; an allowlist file in `refs_undocumented_allow`); `--fail-on any` makes it a CI"
     " gate. The `verify_refs` tool's `undocumented` answers the same.",
+)
+
+# How to act on a verify_refs row (456-461): no tool description has room for it, and an agent
+# that reads `unknown` as absent edits a true doc. Brief and skill splice this one copy (R1.8).
+VERIFY_REFS_ROWS: tuple[str, ...] = (
+    "- **Fix only what is `actionable`** — `moved` or `gone`, `strong`. A `moved` row with one"
+    " `successor` is `patch_ready`: take `format: patch`'s `edits`, never retype the name."
+    " Pass `doc_class: [\"instruction\"]` first — CLAUDE.md and skills steer every session.",
+    "- **`unknown`, `ambiguous` and `never_existed` are `unchecked`, never `ok` and never proof"
+    " of absence.** The `reason` says why the graph could not decide — `untyped_container`,"
+    " `several_container_types`, `not_declared_on_container`, or `container_is_callable` (the"
+    " dotted word names an event or key, not a member). Read the code before you edit the doc.",
+    "- **`weak` rows are prose, not references** — e.g. a lowercase word matched only by a"
+    " member's name (`matched_by: member_name`). They are never actionable; leave them.",
+    "- `ok` with `via_declared_type`, `inherited` or `table_column` resolved through a field's"
+    " type, an ancestor or a schema column. A name ending in a file suffix (`atoms.json`) is"
+    " checked as a path, not as a member.",
+    "- **Memory links** resolve in the memory folder first: `missing_from_memory` is a broken"
+    " link in a memory file — edit that file; it is outside git, so no patch reaches it.",
+    "- **A doc naming code not written yet:** put a `refs_planned_markers` string (set in"
+    " `.code-atlas.toml`, e.g. `⏳`) on that line instead of deleting the name — it reads"
+    " `planned`, not `gone`. Once the code lands it reads `planned_but_exists` and is counted in"
+    " `markers_to_drop`: remove the marker.",
+    "- **`undocumented` rows:** `documented_by_file` counts exports a doc covers only by naming"
+    " their file; `coverage.visibility_not_emitted` means that language's privates were read as"
+    " public. Leave test files out with a `!`-prefixed glob and list deliberate internals in"
+    " the `refs_undocumented_allow` file — do not write docs for them.",
 )
 
 # A subagent's worktree shares its parent's server and roots (408); only the call can name it.
@@ -477,6 +511,10 @@ USAGE_RULES: tuple[str, ...] = (
     " declared in a `CA_INDIRECTION_RULES` file: `trace_capability(route=…)` traces from its"
     " handler, `impact(routes=[…])` lists the routes a change reaches, `search_symbol` finds a"
     " route by key. An unmatched URL answers `no_such_symbol` with `nearest_routes` (385).",
+    "",
+    "### Acting on a `verify_refs` row (456–461)",
+    "",
+    *VERIFY_REFS_ROWS,
     "",
     "### From a shell — no agent turn per answer",
     "",

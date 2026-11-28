@@ -348,13 +348,15 @@ agent (381). It gives each fix, in this order:
   `get_index_status` and the state line lead with `rebuild required`.
 - **The adapters.** If `CA_<LANG>_CMD` points into a checkout, pull that checkout and reinstall its
   dependencies when the entry says so. An adapter on an older contract fails the handshake.
+- **The agent brief.** It is a copy the writing version left in `AGENTS.md`, so it never learns a
+  new tool or flag by itself: re-run `setup.py <repo> --write-agent-brief` (see *Agent brief*).
 
 ### Agent brief (optional)
 
-After the first index, offer the **agent brief** into the repo's `AGENTS.md` — six occasions that
-name a tool, plus how to spend the calls, how to read an answer's honesty fields, what the index
-**cannot** answer, and two traps. Not the full tool roster (generated from `which_tool`; do not
-hand-edit):
+After the first index, offer the **agent brief** into the repo's `AGENTS.md` — the occasions that
+name a tool, how to spend the calls, how to read an answer's honesty fields and a `verify_refs`
+row, what the index **cannot** answer, and two traps. Not the full tool roster (generated from
+`which_tool`; do not hand-edit):
 
 ```bash
 python3 scripts/setup.py /abs/path/to/your-project --write-agent-brief
@@ -398,6 +400,9 @@ the code: each reference is `ok`, `moved` (with its successor), `gone`, `never_e
 or `unknown`, with `--format md` for a table and `--fail-on moved,gone` for a pre-commit lint (438).
 `--format patch | git apply` corrects every reference with one successor in place, and nothing else
 on its line; the `verify_refs` tool gives an agent the same answer, its corrections as edits (439).
+A line carrying a `refs_planned_markers` string names code not written yet and reads `planned`,
+not `gone` (460); `--undocumented GLOB… --docs GLOB…` asks the other way — which exports no doc
+names (461).
 
 ### Three properties worth knowing before you install
 

@@ -82,11 +82,21 @@ Call `get_index_status` first whenever you are unsure the index is current.
 
 ## From a shell
 
-- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.
+- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint; `code-atlas --help` lists every shell command, `code-atlas query --help` the exit codes.
 - **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:** `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and answer `holds`, `changed` or `unverifiable`.
 - **"Has this method changed since revision X?"** `--snapshot-symbols <out>` at X, then `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`, `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.
-- **"Is what `CLAUDE.md` and the docs say still true?"** `--verify-refs [globs]` states each path and symbol they name `ok`, `moved` (with its successor), `gone`, `never_existed`, `ambiguous` or `unknown`; by default only the actionable ones (moved or gone, strong); `--class instruction`, `--state moved`, `--strength weak`, `--format md`, `--limit N`, and `--fail-on actionable` to fail a pre-commit hook. `--format patch | git apply` corrects each one-successor move in place; `--format jsonl` exports every row (`--history-budget S`) and `--refs-diff OLD NEW` counts what two exports fixed.
+- **"Is what `CLAUDE.md` and the docs say still true?"** `--verify-refs [globs]` states each path and symbol they name `ok`, `moved` (with its successor), `gone`, `never_existed`, `ambiguous` or `unknown`; by default only the actionable ones (moved or gone, strong); `--class instruction`, `--state moved`, `--strength weak`, `--format md`, `--limit N`, and `--fail-on actionable` to fail a pre-commit hook. `--format patch | git apply` corrects each one-successor move in place; `--format jsonl` exports every row (`--history-budget S`) and `--refs-diff OLD NEW` counts what two exports fixed; `--fail-on planned_but_exists` fails on a planned marker whose target now exists.
 - **"Which shared helpers does no doc name?"** `--undocumented <path globs>` `--docs <doc globs>` lists the top-level exports there that no doc names (`!glob` leaves files out; an allowlist file in `refs_undocumented_allow`); `--fail-on any` makes it a CI gate. The `verify_refs` tool's `undocumented` answers the same.
+
+## Acting on a `verify_refs` row
+
+- **Fix only what is `actionable`** — `moved` or `gone`, `strong`. A `moved` row with one `successor` is `patch_ready`: take `format: patch`'s `edits`, never retype the name. Pass `doc_class: ["instruction"]` first — CLAUDE.md and skills steer every session.
+- **`unknown`, `ambiguous` and `never_existed` are `unchecked`, never `ok` and never proof of absence.** The `reason` says why the graph could not decide — `untyped_container`, `several_container_types`, `not_declared_on_container`, or `container_is_callable` (the dotted word names an event or key, not a member). Read the code before you edit the doc.
+- **`weak` rows are prose, not references** — e.g. a lowercase word matched only by a member's name (`matched_by: member_name`). They are never actionable; leave them.
+- `ok` with `via_declared_type`, `inherited` or `table_column` resolved through a field's type, an ancestor or a schema column. A name ending in a file suffix (`atoms.json`) is checked as a path, not as a member.
+- **Memory links** resolve in the memory folder first: `missing_from_memory` is a broken link in a memory file — edit that file; it is outside git, so no patch reaches it.
+- **A doc naming code not written yet:** put a `refs_planned_markers` string (set in `.code-atlas.toml`, e.g. `⏳`) on that line instead of deleting the name — it reads `planned`, not `gone`. Once the code lands it reads `planned_but_exists` and is counted in `markers_to_drop`: remove the marker.
+- **`undocumented` rows:** `documented_by_file` counts exports a doc covers only by naming their file; `coverage.visibility_not_emitted` means that language's privates were read as public. Leave test files out with a `!`-prefixed glob and list deliberate internals in the `refs_undocumented_allow` file — do not write docs for them.
 
 ## What this skill is not
 

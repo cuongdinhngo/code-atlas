@@ -17,6 +17,11 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- The agent brief and the skill teach how to act on a `verify_refs` row — fix only `actionable`, read an
+  `unknown` row's `reason` before editing, leave `weak` rows, mark planned code instead of deleting it,
+  drop a marker once `planned_but_exists` — and the brief gains the occasion *editing CLAUDE.md, a skill,
+  memory or a doc*. **After upgrading, re-run `setup.py <repo> --write-agent-brief`**: the brief in a
+  repo's `AGENTS.md` is a copy and does not update itself (456–462).
 - `code-atlas --help` (`-h`, `help`) prints usage and exits: `query` and its CI flags (`--verify-refs`,
   `--undocumented`, `--fail-on`, `--refs-diff`), the sibling commands, and that no argument starts the MCP
   server. It used to start the server and wait on stdin (462).
