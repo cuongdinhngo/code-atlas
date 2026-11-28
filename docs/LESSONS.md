@@ -58,6 +58,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 458-C1 — a vocabulary derived from the tree needs a floor before one file can join it
+
+- type: 2 (code) · handle: `a-derived-set-needs-a-floor`
+- status: proposed · seen: 458
+- evidence: the file-suffix set took every suffix a tracked file carries, so `Dockerfile.dev` made `dev` a suffix
+  and the removed member `Settings.dev` a silent path (the reviewer's probe). Deriving a set (R6.7) is right; one
+  sighting is noise, so a tree-only member now needs two files.
+- destination: first sighting.
+
 ### 457-C1 — a classifier over node kinds names the kinds it accepts, never the ones it excludes
 
 - type: 2 (code) · handle: `accept-by-kind-not-reject-by-kind`

@@ -21,6 +21,7 @@ import posixpath
 import re
 import tempfile
 import time
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -417,6 +418,7 @@ class Resolver:
         self._parents: Mapping[str, tuple[str, ...]] | None = None
         self._types: dict[str, list[str]] = {}
         self._member_heads: dict[str, bool] = {}
+        self._suffixes: frozenset[str] | None = None
 
     # ----------------------------------------------------------------- shared
     def _exists(self, rel: str) -> bool:
@@ -497,6 +499,22 @@ class Resolver:
             if found is not None:
                 return found
         return Verdict(NEVER_EXISTED, "no_branch_ever_held_it")
+
+    def names_a_file(self, ref: str) -> bool:
+        """``ref`` is one slash-less name whose last segment is, case kept, a file suffix the index,
+        the doc set or a tracked file carries — so `threading.Lock` is not one (458)."""
+        name, dot, suffix = ref.rpartition(".")
+        if "/" in ref or not dot or not name or not suffix:
+            return False
+        if self._suffixes is None:
+            # A suffix only the tree knows counts once two files carry it: `Dockerfile.dev` alone
+            # must not turn `Settings.dev` into a path.
+            seen = Counter(
+                n.rpartition(".")[2] for n in self._tracked_index() if "." in n.strip(".")
+            )
+            tracked = {suffix for suffix, files in seen.items() if files > 1 and len(suffix) > 1}
+            self._suffixes = frozenset(self.shapes.suffixes | _DOC_FILE_SUFFIXES | tracked)
+        return suffix in self._suffixes
 
     def _tracked_index(self) -> Mapping[str, list[str]]:
         if self._tracked is None:
@@ -957,15 +975,19 @@ def _rows(
 
 
 def _resolve(resolver: Resolver, ref: str, kind: str, doc: str) -> tuple[str, Verdict | None]:
-    """One reference's kind and verdict. `threading.Lock` reads like a file and never was one:
-    a slash-less path no branch held, in a symbol's shape, is asked again as a symbol."""
-    if kind != PATH:
+    """One reference's kind and verdict: a slash-less path no branch held, in a symbol's shape, is
+    asked again as a symbol (`threading.Lock`); one ending in a file suffix (`atoms.json`) stays a
+    path unless that symbol is `ok` or external (458)."""
+    file_name = resolver.names_a_file(ref)
+    if kind != PATH and not file_name:
         return kind, resolver.symbol(ref, kind, doc)
     verdict = resolver.path(ref, doc)
     if verdict.state == NEVER_EXISTED and "/" not in ref:
         if resolver.shapes.qualified_suffixes(ref) is not None:
-            return SYMBOL, resolver.symbol(ref, SYMBOL, doc)
-    return kind, verdict
+            found = resolver.symbol(ref, SYMBOL, doc)
+            if not file_name or found is None or found.state == OK:
+                return SYMBOL, found
+    return PATH, verdict
 
 
 @dataclass(slots=True)

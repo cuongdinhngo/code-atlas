@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A name ending in a file suffix — the index's, the doc set's, or one a tracked file carries (`.wav`,
+  `.j2`) — is a path: `atoms.json` is `never_existed`, no longer the member `json` of `atoms` read as
+  `gone`. An `ok` symbol (`Series.json`) and an external one (`response.json`) still win (458).
 - A dotted word whose head is a function or method is `unknown` (`container_is_callable`), not `gone`:
   `run.end` names a telemetry event, not a member of `Pipeline.run`. A lowercase first word matched only
   by a value's or a function's name (`tts`, `jobs`) is `weak` (`matched_by: member_name`), so never
