@@ -13,9 +13,12 @@ Each entry flags the two costs an upgrade can carry:
 
 How to upgrade each install route is in the README, under *Upgrading*.
 
-## Unreleased
+## 0.12.0 — 2026-11-28 · contract 21 · schema 9
 
-Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
+Docs that stay true: `verify_refs` reads members on their declared type, knows paths, memory and
+planned work, and answers which exports no doc names; setup can install the freshness hooks. No
+rebuild is forced. **Adapter checkout must be updated** — the PHP adapter (447) and the SQL adapter
+(448) changed. **Re-run `setup.py <repo> --write-agent-brief`** so the repo's brief teaches the new rows.
 
 - The agent brief and the skill teach how to act on a `verify_refs` row — fix only `actionable`, read an
   `unknown` row's `reason` before editing, leave `weak` rows, mark planned code instead of deleting it,
