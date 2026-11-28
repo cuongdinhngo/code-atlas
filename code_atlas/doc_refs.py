@@ -83,7 +83,7 @@ ACTIONABLE_STATES: tuple[str, ...] = ("moved", "gone")
 # A path the tree or git history answered is a real path, however the doc wrote it.
 _PATH_FOUND = frozenset(
     {"exists", "under_a_subproject", "git_rename", "git_rename_split", "deleted",
-     "renamed_then_removed"}
+     "renamed_then_removed", "exists_in_memory", "missing_from_memory"}
 )
 # Memory files live in the host's per-project folder, outside the repo; rows name them so (443).
 MEMORY_PREFIX = "<agent-memory>/"
@@ -467,13 +467,17 @@ class Resolver:
         return self._doc_revs[doc]
 
     # ----------------------------------------------------------------- paths
-    def path(self, ref: str, doc: str) -> Verdict:
+    def _tries(self, ref: str, doc: str) -> list[str]:
         here = posixpath.dirname(doc) if in_repo(doc) else ""
-        tries = list(dict.fromkeys(
+        return list(dict.fromkeys(
             p for p in (posixpath.normpath(ref.rstrip("/")),
                         posixpath.normpath(posixpath.join(here, ref.rstrip("/"))))
             if p != "." and not p.startswith("../") and p != ".."
         ))
+
+    def _in_tree(self, ref: str, doc: str) -> Verdict | None:
+        """What the checkout alone answers — no git history; None when it does not hold the path."""
+        tries = self._tries(ref, doc)
         if not tries:
             return Verdict(UNKNOWN, "outside_the_repo")
         for rel in tries:
@@ -487,6 +491,14 @@ class Resolver:
             return Verdict(
                 AMBIGUOUS, "several_paths_end_so", {"candidate_paths": under[:CANDIDATE_CAP]}
             )
+        return None
+
+    def path(self, ref: str, doc: str) -> Verdict:
+        found = self._in_tree(ref, doc)
+        if found is not None:
+            return found
+        tries = self._tries(ref, doc)
+        here = posixpath.dirname(doc) if in_repo(doc) else ""
         history, added = self.history(), self.added()
         if history is None or added is None:
             return Verdict(UNKNOWN, "no_git_history")
@@ -515,6 +527,21 @@ class Resolver:
             tracked = {suffix for suffix, files in seen.items() if files > 1 and len(suffix) > 1}
             self._suffixes = frozenset(self.shapes.suffixes | _DOC_FILE_SUFFIXES | tracked)
         return suffix in self._suffixes
+
+    def memory_link(self, ref: str, doc: str) -> Verdict:
+        """A link in a memory file, read in that file's folder of the memory dir, then by the repo's
+        rules; in neither is `gone` (the note was deleted). One leaving the folder is repo-only."""
+        folder = memory_dir(self.config)
+        here = posixpath.dirname(doc.removeprefix(MEMORY_PREFIX))
+        rel = posixpath.normpath(posixpath.join(here, ref.rstrip("/")))
+        if posixpath.isabs(rel) or rel in (".", "..") or rel.startswith("../"):
+            return self.path(ref, doc)  # outside the memory folder (SEC-IN-03)
+        target = folder / rel
+        if resolves_inside(folder, target) and target.exists():
+            return Verdict(OK, "exists_in_memory", {"path": MEMORY_PREFIX + rel})
+        # A memory file has no git history: the checkout answers, never a rename lookup.
+        found = self._in_tree(ref, doc)
+        return found or Verdict(GONE, "missing_from_memory", {"path": MEMORY_PREFIX + rel})
 
     def _tracked_index(self) -> Mapping[str, list[str]]:
         if self._tracked is None:
@@ -934,7 +961,7 @@ def _body_hash(row: Row) -> str | None:
 def _rows(
     config: Config, store: GraphStore, corpus: Corpus, resolver: Resolver
 ) -> Iterator[dict[str, object]]:
-    seen: dict[tuple[str, str, str], tuple[str, Verdict | None]] = {}
+    seen: dict[tuple[str, ...], tuple[str, Verdict | None]] = {}
     rank = {name: n for n, name in enumerate(CLASSES)}
     # Instruction files first: the shared git budget is spent where a stale line costs most (443).
     ordered = sorted(corpus.files.items(), key=lambda item: (rank[item[1]], item[0]))
@@ -955,9 +982,14 @@ def _rows(
             ref, kind = cleaned
             if (mention.line, ref) in lines_seen:
                 continue
-            key = (ref, kind, posixpath.dirname(doc) if kind == PATH else doc)
+            # A link in host memory names a note beside it first (459).
+            memory_link = kind == PATH and mention.origin == LINK and not in_repo(doc)
+            key = (ref, kind, posixpath.dirname(doc) if kind == PATH else doc, str(memory_link))
             if key not in seen:
-                seen[key] = _resolve(resolver, ref, kind, doc)
+                seen[key] = (
+                    (PATH, resolver.memory_link(ref, doc)) if memory_link
+                    else _resolve(resolver, ref, kind, doc)
+                )
             kind, verdict = seen[key]
             if verdict is None:
                 continue

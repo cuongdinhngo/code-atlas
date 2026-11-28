@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- A link in host memory (`[t](note.md)` in `MEMORY.md`) is looked for in the memory folder first: present is
+  `ok` (`exists_in_memory`), missing there and in the repo is an actionable `gone` (`missing_from_memory`)
+  in the memory class. A link leaving the folder keeps the repo's rules (459).
 - A name ending in a file suffix — the index's, the doc set's, or one a tracked file carries (`.wav`,
   `.j2`) — is a path: `atoms.json` is `never_existed`, no longer the member `json` of `atoms` read as
   `gone`. An `ok` symbol (`Series.json`) and an external one (`response.json`) still win (458).

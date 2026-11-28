@@ -939,7 +939,8 @@ type, or two, is `unknown` (`untyped_container`, `container_is_callable` for a f
 `several_container_types`), never `gone`; an indexed `table.column` is `ok` (`table_column`). A name ending
 in a file suffix the index, the doc set or a tracked file carries is a path unless it is an `ok` symbol. A `moved` row
 with one successor and an in-place form is `patch_ready`; `format: patch` answers `edits` and
-`apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git. The shell adds
+`apply_with`. Memory rows (`<agent-memory>/…`) are edits only — they are outside git; a link in one is
+looked for beside it first (`exists_in_memory`), and missing there and in the repo is `gone` (`missing_from_memory`). The shell adds
 `--format jsonl` (every row, uncapped, keyed `class`/`file`/`ref`) and `--refs-diff OLD NEW`.
 
 ### `compute`
