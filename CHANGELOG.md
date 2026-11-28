@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- `code-atlas --help` (`-h`, `help`) prints usage and exits: `query` and its CI flags (`--verify-refs`,
+  `--undocumented`, `--fail-on`, `--refs-diff`), the sibling commands, and that no argument starts the MCP
+  server. It used to start the server and wait on stdin (462).
 - The `verify_refs` tool's new `undocumented` parameter (path globs), and `code-atlas query --undocumented GLOB…
   --docs GLOB…`, list the top-level symbols there that no doc names — the other direction — less an allowlist
   file (`refs_undocumented_allow`). Public is what an adapter's modifiers say; with none, every candidate is

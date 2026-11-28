@@ -384,12 +384,46 @@ def _expected_version(args: list[str]) -> str | None:
     return None
 
 
+HELP_ARGS = frozenset({"-h", "--help", "help"})
+
+
+def usage() -> str:
+    """What `code-atlas --help` prints (462): `query`, its CI flags, what no argument does."""
+    from importlib.metadata import entry_points
+
+    siblings = sorted(
+        ep.name for ep in entry_points(group="console_scripts")
+        if ep.value.startswith("code_atlas.") and ep.name != "code-atlas"
+    )
+    lines = [
+        "usage: code-atlas [--expect-version X.Y.Z]  serve this directory over stdio (MCP)",
+        "       code-atlas query …                   ask from a shell; `query --help` lists all",
+        "",
+        "With no argument it starts the MCP server and waits on stdin, as a host launches it.",
+        "",
+        "query, for CI and scripts:",
+        "  --verify-refs [GLOB…]    which references in agent docs still resolve",
+        "  --undocumented GLOB…     exports under the globs that no doc names (--docs GLOB…)",
+        "  --format json|md|patch|jsonl",
+        "  --fail-on STATES         exit 3 on moved,gone|actionable|unknown|planned_but_exists",
+        "                           (--undocumented: any)",
+        "  --refs-diff OLD NEW      what changed between two --format jsonl exports",
+        "  TOOL [--args JSON]       call one MCP tool and print its answer",
+    ]
+    if siblings:
+        lines += ["", "also installed: " + ", ".join(siblings)]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     """Entry point: serve this working directory over stdio, or ``code-atlas query …`` (382)."""
     if sys.argv[1:2] == ["query"]:
         from code_atlas import query
 
         raise SystemExit(query.main(sys.argv[2:]))
+    if HELP_ARGS & set(sys.argv[1:]):
+        sys.stdout.write(usage())  # never the server, never the config: a host passes none of these
+        raise SystemExit(0)
     refusal = version_refusal(_expected_version(sys.argv[1:]), package_version())
     if refusal:
         print(refusal, file=sys.stderr)
