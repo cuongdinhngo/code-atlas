@@ -31,7 +31,9 @@ def test_help_prints_usage_and_exits_at_once(argv: list[str], tmp_path: Path) ->
     done = subprocess.run(
         [sys.executable, "-m", "code_atlas.main", *argv],
         cwd=tmp_path, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=2,  # the server would wait on stdin past this
+        # Importing fastmcp alone takes ~2 s on a cold runner; the usage text, not the clock,
+        # proves the server never started.
+        timeout=60,
     )
     assert done.returncode == 0, done.stderr
     for needle in ("query", "--verify-refs", "--fail-on", "--refs-diff", "MCP server"):
