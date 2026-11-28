@@ -3,14 +3,14 @@ id: 456
 slug: verify-refs-follow-declared-type
 title: "verify_refs follows a dotted chain through a field's or property's declared type"
 phase: 2
-milestone: "Field gaps — tiny-studio"
+milestone: "Field gaps — Python/TS consumer"
 status: todo
 depends_on: [443]
 ---
 
 ## Why this exists
 
-A field report from a second consumer repo (tiny-studio, Python + TypeScript, 406 files; full
+A field report from a second consumer repo (the Python/TS consumer: Python + TypeScript, 406 files; full
 `--format jsonl` export on 2026-11-27, 1,610 rows, 73 actionable). Of the 73 actionable rows, 70 are
 `gone` / `missing_on_live_container`, and none of them is real. The largest group that is
 clearly a bug: the doc names `a.b.c`, `a.b` resolves to a **field or property**, and `c` is a member
@@ -49,6 +49,6 @@ and a user who sees the noise stops trusting the tool.
 1. Fixtures (`tests/test_verify_refs_declared_type.py`): field → class → member `ok`; `X | None`
    `ok`; property return type `ok`; a member missing on the declared type keeps today's verdicts;
    a `dict`-typed field → `unknown`, not actionable.
-2. Re-run the tiny-studio export (or a scratch copy). The five refs above (8 rows) are no longer
+2. Re-run the Python/TS consumer's export (or a scratch copy). The five refs above (8 rows) are no longer
    actionable. Report the actionable count before and after.
 3. The anchor's instruction `gone` count does not rise. Report it.

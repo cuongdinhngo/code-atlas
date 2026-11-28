@@ -3,14 +3,14 @@ id: 457
 slug: verify-refs-callable-container-not-gone
 title: "A dotted name whose head only matches a method or function is not a member reference"
 phase: 2
-milestone: "Field gaps — tiny-studio"
+milestone: "Field gaps — Python/TS consumer"
 status: todo
 depends_on: [443]
 ---
 
 ## Why this exists
 
-Same field report as 456 (tiny-studio, 2026-11-27). Docs name dotted words that are **not code**:
+Same field report as 456 (the Python/TS consumer, 2026-11-27). Docs name dotted words that are **not code**:
 telemetry event names, SQL `table.column` pairs, Playwright calls on a local. `_resolve` takes the
 part before the last dot, finds *some* indexed symbol with that last word, and asks `_member`.
 That symbol is often a **method**, which has no members. Git never saw the member in the method's
@@ -45,6 +45,6 @@ Around 50 of the 70 false rows. The match on a lowercase head word is the weak p
 1. Fixtures: `run.end` against a class with method `run` → `unknown`, not actionable;
    `Repo.gone` against a class `Repo` keeps today's verdict; a lowercase head that matches only a
    member name → `weak`.
-2. Re-run tiny-studio: none of the rows in the table above is actionable. Report the count.
+2. Re-run the Python/TS consumer: none of the rows in the table above is actionable. Report the count.
 3. Anchor: the instruction-class actionable count before and after. A drop is fine if each dropped
    row is shown to be a non-code word.

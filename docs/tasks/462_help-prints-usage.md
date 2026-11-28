@@ -3,7 +3,7 @@ id: 462
 slug: help-prints-usage
 title: "`code-atlas --help` prints usage instead of starting the MCP server"
 phase: 2
-milestone: "Field gaps — tiny-studio"
+milestone: "Field gaps — Python/TS consumer"
 status: todo
 depends_on: []
 ---

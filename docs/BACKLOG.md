@@ -34,7 +34,7 @@ Is what an agent was told still true; exact answers over the graph. 442's day-7 
 | 442 | [0.11 validation: 7-day control vs treatment](tasks/442_validation-0-11.md) | Validate | todo | 437–446, 464 |
 | 464 | [Tools `CA_TOOLS` hides](tasks/464_tools-hidden-by-allowlist.md) | Surface | todo | 268 |
 
-## Open work — Field gaps from tiny-studio
+## Open work — Field gaps from the Python/TS consumer
 
 A second consumer's `verify_refs` export (2026-11-27): all 70 actionable symbol rows were false.
 

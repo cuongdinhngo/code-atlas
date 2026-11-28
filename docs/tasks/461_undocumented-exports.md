@@ -3,7 +3,7 @@ id: 461
 slug: undocumented-exports
 title: "The other direction: exports of chosen paths that no doc names"
 phase: 2
-milestone: "Field gaps — tiny-studio"
+milestone: "Field gaps — Python/TS consumer"
 status: todo
 depends_on: [443]
 ---
@@ -12,8 +12,8 @@ depends_on: [443]
 
 Same field report as 456. `verify_refs` answers "is what the docs say still true" (docs → code). Drift
 also goes the other way: a shared helper is added and the catalogue that tells agents to reuse it is
-never updated. The next session doesn't find it and writes a second copy. tiny-studio found 14
-copies of the same error ternary, 3 of the native-dialog logic and 6 of the LLM retry loop (ADR 0018
+never updated. The next session doesn't find it and writes a second copy. The Python/TS consumer found 14
+copies of the same error ternary, 3 of the native-dialog logic and 6 of the LLM retry loop (its decision record
 audit, 2026-11-27).
 
 The index already holds both sides (exported symbols, and the refs `verify_refs` extracts). The
@@ -33,6 +33,6 @@ missing piece is the set difference.
 ## Acceptance
 
 1. Fixture: two exports, one named in a doc → one row; an allowlisted export → no row.
-2. tiny-studio: run on `web/src/components/ui/**`, `web/src/lib/**` against
+2. The Python/TS consumer: run on `src/components/ui/**`, `src/lib/**` against
    `docs/CONVENTIONS_FE.md`. Report the rows and check them by hand against the catalogue.
 3. Runtime on the anchor for one path glob, reported.

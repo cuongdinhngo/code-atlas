@@ -3,15 +3,15 @@ id: 460
 slug: verify-refs-planned-marker
 title: "A planned reference reports `planned`, and a marker whose target now exists says so"
 phase: 2
-milestone: "Field gaps — tiny-studio"
+milestone: "Field gaps — Python/TS consumer"
 status: todo
 depends_on: [443]
 ---
 
 ## Why this exists
 
-Same field report as 456. tiny-studio's conventions now hold a "shared building blocks" catalogue.
-Each row is ✅ (it exists) or ⏳ with the task that will build it, e.g. `web/src/lib/errors.ts` (T30.2).
+Same field report as 456. The Python/TS consumer's conventions now hold a "shared building blocks" catalogue.
+Each row is ✅ (it exists) or ⏳ with the task that will build it, e.g. `src/lib/errors.ts` (T30.2).
 Specs and ADRs name files that a later task creates, too. Those rows come back
 `never_existed`. That is correct, and not actionable, so they are silent.
 
@@ -19,7 +19,7 @@ The useful signal is the other way round, and nothing reports it:
 - a planned file that now **exists**, so the marker should be dropped;
 - a planned ref whose task is closed but whose file never came.
 
-The consumer is writing its own CI test for this (ADR 0018). A general marker would let any repo get
+The consumer is writing its own CI test for this. A general marker would let any repo get
 it from `verify_refs`.
 
 ## Scope
